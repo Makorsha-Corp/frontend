@@ -41,17 +41,17 @@ export const accountInvoicesApi = createApi({
         if (payment_status) {
           params.append('payment_status', payment_status);
         }
-        return `/account-invoices?${params.toString()}`;
+        return `account-invoices/?${params.toString()}`;
       },
       providesTags: ['AccountInvoice'],
     }),
     getAccountInvoiceById: builder.query<AccountInvoice, number>({
-      query: (id) => `/account-invoices/${id}`,
+      query: (id) => `account-invoices/${id}/`,
       providesTags: (result, error, id) => [{ type: 'AccountInvoice', id }],
     }),
     createAccountInvoice: builder.mutation<AccountInvoice, CreateAccountInvoiceRequest>({
       query: (body) => ({
-        url: '/account-invoices',
+        url: 'account-invoices/',
         method: 'POST',
         body,
       }),
@@ -59,7 +59,7 @@ export const accountInvoicesApi = createApi({
     }),
     updateAccountInvoice: builder.mutation<AccountInvoice, { id: number; data: UpdateAccountInvoiceRequest }>({
       query: ({ id, data }) => ({
-        url: `/account-invoices/${id}`,
+        url: `account-invoices/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -67,7 +67,7 @@ export const accountInvoicesApi = createApi({
     }),
     deleteAccountInvoice: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
-        url: `/account-invoices/${id}`,
+        url: `account-invoices/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['AccountInvoice'],

@@ -22,7 +22,7 @@ export interface ActionResponse<T> {
 export const salesDeliveriesApi = createApi({
   reducerPath: 'salesDeliveriesApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8000/api/v1',
+    baseUrl: import.meta.env.VITE_API_URL,
     prepareHeaders: (headers, { getState }) => {
       const state = getState() as RootState;
       const token = state.auth.token;
@@ -47,17 +47,17 @@ export const salesDeliveriesApi = createApi({
         if (delivery_status) {
           params.append('delivery_status', delivery_status);
         }
-        return `/sales-deliveries/?${params.toString()}`;
+        return `sales-deliveries/?${params.toString()}`;
       },
       providesTags: ['SalesDelivery'],
     }),
     getSalesDeliveryById: builder.query<SalesDelivery, number>({
-      query: (id) => `/sales-deliveries/${id}/`,
+      query: (id) => `sales-deliveries/${id}/`,
       providesTags: (result, error, id) => [{ type: 'SalesDelivery', id }],
     }),
     createSalesDelivery: builder.mutation<SalesDelivery, CreateSalesDeliveryWithItemsDTO>({
       query: ({ delivery, items }) => ({
-        url: '/sales-deliveries/',
+        url: 'sales-deliveries/',
         method: 'POST',
         body: {
           delivery_in: delivery,
@@ -68,13 +68,13 @@ export const salesDeliveriesApi = createApi({
     }),
     completeSalesDelivery: builder.mutation<ActionResponse<any>, number>({
       query: (id) => ({
-        url: `/sales-deliveries/${id}/complete/`,
+        url: `sales-deliveries/${id}/complete/`,
         method: 'POST',
       }),
       invalidatesTags: ['SalesDelivery', 'SalesOrder'],
     }),
     getSalesDeliveryItems: builder.query<SalesDeliveryItem[], number>({
-      query: (deliveryId) => `/sales-deliveries/${deliveryId}/items/`,
+      query: (deliveryId) => `sales-deliveries/${deliveryId}/items/`,
       providesTags: (result, error, deliveryId) => [{ type: 'SalesDeliveryItem', id: `delivery-${deliveryId}` }],
     }),
   }),

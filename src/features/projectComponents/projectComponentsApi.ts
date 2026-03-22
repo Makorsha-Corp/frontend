@@ -36,17 +36,17 @@ export const projectComponentsApi = createApi({
         if (project_id) {
           params.append('project_id', project_id.toString());
         }
-        return `/project-components/?${params.toString()}`;
+        return `project-components/?${params.toString()}`;
       },
       providesTags: ['ProjectComponent'],
     }),
     getProjectComponentById: builder.query<ProjectComponent, number>({
-      query: (id) => `/project-components/${id}/`,
+      query: (id) => `project-components/${id}/`,
       providesTags: (result, error, id) => [{ type: 'ProjectComponent', id }],
     }),
     createProjectComponent: builder.mutation<ProjectComponent, CreateProjectComponentDTO>({
       query: (body) => ({
-        url: '/project-components/',
+        url: 'project-components/',
         method: 'POST',
         body,
       }),
@@ -54,7 +54,7 @@ export const projectComponentsApi = createApi({
     }),
     updateProjectComponent: builder.mutation<ProjectComponent, { id: number; data: UpdateProjectComponentDTO }>({
       query: ({ id, data }) => ({
-        url: `/project-components/${id}/`,
+        url: `project-components/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -62,7 +62,7 @@ export const projectComponentsApi = createApi({
     }),
     deleteProjectComponent: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/project-components/${id}/`,
+        url: `project-components/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ProjectComponent'],

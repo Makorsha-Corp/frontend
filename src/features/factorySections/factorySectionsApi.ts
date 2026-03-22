@@ -33,17 +33,17 @@ export const factorySectionsApi = createApi({
         if (search) {
           params.append('search', search);
         }
-        return `/factory-sections?${params.toString()}`;
+        return `factory-sections/?${params.toString()}`;
       },
       providesTags: ['FactorySection'],
     }),
     getFactorySectionById: builder.query<FactorySection, number>({
-      query: (id) => `/factory-sections/${id}`,
+      query: (id) => `factory-sections/${id}/`,
       providesTags: (result, error, id) => [{ type: 'FactorySection', id }],
     }),
     createFactorySection: builder.mutation<FactorySection, CreateFactorySectionRequest>({
       query: (body) => ({
-        url: '/factory-sections',
+        url: 'factory-sections/',
         method: 'POST',
         body,
       }),
@@ -51,7 +51,7 @@ export const factorySectionsApi = createApi({
     }),
     updateFactorySection: builder.mutation<FactorySection, { id: number; data: UpdateFactorySectionRequest }>({
       query: ({ id, data }) => ({
-        url: `/factory-sections/${id}`,
+        url: `factory-sections/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -59,7 +59,7 @@ export const factorySectionsApi = createApi({
     }),
     deleteFactorySection: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/factory-sections/${id}`,
+        url: `factory-sections/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['FactorySection'],

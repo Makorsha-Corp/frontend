@@ -10,7 +10,7 @@ import type { FinancialAuditLog } from '../../types/financialAuditLog';
 export const financialAuditLogsApi = createApi({
   reducerPath: 'financialAuditLogsApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8000/api/v1',
+    baseUrl: import.meta.env.VITE_API_URL,
     prepareHeaders: (headers, { getState }) => {
       const state = getState() as RootState;
       const token = state.auth.token;
@@ -29,7 +29,7 @@ export const financialAuditLogsApi = createApi({
   endpoints: (builder) => ({
     // Get recent audit logs
     getRecentAuditLogs: builder.query<FinancialAuditLog[], { limit?: number }>({
-      query: ({ limit = 50 }) => `/financial-audit-logs/?limit=${limit}`,
+      query: ({ limit = 50 }) => `financial-audit-logs/?limit=${limit}`,
       providesTags: ['AuditLog'],
     }),
 
@@ -39,7 +39,7 @@ export const financialAuditLogsApi = createApi({
       { entityType: string; entityId: number; skip?: number; limit?: number }
     >({
       query: ({ entityType, entityId, skip = 0, limit = 100 }) =>
-        `/financial-audit-logs/entity/${entityType}/${entityId}?skip=${skip}&limit=${limit}`,
+        `financial-audit-logs/entity/${entityType}/${entityId}/?skip=${skip}&limit=${limit}`,
       providesTags: (result, error, { entityType, entityId }) => [
         { type: 'AuditLog', id: `${entityType}-${entityId}` },
       ],
@@ -51,7 +51,7 @@ export const financialAuditLogsApi = createApi({
       { entityType: string; entityId: number; skip?: number; limit?: number }
     >({
       query: ({ entityType, entityId, skip = 0, limit = 100 }) =>
-        `/financial-audit-logs/related/${entityType}/${entityId}?skip=${skip}&limit=${limit}`,
+        `financial-audit-logs/related/${entityType}/${entityId}/?skip=${skip}&limit=${limit}`,
       providesTags: (result, error, { entityType, entityId }) => [
         { type: 'AuditLog', id: `related-${entityType}-${entityId}` },
       ],
@@ -63,7 +63,7 @@ export const financialAuditLogsApi = createApi({
       { actionType: string; skip?: number; limit?: number }
     >({
       query: ({ actionType, skip = 0, limit = 100 }) =>
-        `/financial-audit-logs/action/${actionType}?skip=${skip}&limit=${limit}`,
+        `financial-audit-logs/action/${actionType}/?skip=${skip}&limit=${limit}`,
       providesTags: ['AuditLog'],
     }),
 
@@ -73,7 +73,7 @@ export const financialAuditLogsApi = createApi({
       { userId: number; skip?: number; limit?: number }
     >({
       query: ({ userId, skip = 0, limit = 100 }) =>
-        `/financial-audit-logs/user/${userId}?skip=${skip}&limit=${limit}`,
+        `financial-audit-logs/user/${userId}/?skip=${skip}&limit=${limit}`,
       providesTags: (result, error, { userId }) => [{ type: 'AuditLog', id: `user-${userId}` }],
     }),
 
@@ -83,7 +83,7 @@ export const financialAuditLogsApi = createApi({
       { startDate: string; endDate: string; skip?: number; limit?: number }
     >({
       query: ({ startDate, endDate, skip = 0, limit = 100 }) =>
-        `/financial-audit-logs/date-range?start_date=${startDate}&end_date=${endDate}&skip=${skip}&limit=${limit}`,
+        `financial-audit-logs/date-range/?start_date=${startDate}&end_date=${endDate}&skip=${skip}&limit=${limit}`,
       providesTags: ['AuditLog'],
     }),
   }),

@@ -40,7 +40,7 @@ export const itemsApi = createApi({
           params.append('search', search);
         }
 
-        return `/items/?${params.toString()}`;
+        return `items/?${params.toString()}`;
       },
       providesTags: (result) =>
         result
@@ -53,14 +53,14 @@ export const itemsApi = createApi({
 
     // Get single item by ID
     getItemById: builder.query<Item, number>({
-      query: (id) => `/items/${id}/`,
+      query: (id) => `items/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Item', id }],
     }),
 
     // Create new item
     createItem: builder.mutation<Item, CreateItemRequest>({
       query: (body) => ({
-        url: '/items/',
+        url: 'items/',
         method: 'POST',
         body,
       }),
@@ -70,7 +70,7 @@ export const itemsApi = createApi({
     // Update existing item
     updateItem: builder.mutation<Item, { id: number; data: UpdateItemRequest }>({
       query: ({ id, data }) => ({
-        url: `/items/${id}/`,
+        url: `items/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -83,7 +83,7 @@ export const itemsApi = createApi({
     // Delete item (soft delete)
     deleteItem: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/items/${id}/`,
+        url: `items/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: (result, error, id) => [

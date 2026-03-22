@@ -45,17 +45,17 @@ export const machinesApi = createApi({
         if (search) {
           params.append('search', search);
         }
-        return `/machines?${params.toString()}`;
+        return `machines/?${params.toString()}`;
       },
       providesTags: ['Machine'],
     }),
     getMachineById: builder.query<Machine, number>({
-      query: (id) => `/machines/${id}`,
+      query: (id) => `machines/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Machine', id }],
     }),
     createMachine: builder.mutation<Machine, CreateMachineRequest>({
       query: (body) => ({
-        url: '/machines',
+        url: 'machines/',
         method: 'POST',
         body,
       }),
@@ -63,7 +63,7 @@ export const machinesApi = createApi({
     }),
     updateMachine: builder.mutation<Machine, { id: number; data: UpdateMachineRequest }>({
       query: ({ id, data }) => ({
-        url: `/machines/${id}`,
+        url: `machines/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -71,7 +71,7 @@ export const machinesApi = createApi({
     }),
     deleteMachine: builder.mutation<Machine, number>({
       query: (id) => ({
-        url: `/machines/${id}`,
+        url: `machines/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Machine'],
@@ -86,17 +86,17 @@ export const machinesApi = createApi({
         if (event_type) {
           params.append('event_type', event_type);
         }
-        return `/machines/${machine_id}/events?${params.toString()}`;
+        return `machines/${machine_id}/events/?${params.toString()}`;
       },
       providesTags: (result, error, { machine_id }) => [{ type: 'MachineEvent', id: machine_id }],
     }),
     getLatestMachineEvent: builder.query<MachineEvent, number>({
-      query: (machine_id) => `/machines/${machine_id}/events/latest`,
+      query: (machine_id) => `machines/${machine_id}/events/latest/`,
       providesTags: (result, error, machine_id) => [{ type: 'MachineEvent', id: machine_id }],
     }),
     createMachineEvent: builder.mutation<MachineEvent, { machine_id: number; data: CreateMachineEventRequest }>({
       query: ({ machine_id, data }) => ({
-        url: `/machines/${machine_id}/events`,
+        url: `machines/${machine_id}/events/`,
         method: 'POST',
         body: data,
       }),

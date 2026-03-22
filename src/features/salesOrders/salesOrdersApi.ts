@@ -39,17 +39,17 @@ export const salesOrdersApi = createApi({
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
-        return `/sales-orders/?${params.toString()}`;
+        return `sales-orders/?${params.toString()}`;
       },
       providesTags: ['SalesOrder'],
     }),
     getSalesOrderById: builder.query<SalesOrder, number>({
-      query: (id) => `/sales-orders/${id}/`,
+      query: (id) => `sales-orders/${id}/`,
       providesTags: (result, error, id) => [{ type: 'SalesOrder', id }],
     }),
     createSalesOrder: builder.mutation<SalesOrder, CreateSalesOrderWithItemsDTO>({
       query: ({ order, items }) => ({
-        url: '/sales-orders/',
+        url: 'sales-orders/',
         method: 'POST',
         body: {
           order_in: order,
@@ -60,18 +60,18 @@ export const salesOrdersApi = createApi({
     }),
     updateSalesOrder: builder.mutation<SalesOrder, { id: number; data: UpdateSalesOrderDTO }>({
       query: ({ id, data }) => ({
-        url: `/sales-orders/${id}/`,
+        url: `sales-orders/${id}/`,
         method: 'PUT',
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'SalesOrder', id }, 'SalesOrder'],
     }),
     getSalesOrderItems: builder.query<SalesOrderItem[], number>({
-      query: (orderId) => `/sales-orders/${orderId}/items/`,
+      query: (orderId) => `sales-orders/${orderId}/items/`,
       providesTags: (result, error, orderId) => [{ type: 'SalesOrderItem', id: `order-${orderId}` }],
     }),
     getSalesOrderDeliveries: builder.query<SalesDelivery[], number>({
-      query: (orderId) => `/sales-orders/${orderId}/deliveries/`,
+      query: (orderId) => `sales-orders/${orderId}/deliveries/`,
       providesTags: (result, error, orderId) => [{ type: 'SalesOrder', id: `deliveries-${orderId}` }],
     }),
   }),

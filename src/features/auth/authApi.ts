@@ -35,7 +35,7 @@ export const authApi = createApi({
     // Login
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
-        url: '/auth/login',
+        url: 'auth/login/',
         method: 'POST',
         body: credentials,
       }),
@@ -44,7 +44,7 @@ export const authApi = createApi({
     // Register
     register: builder.mutation<RegisterResponse, RegisterRequest>({
       query: (data) => ({
-        url: '/auth/register',
+        url: 'auth/register/',
         method: 'POST',
         body: data,
       }),
@@ -52,25 +52,25 @@ export const authApi = createApi({
 
     // Get current user
     getCurrentUser: builder.query<User, void>({
-      query: () => '/auth/me',
+      query: () => 'auth/me/',
       providesTags: ['User'],
     }),
 
     // Get user's workspaces
     getWorkspaces: builder.query<WorkspaceListItem[], void>({
-      query: () => '/workspaces',
+      query: () => 'workspaces/',
       providesTags: ['Workspace'],
     }),
 
     // Validate invitation token (public endpoint)
     validateInvitation: builder.query<ValidateInvitationResponse, string>({
-      query: (token) => `/auth/validate-invite?token=${token}`,
+      query: (token) => `auth/validate-invite/?token=${token}`,
     }),
 
     // Forgot password
     forgotPassword: builder.mutation<{ message: string; email_sent: boolean }, ForgotPasswordRequest>({
       query: (data) => ({
-        url: '/auth/forgot-password',
+        url: 'auth/forgot-password/',
         method: 'POST',
         body: data,
       }),
@@ -79,7 +79,7 @@ export const authApi = createApi({
     // Reset password
     resetPassword: builder.mutation<{ message: string }, ResetPasswordRequest>({
       query: (data) => ({
-        url: '/auth/reset-password',
+        url: 'auth/reset-password/',
         method: 'POST',
         body: data,
       }),

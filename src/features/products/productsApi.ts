@@ -40,17 +40,17 @@ export const productsApi = createApi({
         if (is_available_for_sale !== undefined && is_available_for_sale !== null) {
           params.append('is_available_for_sale', is_available_for_sale.toString());
         }
-        return `/products?${params.toString()}`;
+        return `products/?${params.toString()}`;
       },
       providesTags: ['Product'],
     }),
     getProductById: builder.query<Product, number>({
-      query: (id) => `/products/${id}`,
+      query: (id) => `products/${id}/`,
       providesTags: (_result, _error, id) => [{ type: 'Product', id }],
     }),
     createProduct: builder.mutation<Product, CreateProductRequest>({
       query: (body) => ({
-        url: '/products',
+        url: 'products/',
         method: 'POST',
         body,
       }),
@@ -58,7 +58,7 @@ export const productsApi = createApi({
     }),
     updateProduct: builder.mutation<Product, { id: number; data: UpdateProductRequest }>({
       query: ({ id, data }) => ({
-        url: `/products/${id}`,
+        url: `products/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -66,7 +66,7 @@ export const productsApi = createApi({
     }),
     deleteProduct: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/products/${id}`,
+        url: `products/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Product'],
@@ -82,7 +82,7 @@ export const productsApi = createApi({
         if (item_id) {
           params.append('item_id', item_id.toString());
         }
-        return `/products/ledger?${params.toString()}`;
+        return `products/ledger/?${params.toString()}`;
       },
       providesTags: ['ProductLedger'],
     }),

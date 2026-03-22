@@ -35,17 +35,17 @@ export const machineItemsApi = createApi({
         if (machine_id) {
           params.append('machine_id', machine_id.toString());
         }
-        return `/machine-items?${params.toString()}`;
+        return `machine-items/?${params.toString()}`;
       },
       providesTags: ['MachineItem'],
     }),
     getMachineItemById: builder.query<MachineItem, number>({
-      query: (id) => `/machine-items/${id}`,
+      query: (id) => `machine-items/${id}/`,
       providesTags: (result, error, id) => [{ type: 'MachineItem', id }],
     }),
     createMachineItem: builder.mutation<MachineItem, CreateMachineItemRequest>({
       query: (body) => ({
-        url: '/machine-items',
+        url: 'machine-items/',
         method: 'POST',
         body,
       }),
@@ -53,7 +53,7 @@ export const machineItemsApi = createApi({
     }),
     updateMachineItem: builder.mutation<MachineItem, { id: number; data: UpdateMachineItemRequest }>({
       query: ({ id, data }) => ({
-        url: `/machine-items/${id}`,
+        url: `machine-items/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -61,7 +61,7 @@ export const machineItemsApi = createApi({
     }),
     deleteMachineItem: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/machine-items/${id}`,
+        url: `machine-items/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['MachineItem'],

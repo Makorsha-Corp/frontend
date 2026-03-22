@@ -40,17 +40,17 @@ export const miscellaneousProjectCostsApi = createApi({
         if (project_component_id) {
           params.append('project_component_id', project_component_id.toString());
         }
-        return `/miscellaneous-project-costs/?${params.toString()}`;
+        return `miscellaneous-project-costs/?${params.toString()}`;
       },
       providesTags: ['MiscellaneousProjectCost'],
     }),
     getMiscellaneousProjectCostById: builder.query<MiscellaneousProjectCost, number>({
-      query: (id) => `/miscellaneous-project-costs/${id}/`,
+      query: (id) => `miscellaneous-project-costs/${id}/`,
       providesTags: (result, error, id) => [{ type: 'MiscellaneousProjectCost', id }],
     }),
     createMiscellaneousProjectCost: builder.mutation<MiscellaneousProjectCost, CreateMiscellaneousProjectCostDTO>({
       query: (body) => ({
-        url: '/miscellaneous-project-costs/',
+        url: 'miscellaneous-project-costs/',
         method: 'POST',
         body,
       }),
@@ -58,7 +58,7 @@ export const miscellaneousProjectCostsApi = createApi({
     }),
     updateMiscellaneousProjectCost: builder.mutation<MiscellaneousProjectCost, { id: number; data: UpdateMiscellaneousProjectCostDTO }>({
       query: ({ id, data }) => ({
-        url: `/miscellaneous-project-costs/${id}/`,
+        url: `miscellaneous-project-costs/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -66,7 +66,7 @@ export const miscellaneousProjectCostsApi = createApi({
     }),
     deleteMiscellaneousProjectCost: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/miscellaneous-project-costs/${id}/`,
+        url: `miscellaneous-project-costs/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['MiscellaneousProjectCost'],

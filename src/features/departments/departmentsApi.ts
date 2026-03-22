@@ -30,17 +30,17 @@ export const departmentsApi = createApi({
         if (search) {
           params.append('search', search);
         }
-        return `/departments?${params.toString()}`;
+        return `departments/?${params.toString()}`;
       },
       providesTags: ['Department'],
     }),
     getDepartmentById: builder.query<Department, number>({
-      query: (id) => `/departments/${id}`,
+      query: (id) => `departments/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Department', id }],
     }),
     createDepartment: builder.mutation<Department, CreateDepartmentRequest>({
       query: (body) => ({
-        url: '/departments',
+        url: 'departments/',
         method: 'POST',
         body,
       }),
@@ -48,7 +48,7 @@ export const departmentsApi = createApi({
     }),
     updateDepartment: builder.mutation<Department, { id: number; data: UpdateDepartmentRequest }>({
       query: ({ id, data }) => ({
-        url: `/departments/${id}`,
+        url: `departments/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -56,7 +56,7 @@ export const departmentsApi = createApi({
     }),
     deleteDepartment: builder.mutation<Department, number>({
       query: (id) => ({
-        url: `/departments/${id}`,
+        url: `departments/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Department'],

@@ -39,16 +39,16 @@ export const accountTagsApi = createApi({
   tagTypes: ['AccountTag'],
   endpoints: (builder) => ({
     getTags: builder.query<AccountTag[], void>({
-      query: () => '/account-tags',
+      query: () => 'account-tags/',
       providesTags: ['AccountTag'],
     }),
     getSystemTags: builder.query<AccountTag[], void>({
-      query: () => '/account-tags/system',
+      query: () => 'account-tags/system/',
       providesTags: ['AccountTag'],
     }),
     createTag: builder.mutation<AccountTag, CreateTagRequest>({
       query: (body) => ({
-        url: '/account-tags',
+        url: 'account-tags/',
         method: 'POST',
         body,
       }),
@@ -56,7 +56,7 @@ export const accountTagsApi = createApi({
     }),
     updateTag: builder.mutation<AccountTag, { id: number; data: UpdateTagRequest }>({
       query: ({ id, data }) => ({
-        url: `/account-tags/${id}`,
+        url: `account-tags/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -64,7 +64,7 @@ export const accountTagsApi = createApi({
     }),
     deleteTag: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/account-tags/${id}`,
+        url: `account-tags/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['AccountTag'],

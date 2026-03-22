@@ -38,17 +38,17 @@ export const machineMaintenanceLogsApi = createApi({
         if (maintenance_type) {
           params.append('maintenance_type', maintenance_type);
         }
-        return `/machine-maintenance-logs?${params.toString()}`;
+        return `machine-maintenance-logs/?${params.toString()}`;
       },
       providesTags: ['MachineMaintenanceLog'],
     }),
     getMachineMaintenanceLogById: builder.query<MachineMaintenanceLog, number>({
-      query: (id) => `/machine-maintenance-logs/${id}`,
+      query: (id) => `machine-maintenance-logs/${id}/`,
       providesTags: (_result, _error, id) => [{ type: 'MachineMaintenanceLog', id }],
     }),
     createMachineMaintenanceLog: builder.mutation<MachineMaintenanceLog, CreateMachineMaintenanceLogRequest>({
       query: (body) => ({
-        url: '/machine-maintenance-logs',
+        url: 'machine-maintenance-logs/',
         method: 'POST',
         body,
       }),
@@ -56,7 +56,7 @@ export const machineMaintenanceLogsApi = createApi({
     }),
     updateMachineMaintenanceLog: builder.mutation<MachineMaintenanceLog, { id: number; data: UpdateMachineMaintenanceLogRequest }>({
       query: ({ id, data }) => ({
-        url: `/machine-maintenance-logs/${id}`,
+        url: `machine-maintenance-logs/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -64,7 +64,7 @@ export const machineMaintenanceLogsApi = createApi({
     }),
     deleteMachineMaintenanceLog: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/machine-maintenance-logs/${id}`,
+        url: `machine-maintenance-logs/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['MachineMaintenanceLog'],

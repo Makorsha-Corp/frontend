@@ -40,17 +40,17 @@ export const projectsApi = createApi({
         if (project_status) {
           params.append('project_status', project_status);
         }
-        return `/projects?${params.toString()}`;
+        return `projects/?${params.toString()}`;
       },
       providesTags: ['Project'],
     }),
     getProjectById: builder.query<Project, number>({
-      query: (id) => `/projects/${id}`,
+      query: (id) => `projects/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Project', id }],
     }),
     createProject: builder.mutation<Project, CreateProjectDTO>({
       query: (body) => ({
-        url: '/projects',
+        url: 'projects/',
         method: 'POST',
         body,
       }),
@@ -58,7 +58,7 @@ export const projectsApi = createApi({
     }),
     updateProject: builder.mutation<Project, { id: number; data: UpdateProjectDTO }>({
       query: ({ id, data }) => ({
-        url: `/projects/${id}`,
+        url: `projects/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -66,7 +66,7 @@ export const projectsApi = createApi({
     }),
     deleteProject: builder.mutation<Project, number>({
       query: (id) => ({
-        url: `/projects/${id}`,
+        url: `projects/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Project'],

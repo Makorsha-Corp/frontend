@@ -39,16 +39,16 @@ export const itemTagsApi = createApi({
   tagTypes: ['ItemTag'],
   endpoints: (builder) => ({
     getTags: builder.query<ItemTag[], void>({
-      query: () => '/item-tags',
+      query: () => 'item-tags/',
       providesTags: ['ItemTag'],
     }),
     getSystemTags: builder.query<ItemTag[], void>({
-      query: () => '/item-tags/system',
+      query: () => 'item-tags/system/',
       providesTags: ['ItemTag'],
     }),
     createTag: builder.mutation<ItemTag, CreateTagRequest>({
       query: (body) => ({
-        url: '/item-tags',
+        url: 'item-tags/',
         method: 'POST',
         body,
       }),
@@ -56,7 +56,7 @@ export const itemTagsApi = createApi({
     }),
     updateTag: builder.mutation<ItemTag, { id: number; data: UpdateTagRequest }>({
       query: ({ id, data }) => ({
-        url: `/item-tags/${id}`,
+        url: `item-tags/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -64,7 +64,7 @@ export const itemTagsApi = createApi({
     }),
     deleteTag: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/item-tags/${id}`,
+        url: `item-tags/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ItemTag'],

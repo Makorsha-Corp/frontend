@@ -30,41 +30,41 @@ export const transferOrdersApi = createApi({
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
-        return `/transfer-orders?${params.toString()}`;
+        return `transfer-orders/?${params.toString()}`;
       },
       providesTags: ['TransferOrder'],
     }),
     getTransferOrderById: builder.query<TransferOrder, number>({
-      query: (id) => `/transfer-orders/${id}`,
+      query: (id) => `transfer-orders/${id}/`,
       providesTags: (_r, _e, id) => [{ type: 'TransferOrder', id }],
     }),
     createTransferOrder: builder.mutation<TransferOrder, CreateTransferOrder>({
-      query: (body) => ({ url: '/transfer-orders', method: 'POST', body }),
+      query: (body) => ({ url: 'transfer-orders/', method: 'POST', body }),
       invalidatesTags: ['TransferOrder'],
     }),
     updateTransferOrder: builder.mutation<TransferOrder, { id: number; data: UpdateTransferOrder }>({
-      query: ({ id, data }) => ({ url: `/transfer-orders/${id}`, method: 'PUT', body: data }),
+      query: ({ id, data }) => ({ url: `transfer-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'TransferOrder', id }, 'TransferOrder'],
     }),
     deleteTransferOrder: builder.mutation<void, number>({
-      query: (id) => ({ url: `/transfer-orders/${id}`, method: 'DELETE' }),
+      query: (id) => ({ url: `transfer-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['TransferOrder'],
     }),
     // Items
     getTransferOrderItems: builder.query<TransferOrderItem[], number>({
-      query: (toId) => `/transfer-orders/${toId}/items`,
+      query: (toId) => `transfer-orders/${toId}/items/`,
       providesTags: (_r, _e, toId) => [{ type: 'TransferOrderItem', id: toId }],
     }),
     addTransferOrderItem: builder.mutation<TransferOrderItem, { toId: number; data: CreateTransferOrderItem }>({
-      query: ({ toId, data }) => ({ url: `/transfer-orders/${toId}/items`, method: 'POST', body: data }),
+      query: ({ toId, data }) => ({ url: `transfer-orders/${toId}/items/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { toId }) => [{ type: 'TransferOrderItem', id: toId }],
     }),
     updateTransferOrderItem: builder.mutation<TransferOrderItem, { itemId: number; data: UpdateTransferOrderItem }>({
-      query: ({ itemId, data }) => ({ url: `/transfer-orders/items/${itemId}`, method: 'PUT', body: data }),
+      query: ({ itemId, data }) => ({ url: `transfer-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: ['TransferOrderItem'],
     }),
     removeTransferOrderItem: builder.mutation<void, number>({
-      query: (itemId) => ({ url: `/transfer-orders/items/${itemId}`, method: 'DELETE' }),
+      query: (itemId) => ({ url: `transfer-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: ['TransferOrderItem'],
     }),
   }),

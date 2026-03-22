@@ -40,17 +40,17 @@ export const inventoryApi = createApi({
         if (factory_id) {
           params.append('factory_id', factory_id.toString());
         }
-        return `/inventory?${params.toString()}`;
+        return `inventory/?${params.toString()}`;
       },
       providesTags: ['Inventory'],
     }),
     getInventoryById: builder.query<Inventory, number>({
-      query: (id) => `/inventory/${id}`,
+      query: (id) => `inventory/${id}/`,
       providesTags: (_result, _error, id) => [{ type: 'Inventory', id }],
     }),
     createInventory: builder.mutation<Inventory, CreateInventoryRequest>({
       query: (body) => ({
-        url: '/inventory',
+        url: 'inventory/',
         method: 'POST',
         body,
       }),
@@ -58,7 +58,7 @@ export const inventoryApi = createApi({
     }),
     updateInventory: builder.mutation<Inventory, { id: number; data: UpdateInventoryRequest }>({
       query: ({ id, data }) => ({
-        url: `/inventory/${id}`,
+        url: `inventory/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -66,7 +66,7 @@ export const inventoryApi = createApi({
     }),
     deleteInventory: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/inventory/${id}`,
+        url: `inventory/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Inventory'],
@@ -85,7 +85,7 @@ export const inventoryApi = createApi({
         if (item_id) {
           params.append('item_id', item_id.toString());
         }
-        return `/inventory/ledger?${params.toString()}`;
+        return `inventory/ledger/?${params.toString()}`;
       },
       providesTags: ['InventoryLedger'],
     }),

@@ -36,17 +36,17 @@ export const projectComponentItemsApi = createApi({
         if (project_component_id) {
           params.append('project_component_id', project_component_id.toString());
         }
-        return `/project-component-items/?${params.toString()}`;
+        return `project-component-items/?${params.toString()}`;
       },
       providesTags: ['ProjectComponentItem'],
     }),
     getProjectComponentItemById: builder.query<ProjectComponentItem, number>({
-      query: (id) => `/project-component-items/${id}/`,
+      query: (id) => `project-component-items/${id}/`,
       providesTags: (result, error, id) => [{ type: 'ProjectComponentItem', id }],
     }),
     createProjectComponentItem: builder.mutation<ProjectComponentItem, CreateProjectComponentItemDTO>({
       query: (body) => ({
-        url: '/project-component-items/',
+        url: 'project-component-items/',
         method: 'POST',
         body,
       }),
@@ -54,7 +54,7 @@ export const projectComponentItemsApi = createApi({
     }),
     updateProjectComponentItem: builder.mutation<ProjectComponentItem, { id: number; data: UpdateProjectComponentItemDTO }>({
       query: ({ id, data }) => ({
-        url: `/project-component-items/${id}/`,
+        url: `project-component-items/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -62,7 +62,7 @@ export const projectComponentItemsApi = createApi({
     }),
     deleteProjectComponentItem: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/project-component-items/${id}/`,
+        url: `project-component-items/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ProjectComponentItem'],

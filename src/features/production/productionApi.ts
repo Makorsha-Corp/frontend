@@ -59,17 +59,17 @@ export const productionApi = createApi({
         searchParams.append('limit', (params.limit ?? 100).toString());
         if (params.factory_id) searchParams.append('factory_id', params.factory_id.toString());
         if (params.active_only) searchParams.append('active_only', 'true');
-        return `/production-lines/?${searchParams.toString()}`;
+        return `production-lines/?${searchParams.toString()}`;
       },
       providesTags: ['ProductionLine'],
     }),
     getProductionLineById: builder.query<ProductionLine, number>({
-      query: (id) => `/production-lines/${id}`,
+      query: (id) => `production-lines/${id}/`,
       providesTags: (result, error, id) => [{ type: 'ProductionLine', id }],
     }),
     createProductionLine: builder.mutation<ProductionLine, CreateProductionLineDTO>({
       query: (body) => ({
-        url: '/production-lines/',
+        url: 'production-lines/',
         method: 'POST',
         body,
       }),
@@ -77,7 +77,7 @@ export const productionApi = createApi({
     }),
     updateProductionLine: builder.mutation<ProductionLine, { id: number; data: UpdateProductionLineDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-lines/${id}`,
+        url: `production-lines/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -85,7 +85,7 @@ export const productionApi = createApi({
     }),
     deleteProductionLine: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/production-lines/${id}`,
+        url: `production-lines/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ProductionLine'],
@@ -99,17 +99,17 @@ export const productionApi = createApi({
         searchParams.append('skip', (params.skip ?? 0).toString());
         searchParams.append('limit', (params.limit ?? 100).toString());
         if (params.active_only) searchParams.append('active_only', 'true');
-        return `/production-formulas/?${searchParams.toString()}`;
+        return `production-formulas/?${searchParams.toString()}`;
       },
       providesTags: ['ProductionFormula'],
     }),
     getProductionFormulaById: builder.query<ProductionFormula, number>({
-      query: (id) => `/production-formulas/${id}`,
+      query: (id) => `production-formulas/${id}/`,
       providesTags: (result, error, id) => [{ type: 'ProductionFormula', id }],
     }),
     createProductionFormula: builder.mutation<ProductionFormula, CreateProductionFormulaDTO>({
       query: (body) => ({
-        url: '/production-formulas/',
+        url: 'production-formulas/',
         method: 'POST',
         body,
       }),
@@ -117,7 +117,7 @@ export const productionApi = createApi({
     }),
     updateProductionFormula: builder.mutation<ProductionFormula, { id: number; data: UpdateProductionFormulaDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-formulas/${id}`,
+        url: `production-formulas/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -125,7 +125,7 @@ export const productionApi = createApi({
     }),
     deleteProductionFormula: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/production-formulas/${id}`,
+        url: `production-formulas/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ProductionFormula'],
@@ -137,13 +137,13 @@ export const productionApi = createApi({
       query: ({ formulaId, item_role }) => {
         const params = new URLSearchParams();
         if (item_role) params.append('item_role', item_role);
-        return `/production-formulas/${formulaId}/items?${params.toString()}`;
+        return `production-formulas/${formulaId}/items/?${params.toString()}`;
       },
       providesTags: (result, error, { formulaId }) => [{ type: 'FormulaItem', id: `formula-${formulaId}` }],
     }),
     addFormulaItem: builder.mutation<ProductionFormulaItem, { formulaId: number; data: CreateProductionFormulaItemDTO }>({
       query: ({ formulaId, data }) => ({
-        url: `/production-formulas/${formulaId}/items`,
+        url: `production-formulas/${formulaId}/items/`,
         method: 'POST',
         body: data,
       }),
@@ -151,7 +151,7 @@ export const productionApi = createApi({
     }),
     updateFormulaItem: builder.mutation<ProductionFormulaItem, { id: number; data: UpdateProductionFormulaItemDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-formulas/items/${id}`,
+        url: `production-formulas/items/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -159,7 +159,7 @@ export const productionApi = createApi({
     }),
     removeFormulaItem: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/production-formulas/items/${id}`,
+        url: `production-formulas/items/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['FormulaItem'],
@@ -175,17 +175,17 @@ export const productionApi = createApi({
         if (params.production_line_id) searchParams.append('production_line_id', params.production_line_id.toString());
         if (params.formula_id) searchParams.append('formula_id', params.formula_id.toString());
         if (params.status) searchParams.append('status', params.status);
-        return `/production-batches/?${searchParams.toString()}`;
+        return `production-batches/?${searchParams.toString()}`;
       },
       providesTags: ['ProductionBatch'],
     }),
     getProductionBatchById: builder.query<ProductionBatch, number>({
-      query: (id) => `/production-batches/${id}`,
+      query: (id) => `production-batches/${id}/`,
       providesTags: (result, error, id) => [{ type: 'ProductionBatch', id }],
     }),
     createProductionBatch: builder.mutation<ProductionBatch, CreateProductionBatchDTO>({
       query: (body) => ({
-        url: '/production-batches/',
+        url: 'production-batches/',
         method: 'POST',
         body,
       }),
@@ -193,7 +193,7 @@ export const productionApi = createApi({
     }),
     updateProductionBatch: builder.mutation<ProductionBatch, { id: number; data: UpdateProductionBatchDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-batches/${id}`,
+        url: `production-batches/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -201,7 +201,7 @@ export const productionApi = createApi({
     }),
     deleteProductionBatch: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/production-batches/${id}`,
+        url: `production-batches/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['ProductionBatch'],
@@ -211,7 +211,7 @@ export const productionApi = createApi({
 
     startBatch: builder.mutation<ProductionBatch, { id: number; data: StartBatchDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-batches/${id}/start`,
+        url: `production-batches/${id}/start/`,
         method: 'POST',
         body: data,
       }),
@@ -219,7 +219,7 @@ export const productionApi = createApi({
     }),
     completeBatch: builder.mutation<ProductionBatch, { id: number; data: CompleteBatchDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-batches/${id}/complete`,
+        url: `production-batches/${id}/complete/`,
         method: 'POST',
         body: data,
       }),
@@ -227,7 +227,7 @@ export const productionApi = createApi({
     }),
     cancelBatch: builder.mutation<ProductionBatch, { id: number; data: CancelBatchDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-batches/${id}/cancel`,
+        url: `production-batches/${id}/cancel/`,
         method: 'POST',
         body: data,
       }),
@@ -240,13 +240,13 @@ export const productionApi = createApi({
       query: ({ batchId, item_role }) => {
         const params = new URLSearchParams();
         if (item_role) params.append('item_role', item_role);
-        return `/production-batches/${batchId}/items?${params.toString()}`;
+        return `production-batches/${batchId}/items/?${params.toString()}`;
       },
       providesTags: (result, error, { batchId }) => [{ type: 'BatchItem', id: `batch-${batchId}` }],
     }),
     addBatchItem: builder.mutation<ProductionBatchItem, { batchId: number; data: CreateProductionBatchItemDTO }>({
       query: ({ batchId, data }) => ({
-        url: `/production-batches/${batchId}/items`,
+        url: `production-batches/${batchId}/items/`,
         method: 'POST',
         body: data,
       }),
@@ -254,7 +254,7 @@ export const productionApi = createApi({
     }),
     updateBatchItem: builder.mutation<ProductionBatchItem, { id: number; data: UpdateProductionBatchItemDTO }>({
       query: ({ id, data }) => ({
-        url: `/production-batches/items/${id}`,
+        url: `production-batches/items/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -262,7 +262,7 @@ export const productionApi = createApi({
     }),
     removeBatchItem: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/production-batches/items/${id}`,
+        url: `production-batches/items/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['BatchItem'],

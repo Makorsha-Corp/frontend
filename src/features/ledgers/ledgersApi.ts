@@ -30,7 +30,7 @@ export const ledgersApi = createApi({
   endpoints: (builder) => ({
     getProjectComponentTotalCost: builder.query<ProjectComponentTotalCostResponse, number>({
       query: (projectComponentId) =>
-        `/ledgers/project-component/${projectComponentId}/total-cost`,
+        `ledgers/project-component/${projectComponentId}/total-cost/`,
       providesTags: (result, error, id) => [{ type: 'ProjectComponentCost', id }],
     }),
   }),

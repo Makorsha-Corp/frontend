@@ -32,14 +32,14 @@ export const workspaceApi = createApi({
   endpoints: (builder) => ({
     // List workspaces
     getWorkspaces: builder.query<WorkspaceListItem[], void>({
-      query: () => '/workspaces',
+      query: () => 'workspaces/',
       providesTags: ['Workspace'],
     }),
 
     // Create workspace
     createWorkspace: builder.mutation<WorkspaceDetails, CreateWorkspaceRequest>({
       query: (data) => ({
-        url: '/workspaces',
+        url: 'workspaces/',
         method: 'POST',
         body: data,
       }),
@@ -48,14 +48,14 @@ export const workspaceApi = createApi({
 
     // Get workspace details
     getWorkspace: builder.query<WorkspaceDetails, number>({
-      query: (id) => `/workspaces/${id}`,
+      query: (id) => `workspaces/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Workspace', id }],
     }),
 
     // Update workspace
     updateWorkspace: builder.mutation<WorkspaceDetails, { id: number; data: UpdateWorkspaceRequest }>({
       query: ({ id, data }) => ({
-        url: `/workspaces/${id}`,
+        url: `workspaces/${id}/`,
         method: 'PATCH',
         body: data,
       }),
@@ -64,20 +64,20 @@ export const workspaceApi = createApi({
 
     // Get workspace members
     getWorkspaceMembers: builder.query<WorkspaceMember[], number>({
-      query: (workspaceId) => `/workspaces/${workspaceId}/members`,
+      query: (workspaceId) => `workspaces/${workspaceId}/members/`,
       providesTags: ['WorkspaceMember'],
     }),
 
     // Get workspace invitations
     getWorkspaceInvitations: builder.query<WorkspaceInvitation[], number>({
-      query: (workspaceId) => `/workspaces/${workspaceId}/invitations`,
+      query: (workspaceId) => `workspaces/${workspaceId}/invitations/`,
       providesTags: ['WorkspaceInvitation'],
     }),
 
     // Send invitation
     sendInvitation: builder.mutation<WorkspaceInvitation, { workspaceId: number; data: SendInvitationRequest }>({
       query: ({ workspaceId, data }) => ({
-        url: `/workspaces/${workspaceId}/invitations`,
+        url: `workspaces/${workspaceId}/invitations/`,
         method: 'POST',
         body: data,
       }),

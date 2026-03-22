@@ -10,7 +10,7 @@ import type {
 export const invoicePaymentsApi = createApi({
   reducerPath: 'invoicePaymentsApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:8000/api/v1',
+    baseUrl: import.meta.env.VITE_API_URL,
     prepareHeaders: (headers, { getState }) => {
       const state = getState() as RootState;
       const token = state.auth.token;
@@ -32,7 +32,7 @@ export const invoicePaymentsApi = createApi({
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
-        return `/invoice-payments/invoice/${invoice_id}?${params.toString()}`;
+        return `invoice-payments/invoice/${invoice_id}/?${params.toString()}`;
       },
       providesTags: (result, error, { invoice_id }) => [
         { type: 'InvoicePayment', id: invoice_id },
@@ -40,12 +40,12 @@ export const invoicePaymentsApi = createApi({
       ],
     }),
     getInvoicePaymentById: builder.query<InvoicePayment, number>({
-      query: (id) => `/invoice-payments/${id}`,
+      query: (id) => `invoice-payments/${id}/`,
       providesTags: (result, error, id) => [{ type: 'InvoicePayment', id }],
     }),
     createInvoicePayment: builder.mutation<InvoicePayment, CreateInvoicePaymentRequest>({
       query: (body) => ({
-        url: '/invoice-payments',
+        url: 'invoice-payments/',
         method: 'POST',
         body,
       }),
@@ -57,7 +57,7 @@ export const invoicePaymentsApi = createApi({
     }),
     updateInvoicePayment: builder.mutation<InvoicePayment, { id: number; data: UpdateInvoicePaymentRequest }>({
       query: ({ id, data }) => ({
-        url: `/invoice-payments/${id}`,
+        url: `invoice-payments/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -68,7 +68,7 @@ export const invoicePaymentsApi = createApi({
     }),
     deleteInvoicePayment: builder.mutation<InvoicePayment, number>({
       query: (id) => ({
-        url: `/invoice-payments/${id}`,
+        url: `invoice-payments/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['InvoicePayment', 'AccountInvoice'], // Invalidate both

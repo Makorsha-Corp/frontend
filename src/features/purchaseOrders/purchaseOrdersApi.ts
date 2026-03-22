@@ -31,41 +31,41 @@ export const purchaseOrdersApi = createApi({
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
         if (account_id) params.append('account_id', account_id.toString());
-        return `/purchase-orders?${params.toString()}`;
+        return `purchase-orders/?${params.toString()}`;
       },
       providesTags: ['PurchaseOrder'],
     }),
     getPurchaseOrderById: builder.query<PurchaseOrder, number>({
-      query: (id) => `/purchase-orders/${id}`,
+      query: (id) => `purchase-orders/${id}/`,
       providesTags: (_r, _e, id) => [{ type: 'PurchaseOrder', id }],
     }),
     createPurchaseOrder: builder.mutation<PurchaseOrder, CreatePurchaseOrder>({
-      query: (body) => ({ url: '/purchase-orders', method: 'POST', body }),
+      query: (body) => ({ url: 'purchase-orders/', method: 'POST', body }),
       invalidatesTags: ['PurchaseOrder'],
     }),
     updatePurchaseOrder: builder.mutation<PurchaseOrder, { id: number; data: UpdatePurchaseOrder }>({
-      query: ({ id, data }) => ({ url: `/purchase-orders/${id}`, method: 'PUT', body: data }),
+      query: ({ id, data }) => ({ url: `purchase-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'PurchaseOrder', id }, 'PurchaseOrder'],
     }),
     deletePurchaseOrder: builder.mutation<void, number>({
-      query: (id) => ({ url: `/purchase-orders/${id}`, method: 'DELETE' }),
+      query: (id) => ({ url: `purchase-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['PurchaseOrder'],
     }),
     // Items
     getPurchaseOrderItems: builder.query<PurchaseOrderItem[], number>({
-      query: (poId) => `/purchase-orders/${poId}/items`,
+      query: (poId) => `purchase-orders/${poId}/items/`,
       providesTags: (_r, _e, poId) => [{ type: 'PurchaseOrderItem', id: poId }],
     }),
     addPurchaseOrderItem: builder.mutation<PurchaseOrderItem, { poId: number; data: CreatePurchaseOrderItem }>({
-      query: ({ poId, data }) => ({ url: `/purchase-orders/${poId}/items`, method: 'POST', body: data }),
+      query: ({ poId, data }) => ({ url: `purchase-orders/${poId}/items/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { poId }) => [{ type: 'PurchaseOrderItem', id: poId }, 'PurchaseOrder'],
     }),
     updatePurchaseOrderItem: builder.mutation<PurchaseOrderItem, { itemId: number; data: UpdatePurchaseOrderItem }>({
-      query: ({ itemId, data }) => ({ url: `/purchase-orders/items/${itemId}`, method: 'PUT', body: data }),
+      query: ({ itemId, data }) => ({ url: `purchase-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: ['PurchaseOrderItem', 'PurchaseOrder'],
     }),
     removePurchaseOrderItem: builder.mutation<void, number>({
-      query: (itemId) => ({ url: `/purchase-orders/items/${itemId}`, method: 'DELETE' }),
+      query: (itemId) => ({ url: `purchase-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: ['PurchaseOrderItem', 'PurchaseOrder'],
     }),
   }),

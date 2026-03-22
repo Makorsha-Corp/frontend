@@ -19,11 +19,11 @@ export const statusesApi = createApi({
   endpoints: (builder) => ({
     getStatuses: builder.query<Status[], { skip?: number; limit?: number }>({
       query: ({ skip = 0, limit = 100 } = {}) =>
-        `/statuses?skip=${skip}&limit=${limit}`,
+        `statuses/?skip=${skip}&limit=${limit}`,
       providesTags: ['Status'],
     }),
     getStatusById: builder.query<Status, number>({
-      query: (id) => `/statuses/${id}`,
+      query: (id) => `statuses/${id}/`,
       providesTags: (_r, _e, id) => [{ type: 'Status', id }],
     }),
   }),

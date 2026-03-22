@@ -43,7 +43,7 @@ export const accountsApi = createApi({
           params.append('tag_code', tag_code);
         }
 
-        return `/accounts?${params.toString()}`;
+        return `accounts/?${params.toString()}`;
       },
       providesTags: (result) =>
         result
@@ -56,14 +56,14 @@ export const accountsApi = createApi({
 
     // Get single account by ID
     getAccountById: builder.query<Account, number>({
-      query: (id) => `/accounts/${id}`,
+      query: (id) => `accounts/${id}/`,
       providesTags: (result, error, id) => [{ type: 'Account', id }],
     }),
 
     // Create new account
     createAccount: builder.mutation<Account, CreateAccountRequest>({
       query: (body) => ({
-        url: '/accounts',
+        url: 'accounts/',
         method: 'POST',
         body,
       }),
@@ -73,7 +73,7 @@ export const accountsApi = createApi({
     // Update existing account
     updateAccount: builder.mutation<Account, { id: number; data: UpdateAccountRequest }>({
       query: ({ id, data }) => ({
-        url: `/accounts/${id}`,
+        url: `accounts/${id}/`,
         method: 'PUT',
         body: data,
       }),
@@ -86,7 +86,7 @@ export const accountsApi = createApi({
     // Delete account (soft delete)
     deleteAccount: builder.mutation<void, number>({
       query: (id) => ({
-        url: `/accounts/${id}`,
+        url: `accounts/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: (result, error, id) => [
