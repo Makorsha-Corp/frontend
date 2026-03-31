@@ -11,54 +11,62 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
-import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useCreateMiscellaneousProjectCostMutation } from '@/features/miscellaneousProjectCosts/miscellaneousProjectCostsApi';
 
-interface AddProjectComponentDialogProps {
+interface AddMiscellaneousProjectCostDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: number;
-  onSuccess?: (componentId: number) => void;
+  projectComponentId: number;
+  onSuccess?: () => void;
 }
 
-const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
+const AddMiscellaneousProjectCostDialog: React.FC<AddMiscellaneousProjectCostDialogProps> = ({
   open,
   onOpenChange,
-  projectId,
+  projectComponentId,
   onSuccess,
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-
-  const [createComponent, { isLoading }] = useCreateProjectComponentMutation();
+  const [amount, setAmount] = useState('');
+  const [createCost, { isLoading }] = useCreateMiscellaneousProjectCostMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Component name is required');
+      toast.error('Cost name is required');
       return;
     }
+    if (!amount || Number(amount) <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
+
     try {
-      const component = await createComponent({
-        project_id: projectId,
+      await createCost({
+        project_component_id: projectComponentId,
         name: name.trim(),
         description: description.trim() || null,
+        amount: Number(amount),
       }).unwrap();
-      toast.success('Component created');
+      toast.success('Misc cost added');
       setName('');
       setDescription('');
+      setAmount('');
       onOpenChange(false);
-      onSuccess?.(component.id);
+      onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create component');
+      toast.error(e?.data?.detail || 'Failed to add misc cost');
     }
   };
 
   const handleCancel = () => {
     setName('');
     setDescription('');
+    setAmount('');
     onOpenChange(false);
   };
 
@@ -66,10 +74,8 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add Component</DialogTitle>
-          <DialogDescription>
-            Create a new project component with basic details. Status will be auto assigned to planning.
-          </DialogDescription>
+          <DialogTitle>Add Misc Cost</DialogTitle>
+          <DialogDescription>Add a miscellaneous cost to this component.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -78,7 +84,20 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Component name"
+              placeholder="e.g. Transport, permit fee"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="amount">Amount *</Label>
+            <Input
+              id="amount"
+              type="number"
+              min="0"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
               className="mt-1"
             />
           </div>
@@ -88,8 +107,8 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Component description"
-              rows={3}
+              placeholder="Optional details"
+              rows={2}
               className="mt-1"
             />
           </div>
@@ -107,4 +126,4 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
   );
 };
 
-export default AddProjectComponentDialog;
+export default AddMiscellaneousProjectCostDialog;

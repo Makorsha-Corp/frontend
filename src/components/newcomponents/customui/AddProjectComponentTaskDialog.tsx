@@ -19,6 +19,7 @@ interface AddProjectComponentTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectComponentId: number;
+  isNote?: boolean;
   onSuccess?: () => void;
 }
 
@@ -26,6 +27,7 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
   open,
   onOpenChange,
   projectComponentId,
+  isNote = false,
   onSuccess,
 }) => {
   const [name, setName] = useState('');
@@ -44,8 +46,9 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
         project_component_id: projectComponentId,
         name: name.trim(),
         description: description.trim() || name.trim(),
+        is_note: isNote,
       }).unwrap();
-      toast.success('Task created');
+      toast.success(isNote ? 'Note created' : 'Task created');
       setName('');
       setDescription('');
       onOpenChange(false);
@@ -66,8 +69,12 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add Task</DialogTitle>
-          <DialogDescription>Create a new task for this component.</DialogDescription>
+          <DialogTitle>{isNote ? 'Add Note' : 'Add Task'}</DialogTitle>
+          <DialogDescription>
+            {isNote
+              ? 'Create a new note for this component.'
+              : 'Create a new task for this component.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -76,7 +83,7 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Task name"
+              placeholder={isNote ? 'Note title' : 'Task name'}
               className="mt-1"
             />
           </div>
@@ -86,7 +93,7 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Task description"
+              placeholder={isNote ? 'Note details' : 'Task description'}
               rows={2}
               className="mt-1"
             />

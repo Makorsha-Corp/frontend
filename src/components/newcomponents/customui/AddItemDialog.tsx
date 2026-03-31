@@ -11,19 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCreateItemMutation } from '@/features/items/itemsApi';
 import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { Checkbox } from '@/components/ui/checkbox';
 import toast from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Tags } from 'lucide-react';
 import type { Item } from '@/types/item';
+import ItemTagsManagerDialog from '@/components/newcomponents/customui/ItemTagsManagerDialog';
 
 interface AddItemDialogProps {
   open: boolean;
@@ -31,26 +25,12 @@ interface AddItemDialogProps {
   onSuccess?: (item: Item) => void;
 }
 
-const UNIT_OPTIONS = [
-  { value: 'pcs', label: 'Pieces (pcs)' },
-  { value: 'kg', label: 'Kilograms (kg)' },
-  { value: 'g', label: 'Grams (g)' },
-  { value: 'L', label: 'Liters (L)' },
-  { value: 'mL', label: 'Milliliters (mL)' },
-  { value: 'm', label: 'Meters (m)' },
-  { value: 'cm', label: 'Centimeters (cm)' },
-  { value: 'm²', label: 'Square Meters (m²)' },
-  { value: 'm³', label: 'Cubic Meters (m³)' },
-  { value: 'box', label: 'Box' },
-  { value: 'set', label: 'Set' },
-  { value: 'pair', label: 'Pair' },
-];
-
 const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuccess }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [isTagsManagerOpen, setIsTagsManagerOpen] = useState(false);
   
   const [createItem, { isLoading }] = useCreateItemMutation();
   const { data: tags } = useGetTagsQuery();
@@ -63,8 +43,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       return;
     }
 
-    if (!unit) {
-      toast.error('Please select a unit');
+    if (!unit.trim()) {
+      toast.error('Unit is required');
       return;
     }
 
@@ -72,7 +52,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       const created = await createItem({
         name: name.trim(),
         description: description.trim() || null,
-        unit,
+        unit: unit.trim(),
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       }).unwrap();
 
@@ -134,18 +114,13 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
               <Label htmlFor="unit">
                 Unit <span className="text-red-500">*</span>
               </Label>
-              <Select value={unit} onValueChange={setUnit} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {UNIT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="unit"
+                placeholder="e.g. kg, pcs, meter, box"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                required
+              />
             </div>
 
             <div className="grid gap-2">
@@ -162,28 +137,47 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
             {/* Tags Selection */}
             {tags && tags.length > 0 && (
               <div className="grid gap-2">
-                <Label>Tags (Optional)</Label>
-                <div className="border border-gray-200 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <div className="space-y-2">
-                    {tags.map((tag) => (
-                      <div key={tag.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`tag-${tag.id}`}
-                          checked={selectedTagIds.includes(tag.id)}
-                          onCheckedChange={() => toggleTag(tag.id)}
-                        />
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Tags (Optional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setIsTagsManagerOpen(true)}
+                  >
+                    <Tags className="h-3.5 w-3.5 mr-1.5" />
+                    Manage Tags
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    {selectedTagIds.length > 0
+                      ? `${selectedTagIds.length} tag${selectedTagIds.length > 1 ? 's' : ''} selected`
+                      : 'Select one or more tags'}
+                  </div>
+                  <div className="max-h-44 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {tags.map((tag) => (
                         <label
+                          key={tag.id}
                           htmlFor={`tag-${tag.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                          className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
                         >
-                          {tag.icon && <span>{tag.icon}</span>}
-                          <span>{tag.name}</span>
-                          {tag.is_system_tag && (
-                            <span className="text-xs text-gray-500">(System)</span>
-                          )}
+                          <Checkbox
+                            id={`tag-${tag.id}`}
+                            checked={selectedTagIds.includes(tag.id)}
+                            onCheckedChange={() => toggleTag(tag.id)}
+                          />
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: tag.color || '#9067c6' }}
+                          />
+                          <span className="text-sm truncate">{tag.name}</span>
                         </label>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -216,6 +210,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
           </DialogFooter>
         </form>
       </DialogContent>
+      <ItemTagsManagerDialog open={isTagsManagerOpen} onOpenChange={setIsTagsManagerOpen} />
     </Dialog>
   );
 };

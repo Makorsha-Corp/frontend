@@ -34,6 +34,7 @@ import {
   Settings,
   Search,
   Plus,
+  Pencil,
   Loader2,
   Trash2,
   Check,
@@ -42,14 +43,17 @@ import {
   DollarSign,
   ListTodo,
   FileText,
-  Calendar,
   Paperclip,
-  Users,
+  Flag,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AddProjectDialog from '@/components/newcomponents/customui/AddProjectDialog';
 import AddProjectComponentDialog from '@/components/newcomponents/customui/AddProjectComponentDialog';
 import AddProjectComponentTaskDialog from '@/components/newcomponents/customui/AddProjectComponentTaskDialog';
+import AddProjectComponentItemDialog from '@/components/newcomponents/customui/AddProjectComponentItemDialog';
+import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
+import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
+import EditProjectComponentDialog from '@/components/newcomponents/customui/EditProjectComponentDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
@@ -72,6 +76,13 @@ const ProjectsPage: React.FC = () => {
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [isAddComponentOpen, setIsAddComponentOpen] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
+  const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [isAddMiscCostOpen, setIsAddMiscCostOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
+  const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
+  const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
 
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery(
@@ -145,6 +156,28 @@ const ProjectsPage: React.FC = () => {
 
   const handleComponentSelect = (component: ProjectComponent) => {
     setSelectedComponentId(component.id);
+    setLeftGroupTab('items');
+    setRightGroupTab('notes');
+  };
+
+  const handleLeftGroupAdd = () => {
+    if (leftGroupTab === 'items') {
+      setIsAddItemOpen(true);
+      return;
+    }
+    setIsAddMiscCostOpen(true);
+  };
+
+  const handleRightGroupAdd = () => {
+    if (rightGroupTab === 'notes') {
+      setIsAddNoteOpen(true);
+      return;
+    }
+    if (rightGroupTab === 'tasks') {
+      setIsAddTaskOpen(true);
+      return;
+    }
+    toast('Documents add flow coming soon', { icon: 'ℹ️' });
   };
 
   const handleDeleteProject = async (project: Project) => {
@@ -380,7 +413,7 @@ const ProjectsPage: React.FC = () => {
           </div>
 
           {/* Right panel - Project/Component detail */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 min-h-0">
             {!selectedComponentId ? (
               <Card className="border-border h-full">
                 {!selectedProjectId ? (
@@ -398,6 +431,15 @@ const ProjectsPage: React.FC = () => {
                           {(selectedProject.status ?? 'PLANNING').replace('_', ' ')}
                         </span>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setIsEditProjectOpen(true)}
+                        aria-label="Edit project"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                     {selectedProject.description ? (
                       <p className="text-sm text-muted-foreground mb-4">{selectedProject.description}</p>
@@ -434,63 +476,207 @@ const ProjectsPage: React.FC = () => {
                 )}
               </Card>
             ) : selectedComponent ? (
-              <div className="space-y-6">
-                {/* 1. Component intro card */}
-                <Card className="border-border">
-                  <CardContent className="p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-xl font-semibold text-card-foreground">{selectedComponent.name}</h2>
-                        <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${getStatusBadge(selectedComponent.status ?? 'PLANNING')}`}>
-                          {(selectedComponent.status ?? 'PLANNING').replace('_', ' ')}
-                        </span>
-                        {selectedComponent.description && (
-                          <p className="mt-3 text-sm text-muted-foreground max-w-2xl">{selectedComponent.description}</p>
-                        )}
+              <div className="h-full min-h-0 flex flex-col gap-4">
+                {/* Unified header with a middle separator */}
+                <Card className="border-border shrink-0">
+                  <CardContent className="p-5">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                      {/* Project (left) */}
+                      <div className="lg:col-span-7 lg:pr-6 lg:border-r lg:border-border lg:h-full">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                                Project
+                              </p>
+                              <h2 className="text-lg font-semibold text-card-foreground truncate">
+                                {selectedProject?.name ?? 'Unknown Project'}
+                              </h2>
+                              {selectedProject?.description ? (
+                                <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
+                                  {selectedProject.description}
+                                </p>
+                              ) : null}
+                            </div>
+                            {selectedProject && (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0"
+                                  onClick={() => setIsEditProjectOpen(true)}
+                                  aria-label="Edit project"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getStatusBadge(
+                                    selectedProject.status ?? 'PLANNING'
+                                  )}`}
+                                >
+                                  {(selectedProject.status ?? 'PLANNING').replace('_', ' ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                            {selectedProject?.budget != null && (
+                              <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                  Budget
+                                </p>
+                                <p className="font-medium">{formatCurrency(selectedProject.budget)}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Start Date
+                              </p>
+                              <p className="font-medium">
+                                {selectedProject?.start_date
+                                  ? new Date(selectedProject.start_date).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Deadline
+                              </p>
+                              <p className="font-medium">
+                                {selectedProject?.deadline
+                                  ? new Date(selectedProject.deadline).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Components
+                              </p>
+                              <p className="font-medium">{components.length}</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-6 text-sm">
-                        {selectedComponent.budget != null && (
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Budget</p>
-                            <p className="font-medium">{formatCurrency(selectedComponent.budget)}</p>
+
+                      {/* Component (right) */}
+                      <div className="lg:col-span-5 lg:pl-6 lg:h-full">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                                Component
+                              </p>
+                              <h3 className="text-base font-semibold text-card-foreground truncate">
+                                {selectedComponent.name}
+                              </h3>
+                              {selectedComponent.description ? (
+                                <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
+                                  {selectedComponent.description}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                onClick={() => setIsEditComponentOpen(true)}
+                                aria-label="Edit component"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <span
+                                className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getStatusBadge(
+                                  selectedComponent.status ?? 'PLANNING'
+                                )}`}
+                              >
+                                {(selectedComponent.status ?? 'PLANNING').replace('_', ' ')}
+                              </span>
+                            </div>
                           </div>
-                        )}
-                        {selectedComponent.deadline && (
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Deadline</p>
-                            <p className="font-medium">{new Date(selectedComponent.deadline).toLocaleDateString()}</p>
+
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Start Date
+                              </p>
+                              <p className="font-medium">
+                                {selectedComponent.start_date
+                                  ? new Date(selectedComponent.start_date).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Deadline
+                              </p>
+                              <p className="font-medium">
+                                {selectedComponent.deadline
+                                  ? new Date(selectedComponent.deadline).toLocaleDateString()
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                Total Cost
+                              </p>
+                              <p className="text-lg font-semibold text-brand-primary">
+                                {totalCost ? formatCurrency(totalCost.total_cost) : '—'}
+                              </p>
+                            </div>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Cost</p>
-                          <p className="text-lg font-semibold text-brand-primary">
-                            {totalCost ? formatCurrency(totalCost.total_cost) : '—'}
-                          </p>
                         </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* 2. Misc Costs / Notes switcher */}
-                <Card className="border-border">
-                  <CardContent className="p-0">
-                    <Tabs defaultValue="misc" className="w-full">
-                      <div className="border-b border-border px-4">
-                        <TabsList className="h-11 w-full justify-start rounded-none border-0 bg-transparent p-0">
-                          <TabsTrigger value="misc" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Misc Costs ({miscCosts.length})
-                          </TabsTrigger>
-                          <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Notes ({tasks.filter((t) => t.is_note).length})
-                          </TabsTrigger>
-                        </TabsList>
+                {/* Fixed-size split groups below: left slightly wider, both scrollable */}
+                <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  <Card className="border-border lg:col-span-7 min-h-0 flex flex-col overflow-hidden">
+                    <Tabs value={leftGroupTab} onValueChange={(v) => setLeftGroupTab(v as 'items' | 'misc')} className="w-full h-full min-h-0 flex flex-col overflow-hidden">
+                      <div className="border-b border-border px-3 shrink-0 flex h-11 items-center gap-2">
+                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                          <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
+                            <TabsTrigger value="items" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
+                              <Package className="h-4 w-4 mr-2" />
+                              Items ({componentItems.length})
+                            </TabsTrigger>
+                            <TabsTrigger value="misc" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Misc Costs ({miscCosts.length})
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={handleLeftGroupAdd}
+                          aria-label="Add to items and costs"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                      <TabsContent value="misc" className="p-4 m-0">
+
+                      <TabsContent value="items" className="m-0 mt-0 p-4 flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                        {componentItems.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No items yet.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {componentItems.map((item) => (
+                              <div key={item.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-muted/50 text-sm">
+                                <span className="text-card-foreground truncate">{getItemName(item.item_id)}</span>
+                                <span className="text-muted-foreground shrink-0 ml-2">× {item.qty}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="misc" className="m-0 mt-0 p-4 flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
                         {miscCosts.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No misc costs. Add expenses like labor, permits, or other non-item costs.</p>
+                          <p className="text-sm text-muted-foreground">No misc costs yet.</p>
                         ) : (
                           <div className="space-y-2">
                             {miscCosts.map((cost) => (
@@ -502,9 +688,42 @@ const ProjectsPage: React.FC = () => {
                           </div>
                         )}
                       </TabsContent>
-                      <TabsContent value="notes" className="p-4 m-0">
+                    </Tabs>
+                  </Card>
+
+                  <Card className="border-border lg:col-span-5 min-h-0 flex flex-col overflow-hidden">
+                    <Tabs value={rightGroupTab} onValueChange={(v) => setRightGroupTab(v as 'notes' | 'tasks' | 'documents')} className="w-full h-full min-h-0 flex flex-col">
+                      <div className="border-b border-border px-3 shrink-0 flex h-11 items-center gap-2">
+                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
+                          <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
+                            <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Notes ({tasks.filter((t) => t.is_note).length})
+                            </TabsTrigger>
+                            <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
+                              <ListTodo className="h-4 w-4 mr-2" />
+                              Tasks ({tasks.filter((t) => !t.is_note).length})
+                            </TabsTrigger>
+                            <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
+                              <Paperclip className="h-4 w-4 mr-2" />
+                              Documents
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={handleRightGroupAdd}
+                          aria-label="Add to notes tasks and documents"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      <TabsContent value="notes" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
                         {tasks.filter((t) => t.is_note).length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No notes. Add notes for specifications, decisions, or reminders.</p>
+                          <p className="text-sm text-muted-foreground">No notes yet.</p>
                         ) : (
                           <div className="space-y-2">
                             {tasks
@@ -518,87 +737,37 @@ const ProjectsPage: React.FC = () => {
                           </div>
                         )}
                       </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
 
-                {/* 3. Sample cards: Tasks, Items, and placeholders */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Tasks */}
-                  <Card className="border-border">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <ListTodo className="h-4 w-4" />
-                        Tasks
-                      </CardTitle>
-                      <Button size="sm" variant="outline" className="h-7" onClick={() => setIsAddTaskOpen(true)}>
-                        <Plus className="h-3.5 w-3.5" />
-                      </Button>
-                    </CardHeader>
-                    <CardContent className="space-y-1 max-h-48 overflow-y-auto">
-                      {tasks.filter((t) => !t.is_note).length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No tasks</p>
-                      ) : (
-                        tasks
-                          .filter((t) => !t.is_note)
-                          .map((task) => (
-                            <div key={task.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50">
-                              <button type="button" onClick={() => handleToggleTask(task.id, task.is_completed)} className="shrink-0">
-                                {task.is_completed ? <Check className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                              </button>
-                              <span className={`flex-1 text-xs truncate ${task.is_completed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}>{task.name}</span>
-                            </div>
-                          ))
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Items */}
-                  <Card className="border-border">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Package className="h-4 w-4" />
-                        Items ({componentItems.length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-1 max-h-48 overflow-y-auto">
-                      {componentItems.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No items</p>
-                      ) : (
-                        componentItems.map((item) => (
-                          <div key={item.id} className="flex justify-between items-center p-1.5 rounded hover:bg-muted/50 text-xs">
-                            <span className="text-card-foreground truncate">{getItemName(item.item_id)}</span>
-                            <span className="text-muted-foreground shrink-0 ml-1">× {item.qty}</span>
+                      <TabsContent value="tasks" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
+                        {tasks.filter((t) => !t.is_note).length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No tasks yet.</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {tasks
+                              .filter((t) => !t.is_note)
+                              .map((task) => (
+                                <div key={task.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                                  <button type="button" onClick={() => handleToggleTask(task.id, task.is_completed)} className="shrink-0">
+                                    {task.is_completed ? <Check className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                                  </button>
+                                  <span className={`flex-1 text-sm truncate ${task.is_completed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}>
+                                    {task.name}
+                                  </span>
+                                </div>
+                              ))}
                           </div>
-                        ))
-                      )}
-                    </CardContent>
-                  </Card>
+                        )}
+                      </TabsContent>
 
-                  {/* Timeline - placeholder */}
-                  <Card className="border-border border-dashed opacity-75">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        Timeline
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-muted-foreground">Milestones & schedule coming soon</p>
-                    </CardContent>
-                  </Card>
-
-                  {/* Documents - placeholder */}
-                  <Card className="border-border border-dashed opacity-75">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-                        <Paperclip className="h-4 w-4" />
-                        Documents
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-muted-foreground">Attachments & specs coming soon</p>
-                    </CardContent>
+                      <TabsContent value="documents" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
+                        <div className="h-full min-h-[140px] rounded-lg border border-dashed border-border bg-muted/20 flex items-center justify-center">
+                          <div className="text-center text-sm text-muted-foreground">
+                            <Flag className="h-5 w-5 mx-auto mb-2" />
+                            <p>Attachments and documents support coming soon.</p>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </Card>
                 </div>
               </div>
@@ -624,6 +793,22 @@ const ProjectsPage: React.FC = () => {
           setSelectedComponentId(null);
         }}
       />
+
+      <EditProjectDialog
+        open={isEditProjectOpen}
+        onOpenChange={setIsEditProjectOpen}
+        project={selectedProject}
+        onSuccess={(updated) => {
+          setSelectedProjectData(updated);
+        }}
+      />
+
+      <EditProjectComponentDialog
+        open={isEditComponentOpen}
+        onOpenChange={setIsEditComponentOpen}
+        component={selectedComponent ?? null}
+      />
+
       {selectedProjectId && (
         <AddProjectComponentDialog
           open={isAddComponentOpen}
@@ -636,6 +821,28 @@ const ProjectsPage: React.FC = () => {
         <AddProjectComponentTaskDialog
           open={isAddTaskOpen}
           onOpenChange={setIsAddTaskOpen}
+          projectComponentId={selectedComponentId}
+        />
+      )}
+      {selectedComponentId && (
+        <AddProjectComponentTaskDialog
+          open={isAddNoteOpen}
+          onOpenChange={setIsAddNoteOpen}
+          projectComponentId={selectedComponentId}
+          isNote
+        />
+      )}
+      {selectedComponentId && (
+        <AddProjectComponentItemDialog
+          open={isAddItemOpen}
+          onOpenChange={setIsAddItemOpen}
+          projectComponentId={selectedComponentId}
+        />
+      )}
+      {selectedComponentId && (
+        <AddMiscellaneousProjectCostDialog
+          open={isAddMiscCostOpen}
+          onOpenChange={setIsAddMiscCostOpen}
           projectComponentId={selectedComponentId}
         />
       )}

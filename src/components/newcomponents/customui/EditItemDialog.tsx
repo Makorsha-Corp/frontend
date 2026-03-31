@@ -11,13 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useUpdateItemMutation } from '@/features/items/itemsApi';
 import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { Item } from '@/types/item';
@@ -30,21 +23,6 @@ interface EditItemDialogProps {
   onOpenChange: (open: boolean) => void;
   item: Item | null;
 }
-
-const UNIT_OPTIONS = [
-  { value: 'pcs', label: 'Pieces (pcs)' },
-  { value: 'kg', label: 'Kilograms (kg)' },
-  { value: 'g', label: 'Grams (g)' },
-  { value: 'L', label: 'Liters (L)' },
-  { value: 'mL', label: 'Milliliters (mL)' },
-  { value: 'm', label: 'Meters (m)' },
-  { value: 'cm', label: 'Centimeters (cm)' },
-  { value: 'm²', label: 'Square Meters (m²)' },
-  { value: 'm³', label: 'Cubic Meters (m³)' },
-  { value: 'box', label: 'Box' },
-  { value: 'set', label: 'Set' },
-  { value: 'pair', label: 'Pair' },
-];
 
 const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, item }) => {
   const [name, setName] = useState('');
@@ -75,8 +53,8 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
       return;
     }
 
-    if (!unit) {
-      toast.error('Please select a unit');
+    if (!unit.trim()) {
+      toast.error('Unit is required');
       return;
     }
 
@@ -86,7 +64,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
         data: {
           name: name.trim(),
           description: description.trim() || null,
-          unit,
+          unit: unit.trim(),
           tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         },
       }).unwrap();
@@ -146,18 +124,13 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
               <Label htmlFor="edit-unit">
                 Unit <span className="text-red-500">*</span>
               </Label>
-              <Select value={unit} onValueChange={setUnit} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {UNIT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="edit-unit"
+                placeholder="e.g. kg, pcs, meter, box"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                required
+              />
             </div>
 
             <div className="grid gap-2">
@@ -188,7 +161,6 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
                           htmlFor={`edit-tag-${tag.id}`}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
                         >
-                          {tag.icon && <span>{tag.icon}</span>}
                           <span>{tag.name}</span>
                           {tag.is_system_tag && (
                             <span className="text-xs text-gray-500">(System)</span>
