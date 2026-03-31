@@ -19,7 +19,7 @@ import { Loader2 } from 'lucide-react';
 interface AddAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultTagCode?: string;  // Pre-select tag when adding from a tab (supplier, vendor, client, etc.)
+  defaultTagCode?: string;  // Pre-select tag when adding from a tab (supplier, vendor, client, etc..)
 }
 
 const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
