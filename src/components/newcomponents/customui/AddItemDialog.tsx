@@ -62,7 +62,8 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       if (!q) return true;
       const name = tag.name.toLowerCase();
       const code = (tag.tag_code || '').toLowerCase();
-      return name.includes(q) || code.includes(q);
+      const desc = (tag.description || '').toLowerCase();
+      return name.includes(q) || code.includes(q) || desc.includes(q);
     });
   }, [tags, tagSearch, selectedTagIds]);
 
@@ -228,7 +229,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
                     <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                     <Input
                       type="search"
-                      placeholder="Search tags by name or code…"
+                      placeholder="Search tags by name, code, or description…"
                       value={tagSearch}
                       onChange={(e) => setTagSearch(e.target.value)}
                       className="pl-9 h-9 bg-background"
