@@ -246,28 +246,22 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
                             : 'No tags to show'}
                       </p>
                     ) : (
-                      <ul className="divide-y divide-border">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
                         {unselectedFilteredTags.map((tag) => (
-                          <li key={tag.id}>
-                            <button
-                              type="button"
-                              onClick={() => addTag(tag.id)}
-                              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/60"
-                            >
-                              <span
-                                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                                style={{ backgroundColor: tag.color || '#9067c6' }}
-                              />
-                              <span className="min-w-0 flex-1 truncate font-medium">{tag.name}</span>
-                              {tag.is_system_tag && (
-                                <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                                  System
-                                </span>
-                              )}
-                            </button>
-                          </li>
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => addTag(tag.id)}
+                            className="flex w-full min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+                          >
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: tag.color || '#9067c6' }}
+                            />
+                            <span className="min-w-0 truncate font-medium">{tag.name}</span>
+                          </button>
                         ))}
-                      </ul>
+                      </div>
                     )}
                   </div>
                 </div>
