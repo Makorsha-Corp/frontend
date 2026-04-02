@@ -22,6 +22,8 @@ import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
+import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -49,6 +51,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [machinePickerOpen, setMachinePickerOpen] = useState(false);
+  const [machineDisplayLine, setMachineDisplayLine] = useState('');
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -63,6 +67,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setItemId('');
     setQty('');
     setUnitPrice('');
+    setMachineDisplayLine('');
+    setMachinePickerOpen(false);
   };
 
   const handleAddItem = () => {
@@ -239,6 +245,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           onValueChange={(v) => {
             setDestinationType(v as 'storage' | 'machine' | 'project');
             setDestinationId('');
+            setMachineDisplayLine('');
           }}
         >
           <SelectTrigger className="mt-1">
@@ -268,14 +275,39 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           </Select>
         </div>
       )}
-      {(destinationType === 'machine' || destinationType === 'project') && (
+      {destinationType === 'machine' && (
+        <div>
+          <Label>Machine *</Label>
+          <MachineSelectSummaryButton
+            onClick={() => setMachinePickerOpen(true)}
+            ariaLabel={
+              machineDisplayLine
+                ? `Change machine. Current: ${machineDisplayLine}`
+                : 'Select machine'
+            }
+            selectedLine={machineDisplayLine || null}
+            staleNumericId={machineDisplayLine ? null : destinationId || null}
+          />
+          <MachineSelectorDialog
+            open={machinePickerOpen}
+            onOpenChange={setMachinePickerOpen}
+            title="Select destination machine"
+            description="Pick factory and section, highlight a machine, then confirm."
+            onSelect={(m, ctx) => {
+              setDestinationId(String(m.id));
+              setMachineDisplayLine(`${ctx.factoryAbbreviation} · ${ctx.sectionAbbreviation} · ${ctx.machineName}`);
+            }}
+          />
+        </div>
+      )}
+      {destinationType === 'project' && (
         <div>
           <Label>Destination ID *</Label>
           <Input
             type="number"
             value={destinationId}
             onChange={(e) => setDestinationId(e.target.value)}
-            placeholder={destinationType === 'machine' ? 'Machine ID' : 'Project component ID'}
+            placeholder="Project component ID"
             className="mt-1"
           />
         </div>

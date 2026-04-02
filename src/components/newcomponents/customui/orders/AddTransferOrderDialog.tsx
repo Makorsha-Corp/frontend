@@ -18,12 +18,13 @@ import {
 import { useCreateTransferOrderMutation } from '@/features/transferOrders/transferOrdersApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { CreateTransferOrder, CreateTransferOrderItem } from '@/types/transferOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
+import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
+import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 
 const SOURCE_TYPES = [
   { value: 'storage', label: 'Storage (Factory)' },
@@ -59,11 +60,14 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const [items, setItems] = useState<Array<{ item_id: number; quantity: number; notes?: string }>>([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
+  const [sourceMachineDisplayLine, setSourceMachineDisplayLine] = useState('');
+  const [destMachineDisplayLine, setDestMachineDisplayLine] = useState('');
+  const [sourceMachinePickerOpen, setSourceMachinePickerOpen] = useState(false);
+  const [destMachinePickerOpen, setDestMachinePickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreateTransferOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
-  const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: projects = [] } = useGetProjectsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
 
   const reset = () => {
@@ -77,6 +81,10 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     setItems([]);
     setItemId('');
     setQty('');
+    setSourceMachineDisplayLine('');
+    setDestMachineDisplayLine('');
+    setSourceMachinePickerOpen(false);
+    setDestMachinePickerOpen(false);
   };
 
   const handleAddItem = () => {
@@ -135,18 +143,6 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       toast.error(e?.data?.detail || 'Failed to create transfer order');
     }
   };
-
-  const sourceOptions =
-    sourceType === 'storage' || sourceType === 'damaged'
-      ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
-      : machines.map((m) => ({ value: m.id.toString(), label: m.name }));
-
-  const destOptions =
-    destType === 'storage' || destType === 'damaged'
-      ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
-      : destType === 'machine'
-        ? machines.map((m) => ({ value: m.id.toString(), label: m.name }))
-        : projects.map((p) => ({ value: p.id.toString(), label: p.name }));
 
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
@@ -226,6 +222,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
             onValueChange={(v) => {
               setSourceType(v as typeof sourceType);
               setSourceId('');
+              setSourceMachineDisplayLine('');
             }}
           >
             <SelectTrigger className="mt-1">
@@ -242,18 +239,32 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         </div>
         <div>
           <Label>Source *</Label>
-          <Select value={sourceId} onValueChange={setSourceId} required>
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select source" />
-            </SelectTrigger>
-            <SelectContent>
-              {sourceOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {sourceType === 'storage' || sourceType === 'damaged' ? (
+            <Select value={sourceId} onValueChange={setSourceId} required>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select factory" />
+              </SelectTrigger>
+              <SelectContent>
+                {factories.map((f) => (
+                  <SelectItem key={f.id} value={f.id.toString()}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <MachineSelectSummaryButton
+              onClick={() => setSourceMachinePickerOpen(true)}
+              ariaLabel={
+                sourceMachineDisplayLine
+                  ? `Change source machine. Current: ${sourceMachineDisplayLine}`
+                  : 'Select source machine'
+              }
+              selectedLine={sourceMachineDisplayLine || null}
+              staleNumericId={sourceMachineDisplayLine ? null : sourceId || null}
+              compactLabel
+            />
+          )}
         </div>
       </div>
 
@@ -265,6 +276,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
             onValueChange={(v) => {
               setDestType(v as typeof destType);
               setDestId('');
+              setDestMachineDisplayLine('');
             }}
           >
             <SelectTrigger className="mt-1">
@@ -281,18 +293,45 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         </div>
         <div>
           <Label>Destination *</Label>
-          <Select value={destId} onValueChange={setDestId} required>
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select destination" />
-            </SelectTrigger>
-            <SelectContent>
-              {destOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {destType === 'storage' || destType === 'damaged' ? (
+            <Select value={destId} onValueChange={setDestId} required>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select factory" />
+              </SelectTrigger>
+              <SelectContent>
+                {factories.map((f) => (
+                  <SelectItem key={f.id} value={f.id.toString()}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : destType === 'machine' ? (
+            <MachineSelectSummaryButton
+              onClick={() => setDestMachinePickerOpen(true)}
+              ariaLabel={
+                destMachineDisplayLine
+                  ? `Change destination machine. Current: ${destMachineDisplayLine}`
+                  : 'Select destination machine'
+              }
+              selectedLine={destMachineDisplayLine || null}
+              staleNumericId={destMachineDisplayLine ? null : destId || null}
+              compactLabel
+            />
+          ) : (
+            <Select value={destId} onValueChange={setDestId} required>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id.toString()}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -308,6 +347,27 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         <Label>Note</Label>
         <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
+
+      <MachineSelectorDialog
+        open={sourceMachinePickerOpen}
+        onOpenChange={setSourceMachinePickerOpen}
+        title="Select source machine"
+        description="Pick factory and section, highlight a machine, then confirm."
+        onSelect={(m, ctx) => {
+          setSourceId(String(m.id));
+          setSourceMachineDisplayLine(`${ctx.factoryAbbreviation} · ${ctx.sectionAbbreviation} · ${ctx.machineName}`);
+        }}
+      />
+      <MachineSelectorDialog
+        open={destMachinePickerOpen}
+        onOpenChange={setDestMachinePickerOpen}
+        title="Select destination machine"
+        description="Pick factory and section, highlight a machine, then confirm."
+        onSelect={(m, ctx) => {
+          setDestId(String(m.id));
+          setDestMachineDisplayLine(`${ctx.factoryAbbreviation} · ${ctx.sectionAbbreviation} · ${ctx.machineName}`);
+        }}
+      />
     </div>
   );
 
