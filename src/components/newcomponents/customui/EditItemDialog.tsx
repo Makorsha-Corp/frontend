@@ -12,11 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUpdateItemMutation } from '@/features/items/itemsApi';
-import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { Item } from '@/types/item';
-import { Checkbox } from '@/components/ui/checkbox';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import ItemTagPickerSection from '@/components/newcomponents/customui/ItemTagPickerSection';
 
 interface EditItemDialogProps {
   open: boolean;
@@ -29,11 +28,9 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  
-  const [updateItem, { isLoading }] = useUpdateItemMutation();
-  const { data: tags } = useGetTagsQuery();
 
-  // Initialize form when item changes
+  const [updateItem, { isLoading }] = useUpdateItemMutation();
+
   useEffect(() => {
     if (item) {
       setName(item.name);
@@ -77,12 +74,6 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
     }
   };
 
-  const toggleTag = (tagId: number) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  };
-
   const handleCancel = () => {
     if (item) {
       setName(item.name);
@@ -101,9 +92,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-brand-secondary">Edit Item</DialogTitle>
-            <DialogDescription>
-              Update the item details below.
-            </DialogDescription>
+            <DialogDescription>Update the item details below.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -144,43 +133,15 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
               />
             </div>
 
-            {/* Tags Selection */}
-            {tags && tags.length > 0 && (
-              <div className="grid gap-2">
-                <Label>Tags (Optional)</Label>
-                <div className="border border-gray-200 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <div className="space-y-2">
-                    {tags.map((tag) => (
-                      <div key={tag.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-tag-${tag.id}`}
-                          checked={selectedTagIds.includes(tag.id)}
-                          onCheckedChange={() => toggleTag(tag.id)}
-                        />
-                        <label
-                          htmlFor={`edit-tag-${tag.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-                        >
-                          <span>{tag.name}</span>
-                          {tag.is_system_tag && (
-                            <span className="text-xs text-gray-500">(System)</span>
-                          )}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <ItemTagPickerSection
+              dialogOpen={open}
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={setSelectedTagIds}
+            />
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
               Cancel
             </Button>
             <Button
