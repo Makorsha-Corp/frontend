@@ -43,7 +43,9 @@ const ExpenseOrderListRow: React.FC<ExpenseOrderListRowProps> = ({
         <span>•</span>
         <span>{accountName || '—'}</span>
         <span>•</span>
-        <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+        <span>
+          {itemCount} expense{itemCount !== 1 ? 's' : ''}
+        </span>
       </div>
       <div className="text-xs font-medium text-card-foreground mt-0.5">{formatCurrency(order.total_amount)}</div>
     </button>

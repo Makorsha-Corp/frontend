@@ -108,7 +108,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one item');
+      toast.error('Add at least one transfer item');
       return;
     }
 
@@ -136,141 +136,201 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     }
   };
 
-  const sourceOptions = (sourceType === 'storage' || sourceType === 'damaged')
-    ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
-    : machines.map((m) => ({ value: m.id.toString(), label: m.name }));
+  const sourceOptions =
+    sourceType === 'storage' || sourceType === 'damaged'
+      ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
+      : machines.map((m) => ({ value: m.id.toString(), label: m.name }));
 
-  const destOptions = (destType === 'storage' || destType === 'damaged')
-    ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
-    : destType === 'machine'
-      ? machines.map((m) => ({ value: m.id.toString(), label: m.name }))
-      : projects.map((p) => ({ value: p.id.toString(), label: p.name }));
+  const destOptions =
+    destType === 'storage' || destType === 'damaged'
+      ? factories.map((f) => ({ value: f.id.toString(), label: f.name }))
+      : destType === 'machine'
+        ? machines.map((m) => ({ value: m.id.toString(), label: m.name }))
+        : projects.map((p) => ({ value: p.id.toString(), label: p.name }));
+
+  const lineItemsBlock = (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <Label className="text-base">Transfer items *</Label>
+        <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
+      </div>
+
+      <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+        <Select value={itemId} onValueChange={setItemId}>
+          <SelectTrigger className="w-full bg-background">
+            <SelectValue placeholder="Select item" />
+          </SelectTrigger>
+          <SelectContent>
+            {itemsList.map((i) => (
+              <SelectItem key={i.id} value={i.id.toString()}>
+                {i.name} {i.unit && `(${i.unit})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-[5rem] flex-1 gap-1">
+            <Label className="text-xs text-muted-foreground">Quantity</Label>
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="0"
+              className="bg-background"
+            />
+          </div>
+          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={handleAddItem}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
+        {items.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No transfer items yet</p>
+        ) : (
+          items.map((it, idx) => {
+            const item = itemsList.find((i) => i.id === it.item_id);
+            const unitSuffix = item?.unit ? ` ${item.unit}` : '';
+            return (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate text-sm font-medium leading-tight text-foreground">
+                    {item?.name ?? `Item #${it.item_id}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    Quantity {it.quantity}
+                    {unitSuffix}
+                  </p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
+  const orderFieldsBlock = (
+    <div className="grid min-w-0 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label>Source type *</Label>
+          <Select
+            value={sourceType}
+            onValueChange={(v) => {
+              setSourceType(v as typeof sourceType);
+              setSourceId('');
+            }}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCE_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Source *</Label>
+          <Select value={sourceId} onValueChange={setSourceId} required>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select source" />
+            </SelectTrigger>
+            <SelectContent>
+              {sourceOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label>Destination type *</Label>
+          <Select
+            value={destType}
+            onValueChange={(v) => {
+              setDestType(v as typeof destType);
+              setDestId('');
+            }}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DEST_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Destination *</Label>
+          <Select value={destId} onValueChange={setDestId} required>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select destination" />
+            </SelectTrigger>
+            <SelectContent>
+              {destOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label>Order date</Label>
+        <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
+      </div>
+      <div>
+        <Label>Description</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
+      </div>
+      <div>
+        <Label>Note</Label>
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" className="mt-1" />
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
+        <DialogHeader className="shrink-0 space-y-0 text-left">
           <DialogTitle>Add Transfer Order</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Source type *</Label>
-              <Select value={sourceType} onValueChange={(v) => { setSourceType(v as typeof sourceType); setSourceId(''); }}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-2 md:gap-8 md:items-stretch">
+            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 md:flex md:flex-col md:justify-center">
+              {orderFieldsBlock}
             </div>
-            <div>
-              <Label>Source *</Label>
-              <Select value={sourceId} onValueChange={setSourceId} required>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
+              {lineItemsBlock}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Destination type *</Label>
-              <Select value={destType} onValueChange={(v) => { setDestType(v as typeof destType); setDestId(''); }}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEST_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Destination *</Label>
-              <Select value={destId} onValueChange={setDestId} required>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select destination" />
-                </SelectTrigger>
-                <SelectContent>
-                  {destOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label>Order date</Label>
-            <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
-          </div>
-          <div>
-            <Label>Note</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
-          </div>
-
-          <div>
-            <Label className="block mb-2">Line items *</Label>
-            <div className="flex gap-2 mb-2">
-              <Select value={itemId} onValueChange={setItemId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemsList.map((i) => (
-                    <SelectItem key={i.id} value={i.id.toString()}>
-                      {i.name} {i.unit && `(${i.unit})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="Qty"
-                className="w-20"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleAddItem}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {items.length > 0 && (
-              <div className="border rounded-lg divide-y max-h-32 overflow-y-auto">
-                {items.map((it, idx) => {
-                  const item = itemsList.find((i) => i.id === it.item_id);
-                  return (
-                    <div key={idx} className="flex items-center justify-between px-3 py-2 text-sm">
-                      <span>{item?.name ?? `Item #${it.item_id}`} × {it.quantity}</span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(idx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create

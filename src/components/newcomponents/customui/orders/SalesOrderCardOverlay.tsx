@@ -40,7 +40,7 @@ const SalesOrderCardOverlay: React.FC<SalesOrderCardOverlayProps> = ({
       <p className="text-sm font-semibold text-brand-primary mt-1">{formatCurrency(order.total_amount)}</p>
       <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
         <span>{formatDate(order.order_date)}</span>
-        <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+        <span>{itemCount} sales item{itemCount !== 1 ? 's' : ''}</span>
       </div>
     </div>
   );
