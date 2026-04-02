@@ -96,12 +96,12 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       <div className="flex-1 min-h-0 flex flex-col shrink-0">
         <div className="flex items-center gap-2 mb-3">
           <Package className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-base font-semibold text-card-foreground">Items ({items.length})</h3>
+          <h3 className="text-base font-semibold text-card-foreground">Sales items ({items.length})</h3>
         </div>
         {itemsLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading...</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No items</p>
+          <p className="text-sm text-muted-foreground py-4">No sales items</p>
         ) : (
           <div className="border border-border rounded-lg overflow-x-auto">
             <Table>
@@ -112,7 +112,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                   <TableHead className="py-2">Qty ordered</TableHead>
                   <TableHead className="py-2">Qty delivered</TableHead>
                   <TableHead className="py-2">Unit price</TableHead>
-                  <TableHead className="py-2">Line total</TableHead>
+                  <TableHead className="py-2">Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,7 +134,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
         )}
       </div>
 
-      {/* Actions - after items */}
+      {/* Actions - after sales items */}
       <div className="shrink-0 pt-2">
         <OrderStatusActions
           currentStatusId={order.current_status_id}

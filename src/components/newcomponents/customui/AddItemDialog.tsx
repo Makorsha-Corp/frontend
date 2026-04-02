@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateItemMutation } from '@/features/items/itemsApi';
-import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import toast from 'react-hot-toast';
-import { Loader2, Search, Tags, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { Item } from '@/types/item';
-import type { ItemTag } from '@/types/itemTag';
-import ItemTagsManagerDialog from '@/components/newcomponents/customui/ItemTagsManagerDialog';
+import ItemTagPickerSection from '@/components/newcomponents/customui/ItemTagPickerSection';
 
 interface AddItemDialogProps {
   open: boolean;
@@ -30,8 +28,6 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [tagSearch, setTagSearch] = useState('');
-  const [isTagsManagerOpen, setIsTagsManagerOpen] = useState(false);
 
   const [createItem, { isLoading }] = useCreateItemMutation();
   const { data: tags } = useGetTagsQuery();
@@ -89,13 +85,11 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       }).unwrap();
 
       toast.success('Item created successfully!');
-      
-      // Reset form
+
       setName('');
       setDescription('');
       setUnit('');
       setSelectedTagIds([]);
-      setTagSearch('');
       onOpenChange(false);
       onSuccess?.(created);
     } catch (error: any) {
@@ -104,27 +98,18 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
     }
   };
 
-  const addTag = (tagId: number) => {
-    setSelectedTagIds((prev) => (prev.includes(tagId) ? prev : [...prev, tagId]));
-  };
-
-  const removeTag = (tagId: number) => {
-    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
-  };
-
   const handleCancel = () => {
     setName('');
     setDescription('');
     setUnit('');
     setSelectedTagIds([]);
-    setTagSearch('');
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="w-[min(56rem,94vw)] max-w-none max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-none">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle className="text-brand-secondary">Add New Item</DialogTitle>
             <DialogDescription>
@@ -132,41 +117,53 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">
-                Item Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="Enter item name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 md:items-center pt-1">
+            <div className="grid gap-4 min-w-0">
+              <div className="grid gap-2">
+                <Label htmlFor="name">
+                  Item Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="Enter item name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="unit">
+                  Unit <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="unit"
+                  placeholder="e.g. kg, pcs, meter, box"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Enter item description (optional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  className="min-h-[4.5rem] resize-y"
+                />
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="unit">
-                Unit <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="unit"
-                placeholder="e.g. kg, pcs, meter, box"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter item description (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+            <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-8 md:border-border">
+              <ItemTagPickerSection
+                dialogOpen={open}
+                selectedTagIds={selectedTagIds}
+                onSelectedTagIdsChange={setSelectedTagIds}
+                tagListClassName="max-h-[10.5rem] md:max-h-[12rem]"
               />
             </div>
 
@@ -271,12 +268,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
               Cancel
             </Button>
             <Button
@@ -296,7 +288,6 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
           </DialogFooter>
         </form>
       </DialogContent>
-      <ItemTagsManagerDialog open={isTagsManagerOpen} onOpenChange={setIsTagsManagerOpen} />
     </Dialog>
   );
 };

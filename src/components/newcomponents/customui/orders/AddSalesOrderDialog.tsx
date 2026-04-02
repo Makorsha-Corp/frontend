@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,7 +40,9 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [quotationSentDate, setQuotationSentDate] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>>([]);
+  const [items, setItems] = useState<
+    Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
+  >([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
@@ -97,7 +94,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one item');
+      toast.error('Add at least one sales item');
       return;
     }
 
@@ -130,132 +127,176 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     }
   };
 
+  const salesItemsBlock = (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <Label className="text-base">Sales items *</Label>
+        <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
+      </div>
+
+      <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+        <Select value={itemId} onValueChange={setItemId}>
+          <SelectTrigger className="w-full bg-background">
+            <SelectValue placeholder="Select item" />
+          </SelectTrigger>
+          <SelectContent>
+            {itemsList.map((i) => (
+              <SelectItem key={i.id} value={i.id.toString()}>
+                {i.name} {i.unit && `(${i.unit})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-[5rem] flex-1 gap-1">
+            <Label className="text-xs text-muted-foreground">Qty</Label>
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="0"
+              className="bg-background"
+            />
+          </div>
+          <div className="grid min-w-[5.5rem] flex-1 gap-1">
+            <Label className="text-xs text-muted-foreground">Unit price</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+              placeholder="0.00"
+              className="bg-background"
+            />
+          </div>
+          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={handleAddItem}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
+        {items.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No sales items yet</p>
+        ) : (
+          items.map((it, idx) => {
+            const item = itemsList.find((i) => i.id === it.item_id);
+            const unitSuffix = item?.unit ? ` ${item.unit}` : '';
+            const priceStr = Number(it.unit_price).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+            return (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate text-sm font-medium leading-tight text-foreground">
+                    {item?.name ?? `Item #${it.item_id}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    Quantity {it.quantity_ordered}
+                    {unitSuffix}
+                    <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                      ·
+                    </span>
+                    {priceStr} per unit
+                  </p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
+  const orderFieldsBlock = (
+    <div className="grid min-w-0 gap-4">
+      <div>
+        <Label>Customer *</Label>
+        <Select value={accountId} onValueChange={setAccountId} required>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select customer" />
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((a) => (
+              <SelectItem key={a.id} value={a.id.toString()}>
+                {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Factory *</Label>
+        <Select value={factoryId} onValueChange={setFactoryId} required>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="Select factory" />
+          </SelectTrigger>
+          <SelectContent>
+            {factories.map((f) => (
+              <SelectItem key={f.id} value={f.id.toString()}>
+                {f.name} {f.abbreviation && `(${f.abbreviation})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Order date *</Label>
+        <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label>Quotation sent date</Label>
+          <Input
+            type="date"
+            value={quotationSentDate}
+            onChange={(e) => setQuotationSentDate(e.target.value)}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Expected delivery date</Label>
+          <Input
+            type="date"
+            value={expectedDeliveryDate}
+            onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+            className="mt-1"
+          />
+        </div>
+      </div>
+      <div>
+        <Label>Notes</Label>
+        <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="mt-1" />
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Sales Order</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label>Customer *</Label>
-            <Select value={accountId} onValueChange={setAccountId} required>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id.toString()}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Factory *</Label>
-            <Select value={factoryId} onValueChange={setFactoryId} required>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select factory" />
-              </SelectTrigger>
-              <SelectContent>
-                {factories.map((f) => (
-                  <SelectItem key={f.id} value={f.id.toString()}>
-                    {f.name} {f.abbreviation && `(${f.abbreviation})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Order date *</Label>
-            <Input
-              type="date"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Quotation sent date</Label>
-            <Input
-              type="date"
-              value={quotationSentDate}
-              onChange={(e) => setQuotationSentDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Expected delivery date</Label>
-            <Input
-              type="date"
-              value={expectedDeliveryDate}
-              onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Notes</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
-          </div>
-
-          <div>
-            <Label className="block mb-2">Line items *</Label>
-            <div className="flex gap-2 mb-2">
-              <Select value={itemId} onValueChange={setItemId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemsList.map((i) => (
-                    <SelectItem key={i.id} value={i.id.toString()}>
-                      {i.name} {i.unit && `(${i.unit})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="Qty"
-                className="w-20"
-              />
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                placeholder="Price"
-                className="w-24"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleAddItem}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {items.length > 0 && (
-              <div className="border rounded-lg divide-y max-h-32 overflow-y-auto">
-                {items.map((it, idx) => {
-                  const item = itemsList.find((i) => i.id === it.item_id);
-                  return (
-                    <div key={idx} className="flex items-center justify-between px-3 py-2 text-sm">
-                      <span>
-                        {item?.name ?? `Item #${it.item_id}`} × {it.quantity_ordered} @ {it.unit_price}
-                      </span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(idx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  );
-                })}
+      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-6 sm:max-w-none">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden pb-4 pt-0 md:grid-cols-2 md:gap-8 md:items-stretch">
+            <div className="flex min-h-0 min-w-0 flex-col self-stretch overflow-hidden">
+              <div className="shrink-0 pb-4 text-left">
+                <DialogTitle className="text-brand-secondary">Add Sales Order</DialogTitle>
               </div>
-            )}
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 md:flex md:flex-col md:justify-center md:py-2">
+                {orderFieldsBlock}
+              </div>
+            </div>
+            <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
+              {salesItemsBlock}
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

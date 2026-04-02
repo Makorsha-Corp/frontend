@@ -47,7 +47,9 @@ const SalesOrderListRow: React.FC<SalesOrderListRowProps> = ({
         <span>•</span>
         <span>Factory #{order.factory_id}</span>
         <span>•</span>
-        <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+        <span>
+          {itemCount} sales item{itemCount !== 1 ? 's' : ''}
+        </span>
         <span>•</span>
         <span
           className={

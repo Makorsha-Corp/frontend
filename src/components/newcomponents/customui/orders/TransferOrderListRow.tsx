@@ -41,7 +41,9 @@ const TransferOrderListRow: React.FC<TransferOrderListRowProps> = ({
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
         <span>{formatDate(order.order_date)}</span>
         <span>•</span>
-        <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+        <span>
+          {itemCount} transfer item{itemCount !== 1 ? 's' : ''}
+        </span>
         <span>•</span>
         <span
           className={

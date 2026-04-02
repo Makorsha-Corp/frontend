@@ -88,12 +88,12 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       <div className="flex-1 min-h-0 flex flex-col shrink-0">
         <div className="flex items-center gap-2 mb-3">
           <Package className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-base font-semibold text-card-foreground">Items ({items.length})</h3>
+          <h3 className="text-base font-semibold text-card-foreground">Expenses ({items.length})</h3>
         </div>
         {itemsLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading...</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No items</p>
+          <p className="text-sm text-muted-foreground py-4">No expenses</p>
         ) : (
           <div className="border border-border rounded-lg overflow-auto flex-1 min-h-0">
             <Table>
@@ -103,7 +103,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     <TableHead className="py-2">Description</TableHead>
                     <TableHead className="py-2">Qty</TableHead>
                     <TableHead className="py-2">Unit price</TableHead>
-                    <TableHead className="py-2">Line subtotal</TableHead>
+                    <TableHead className="py-2">Subtotal</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -122,7 +122,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
           )}
       </div>
 
-      {/* Actions - after items */}
+      {/* Actions - after expenses */}
       <div className="shrink-0 pt-2">
         <OrderStatusActions
           currentStatusId={order.current_status_id}

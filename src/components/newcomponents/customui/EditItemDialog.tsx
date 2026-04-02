@@ -34,7 +34,6 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
   const [isTagsManagerOpen, setIsTagsManagerOpen] = useState(false);
 
   const [updateItem, { isLoading }] = useUpdateItemMutation();
-  const { data: tags } = useGetTagsQuery();
 
   useEffect(() => {
     if (!open) setTagSearch('');
@@ -138,9 +137,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-brand-secondary">Edit Item</DialogTitle>
-            <DialogDescription>
-              Update the item details below.
-            </DialogDescription>
+            <DialogDescription>Update the item details below.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -281,12 +278,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
               Cancel
             </Button>
             <Button
