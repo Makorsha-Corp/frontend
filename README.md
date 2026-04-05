@@ -1,4 +1,4 @@
-# Frontend (Makorsha ERP)
+# Frontend (Marker)
 
 Vite + React + TypeScript. **Project conventions, API URLs, and progress logs** live in the **parent** repo folder: [`../CLAUDE.md`](../CLAUDE.md), [`../progressCode.md`](../progressCode.md), [`../progressDesign.md`](../progressDesign.md), [`../inprogress.md`](../inprogress.md).
 

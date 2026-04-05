@@ -22,12 +22,28 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Factory as FactoryIcon, Pencil, Loader2, Layers, Plus, Search, Trash2, ChevronRight, Cog } from 'lucide-react';
+import {
+  Factory as FactoryIcon,
+  Pencil,
+  Loader2,
+  Layers,
+  Plus,
+  Search,
+  Trash2,
+  ChevronRight,
+  Cog,
+  Hash,
+} from 'lucide-react';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import AddFactorySectionDialog from '@/components/newcomponents/customui/AddFactorySectionDialog';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import type { FactorySection } from '@/types/factorySection';
-import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
+import {
+  brandIconGlyphClass,
+  brandIconTileClass,
+  neutralMetricIconClass,
+  neutralMetricTileClass,
+} from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -312,31 +328,64 @@ const FactoryDetailPage: React.FC = () => {
           ) : (
             <div className="space-y-8">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-stretch">
-                <Card className="flex h-full min-h-0 flex-col border-border bg-card shadow-sm">
-                  <CardHeader className="space-y-2 pb-4">
-                    <CardTitle className="text-xl font-semibold leading-snug tracking-tight text-card-foreground sm:text-2xl">
-                      {factory.name}{' '}
-                      <span className="font-semibold text-muted-foreground">({factory.abbreviation})</span>
-                    </CardTitle>
-                    <p className="text-sm font-medium leading-relaxed text-muted-foreground">
-                      <span className="tabular-nums font-semibold text-foreground">{sections.length}</span>{' '}
-                      {sections.length === 1 ? 'section' : 'sections'}
-                      <span className="mx-2 text-muted-foreground/40">·</span>
-                      <span className="tabular-nums font-semibold text-foreground">{factoryMachines.length}</span>{' '}
-                      {factoryMachines.length === 1 ? 'machine' : 'machines'}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col pt-0">
-                    <div className="flex gap-5 border-t border-border pt-5">
-                      <div className={cn(brandIconTileClass, 'h-fit shrink-0')} aria-hidden>
-                        <FactoryIcon className={brandIconGlyphClass} strokeWidth={2} />
+                <Card className="flex h-full min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm">
+                  <CardHeader className="px-6 pb-2 pt-6 sm:px-7 sm:pt-7">
+                    <div className="flex flex-wrap items-start gap-4">
+                      <div className={cn(brandIconTileClass, 'h-12 w-12 shrink-0 sm:h-14 sm:w-14')} aria-hidden>
+                        <FactoryIcon className="h-6 w-6 text-brand-primary sm:h-7 sm:w-7" strokeWidth={2} />
                       </div>
-                      <dl className="min-w-0 flex-1 text-sm">
-                        <div>
-                          <dt className="font-medium text-muted-foreground">ID</dt>
-                          <dd className="mt-0.5 font-mono text-base text-card-foreground">{factory.id}</dd>
+                      <CardTitle className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 text-2xl font-semibold leading-tight tracking-tight text-card-foreground sm:gap-x-3 sm:text-3xl">
+                        <span className="min-w-0">{factory.name}</span>
+                        <span className="shrink-0 rounded-lg border border-brand-primary/25 bg-brand-primary/10 px-2.5 py-0.5 text-sm font-semibold tracking-wide text-brand-primary sm:text-base">
+                          {factory.abbreviation}
+                        </span>
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col px-6 pb-6 pt-2 sm:px-7 sm:pb-7">
+                    <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-5 dark:border-border dark:bg-muted/10 sm:px-5 sm:py-6">
+                      <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:mb-5">
+                        At a glance
+                      </p>
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
+                        <div className="flex min-w-0 items-start gap-3.5">
+                          <div className={neutralMetricTileClass} aria-hidden>
+                            <Layers className={neutralMetricIconClass} strokeWidth={2} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-3xl font-semibold tabular-nums leading-none text-card-foreground sm:text-4xl">
+                              {sections.length}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-muted-foreground">
+                              {sections.length === 1 ? 'Section' : 'Sections'}
+                            </p>
+                          </div>
                         </div>
-                      </dl>
+                        <div className="flex min-w-0 items-start gap-3.5 sm:border-l sm:border-border/60 sm:pl-4">
+                          <div className={neutralMetricTileClass} aria-hidden>
+                            <Cog className={neutralMetricIconClass} strokeWidth={2} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-3xl font-semibold tabular-nums leading-none text-card-foreground sm:text-4xl">
+                              {factoryMachines.length}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-muted-foreground">
+                              {factoryMachines.length === 1 ? 'Machine' : 'Machines'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 items-start gap-3.5 sm:border-l sm:border-border/60 sm:pl-4">
+                          <div className={neutralMetricTileClass} aria-hidden>
+                            <Hash className={neutralMetricIconClass} strokeWidth={2} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-mono text-3xl font-semibold tabular-nums leading-none text-card-foreground sm:text-4xl">
+                              {factory.id}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-muted-foreground">Factory ID</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
