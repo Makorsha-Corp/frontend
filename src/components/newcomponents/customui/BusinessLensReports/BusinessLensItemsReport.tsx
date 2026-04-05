@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -52,9 +52,6 @@ const BusinessLensItemsReport: React.FC<BusinessLensItemsReportProps> = ({
   start,
   end,
 }) => {
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [startDate, setStartDate] = useState<Date | undefined>(start ? parseISO(start) : undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(end ? parseISO(end) : undefined);
   const [reportData, setReportData] = useState<ItemsReportData | null>(null);
@@ -125,8 +122,8 @@ const BusinessLensItemsReport: React.FC<BusinessLensItemsReportProps> = ({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <DashboardNavbar />
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">

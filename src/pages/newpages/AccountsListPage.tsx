@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -40,9 +40,6 @@ interface AccountsListPageProps {
 
 const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   const navigate = useNavigate();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -95,9 +92,9 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

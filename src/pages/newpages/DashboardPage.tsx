@@ -1,15 +1,11 @@
 import React from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, TrendingUp, DollarSign, Users as UsersIcon, Activity, Percent } from 'lucide-react';
 import { useAppSelector } from '@/app/hooks';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const [isNavCollapsed, setIsNavCollapsed] = React.useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
-
   const stats = [
     { title: 'Current MRR', value: '—', bgColor: 'bg-brand-primary', icon: <DollarSign size={24} /> },
     { title: 'Current Customers', value: '—', bgColor: 'bg-brand-primary-hover', icon: <UsersIcon size={24} /> },
@@ -22,10 +18,10 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      
+      <DashboardNavbar />
+
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border dark:border-border px-8 py-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">

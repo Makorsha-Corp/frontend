@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,9 +48,6 @@ const SECTION_CONFIG = [
 
 const StoragePage: React.FC = () => {
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [selectedSection, setSelectedSection] = useState<SectionType>('storage');
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
@@ -138,9 +135,9 @@ const StoragePage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">

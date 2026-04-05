@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,9 +19,6 @@ import toast, { Toaster } from 'react-hot-toast';
 
 const AccountDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const accountId = id ? parseInt(id, 10) : null;
@@ -46,9 +43,9 @@ const AccountDetailPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3 } from 'lucide-react';
@@ -24,15 +24,12 @@ const BusinessLensPlaceholderReport: React.FC<BusinessLensPlaceholderReportProps
   start,
   end,
 }) => {
-  const [isNavCollapsed, setIsNavCollapsed] = React.useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const label = TEMPLATE_LABELS[templateId] ?? templateId;
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <DashboardNavbar />
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

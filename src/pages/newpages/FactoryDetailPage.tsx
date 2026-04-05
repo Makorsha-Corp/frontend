@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -151,9 +151,6 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
 const FactoryDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddSectionDialogOpen, setIsAddSectionDialogOpen] = useState(false);
   const [isEditSectionDialogOpen, setIsEditSectionDialogOpen] = useState(false);
@@ -238,9 +235,9 @@ const FactoryDetailPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="sticky top-0 z-10 border-b border-border bg-card px-8 py-5 shadow-sm dark:bg-[hsl(var(--nav-background))]">
           <div className="flex flex-wrap items-center justify-between gap-4">

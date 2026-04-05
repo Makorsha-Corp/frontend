@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppSelector } from '@/app/hooks';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,9 +60,6 @@ const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD',
 
 const ProjectsPage: React.FC = () => {
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   // Sync with global factory when it changes (e.g. user selects or clears in navbar)
   useEffect(() => {
@@ -234,9 +231,8 @@ const ProjectsPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <DashboardNavbar />
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
