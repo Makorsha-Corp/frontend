@@ -76,7 +76,7 @@ const App: React.FC = () => {
             <Route path="/orders/sales" element={<SalesOrdersPage />} />
             <Route path="/orders/work" element={<WorkOrdersPage />} />
             <Route path="/management" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/login2" replace />} />
             <Route path="/api-test" element={<ApiTestPage />} />
 
             {/* Legacy routes - commented out */}

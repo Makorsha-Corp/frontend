@@ -29,7 +29,8 @@
     --destructive-foreground: 210 40% 98%;
     --border: 45 20% 88%; /* Warm-toned border */
     --input: 0 0% 100%; /* Pure white for inputs on cream background */
-    --ring: 222.2 84% 4.9%;
+    /* Focus ring — brand lavender, site-wide (see `ring` in tailwind.config) */
+    --ring: 266 45% 59%;
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;

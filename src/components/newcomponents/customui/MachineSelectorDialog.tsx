@@ -19,10 +19,17 @@ import {
 } from '@/components/ui/select';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
-import { useGetMachinesQuery } from '@/features/machines/machinesApi';
+import { useGetMachinesQuery, useGetLatestMachineEventQuery } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { cn } from '@/lib/utils';
+import {
+  getMachineVisualKind,
+  getMachineStatusLabel,
+  machineTopBarClass,
+  machineSelectorTileClass,
+  machineSelectorSubtextClass,
+} from '@/lib/machineVisualStatus';
 import { Loader2, Search } from 'lucide-react';
 
 /** Location labels for display in the parent form (factory has real abbreviation; section uses a short derived label — no `abbreviation` field on sections today). */
@@ -58,6 +65,51 @@ export interface MachineSelectorDialogProps {
 const activeMachines = (list: Machine[] | undefined) =>
   (list ?? []).filter((m) => m.is_active && !m.is_deleted);
 
+const MachineSelectorTile: React.FC<{
+  machine: Machine;
+  isHighlighted: boolean;
+  onPick: () => void;
+}> = ({ machine: m, isHighlighted, onPick }) => {
+  const { data: latest } = useGetLatestMachineEventQuery(m.id, { skip: !m.id });
+  const kind = getMachineVisualKind(m, latest);
+  const label = getMachineStatusLabel(m, latest);
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={isHighlighted}
+      onClick={onPick}
+      className={cn(
+        'flex min-h-[4.75rem] flex-col rounded-md border bg-card text-left shadow-sm outline-none transition-colors',
+        'hover:border-brand-primary/50 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        machineSelectorTileClass(kind, isHighlighted)
+      )}
+    >
+      <div className={cn('h-1.5 shrink-0 rounded-t-md', machineTopBarClass[kind])} aria-hidden />
+      <div className="flex flex-1 flex-col justify-center gap-0.5 px-2.5 py-2">
+        <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{m.name}</span>
+        <span
+          className={cn('text-[10px] font-semibold uppercase tracking-wide', machineSelectorSubtextClass[kind])}
+        >
+          {label}
+        </span>
+      </div>
+    </button>
+  );
+};
+
+const MachineSelectorFooterStatus: React.FC<{ machine: Machine }> = ({ machine }) => {
+  const { data: latest } = useGetLatestMachineEventQuery(machine.id, { skip: !machine.id });
+  const kind = getMachineVisualKind(machine, latest);
+  const label = getMachineStatusLabel(machine, latest);
+  return (
+    <>
+      Selected: <span className="font-medium text-foreground">{machine.name}</span>
+      <span className={cn('font-medium', machineSelectorSubtextClass[kind])}> · {label}</span>
+    </>
+  );
+};
+
 const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   open,
   onOpenChange,
@@ -65,7 +117,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   initialFactoryId,
   initialSectionId,
   title = 'Select machine',
-  description = 'Choose a factory and section, then pick a machine from the grid. Running machines are highlighted.',
+  description = 'Choose a factory and section, then pick a machine. Green = running, yellow = maintenance, red = not running (idle/off).',
 }) => {
   const [factoryId, setFactoryId] = useState<number | undefined>();
   const [sectionId, setSectionId] = useState<number | undefined>();
@@ -243,49 +295,14 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
                       role="listbox"
                       aria-label="Machines in section"
                     >
-                      {machines.map((m) => {
-                        const running = m.is_running;
-                        const isHighlighted = highlighted?.id === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            role="option"
-                            aria-selected={isHighlighted}
-                            onClick={() => setHighlighted(m)}
-                            className={cn(
-                              'flex min-h-[4.75rem] flex-col rounded-md border bg-card text-left shadow-sm outline-none transition-colors',
-                              'hover:border-brand-primary/50 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-brand-primary',
-                              running
-                                ? 'border-emerald-500/40 ring-1 ring-emerald-500/15'
-                                : 'border-border',
-                              isHighlighted &&
-                                'ring-2 ring-brand-primary ring-offset-2 ring-offset-background border-brand-primary'
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                'h-1.5 shrink-0 rounded-t-md',
-                                running ? 'bg-emerald-500' : 'bg-muted-foreground/25'
-                              )}
-                              aria-hidden
-                            />
-                            <div className="flex flex-1 flex-col justify-center gap-0.5 px-2.5 py-2">
-                              <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">
-                                {m.name}
-                              </span>
-                              <span
-                                className={cn(
-                                  'text-[10px] font-semibold uppercase tracking-wide',
-                                  running ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
-                                )}
-                              >
-                                {running ? 'Running' : 'Not running'}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
+                      {machines.map((m) => (
+                        <MachineSelectorTile
+                          key={m.id}
+                          machine={m}
+                          isHighlighted={highlighted?.id === m.id}
+                          onPick={() => setHighlighted(m)}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -297,12 +314,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
         <DialogFooter className="flex shrink-0 flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {highlighted ? (
-              <>
-                Selected: <span className="font-medium text-foreground">{highlighted.name}</span>
-                {highlighted.is_running ? (
-                  <span className="text-emerald-600 dark:text-emerald-400"> · Running</span>
-                ) : null}
-              </>
+              <MachineSelectorFooterStatus machine={highlighted} />
             ) : (
               <>Click a machine to highlight it, then confirm below.</>
             )}

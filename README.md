@@ -1,3 +1,11 @@
+# Frontend (Makorsha ERP)
+
+Vite + React + TypeScript. **Project conventions, API URLs, and progress logs** live in the **parent** repo folder: [`../CLAUDE.md`](../CLAUDE.md), [`../progressCode.md`](../progressCode.md), [`../progressDesign.md`](../progressDesign.md), [`../inprogress.md`](../inprogress.md).
+
+**Local dev**: `npm install` → `npm run dev` (see `CLAUDE.md` for `VITE_API_URL` / workspace header).
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

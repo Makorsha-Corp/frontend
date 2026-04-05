@@ -103,7 +103,7 @@ const EditProjectComponentDialog: React.FC<EditProjectComponentDialogProps> = ({
           <DialogDescription>Update component details, dates, budget, and status.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pl-2 pr-4">
           <div>
             <Label htmlFor="edit-component-name">Name *</Label>
             <Input

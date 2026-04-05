@@ -52,7 +52,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       ref={setNodeRef}
       className={`
         flex-1 min-w-0 flex flex-col rounded-lg border border-border bg-muted/30
-        ${isOver ? 'ring-2 ring-brand-primary ring-offset-2' : ''}
+        ${isOver ? 'ring-2 ring-ring ring-offset-2 ring-offset-background' : ''}
       `}
     >
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">

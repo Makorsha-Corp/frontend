@@ -36,7 +36,7 @@ const DashboardPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search transactions, customers, subscriptions..."
-                  className="pl-10 pr-4 py-2 w-96 border border-border rounded-lg bg-background dark:bg-background/50 text-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  className="pl-10 pr-4 py-2 w-96 border border-border rounded-lg bg-background dark:bg-background/50 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-transparent"
                 />
               </div>
               <div className="w-10 h-10 bg-brand-primary rounded-full flex items-center justify-center text-white font-semibold">

@@ -379,7 +379,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-2 md:gap-8 md:items-stretch">
-            <div className="min-h-0 min-w-0 overflow-y-auto pr-1 md:flex md:flex-col md:justify-center">
+            <div className="min-h-0 min-w-0 overflow-y-auto pl-2 pr-4 md:flex md:flex-col md:justify-center">
               {orderFieldsBlock}
             </div>
             <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">

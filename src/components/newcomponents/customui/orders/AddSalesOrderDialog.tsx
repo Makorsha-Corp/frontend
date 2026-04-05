@@ -287,7 +287,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
               <div className="shrink-0 pb-4 text-left">
                 <DialogTitle className="text-brand-secondary">Add Sales Order</DialogTitle>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1 md:flex md:flex-col md:justify-center md:py-2">
+              <div className="min-h-0 flex-1 overflow-y-auto pl-2 pr-4 md:flex md:flex-col md:justify-center md:py-2">
                 {orderFieldsBlock}
               </div>
             </div>

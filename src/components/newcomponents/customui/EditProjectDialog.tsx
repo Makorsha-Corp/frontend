@@ -100,7 +100,7 @@ const EditProjectDialog: React.FC<EditProjectDialogProps> = ({ open, onOpenChang
           <DialogDescription>Update project details, dates, priority, and status.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pl-2 pr-4">
           <div>
             <Label htmlFor="edit-project-name">Name *</Label>
             <Input

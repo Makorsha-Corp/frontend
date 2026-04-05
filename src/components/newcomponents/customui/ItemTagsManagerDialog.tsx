@@ -110,7 +110,7 @@ const ItemTagsManagerDialog: React.FC<ItemTagsManagerDialogProps> = ({ open, onO
           <DialogDescription>Create, edit, and remove item tags.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pl-2 pr-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium">Existing Tags</Label>
             <div className="border border-border rounded-lg p-2 max-h-[52vh] overflow-y-auto">

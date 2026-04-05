@@ -166,7 +166,7 @@ const BusinessLensPage: React.FC = () => {
               <button
                 key={t.id}
                 onClick={() => onTileClick(t)}
-                className="text-left group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary rounded-2xl"
+                className="text-left group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
               >
                 <Card className="h-full transition hover:shadow-lg border-2 border-transparent hover:border-brand-primary/30 rounded-2xl w-full bg-card">
                   <CardHeader className="flex flex-row items-center gap-3 pb-2">

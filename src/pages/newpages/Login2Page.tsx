@@ -35,10 +35,13 @@ const Login2Page: React.FC = () => {
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
 
-  // Redirect if already authenticated and has workspace
+  // Already signed in: skip login (avoid redirect loop with "/" → /login2)
   useEffect(() => {
-    if (isAuthenticated && workspace) {
-      navigate('/');
+    if (!isAuthenticated) return;
+    if (workspace) {
+      navigate('/dashboard', { replace: true });
+    } else {
+      navigate('/workspace-selector', { replace: true });
     }
   }, [isAuthenticated, workspace, navigate]);
 

@@ -20,7 +20,7 @@ export interface MachineSelectSummaryButtonProps {
 }
 
 const baseClassName =
-  'mt-1 flex min-h-10 w-full cursor-pointer items-center rounded-md border border-border bg-muted/20 px-3 py-2 text-left text-sm select-none transition-colors hover:border-brand-primary/35 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  'mt-1 flex min-h-10 w-full cursor-pointer items-center rounded-md border border-border bg-muted/20 px-3 py-2 text-left text-sm select-none transition-colors hover:border-brand-primary/35 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 export function MachineSelectSummaryButton({
   onClick,
