@@ -250,7 +250,10 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchItem', id: `batch-${batchId}` }],
+      invalidatesTags: (result, error, { batchId }) => [
+        { type: 'BatchItem', id: `batch-${batchId}` },
+        'ProductionBatch',
+      ],
     }),
     updateBatchItem: builder.mutation<ProductionBatchItem, { id: number; data: UpdateProductionBatchItemDTO }>({
       query: ({ id, data }) => ({
@@ -258,14 +261,14 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['BatchItem'],
+      invalidatesTags: ['BatchItem', 'ProductionBatch'],
     }),
     removeBatchItem: builder.mutation<void, number>({
       query: (id) => ({
         url: `production-batches/items/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['BatchItem'],
+      invalidatesTags: ['BatchItem', 'ProductionBatch'],
     }),
   }),
 });

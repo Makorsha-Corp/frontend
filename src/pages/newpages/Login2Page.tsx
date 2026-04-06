@@ -466,7 +466,7 @@ const Login2Page: React.FC = () => {
           </nav>
         </header>
 
-        <div className="relative z-0 flex-1 space-y-10 overflow-y-auto px-5 py-8 sm:px-8 sm:py-10">
+        <div className="relative z-0 flex-1 space-y-10 overflow-y-auto px-5 pb-8 pt-10 sm:px-8 sm:pb-10 sm:pt-12">
           <section id="about" className="space-y-4">
             <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Procurement, inventory, and production in one workspace.

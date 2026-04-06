@@ -48,7 +48,12 @@ const App: React.FC = () => {
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <Router>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/login2" element={<Login2Page />} />

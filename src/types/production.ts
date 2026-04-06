@@ -121,8 +121,10 @@ export interface ProductionBatch {
   actual_start_time: string | null;
   actual_end_time: string | null;
   output_variance_quantity: number | null;
-  output_variance_percentage: number | null;
-  efficiency_percentage: number | null;
+  /** API may serialize Numeric as string */
+  output_variance_percentage: number | string | null;
+  /** API may serialize Numeric as string */
+  efficiency_percentage: number | string | null;
   notes: string | null;
   created_by: number | null;
   updated_by: number | null;

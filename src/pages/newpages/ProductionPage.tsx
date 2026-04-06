@@ -28,35 +28,51 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import FormulaDetailsDialog from '@/components/newcomponents/customui/FormulaDetailsDialog';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
+import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
 import {
   useGetProductionLinesQuery,
   useCreateProductionLineMutation,
   useUpdateProductionLineMutation,
   useDeleteProductionLineMutation,
-} from '@/features/production/productionApi';
-import {
   useGetProductionFormulasQuery,
   useCreateProductionFormulaMutation,
   useUpdateProductionFormulaMutation,
   useDeleteProductionFormulaMutation,
   useGetFormulaItemsQuery,
-  useAddFormulaItemMutation,
-  useRemoveFormulaItemMutation,
-} from '@/features/production/productionApi';
-import {
   useGetProductionBatchesQuery,
+  useGetProductionBatchByIdQuery,
   useCreateProductionBatchMutation,
+  useUpdateProductionBatchMutation,
+  useDeleteProductionBatchMutation,
   useStartBatchMutation,
   useCompleteBatchMutation,
   useCancelBatchMutation,
+  useGetBatchItemsQuery,
+  useAddBatchItemMutation,
+  useUpdateBatchItemMutation,
+  useRemoveBatchItemMutation,
 } from '@/features/production/productionApi';
 import type {
   ProductionLine,
   ProductionFormula,
   ProductionFormulaItem,
   ProductionBatch,
+  ProductionBatchItem,
   ItemRole,
 } from '@/types/production';
 import {
@@ -69,17 +85,64 @@ import {
   Play,
   Check,
   X,
-  Minus,
   Layers,
   FileText,
   Package,
   LayoutDashboard,
+  Maximize2,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import toast, { Toaster } from 'react-hot-toast';
 
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
+
+const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
+  input: 'border-transparent bg-blue-500/15 text-blue-800 dark:text-blue-200',
+  output: 'border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
+  waste: 'border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-100',
+  byproduct: 'border-transparent bg-violet-500/15 text-violet-800 dark:text-violet-200',
+};
+
+const BATCH_ROLE_SECTION_TITLE: Record<ItemRole, string> = {
+  input: 'Inputs',
+  output: 'Outputs',
+  waste: 'Waste',
+  byproduct: 'Byproducts',
+};
+
+/** Backend Numeric/Decimal fields often arrive as strings in JSON */
+function toFiniteNumber(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatOptionalPercent(value: unknown, digits = 1): string | null {
+  const n = toFiniteNumber(value);
+  if (n == null) return null;
+  return `${n.toFixed(digits)}%`;
+}
+
+/** Required integer qty per input line after scaling (ceil to align with backend int scaling). */
+function scaledInputRequired(
+  formulaItems: ProductionFormulaItem[],
+  targetOutput: number | null
+): { baseOut: number; target: number; rows: { item_id: number; required: number; optional: boolean }[] } | null {
+  const outputs = formulaItems.filter((fi) => fi.item_role === 'output');
+  const baseOut = outputs.reduce((s, fi) => s + fi.quantity, 0);
+  if (baseOut <= 0) return null;
+  const target = targetOutput != null && targetOutput > 0 ? targetOutput : baseOut;
+  const mult = target / baseOut;
+  const rows = formulaItems
+    .filter((fi) => fi.item_role === 'input')
+    .map((fi) => ({
+      item_id: fi.item_id,
+      required: Math.max(0, Math.ceil(fi.quantity * mult)),
+      optional: fi.is_optional,
+    }));
+  return { baseOut, target, rows };
+}
 
 const ProductionPage: React.FC = () => {
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
@@ -99,6 +162,8 @@ const ProductionPage: React.FC = () => {
   const [isAddBatchOpen, setIsAddBatchOpen] = useState(false);
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<ProductionBatch | null>(null);
+  const [startBatchId, setStartBatchId] = useState<number | null>(null);
+  const [editBatchId, setEditBatchId] = useState<number | null>(null);
 
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
@@ -162,9 +227,11 @@ const ProductionPage: React.FC = () => {
   const [updateFormula, { isLoading: isUpdatingFormula }] = useUpdateProductionFormulaMutation();
   const [deleteFormula, { isLoading: isDeletingFormula }] = useDeleteProductionFormulaMutation();
   const [createBatch, { isLoading: isCreatingBatch }] = useCreateProductionBatchMutation();
-  const [startBatch] = useStartBatchMutation();
+  const [startBatch, { isLoading: isStartingBatch }] = useStartBatchMutation();
   const [completeBatch] = useCompleteBatchMutation();
   const [cancelBatch] = useCancelBatchMutation();
+  const [updateProductionBatch, { isLoading: isUpdatingBatch }] = useUpdateProductionBatchMutation();
+  const [deleteProductionBatch, { isLoading: isDeletingBatch }] = useDeleteProductionBatchMutation();
 
   const filteredLines = useMemo(() => {
     if (!searchQuery.trim()) return linesForFactory;
@@ -206,12 +273,14 @@ const ProductionPage: React.FC = () => {
     );
     const activeBatches = batches.filter((b) => b.status === 'in_progress');
     const completedWithEfficiency = batches.filter(
-      (b) => b.status === 'completed' && b.efficiency_percentage != null
+      (b) => b.status === 'completed' && toFiniteNumber(b.efficiency_percentage) != null
     );
     const avgEfficiency =
       completedWithEfficiency.length > 0
-        ? completedWithEfficiency.reduce((s, b) => s + (b.efficiency_percentage ?? 0), 0) /
-          completedWithEfficiency.length
+        ? completedWithEfficiency.reduce(
+            (s, b) => s + (toFiniteNumber(b.efficiency_percentage) ?? 0),
+            0
+          ) / completedWithEfficiency.length
         : null;
     return {
       totalLines: filteredLines.length,
@@ -239,6 +308,8 @@ const ProductionPage: React.FC = () => {
       setLineId(null);
       setBatchStatusFilter('all');
       setSelectedBatchId(null);
+      setStartBatchId(null);
+      setEditBatchId(null);
     }
     setActiveTab(tab as 'overview' | 'batches');
   };
@@ -254,6 +325,9 @@ const ProductionPage: React.FC = () => {
     };
     return map[status] ?? 'bg-muted text-muted-foreground';
   };
+
+  const selectedFormula =
+    selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) : undefined;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -590,13 +664,15 @@ const ProductionPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {selectedFormulaId && (
-                <FormulaItemsPanel
-                  formulaId={selectedFormulaId}
-                  formula={formulas.find((f) => f.id === selectedFormulaId)!}
+              {selectedFormula && (
+                <FormulaDetailsDialog
+                  open
+                  onOpenChange={(o) => {
+                    if (!o) setSelectedFormulaId(null);
+                  }}
+                  formula={selectedFormula}
                   items={items}
                   getItemName={getItemName}
-                  onClose={() => setSelectedFormulaId(null)}
                 />
               )}
                 </div>
@@ -627,96 +703,91 @@ const ProductionPage: React.FC = () => {
                 </Card>
               </div>
 
-              <Card className="border-border">
-                <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {filteredBatches.length} batches
-                  </span>
-                  <Button
-                    size="sm"
-                    className="bg-brand-primary hover:bg-brand-primary-hover"
-                    onClick={() => setIsAddBatchOpen(true)}
-                    disabled={linesForFactory.length === 0}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Batch
-                  </Button>
-                </div>
-                <CardContent className="p-0">
-                  {batchesError ? (
-                    <div className="py-8 px-4 text-center">
-                      <p className="text-sm text-destructive font-medium">Failed to load batches</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(batchesError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
-                      </p>
-                    </div>
-                  ) : loadingBatches ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                    </div>
-                  ) : filteredBatches.length === 0 ? (
-                    <div className="py-12 text-center text-muted-foreground text-sm">
-                      {linesForFactory.length === 0
-                        ? 'Add production lines first'
-                        : 'No batches. Create one to start production.'}
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {filteredBatches.map((batch) => (
-                        <BatchRow
-                          key={batch.id}
-                          batch={batch}
-                          lines={linesForFactory}
-                          formulas={formulas}
-                          getStatusBadge={getStatusBadge}
-                          isSelected={selectedBatchId === batch.id}
-                          onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
-                          onStart={async () => {
-                            try {
-                              await startBatch({ id: batch.id, data: {} }).unwrap();
-                              toast.success('Batch started');
-                            } catch (e: unknown) {
-                              const err = e as { data?: { detail?: string } };
-                              toast.error(err?.data?.detail || 'Failed to start');
-                            }
-                          }}
-                          onComplete={() => setCompletingBatch(batch)}
-                          onCancel={() => setCancellingBatch(batch)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(280px,380px)_1fr] gap-6 items-start">
+                <Card className="border-border xl:sticky xl:top-24 self-start">
+                  <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {filteredBatches.length} batches
+                    </span>
+                    <Button
+                      size="sm"
+                      className="bg-brand-primary hover:bg-brand-primary-hover"
+                      onClick={() => setIsAddBatchOpen(true)}
+                      disabled={linesForFactory.length === 0}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Batch
+                    </Button>
+                  </div>
+                  <CardContent className="p-0 max-h-[min(52vh,420px)] overflow-y-auto">
+                    {batchesError ? (
+                      <div className="py-8 px-4 text-center">
+                        <p className="text-sm text-destructive font-medium">Failed to load batches</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {(batchesError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
+                        </p>
+                      </div>
+                    ) : loadingBatches ? (
+                      <div className="flex justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                      </div>
+                    ) : filteredBatches.length === 0 ? (
+                      <div className="py-12 text-center text-muted-foreground text-sm">
+                        {linesForFactory.length === 0
+                          ? 'Add production lines first'
+                          : 'No batches. Create one to start production.'}
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border">
+                        {filteredBatches.map((batch) => (
+                          <BatchRow
+                            key={batch.id}
+                            batch={batch}
+                            lines={linesForFactory}
+                            formulas={formulas}
+                            getStatusBadge={getStatusBadge}
+                            isSelected={selectedBatchId === batch.id}
+                            onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
+                            onStart={() => setStartBatchId(batch.id)}
+                            onComplete={() => setCompletingBatch(batch)}
+                            onCancel={() => setCancellingBatch(batch)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-              {selectedBatchId && (
-                <BatchDetailPanel
-                  batch={filteredBatches.find((b) => b.id === selectedBatchId)!}
-                  lines={linesForFactory}
-                  formulas={formulas}
-                  getStatusBadge={getStatusBadge}
-                  onClose={() => setSelectedBatchId(null)}
-                  onStart={async () => {
-                    const b = filteredBatches.find((x) => x.id === selectedBatchId);
-                    if (!b) return;
-                    try {
-                      await startBatch({ id: b.id, data: {} }).unwrap();
-                      toast.success('Batch started');
-                    } catch (e: unknown) {
-                      const err = e as { data?: { detail?: string } };
-                      toast.error(err?.data?.detail || 'Failed to start');
-                    }
-                  }}
-                  onComplete={() => {
-                    const b = filteredBatches.find((x) => x.id === selectedBatchId);
-                    if (b) setCompletingBatch(b);
-                  }}
-                  onCancel={() => {
-                    const b = filteredBatches.find((x) => x.id === selectedBatchId);
-                    if (b) setCancellingBatch(b);
-                  }}
-                />
-              )}
+                {selectedBatchId ? (
+                  <BatchDetailPanel
+                    batchId={selectedBatchId}
+                    lines={linesForFactory}
+                    formulas={formulas}
+                    items={items}
+                    getItemName={getItemName}
+                    getStatusBadge={getStatusBadge}
+                    onClose={() => setSelectedBatchId(null)}
+                    onRequestStart={() => setStartBatchId(selectedBatchId)}
+                    onEdit={() => setEditBatchId(selectedBatchId)}
+                    onComplete={(b) => setCompletingBatch(b)}
+                    onCancel={(b) => setCancellingBatch(b)}
+                    onDeleted={() => {
+                      setSelectedBatchId(null);
+                      setEditBatchId(null);
+                      setStartBatchId(null);
+                    }}
+                    deleteProductionBatch={deleteProductionBatch}
+                    isDeletingBatch={isDeletingBatch}
+                  />
+                ) : (
+                  <Card className="border-dashed border-border bg-muted/20">
+                    <CardContent className="py-16 text-center text-sm text-muted-foreground">
+                      Select a batch, then use <span className="font-medium">Batch details</span> to open the full view
+                      (summary on the left, lines on the right).
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>
@@ -794,6 +865,26 @@ const ProductionPage: React.FC = () => {
           onClose={() => setCancellingBatch(null)}
           cancelBatch={cancelBatch}
           onSuccess={() => setCancellingBatch(null)}
+        />
+      )}
+
+      {startBatchId != null && (
+        <StartBatchDialog
+          batchId={startBatchId}
+          lines={linesForFactory}
+          getItemName={getItemName}
+          startBatch={startBatch}
+          isStarting={isStartingBatch}
+          onClose={() => setStartBatchId(null)}
+        />
+      )}
+
+      {editBatchId != null && (
+        <EditBatchDialog
+          batchId={editBatchId}
+          updateProductionBatch={updateProductionBatch}
+          isUpdating={isUpdatingBatch}
+          onClose={() => setEditBatchId(null)}
         />
       )}
     </div>
@@ -1088,175 +1179,6 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
   );
 };
 
-// ─── Formula Items Panel ──────────────────────────────────────────────
-
-interface FormulaItemsPanelProps {
-  formulaId: number;
-  formula: ProductionFormula;
-  items: { id: number; name: string }[];
-  getItemName: (id: number) => string;
-  onClose: () => void;
-}
-
-const FormulaItemsPanel: React.FC<FormulaItemsPanelProps> = ({
-  formulaId,
-  formula,
-  items,
-  getItemName,
-  onClose,
-}) => {
-  const { data: formulaItems = [], isLoading } = useGetFormulaItemsQuery({ formulaId });
-  const [addFormulaItem, { isLoading: isAdding }] = useAddFormulaItemMutation();
-  const [removeFormulaItem] = useRemoveFormulaItemMutation();
-  const [addItemId, setAddItemId] = useState('');
-  const [addRole, setAddRole] = useState<ItemRole>('input');
-  const [addQty, setAddQty] = useState('1');
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const itemId = parseInt(addItemId, 10);
-    const qty = parseInt(addQty, 10);
-    if (!itemId || qty < 1) {
-      toast.error('Select item and enter quantity');
-      return;
-    }
-    const exists = formulaItems.some((fi) => fi.item_id === itemId && fi.item_role === addRole);
-    if (exists) {
-      toast.error('This item/role combination already exists');
-      return;
-    }
-    try {
-      await addFormulaItem({
-        formulaId,
-        data: {
-          formula_id: formulaId,
-          item_id: itemId,
-          item_role: addRole,
-          quantity: qty,
-        },
-      }).unwrap();
-      toast.success('Item added');
-      setAddItemId('');
-      setAddQty('1');
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to add');
-    }
-  };
-
-  const handleRemove = async (item: ProductionFormulaItem) => {
-    if (!window.confirm(`Remove ${getItemName(item.item_id)} from formula?`)) return;
-    try {
-      await removeFormulaItem(item.id).unwrap();
-      toast.success('Item removed');
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to remove');
-    }
-  };
-
-  const byRole = useMemo(() => {
-    const map: Record<ItemRole, ProductionFormulaItem[]> = {
-      input: [],
-      output: [],
-      waste: [],
-      byproduct: [],
-    };
-    for (const fi of formulaItems) {
-      map[fi.item_role as ItemRole].push(fi);
-    }
-    return map;
-  }, [formulaItems]);
-
-  return (
-    <Card className="border-border mt-4">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Formula Items: {formula.name}</CardTitle>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <Minus className="h-4 w-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <form onSubmit={handleAdd} className="flex flex-wrap gap-2 items-end">
-          <Select value={addItemId} onValueChange={setAddItemId}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Item" />
-            </SelectTrigger>
-            <SelectContent>
-              {items.map((i) => (
-                <SelectItem key={i.id} value={i.id.toString()}>
-                  {i.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={addRole} onValueChange={(v) => setAddRole(v as ItemRole)}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ITEM_ROLES.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {r}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="number"
-            min={1}
-            value={addQty}
-            onChange={(e) => setAddQty(e.target.value)}
-            className="w-20"
-            placeholder="Qty"
-          />
-          <Button type="submit" size="sm" disabled={isAdding}>
-            {isAdding && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-            Add
-          </Button>
-        </form>
-
-        {isLoading ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
-        ) : (
-          <div className="space-y-3">
-            {ITEM_ROLES.map((role) => (
-              <div key={role}>
-                <div className="text-xs font-medium text-muted-foreground uppercase mb-1">{role}</div>
-                <div className="space-y-1">
-                  {byRole[role].length === 0 ? (
-                    <p className="text-sm text-muted-foreground">None</p>
-                  ) : (
-                    byRole[role].map((fi) => (
-                      <div
-                        key={fi.id}
-                        className="flex items-center justify-between py-1 px-2 rounded bg-muted/50"
-                      >
-                        <span>
-                          {getItemName(fi.item_id)} × {fi.quantity}
-                          {fi.unit && ` ${fi.unit}`}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-destructive"
-                          onClick={() => handleRemove(fi)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
 // ─── Batch Charts ─────────────────────────────────────────────────────
 
 const CHART_COLORS = ['#9067c6', '#8d86c9', '#7c6bb8', '#6b5aa7', '#5a4996'];
@@ -1292,104 +1214,598 @@ const BatchStatusPieChart: React.FC<{ batches: ProductionBatch[] }> = ({ batches
 // ─── Batch Detail Panel ───────────────────────────────────────────────
 
 interface BatchDetailPanelProps {
-  batch: ProductionBatch;
+  batchId: number;
   lines: ProductionLine[];
   formulas: ProductionFormula[];
+  items: { id: number; name: string }[];
+  getItemName: (id: number) => string;
   getStatusBadge: (s: string) => string;
   onClose: () => void;
-  onStart: () => void;
-  onComplete: () => void;
-  onCancel: () => void;
+  onRequestStart: () => void;
+  onEdit: () => void;
+  onComplete: (batch: ProductionBatch) => void;
+  onCancel: (batch: ProductionBatch) => void;
+  onDeleted: () => void;
+  deleteProductionBatch: ReturnType<typeof useDeleteProductionBatchMutation>[0];
+  isDeletingBatch: boolean;
 }
 
 const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
-  batch,
+  batchId,
   lines,
   formulas,
+  items,
+  getItemName,
   getStatusBadge,
   onClose,
-  onStart,
+  onRequestStart,
+  onEdit,
   onComplete,
   onCancel,
+  onDeleted,
+  deleteProductionBatch,
+  isDeletingBatch,
 }) => {
-  const line = lines.find((l) => l.id === batch.production_line_id);
-  const formula = batch.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
+  const {
+    data: batch,
+    isLoading: loadingBatch,
+    error: batchError,
+  } = useGetProductionBatchByIdQuery(batchId);
+  const {
+    data: batchItems = [],
+    isLoading: loadingItems,
+  } = useGetBatchItemsQuery({ batchId }, { skip: !batchId });
+  const [addBatchItem, { isLoading: isAddingItem }] = useAddBatchItemMutation();
+  const [updateBatchItem] = useUpdateBatchItemMutation();
+  const [removeBatchItem] = useRemoveBatchItemMutation();
+
+  const byRole = useMemo(() => {
+    const map: Record<ItemRole, ProductionBatchItem[]> = {
+      input: [],
+      output: [],
+      waste: [],
+      byproduct: [],
+    };
+    for (const row of batchItems) {
+      map[row.item_role as ItemRole].push(row);
+    }
+    return map;
+  }, [batchItems]);
+
+  const [addItemId, setAddItemId] = useState('');
+  const [addRole, setAddRole] = useState<ItemRole>('input');
+  const [addExpected, setAddExpected] = useState('');
+  const [batchDetailsOpen, setBatchDetailsOpen] = useState(false);
+
+  const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
+  const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
+
+  useEffect(() => {
+    if (!batchDetailsOpen) {
+      setAddItemId('');
+      setAddRole('input');
+      setAddExpected('');
+    }
+  }, [batchDetailsOpen]);
+
+  const canMutateItems = batch && (batch.status === 'draft' || batch.status === 'in_progress');
+  const canEditActuals = batch?.status === 'in_progress';
+
+  const handleAddLine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch) return;
+    const itemId = parseInt(addItemId, 10);
+    const exp = addExpected.trim() ? parseInt(addExpected, 10) : undefined;
+    if (!itemId) {
+      toast.error('Select an item');
+      return;
+    }
+    try {
+      await addBatchItem({
+        batchId: batch.id,
+        data: {
+          batch_id: batch.id,
+          item_id: itemId,
+          item_role: addRole,
+          expected_quantity: exp,
+        },
+      }).unwrap();
+      toast.success('Line added');
+      setAddItemId('');
+      setAddExpected('');
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to add line');
+    }
+  };
+
+  const handleSaveActual = async (row: ProductionBatchItem, raw: string) => {
+    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
+    if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 0)) {
+      toast.error('Invalid quantity');
+      return;
+    }
+    try {
+      await updateBatchItem({
+        id: row.id,
+        data: { actual_quantity: n },
+      }).unwrap();
+      toast.success('Saved');
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to save');
+    }
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!batch || batch.status !== 'draft') return;
+    if (!window.confirm(`Remove draft batch ${batch.batch_number}?`)) return;
+    try {
+      await deleteProductionBatch(batch.id).unwrap();
+      toast.success('Draft removed');
+      onDeleted();
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to delete');
+    }
+  };
+
+  if (loadingBatch) {
+    return (
+      <Card className="border-border">
+        <CardContent className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (batchError || !batch) {
+    return (
+      <Card className="border-border border-destructive/40">
+        <CardContent className="py-8 text-center text-sm text-destructive">
+          Could not load batch.
+          <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
+            Close
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const efficiencyDisplay = formatOptionalPercent(batch.efficiency_percentage);
+  const metaLine = [
+    line?.name ?? `Line #${batch.production_line_id}`,
+    new Date(batch.batch_date).toLocaleDateString(),
+    formula ? formula.name : 'Simple mode',
+  ].join(' · ');
+
+  const linesBlock = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch lines</p>
+        {!loadingItems && (
+          <span className="text-xs tabular-nums text-muted-foreground">{batchItems.length} lines</span>
+        )}
+      </div>
+      <Separator className="mb-3 shrink-0" />
+      {loadingItems ? (
+        <div className="flex flex-1 items-center justify-center py-10">
+          <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
+        </div>
+      ) : batchItems.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+          {batch.status === 'draft' && batch.formula_id
+            ? 'No lines yet — they appear after Start. Add items below when allowed, or wait for the formula.'
+            : batch.status === 'draft'
+              ? 'No lines yet. Add items below, or attach a formula and start.'
+              : 'No line items returned.'}
+        </p>
+      ) : (
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2 pl-0.5 pr-1 pt-0.5">
+          {ITEM_ROLES.map((role) => {
+            const rows = byRole[role];
+            return (
+              <div key={role} className="rounded-lg border border-border/80 bg-card shadow-sm">
+                <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'shrink-0 text-[10px] font-semibold uppercase tracking-wide',
+                        BATCH_ROLE_BADGE[role]
+                      )}
+                    >
+                      {role}
+                    </Badge>
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {BATCH_ROLE_SECTION_TITLE[role]}
+                    </span>
+                  </div>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {rows.length} {rows.length === 1 ? 'line' : 'lines'}
+                  </span>
+                </div>
+                {rows.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">None</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border/60 hover:bg-transparent">
+                        <TableHead className="text-xs font-medium">Item</TableHead>
+                        <TableHead className="w-[88px] text-right text-xs font-medium">Expected</TableHead>
+                        <TableHead className="w-[100px] text-right text-xs font-medium">Actual</TableHead>
+                        <TableHead className="w-[48px] p-0 text-right text-xs font-medium"> </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
+                      {rows.map((row) => (
+                        <BatchLineTableRow
+                          key={row.id}
+                          row={row}
+                          name={getItemName(row.item_id)}
+                          canRemove={!!canMutateItems}
+                          canEditActual={!!canEditActuals}
+                          onRemove={async () => {
+                            if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
+                            try {
+                              await removeBatchItem(row.id).unwrap();
+                              toast.success('Removed');
+                            } catch (e: unknown) {
+                              const err = e as { data?: { detail?: string } };
+                              toast.error(err?.data?.detail || 'Failed');
+                            }
+                          }}
+                          onSaveActual={(raw) => handleSaveActual(row, raw)}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const addItemForm = (
+    <form onSubmit={handleAddLine} className="flex flex-col gap-4">
+      <div>
+        <p className="text-sm font-medium text-foreground">Add item</p>
+        <p className="text-xs text-muted-foreground">Appends a line to this batch. Saves immediately.</p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="batch-add-item">Item</Label>
+        <Select value={addItemId} onValueChange={setAddItemId}>
+          <SelectTrigger id="batch-add-item" className="w-full">
+            <SelectValue placeholder="Select item" />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((i) => (
+              <SelectItem key={i.id} value={i.id.toString()}>
+                {i.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="batch-add-role">Role</Label>
+        <Select value={addRole} onValueChange={(v) => setAddRole(v as ItemRole)}>
+          <SelectTrigger id="batch-add-role" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ITEM_ROLES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="batch-add-exp">Expected qty (optional)</Label>
+        <Input
+          id="batch-add-exp"
+          type="number"
+          min={0}
+          placeholder="—"
+          value={addExpected}
+          onChange={(e) => setAddExpected(e.target.value)}
+        />
+      </div>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={isAddingItem}
+        className="w-full bg-brand-primary hover:bg-brand-primary-hover sm:w-auto sm:self-start"
+      >
+        {isAddingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Add item
+      </Button>
+    </form>
+  );
+
+  const summaryDataBlock = (
+    <div className="rounded-lg border border-border/80 bg-muted/10 p-4">
+      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Summary</p>
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted-foreground">Production line</dt>
+          <dd className="mt-0.5 font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Formula</dt>
+          <dd className="mt-0.5 font-medium">{formula?.name ?? 'Simple mode'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Batch date</dt>
+          <dd className="mt-0.5 font-medium tabular-nums">
+            {new Date(batch.batch_date).toLocaleDateString()}
+          </dd>
+        </div>
+        {batch.expected_output_quantity != null && (
+          <div>
+            <dt className="text-xs text-muted-foreground">Expected output</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
+          </div>
+        )}
+        {batch.actual_output_quantity != null && (
+          <div>
+            <dt className="text-xs text-muted-foreground">Actual output</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
+          </div>
+        )}
+        {efficiencyDisplay != null && (
+          <div>
+            <dt className="text-xs text-muted-foreground">Efficiency</dt>
+            <dd className="mt-0.5 font-medium tabular-nums">{efficiencyDisplay}</dd>
+          </div>
+        )}
+      </dl>
+      {batch.notes?.trim() && (
+        <div className="mt-4 border-t border-border/60 pt-3">
+          <p className="text-xs text-muted-foreground">Notes</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed">{batch.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const workflowActionsBlock = (
+    <div className="flex flex-wrap gap-2">
+      {batch.status === 'draft' && (
+        <>
+          <Button
+            size="sm"
+            className="bg-brand-primary hover:bg-brand-primary-hover"
+            onClick={onRequestStart}
+          >
+            <Play className="mr-1 h-4 w-4" />
+            Start…
+          </Button>
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Pencil className="mr-1 h-4 w-4" />
+            Edit batch
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            onClick={handleDeleteDraft}
+            disabled={isDeletingBatch}
+          >
+            {isDeletingBatch ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-1 h-4 w-4" />
+            )}
+            Delete draft
+          </Button>
+        </>
+      )}
+        {batch.status === 'in_progress' && (
+          <>
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit batch
+            </Button>
+            <Button
+              size="sm"
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              onClick={() => onComplete(batch)}
+            >
+              <Check className="mr-1 h-4 w-4" />
+              Complete
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => onCancel(batch)}
+            >
+              <X className="mr-1 h-4 w-4" />
+              Cancel run
+            </Button>
+          </>
+        )}
+    </div>
+  );
+
+  const summaryBlock = (
+    <div className="space-y-4">
+      {summaryDataBlock}
+      {workflowActionsBlock}
+    </div>
+  );
+
+  const linesAndAddBlock = (
+    <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-0.5 pr-1 md:pl-2 md:pr-2">
+      {linesBlock}
+      {canMutateItems && (
+        <>
+          <Separator />
+          {addItemForm}
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <Card className="border-border mt-6">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Batch details: {batch.batch_number}</CardTitle>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="text-muted-foreground">Status</p>
-            <span className={`inline-block px-2 py-0.5 rounded text-xs mt-1 ${getStatusBadge(batch.status)}`}>
-              {batch.status.replace('_', ' ')}
-            </span>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Line</p>
-            <p className="font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Formula</p>
-            <p className="font-medium">{formula?.name ?? 'Simple mode'}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Date</p>
-            <p className="font-medium">{new Date(batch.batch_date).toLocaleDateString()}</p>
-          </div>
-          {batch.expected_output_quantity != null && (
-            <div>
-              <p className="text-muted-foreground">Expected output</p>
-              <p className="font-medium">{batch.expected_output_quantity}</p>
+    <>
+      <Card className="border-border shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="text-base font-semibold tracking-tight text-brand-secondary">{batch.batch_number}</p>
+              <span
+                className={cn(
+                  'inline-block rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
+                  getStatusBadge(batch.status)
+                )}
+              >
+                {batch.status.replace('_', ' ')}
+              </span>
             </div>
-          )}
-          {batch.actual_output_quantity != null && (
-            <div>
-              <p className="text-muted-foreground">Actual output</p>
-              <p className="font-medium">{batch.actual_output_quantity}</p>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              <Button
+                type="button"
+                size="sm"
+                className="bg-brand-primary hover:bg-brand-primary-hover"
+                onClick={() => setBatchDetailsOpen(true)}
+              >
+                <Maximize2 className="mr-2 h-4 w-4" />
+                Batch details
+              </Button>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Clear selection">
+                <X className="h-4 w-4" />
+              </Button>
             </div>
+          </div>
+
+          {summaryDataBlock}
+          {workflowActionsBlock}
+
+          {!loadingItems && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-mono font-medium text-foreground">{batchItems.length}</span> line
+              {batchItems.length !== 1 ? 's' : ''} — open <span className="font-medium">Batch details</span> to view or
+              edit.
+            </p>
           )}
-          {batch.efficiency_percentage != null && (
-            <div>
-              <p className="text-muted-foreground">Efficiency</p>
-              <p className="font-medium">{batch.efficiency_percentage.toFixed(1)}%</p>
+        </CardContent>
+      </Card>
+
+      <Dialog open={batchDetailsOpen} onOpenChange={setBatchDetailsOpen}>
+        <DialogContent className="flex max-h-[92vh] w-[min(64rem,96vw)] max-w-none flex-col gap-4 overflow-x-clip overflow-y-auto p-6 sm:max-w-none md:max-h-[min(82vh,800px)] md:overflow-hidden">
+          <DialogHeader className="shrink-0 space-y-1 text-left">
+            <DialogTitle className="text-brand-secondary">{batch.batch_number}</DialogTitle>
+            <DialogDescription className="font-mono text-xs tabular-nums">{metaLine}</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(260px,36%)_1fr] md:gap-8">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain border-border py-1 pl-1 pr-2 md:border-r md:pr-5">
+              {summaryBlock}
             </div>
-          )}
-          {batch.notes && (
-            <div className="col-span-2">
-              <p className="text-muted-foreground">Notes</p>
-              <p className="font-medium">{batch.notes}</p>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 pt-2">
-          {batch.status === 'draft' && (
-            <Button size="sm" onClick={onStart}>
-              <Play className="h-4 w-4 mr-1" />
-              Start
+            <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)]">{linesAndAddBlock}</div>
+          </div>
+
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+            {(batch.status === 'draft' || batch.status === 'in_progress') && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:order-first sm:mr-auto sm:w-auto"
+                onClick={() => {
+                  setBatchDetailsOpen(false);
+                  onEdit();
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit batch
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={() => setBatchDetailsOpen(false)}>
+              Close
             </Button>
-          )}
-          {batch.status === 'in_progress' && (
-            <>
-              <Button size="sm" onClick={onComplete}>
-                <Check className="h-4 w-4 mr-1" />
-                Complete
-              </Button>
-              <Button size="sm" variant="outline" className="text-destructive" onClick={onCancel}>
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+interface BatchLineTableRowProps {
+  row: ProductionBatchItem;
+  name: string;
+  canRemove: boolean;
+  canEditActual: boolean;
+  onRemove: () => void;
+  onSaveActual: (raw: string) => void;
+}
+
+const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
+  row,
+  name,
+  canRemove,
+  canEditActual,
+  onRemove,
+  onSaveActual,
+}) => {
+  const [localActual, setLocalActual] = useState(row.actual_quantity?.toString() ?? '');
+
+  useEffect(() => {
+    setLocalActual(row.actual_quantity?.toString() ?? '');
+  }, [row.id, row.actual_quantity]);
+
+  return (
+    <TableRow className="border-border/60">
+      <TableCell className="py-2.5 align-middle font-medium">{name}</TableCell>
+      <TableCell className="py-2.5 align-middle text-right text-sm tabular-nums text-muted-foreground">
+        {row.expected_quantity ?? '—'}
+      </TableCell>
+      <TableCell className="py-2.5 align-middle text-right">
+        {canEditActual ? (
+          <>
+            <Label htmlFor={`actual-${row.id}`} className="sr-only">
+              Actual for {name}
+            </Label>
+            <Input
+              id={`actual-${row.id}`}
+              className="ml-auto h-8 w-[5.5rem]"
+              type="number"
+              min={0}
+              value={localActual}
+              onChange={(e) => setLocalActual(e.target.value)}
+              onBlur={() => {
+                if (localActual === (row.actual_quantity?.toString() ?? '')) return;
+                onSaveActual(localActual);
+              }}
+              placeholder="—"
+            />
+          </>
+        ) : (
+          <span className="text-sm tabular-nums text-muted-foreground">{row.actual_quantity ?? '—'}</span>
+        )}
+      </TableCell>
+      <TableCell className="p-1 align-middle text-right">
+        {canRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={onRemove}
+            aria-label={`Remove ${name}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -1797,6 +2213,405 @@ const CancelBatchDialog: React.FC<CancelBatchDialogProps> = ({
             <Button type="submit" variant="destructive" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Cancel Batch
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ─── Start Batch Dialog ───────────────────────────────────────────────
+
+interface StartBatchDialogProps {
+  batchId: number;
+  lines: ProductionLine[];
+  getItemName: (id: number) => string;
+  startBatch: ReturnType<typeof useStartBatchMutation>[0];
+  isStarting: boolean;
+  onClose: () => void;
+}
+
+const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
+  batchId,
+  lines,
+  getItemName,
+  startBatch,
+  isStarting,
+  onClose,
+}) => {
+  const { data: batch, isLoading: loadingBatch, error: batchErr } = useGetProductionBatchByIdQuery(batchId);
+  const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
+  const { data: formulaItems = [], isLoading: loadingFormulaItems } = useGetFormulaItemsQuery(
+    { formulaId: batch!.formula_id! },
+    { skip: !batch?.formula_id }
+  );
+  const { data: storageRows = [], isLoading: loadingStorage } = useGetInventoryListQuery(
+    {
+      skip: 0,
+      limit: 500,
+      inventory_type: 'STORAGE',
+      factory_id: line?.factory_id,
+    },
+    { skip: !line?.factory_id || !batch?.formula_id }
+  );
+
+  const [targetOutput, setTargetOutput] = useState('');
+
+  useEffect(() => {
+    if (batch?.expected_output_quantity != null) {
+      setTargetOutput(String(batch.expected_output_quantity));
+    } else {
+      setTargetOutput('');
+    }
+  }, [batchId, batch?.expected_output_quantity]);
+
+  const parsedTarget = useMemo(() => {
+    const t = targetOutput.trim();
+    if (t === '') return null;
+    const n = parseInt(t, 10);
+    return !Number.isNaN(n) && n > 0 ? n : null;
+  }, [targetOutput]);
+
+  const scaled = useMemo(() => {
+    if (!batch?.formula_id || formulaItems.length === 0) return null;
+    return scaledInputRequired(formulaItems, parsedTarget);
+  }, [batch?.formula_id, formulaItems, parsedTarget]);
+
+  const qtyByItem = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const inv of storageRows) {
+      m.set(inv.item_id, (m.get(inv.item_id) ?? 0) + inv.qty);
+    }
+    return m;
+  }, [storageRows]);
+
+  const shortages = useMemo(() => {
+    if (!scaled) return [];
+    const out: { item_id: number; required: number; onHand: number }[] = [];
+    for (const row of scaled.rows) {
+      if (row.optional) continue;
+      const onHand = qtyByItem.get(row.item_id) ?? 0;
+      if (onHand < row.required) {
+        out.push({ item_id: row.item_id, required: row.required, onHand });
+      }
+    }
+    return out;
+  }, [scaled, qtyByItem]);
+
+  const lineMissing = !!(batch?.formula_id && !line);
+  const needsStockCheck = !!(batch?.formula_id && scaled && scaled.rows.some((r) => !r.optional));
+  const stockCheckLoading = !!(batch?.formula_id && line?.factory_id && loadingStorage);
+  const blockedByStock = needsStockCheck && shortages.length > 0;
+  const canSubmit =
+    !!batch &&
+    batch.status === 'draft' &&
+    !lineMissing &&
+    !blockedByStock &&
+    !stockCheckLoading &&
+    !loadingBatch &&
+    (!batch.formula_id || !loadingFormulaItems);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch || !canSubmit) return;
+    try {
+      await startBatch({
+        id: batch.id,
+        data: { target_output_quantity: parsedTarget ?? undefined },
+      }).unwrap();
+      toast.success('Batch started');
+      onClose();
+    } catch (err: unknown) {
+      const e2 = err as { data?: { detail?: string } };
+      toast.error(e2?.data?.detail || 'Failed to start batch');
+    }
+  };
+
+  const invalidTarget =
+    targetOutput.trim() !== '' &&
+    (parsedTarget === null || (parsedTarget !== null && parsedTarget <= 0));
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Start batch</DialogTitle>
+            <DialogDescription>
+              {batch?.formula_id
+                ? 'Set target output to scale formula inputs. Storage (STORAGE) is checked for required inputs on this line’s factory.'
+                : 'Simple mode: no formula stock check. Optional target output is sent to the server if provided.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingBatch && (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+            </div>
+          )}
+
+          {batchErr && (
+            <p className="text-sm text-destructive py-4">Could not load batch.</p>
+          )}
+
+          {batch && (
+            <div className="grid gap-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{batch.batch_number}</span>
+                {line && ` · ${line.name}`}
+              </p>
+
+              <div className="grid gap-2">
+                <Label htmlFor="start-target-output">Target output quantity (optional)</Label>
+                <Input
+                  id="start-target-output"
+                  type="number"
+                  min={1}
+                  value={targetOutput}
+                  onChange={(e) => setTargetOutput(e.target.value)}
+                  placeholder={scaled ? `Default scale: ${scaled.target}` : 'Uses formula base if empty'}
+                />
+                {invalidTarget && (
+                  <p className="text-xs text-destructive">Enter a positive integer or leave empty.</p>
+                )}
+              </div>
+
+              {batch.formula_id && scaled && (
+                <p className="text-xs text-muted-foreground">
+                  Scaling to output <span className="font-medium text-foreground">{scaled.target}</span> (base output{' '}
+                  {scaled.baseOut}).
+                </p>
+              )}
+
+              {batch.formula_id && scaled === null && !loadingFormulaItems && formulaItems.length > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-500">
+                  Formula has no output lines — storage check skipped.
+                </p>
+              )}
+
+              {needsStockCheck && stockCheckLoading && (
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading storage…
+                </p>
+              )}
+
+              {needsStockCheck && !stockCheckLoading && shortages.length > 0 && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                  <p className="font-medium text-destructive mb-2">Not enough storage for required inputs</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {shortages.map((s) => (
+                      <li key={s.item_id}>
+                        {getItemName(s.item_id)}: need {s.required}, on hand {s.onHand}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {lineMissing && (
+                <p className="text-sm text-destructive">
+                  Cannot run storage check: production line is missing from the current list.
+                </p>
+              )}
+
+              {batch.status !== 'draft' && (
+                <p className="text-sm text-destructive">This batch is not in draft status.</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Back
+            </Button>
+            <Button type="submit" disabled={!canSubmit || invalidTarget || isStarting}>
+              {isStarting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Start
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ─── Edit Batch Dialog (PUT production-batches/:id — draft / in_progress) ─
+
+interface EditBatchDialogProps {
+  batchId: number;
+  updateProductionBatch: ReturnType<typeof useUpdateProductionBatchMutation>[0];
+  isUpdating: boolean;
+  onClose: () => void;
+}
+
+const EditBatchDialog: React.FC<EditBatchDialogProps> = ({
+  batchId,
+  updateProductionBatch,
+  isUpdating,
+  onClose,
+}) => {
+  const { data: batch, isLoading, error } = useGetProductionBatchByIdQuery(batchId);
+  const [batchDate, setBatchDate] = useState('');
+  const [shift, setShift] = useState('');
+  const [expectedOutput, setExpectedOutput] = useState('');
+  const [expectedDuration, setExpectedDuration] = useState('');
+  const [actualOutput, setActualOutput] = useState('');
+  const [actualDuration, setActualDuration] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (!batch) return;
+    setBatchDate(batch.batch_date.split('T')[0] ?? '');
+    setShift(batch.shift ?? '');
+    setExpectedOutput(batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '');
+    setExpectedDuration(batch.expected_duration_minutes != null ? String(batch.expected_duration_minutes) : '');
+    setActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
+    setActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
+    setNotes(batch.notes ?? '');
+  }, [batch]);
+
+  const canEdit = batch?.status === 'draft' || batch?.status === 'in_progress';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch || !canEdit) return;
+    try {
+      const base = {
+        batch_date: batchDate,
+        shift: shift.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
+      if (batch.status === 'draft') {
+        await updateProductionBatch({
+          id: batchId,
+          data: {
+            ...base,
+            expected_output_quantity: expectedOutput.trim() ? parseInt(expectedOutput, 10) : undefined,
+            expected_duration_minutes: expectedDuration.trim() ? parseInt(expectedDuration, 10) : undefined,
+          },
+        }).unwrap();
+      } else {
+        await updateProductionBatch({
+          id: batchId,
+          data: {
+            ...base,
+            actual_output_quantity: actualOutput.trim() ? parseInt(actualOutput, 10) : undefined,
+            actual_duration_minutes: actualDuration.trim() ? parseInt(actualDuration, 10) : undefined,
+          },
+        }).unwrap();
+      }
+      toast.success('Batch updated');
+      onClose();
+    } catch (err: unknown) {
+      const e2 = err as { data?: { detail?: string } };
+      toast.error(e2?.data?.detail || 'Failed to update');
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[440px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Edit batch</DialogTitle>
+            <DialogDescription>
+              {batch?.status === 'in_progress'
+                ? 'Update date, shift, notes, and logged actuals. Use Complete when the run is finished.'
+                : 'Update schedule, expected output, and notes. Formula is fixed after create.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+            </div>
+          )}
+
+          {error && <p className="py-4 text-sm text-destructive">Could not load batch.</p>}
+
+          {batch && (
+            <div className="grid gap-4 py-4">
+              {!canEdit && (
+                <p className="text-sm text-destructive">
+                  Only draft and in-progress batches can be edited here.
+                </p>
+              )}
+
+              <div className="grid gap-2">
+                <Label>Batch date</Label>
+                <Input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Shift</Label>
+                <Input value={shift} onChange={(e) => setShift(e.target.value)} placeholder="Optional" />
+              </div>
+
+              {batch.status === 'draft' && (
+                <>
+                  <div className="grid gap-2">
+                    <Label>Expected output qty</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={expectedOutput}
+                      onChange={(e) => setExpectedOutput(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Expected duration (minutes)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={expectedDuration}
+                      onChange={(e) => setExpectedDuration(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </>
+              )}
+
+              {batch.status === 'in_progress' && (
+                <>
+                  <div className="grid gap-2">
+                    <Label>Actual output qty</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={actualOutput}
+                      onChange={(e) => setActualOutput(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Actual duration (minutes)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={actualDuration}
+                      onChange={(e) => setActualDuration(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="grid gap-2">
+                <Label>Notes</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Optional" />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isUpdating || !batch || !canEdit}>
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </form>
