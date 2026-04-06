@@ -4,7 +4,6 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** w-3 (12px) + gap-0.5 (2px) between week columns */
 const COL_STRIDE_PX = 14;
-const LABEL_COL_PX = 32;
 
 export interface ContributionHeatmapProps {
   /** Items with a date field (ISO date string or YYYY-MM-DD). Counts are aggregated by date. */
@@ -24,7 +23,7 @@ export interface ContributionHeatmapProps {
 
 /**
  * GitHub-style contribution heatmap. Rows = days of week, columns = weeks.
- * Month labels on top, calendar day-of-month on the bottom axis.
+ * Month labels on top with weekday labels fixed on the left.
  */
 export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
   items,
@@ -127,33 +126,34 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
         <span>More</span>
       </div>
 
-      <div ref={scrollRef} className="max-w-full overflow-x-auto pb-1">
-        <div className="inline-block min-w-0 align-top">
-          {monthLabels.length > 0 && (
-            <div
-              className="relative mb-1 h-4 text-[10px] text-muted-foreground"
-              style={{ marginLeft: LABEL_COL_PX, width: Math.max(0, gridWidthPx - 2) }}
-            >
-              {monthLabels.map(({ col, label }) => (
-                <span
-                  key={`${col}-${label}`}
-                  className="absolute whitespace-nowrap"
-                  style={{ left: col * COL_STRIDE_PX }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
+      <div className="flex gap-1">
+        <div className="shrink-0">
+          <div className="mb-1 h-4" aria-hidden />
+          <div className="flex flex-col gap-0.5">
+            {DAY_LABELS.map((label) => (
+              <div key={label} className="h-3 text-[10px] leading-3 text-muted-foreground">
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <div className="flex gap-0.5">
-            <div className="mr-0.5 flex w-8 shrink-0 flex-col gap-0.5">
-              {DAY_LABELS.map((label) => (
-                <div key={label} className="h-3 text-[10px] leading-3 text-muted-foreground">
-                  {label}
-                </div>
-              ))}
-            </div>
+        <div ref={scrollRef} className="max-w-full overflow-x-auto pb-1">
+          <div className="inline-block min-w-0 align-top">
+            {monthLabels.length > 0 && (
+              <div className="relative mb-1 h-4 text-[10px] text-muted-foreground" style={{ width: Math.max(0, gridWidthPx - 2) }}>
+                {monthLabels.map(({ col, label }) => (
+                  <span
+                    key={`${col}-${label}`}
+                    className="absolute whitespace-nowrap"
+                    style={{ left: col * COL_STRIDE_PX }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="flex min-w-0 gap-0.5">
               {grid.map((week, colIdx) => (
                 <div key={colIdx} className="flex shrink-0 flex-col gap-0.5">
@@ -176,23 +176,6 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
                   ))}
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="mt-1 flex gap-0.5">
-            <div className="w-8 shrink-0" aria-hidden />
-            <div className="flex gap-0.5">
-              {grid.map((week, i) => {
-                const dom = new Date(`${week[0].date}T12:00:00`).getDate();
-                return (
-                  <div
-                    key={i}
-                    className="flex h-3 w-3 shrink-0 items-start justify-center pt-0.5 text-[9px] tabular-nums leading-none text-muted-foreground"
-                  >
-                    {dom}
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>

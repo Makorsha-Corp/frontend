@@ -34,7 +34,7 @@ import {
 import type { ProductionFormula, ProductionFormulaItem, ItemRole } from '@/types/production';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
 
@@ -77,6 +77,12 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
   const [addItemId, setAddItemId] = useState('');
   const [addRole, setAddRole] = useState<ItemRole>('input');
   const [addQty, setAddQty] = useState('1');
+  const [collapsedRoles, setCollapsedRoles] = useState<Record<ItemRole, boolean>>({
+    input: false,
+    output: false,
+    waste: true,
+    byproduct: true,
+  });
 
   useEffect(() => {
     if (open) {
@@ -142,6 +148,17 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     return map;
   }, [formulaItems]);
 
+  useEffect(() => {
+    setCollapsedRoles(() => {
+      const next = {} as Record<ItemRole, boolean>;
+      for (const role of ITEM_ROLES) {
+        const hasRows = byRole[role].length > 0;
+        next[role] = !hasRows;
+      }
+      return next;
+    });
+  }, [byRole]);
+
   const metaParts = [
     formula.formula_code,
     `v${formula.version}`,
@@ -171,14 +188,28 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
           )}
           {ITEM_ROLES.map((role) => {
             const rows = byRole[role];
+            const isCollapsed = collapsedRoles[role] ?? rows.length === 0;
             return (
               <div key={role} className="rounded-lg border border-border/80 bg-card shadow-sm">
-                <div
+                <button
+                  type="button"
                   className={cn(
-                    'flex items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5'
+                    'flex w-full items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5 text-left'
                   )}
+                  onClick={() =>
+                    setCollapsedRoles((prev) => ({
+                      ...prev,
+                      [role]: !isCollapsed,
+                    }))
+                  }
+                  aria-expanded={!isCollapsed}
                 >
                   <div className="flex min-w-0 items-center gap-2">
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
                     <Badge
                       variant="secondary"
                       className={cn(
@@ -195,54 +226,58 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {rows.length} {rows.length === 1 ? 'line' : 'lines'}
                   </span>
-                </div>
-                {rows.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">None</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border/60 hover:bg-transparent">
-                        <TableHead className="text-xs font-medium">Item</TableHead>
-                        <TableHead className="w-[120px] text-right text-xs font-medium">Qty</TableHead>
-                        <TableHead className="hidden w-[120px] text-xs font-medium sm:table-cell">
-                          Tolerance
-                        </TableHead>
-                        <TableHead className="w-[56px] text-right text-xs font-medium"> </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
-                      {rows.map((fi) => (
-                        <TableRow key={fi.id} className="border-border/60">
-                          <TableCell className="py-2.5 align-middle font-medium">
-                            {getItemName(fi.item_id)}
-                          </TableCell>
-                          <TableCell className="py-2.5 align-middle text-right tabular-nums">
-                            <span className="font-medium text-foreground">{fi.quantity}</span>
-                            {fi.unit ? <span className="text-muted-foreground"> {fi.unit}</span> : null}
-                          </TableCell>
-                          <TableCell className="hidden py-2.5 align-middle text-xs text-muted-foreground sm:table-cell">
-                            {fi.tolerance_percentage != null ? `±${fi.tolerance_percentage}%` : '—'}
-                            {fi.is_optional && (
-                              <Badge variant="outline" className="ml-2 px-1.5 py-0 text-[10px]">
-                                optional
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-2.5 align-middle text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleRemove(fi)}
-                              aria-label={`Remove ${getItemName(fi.item_id)}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                </button>
+                {!isCollapsed && (
+                  <>
+                    {rows.length === 0 ? (
+                      <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">None</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-border/60 hover:bg-transparent">
+                            <TableHead className="text-xs font-medium">Item</TableHead>
+                            <TableHead className="w-[120px] text-right text-xs font-medium">Qty</TableHead>
+                            <TableHead className="hidden w-[120px] text-xs font-medium sm:table-cell">
+                              Tolerance
+                            </TableHead>
+                            <TableHead className="w-[56px] text-right text-xs font-medium"> </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
+                          {rows.map((fi) => (
+                            <TableRow key={fi.id} className="border-border/60">
+                              <TableCell className="py-2.5 align-middle font-medium">
+                                {getItemName(fi.item_id)}
+                              </TableCell>
+                              <TableCell className="py-2.5 align-middle text-right tabular-nums">
+                                <span className="font-medium text-foreground">{fi.quantity}</span>
+                                {fi.unit ? <span className="text-muted-foreground"> {fi.unit}</span> : null}
+                              </TableCell>
+                              <TableCell className="hidden py-2.5 align-middle text-xs text-muted-foreground sm:table-cell">
+                                {fi.tolerance_percentage != null ? `±${fi.tolerance_percentage}%` : '—'}
+                                {fi.is_optional && (
+                                  <Badge variant="outline" className="ml-2 px-1.5 py-0 text-[10px]">
+                                    optional
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2.5 align-middle text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleRemove(fi)}
+                                  aria-label={`Remove ${getItemName(fi.item_id)}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -253,7 +288,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
   );
 
   const addItemBlock = (
-    <div className="flex min-h-0 min-w-0 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-border bg-card p-4 shadow-sm">
       <p className="mb-1 text-sm font-medium text-foreground">Add item</p>
       <p className="mb-4 text-xs text-muted-foreground">Append an item to this formula. Saves immediately.</p>
       <form onSubmit={handleAdd} className="flex flex-col gap-4">
@@ -314,7 +349,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[min(66vh,720px)] max-h-[90vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-x-clip overflow-y-auto p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-1 text-left">
-          <DialogTitle className="text-brand-secondary">{formula.name}</DialogTitle>
+          <DialogTitle className="text-foreground">{formula.name}</DialogTitle>
           <DialogDescription className="font-mono text-xs tabular-nums">
             {metaParts.join(' · ')}
           </DialogDescription>

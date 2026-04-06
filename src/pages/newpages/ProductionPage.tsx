@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
@@ -31,6 +32,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -90,12 +93,15 @@ import {
   Package,
   LayoutDashboard,
   Maximize2,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import toast, { Toaster } from 'react-hot-toast';
 
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
+const BATCH_STATUS_FILTER_STORAGE_KEY = 'production.batches.statusFilter';
 
 const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
   input: 'border-transparent bg-blue-500/15 text-blue-800 dark:text-blue-200',
@@ -145,12 +151,28 @@ function scaledInputRequired(
 }
 
 const ProductionPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') === 'batches' ? 'batches' : 'overview';
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [lineId, setLineId] = useState<number | null>(null);
-  const [batchStatusFilter, setBatchStatusFilter] = useState<string>('all');
+  const [batchStatusFilter, setBatchStatusFilter] = useState<Array<(typeof BATCH_STATUSES)[number]>>(() => {
+    if (typeof window === 'undefined') return [...BATCH_STATUSES];
+    try {
+      const raw = window.localStorage.getItem(BATCH_STATUS_FILTER_STORAGE_KEY);
+      if (!raw) return [...BATCH_STATUSES];
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [...BATCH_STATUSES];
+      const validStatuses = parsed.filter((v): v is (typeof BATCH_STATUSES)[number] =>
+        BATCH_STATUSES.includes(v as (typeof BATCH_STATUSES)[number])
+      );
+      return validStatuses;
+    } catch {
+      return [...BATCH_STATUSES];
+    }
+  });
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'batches'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'batches'>(tabFromUrl);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Dialog states
@@ -163,11 +185,19 @@ const ProductionPage: React.FC = () => {
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<ProductionBatch | null>(null);
   const [startBatchId, setStartBatchId] = useState<number | null>(null);
-  const [editBatchId, setEditBatchId] = useState<number | null>(null);
 
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
   }, [globalFactory?.id]);
+
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(BATCH_STATUS_FILTER_STORAGE_KEY, JSON.stringify(batchStatusFilter));
+  }, [batchStatusFilter]);
 
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: false });
@@ -209,7 +239,7 @@ const ProductionPage: React.FC = () => {
       skip: 0,
       limit: 100,
       production_line_id: lineId ?? undefined,
-      status: batchStatusFilter === 'all' ? undefined : batchStatusFilter,
+      status: undefined,
     },
     { skip: false }
   );
@@ -255,14 +285,17 @@ const ProductionPage: React.FC = () => {
   }, [formulas, searchQuery]);
 
   const filteredBatches = useMemo(() => {
-    if (!searchQuery.trim()) return batches;
+    const statusFiltered = batches.filter((b) =>
+      batchStatusFilter.includes(b.status as (typeof BATCH_STATUSES)[number])
+    );
+    if (!searchQuery.trim()) return statusFiltered;
     const q = searchQuery.toLowerCase();
-    return batches.filter(
+    return statusFiltered.filter(
       (b) =>
         b.batch_number.toLowerCase().includes(q) ||
         (b.notes && b.notes.toLowerCase().includes(q))
     );
-  }, [batches, searchQuery]);
+  }, [batches, searchQuery, batchStatusFilter]);
 
   // Metrics for Overview
   const metrics = useMemo(() => {
@@ -302,17 +335,38 @@ const ProductionPage: React.FC = () => {
     setLineId(id);
   };
 
-  // When switching to Overview, clear line/status filters so metrics show full counts
+  // Keep tab selection URL-based so deep links/back-forward work.
   const handleTabChange = (tab: string) => {
-    if (tab === 'overview') {
+    const nextTab: 'overview' | 'batches' = tab === 'batches' ? 'batches' : 'overview';
+    if (nextTab === 'overview') {
       setLineId(null);
-      setBatchStatusFilter('all');
       setSelectedBatchId(null);
       setStartBatchId(null);
-      setEditBatchId(null);
     }
-    setActiveTab(tab as 'overview' | 'batches');
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (nextTab === 'overview') params.delete('tab');
+      else params.set('tab', nextTab);
+      return params;
+    });
   };
+
+  const toggleBatchStatusFilter = (status: (typeof BATCH_STATUSES)[number]) => {
+    setBatchStatusFilter((prev) =>
+      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
+    );
+  };
+
+  const clearBatchStatusFilter = () => setBatchStatusFilter([]);
+
+  const selectAllBatchStatuses = () => setBatchStatusFilter([...BATCH_STATUSES]);
+
+  const batchStatusFilterLabel =
+    batchStatusFilter.length === 0
+      ? 'No status'
+      : batchStatusFilter.length === BATCH_STATUSES.length
+        ? 'All statuses'
+        : `${batchStatusFilter.length} selected`;
 
   const getItemName = (itemId: number) => items.find((i) => i.id === itemId)?.name ?? `Item #${itemId}`;
 
@@ -371,19 +425,43 @@ const ProductionPage: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={batchStatusFilter} onValueChange={setBatchStatusFilter}>
-                  <SelectTrigger className="w-[140px] h-9">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    {BATCH_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s.replace('_', ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 w-[170px] justify-start bg-background border-border">
+                      {batchStatusFilterLabel}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                        onClick={selectAllBatchStatuses}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                        onClick={clearBatchStatusFilter}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="space-y-2">
+                      {BATCH_STATUSES.map((s) => (
+                        <label key={s} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                          <Checkbox
+                            checked={batchStatusFilter.includes(s)}
+                            onCheckedChange={() => toggleBatchStatusFilter(s)}
+                          />
+                          <span className="text-sm capitalize">{s.replace('_', ' ')}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 </>
               )}
               <div className="relative w-[200px]">
@@ -768,14 +846,14 @@ const ProductionPage: React.FC = () => {
                     getStatusBadge={getStatusBadge}
                     onClose={() => setSelectedBatchId(null)}
                     onRequestStart={() => setStartBatchId(selectedBatchId)}
-                    onEdit={() => setEditBatchId(selectedBatchId)}
                     onComplete={(b) => setCompletingBatch(b)}
                     onCancel={(b) => setCancellingBatch(b)}
                     onDeleted={() => {
                       setSelectedBatchId(null);
-                      setEditBatchId(null);
                       setStartBatchId(null);
                     }}
+                    updateProductionBatch={updateProductionBatch}
+                    isUpdatingBatch={isUpdatingBatch}
                     deleteProductionBatch={deleteProductionBatch}
                     isDeletingBatch={isDeletingBatch}
                   />
@@ -879,14 +957,6 @@ const ProductionPage: React.FC = () => {
         />
       )}
 
-      {editBatchId != null && (
-        <EditBatchDialog
-          batchId={editBatchId}
-          updateProductionBatch={updateProductionBatch}
-          isUpdating={isUpdatingBatch}
-          onClose={() => setEditBatchId(null)}
-        />
-      )}
     </div>
   );
 };
@@ -1222,10 +1292,11 @@ interface BatchDetailPanelProps {
   getStatusBadge: (s: string) => string;
   onClose: () => void;
   onRequestStart: () => void;
-  onEdit: () => void;
   onComplete: (batch: ProductionBatch) => void;
   onCancel: (batch: ProductionBatch) => void;
   onDeleted: () => void;
+  updateProductionBatch: ReturnType<typeof useUpdateProductionBatchMutation>[0];
+  isUpdatingBatch: boolean;
   deleteProductionBatch: ReturnType<typeof useDeleteProductionBatchMutation>[0];
   isDeletingBatch: boolean;
 }
@@ -1239,10 +1310,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   getStatusBadge,
   onClose,
   onRequestStart,
-  onEdit,
   onComplete,
   onCancel,
   onDeleted,
+  updateProductionBatch,
+  isUpdatingBatch,
   deleteProductionBatch,
   isDeletingBatch,
 }) => {
@@ -1276,6 +1348,20 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   const [addRole, setAddRole] = useState<ItemRole>('input');
   const [addExpected, setAddExpected] = useState('');
   const [batchDetailsOpen, setBatchDetailsOpen] = useState(false);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [editBatchDate, setEditBatchDate] = useState('');
+  const [editShift, setEditShift] = useState('');
+  const [editExpectedOutput, setEditExpectedOutput] = useState('');
+  const [editExpectedDuration, setEditExpectedDuration] = useState('');
+  const [editActualOutput, setEditActualOutput] = useState('');
+  const [editActualDuration, setEditActualDuration] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [collapsedRoles, setCollapsedRoles] = useState<Record<ItemRole, boolean>>({
+    input: false,
+    output: false,
+    waste: true,
+    byproduct: true,
+  });
 
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
   const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
@@ -1285,11 +1371,107 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       setAddItemId('');
       setAddRole('input');
       setAddExpected('');
+      setIsInlineEditing(false);
     }
   }, [batchDetailsOpen]);
 
+  useEffect(() => {
+    if (!batch) return;
+    setEditBatchDate(batch.batch_date.split('T')[0] ?? '');
+    setEditShift(batch.shift ?? '');
+    setEditExpectedOutput(batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '');
+    setEditExpectedDuration(batch.expected_duration_minutes != null ? String(batch.expected_duration_minutes) : '');
+    setEditActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
+    setEditActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
+    setEditNotes(batch.notes ?? '');
+  }, [batch?.id, batch?.updated_at]);
+
+  useEffect(() => {
+    setCollapsedRoles((prev) => {
+      const next = {} as Record<ItemRole, boolean>;
+      for (const role of ITEM_ROLES) {
+        const hasRows = byRole[role].length > 0;
+        // Default behavior: roles with rows are expanded; empty roles are collapsed.
+        next[role] = !hasRows;
+      }
+      const unchanged = ITEM_ROLES.every((role) => prev[role] === next[role]);
+      return unchanged ? prev : next;
+    });
+  }, [byRole]);
+
   const canMutateItems = batch && (batch.status === 'draft' || batch.status === 'in_progress');
   const canEditActuals = batch?.status === 'in_progress';
+  const canEditBatch = batch?.status === 'draft' || batch?.status === 'in_progress';
+
+  const handleSaveBatchDetails = async () => {
+    if (!batch || !canEditBatch) return;
+    try {
+      const currentExpectedOutput =
+        batch.expected_output_quantity ??
+        byRole.output.reduce((sum, row) => sum + (row.expected_quantity ?? 0), 0);
+      const nextExpectedOutput = editExpectedOutput.trim()
+        ? parseInt(editExpectedOutput, 10)
+        : batch.expected_output_quantity ?? undefined;
+
+      const base = {
+        batch_date: editBatchDate,
+        shift: editShift.trim() || undefined,
+        notes: editNotes.trim() || undefined,
+      };
+      if (batch.status === 'draft') {
+        await updateProductionBatch({
+          id: batch.id,
+          data: {
+            ...base,
+            expected_output_quantity: nextExpectedOutput,
+            expected_duration_minutes: editExpectedDuration.trim() ? parseInt(editExpectedDuration, 10) : undefined,
+          },
+        }).unwrap();
+
+        if (
+          nextExpectedOutput &&
+          currentExpectedOutput > 0 &&
+          nextExpectedOutput !== currentExpectedOutput
+        ) {
+          const multiplier = nextExpectedOutput / currentExpectedOutput;
+          const scaleOps = byRole.input
+            .filter((row) => row.expected_quantity != null)
+            .map((row) => {
+              const scaledExpected = Math.max(1, Math.round((row.expected_quantity ?? 0) * multiplier));
+              if (scaledExpected === row.expected_quantity) return null;
+              return updateBatchItem({
+                id: row.id,
+                data: { expected_quantity: scaledExpected },
+              }).unwrap();
+            })
+            .filter(Boolean) as Array<Promise<unknown>>;
+
+          if (scaleOps.length > 0) {
+            await Promise.all(scaleOps);
+            toast.success('Batch updated and input lines scaled');
+          } else {
+            toast.success('Batch updated');
+          }
+          setIsInlineEditing(false);
+          return;
+        }
+      } else {
+        await updateProductionBatch({
+          id: batch.id,
+          data: {
+            ...base,
+            actual_output_quantity: editActualOutput.trim() ? parseInt(editActualOutput, 10) : undefined,
+            actual_duration_minutes: editActualDuration.trim() ? parseInt(editActualDuration, 10) : undefined,
+          },
+        }).unwrap();
+      }
+      toast.success('Batch updated');
+      setIsInlineEditing(false);
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to update');
+    }
+  };
 
   const handleAddLine = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1331,6 +1513,25 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         data: { actual_quantity: n },
       }).unwrap();
       toast.success('Saved');
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to save');
+    }
+  };
+
+  const handleSaveExpected = async (row: ProductionBatchItem, raw: string) => {
+    if (!canMutateItems) return;
+    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
+    if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 1)) {
+      toast.error('Expected quantity must be a positive integer');
+      return;
+    }
+    try {
+      await updateBatchItem({
+        id: row.id,
+        data: { expected_quantity: n },
+      }).unwrap();
+      toast.success('Expected quantity saved');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
       toast.error(err?.data?.detail || 'Failed to save');
@@ -1381,7 +1582,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   ].join(' · ');
 
   const linesBlock = (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-col">
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch lines</p>
         {!loadingItems && (
@@ -1390,7 +1591,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       </div>
       <Separator className="mb-3 shrink-0" />
       {loadingItems ? (
-        <div className="flex flex-1 items-center justify-center py-10">
+        <div className="flex items-center justify-center py-10">
           <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
         </div>
       ) : batchItems.length === 0 ? (
@@ -1402,13 +1603,29 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
               : 'No line items returned.'}
         </p>
       ) : (
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-2 pl-0.5 pr-1 pt-0.5">
+        <div className="space-y-4 pb-2 pl-0.5 pr-1 pt-0.5">
           {ITEM_ROLES.map((role) => {
             const rows = byRole[role];
+            const isCollapsed = collapsedRoles[role] ?? rows.length === 0;
             return (
               <div key={role} className="rounded-lg border border-border/80 bg-card shadow-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5 text-left"
+                  onClick={() =>
+                    setCollapsedRoles((prev) => ({
+                      ...prev,
+                      [role]: !isCollapsed,
+                    }))
+                  }
+                  aria-expanded={!isCollapsed}
+                >
                   <div className="flex min-w-0 items-center gap-2">
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
                     <Badge
                       variant="secondary"
                       className={cn(
@@ -1425,42 +1642,49 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {rows.length} {rows.length === 1 ? 'line' : 'lines'}
                   </span>
-                </div>
-                {rows.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">None</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border/60 hover:bg-transparent">
-                        <TableHead className="text-xs font-medium">Item</TableHead>
-                        <TableHead className="w-[88px] text-right text-xs font-medium">Expected</TableHead>
-                        <TableHead className="w-[100px] text-right text-xs font-medium">Actual</TableHead>
-                        <TableHead className="w-[48px] p-0 text-right text-xs font-medium"> </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
-                      {rows.map((row) => (
-                        <BatchLineTableRow
-                          key={row.id}
-                          row={row}
-                          name={getItemName(row.item_id)}
-                          canRemove={!!canMutateItems}
-                          canEditActual={!!canEditActuals}
-                          onRemove={async () => {
-                            if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
-                            try {
-                              await removeBatchItem(row.id).unwrap();
-                              toast.success('Removed');
-                            } catch (e: unknown) {
-                              const err = e as { data?: { detail?: string } };
-                              toast.error(err?.data?.detail || 'Failed');
-                            }
-                          }}
-                          onSaveActual={(raw) => handleSaveActual(row, raw)}
-                        />
-                      ))}
-                    </TableBody>
-                  </Table>
+                </button>
+
+                {!isCollapsed && (
+                  <>
+                    {rows.length === 0 ? (
+                      <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">No lines</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-border/60 hover:bg-transparent">
+                            <TableHead className="text-xs font-medium">Item</TableHead>
+                            <TableHead className="w-[88px] text-right text-xs font-medium">Expected</TableHead>
+                            <TableHead className="w-[100px] text-right text-xs font-medium">Actual</TableHead>
+                            <TableHead className="w-[48px] p-0 text-right text-xs font-medium"> </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
+                          {rows.map((row) => (
+                            <BatchLineTableRow
+                              key={row.id}
+                              row={row}
+                              name={getItemName(row.item_id)}
+                              canRemove={!!canMutateItems}
+                              canEditExpected={!!canMutateItems && row.item_role === 'input'}
+                              canEditActual={!!canEditActuals}
+                              onRemove={async () => {
+                                if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
+                                try {
+                                  await removeBatchItem(row.id).unwrap();
+                                  toast.success('Removed');
+                                } catch (e: unknown) {
+                                  const err = e as { data?: { detail?: string } };
+                                  toast.error(err?.data?.detail || 'Failed');
+                                }
+                              }}
+                              onSaveExpected={(raw) => handleSaveExpected(row, raw)}
+                              onSaveActual={(raw) => handleSaveActual(row, raw)}
+                            />
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -1529,51 +1753,118 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     </form>
   );
 
-  const summaryDataBlock = (
-    <div className="rounded-lg border border-border/80 bg-muted/10 p-4">
+  const renderSummaryDataBlock = (isEditing: boolean) => (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Summary</p>
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs text-muted-foreground">Production line</dt>
-          <dd className="mt-0.5 font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Formula</dt>
-          <dd className="mt-0.5 font-medium">{formula?.name ?? 'Simple mode'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Batch date</dt>
-          <dd className="mt-0.5 font-medium tabular-nums">
-            {new Date(batch.batch_date).toLocaleDateString()}
-          </dd>
-        </div>
-        {batch.expected_output_quantity != null && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Expected output</dt>
-            <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
+      {isEditing ? (
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Production line</Label>
+              <p className="text-sm font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Formula</Label>
+              <p className="text-sm font-medium">{formula?.name ?? 'Simple mode'}</p>
+            </div>
           </div>
-        )}
-        {batch.actual_output_quantity != null && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Actual output</dt>
-            <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="batch-edit-date">Batch date</Label>
+              <Input id="batch-edit-date" type="date" value={editBatchDate} onChange={(e) => setEditBatchDate(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="batch-edit-shift">Shift</Label>
+              <Input id="batch-edit-shift" value={editShift} onChange={(e) => setEditShift(e.target.value)} placeholder="Optional" />
+            </div>
           </div>
-        )}
-        {efficiencyDisplay != null && (
-          <div>
-            <dt className="text-xs text-muted-foreground">Efficiency</dt>
-            <dd className="mt-0.5 font-medium tabular-nums">{efficiencyDisplay}</dd>
+          {batch.status === 'draft' && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="batch-edit-exp-out">Expected output qty</Label>
+                <Input id="batch-edit-exp-out" type="number" min={0} value={editExpectedOutput} onChange={(e) => setEditExpectedOutput(e.target.value)} placeholder="Optional" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="batch-edit-exp-dur">Expected duration (minutes)</Label>
+                <Input id="batch-edit-exp-dur" type="number" min={0} value={editExpectedDuration} onChange={(e) => setEditExpectedDuration(e.target.value)} placeholder="Optional" />
+              </div>
+            </div>
+          )}
+          {batch.status === 'in_progress' && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="batch-edit-act-out">Actual output qty</Label>
+                <Input id="batch-edit-act-out" type="number" min={0} value={editActualOutput} onChange={(e) => setEditActualOutput(e.target.value)} placeholder="Optional" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="batch-edit-act-dur">Actual duration (minutes)</Label>
+                <Input id="batch-edit-act-dur" type="number" min={0} value={editActualDuration} onChange={(e) => setEditActualDuration(e.target.value)} placeholder="Optional" />
+              </div>
+            </div>
+          )}
+          <div className="grid gap-1.5">
+            <Label htmlFor="batch-edit-notes">Notes</Label>
+            <Textarea id="batch-edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={3} placeholder="Optional" />
           </div>
-        )}
-      </dl>
-      {batch.notes?.trim() && (
-        <div className="mt-4 border-t border-border/60 pt-3">
-          <p className="text-xs text-muted-foreground">Notes</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed">{batch.notes}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" className="bg-brand-primary hover:bg-brand-primary-hover" onClick={handleSaveBatchDetails} disabled={isUpdatingBatch}>
+              {isUpdatingBatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save changes
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setIsInlineEditing(false)}>
+              Cancel edit
+            </Button>
+          </div>
         </div>
+      ) : (
+        <>
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs text-muted-foreground">Production line</dt>
+              <dd className="mt-0.5 font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Formula</dt>
+              <dd className="mt-0.5 font-medium">{formula?.name ?? 'Simple mode'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Batch date</dt>
+              <dd className="mt-0.5 font-medium tabular-nums">
+                {new Date(batch.batch_date).toLocaleDateString()}
+              </dd>
+            </div>
+            {batch.expected_output_quantity != null && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Expected output</dt>
+                <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
+              </div>
+            )}
+            {batch.actual_output_quantity != null && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Actual output</dt>
+                <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
+              </div>
+            )}
+            {efficiencyDisplay != null && (
+              <div>
+                <dt className="text-xs text-muted-foreground">Efficiency</dt>
+                <dd className="mt-0.5 font-medium tabular-nums">{efficiencyDisplay}</dd>
+              </div>
+            )}
+          </dl>
+          {batch.notes?.trim() && (
+            <div className="mt-4 border-t border-border/60 pt-3">
+              <p className="text-xs text-muted-foreground">Notes</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed">{batch.notes}</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
+
+  const summaryDataBlock = renderSummaryDataBlock(isInlineEditing);
+  const summaryReadOnlyBlock = renderSummaryDataBlock(false);
 
   const workflowActionsBlock = (
     <div className="flex flex-wrap gap-2">
@@ -1587,10 +1878,12 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             <Play className="mr-1 h-4 w-4" />
             Start…
           </Button>
-          <Button size="sm" variant="outline" onClick={onEdit}>
-            <Pencil className="mr-1 h-4 w-4" />
-            Edit batch
-          </Button>
+          {batchDetailsOpen && (
+            <Button size="sm" variant="outline" onClick={() => setIsInlineEditing(true)}>
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit batch
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -1609,10 +1902,12 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       )}
         {batch.status === 'in_progress' && (
           <>
-            <Button size="sm" variant="outline" onClick={onEdit}>
-              <Pencil className="mr-1 h-4 w-4" />
-              Edit batch
-            </Button>
+            {batchDetailsOpen && (
+              <Button size="sm" variant="outline" onClick={() => setIsInlineEditing(true)}>
+                <Pencil className="mr-1 h-4 w-4" />
+                Edit batch
+              </Button>
+            )}
             <Button
               size="sm"
               className="bg-brand-primary hover:bg-brand-primary-hover"
@@ -1642,14 +1937,22 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     </div>
   );
 
-  const linesAndAddBlock = (
-    <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-0.5 pr-1 md:pl-2 md:pr-2">
+  const leftDetailsAndLinesBlock = (
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-1 pr-2 md:pr-5">
+      {summaryBlock}
+      <Separator />
       {linesBlock}
-      {canMutateItems && (
-        <>
-          <Separator />
-          {addItemForm}
-        </>
+    </div>
+  );
+
+  const rightAddBlock = (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain py-1 pl-0.5 pr-1 md:pl-2 md:pr-2">
+      {canMutateItems ? (
+        <div className="rounded-lg border border-border/80 bg-card p-3 md:p-4">{addItemForm}</div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+          Add item is available while batch is <span className="font-medium">draft</span> or <span className="font-medium">in progress</span>.
+        </div>
       )}
     </div>
   );
@@ -1660,7 +1963,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         <CardContent className="flex flex-col gap-4 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="text-base font-semibold tracking-tight text-brand-secondary">{batch.batch_number}</p>
+              <p className="text-base font-semibold tracking-tight text-foreground">{batch.batch_number}</p>
               <span
                 className={cn(
                   'inline-block rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
@@ -1686,8 +1989,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </div>
           </div>
 
-          {summaryDataBlock}
-          {workflowActionsBlock}
+          {summaryReadOnlyBlock}
 
           {!loadingItems && (
             <p className="text-xs text-muted-foreground">
@@ -1702,32 +2004,16 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       <Dialog open={batchDetailsOpen} onOpenChange={setBatchDetailsOpen}>
         <DialogContent className="flex max-h-[92vh] w-[min(64rem,96vw)] max-w-none flex-col gap-4 overflow-x-clip overflow-y-auto p-6 sm:max-w-none md:max-h-[min(82vh,800px)] md:overflow-hidden">
           <DialogHeader className="shrink-0 space-y-1 text-left">
-            <DialogTitle className="text-brand-secondary">{batch.batch_number}</DialogTitle>
+            <DialogTitle className="text-foreground">{batch.batch_number}</DialogTitle>
             <DialogDescription className="font-mono text-xs tabular-nums">{metaLine}</DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(260px,36%)_1fr] md:gap-8">
-            <div className="flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain border-border py-1 pl-1 pr-2 md:border-r md:pr-5">
-              {summaryBlock}
-            </div>
-            <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)]">{linesAndAddBlock}</div>
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(460px,68%)_minmax(260px,32%)] md:gap-8">
+            <div className="min-h-0 min-w-0 border-border md:border-r md:overflow-hidden">{leftDetailsAndLinesBlock}</div>
+            <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)] md:overflow-hidden">{rightAddBlock}</div>
           </div>
 
-          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
-            {(batch.status === 'draft' || batch.status === 'in_progress') && (
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:order-first sm:mr-auto sm:w-auto"
-                onClick={() => {
-                  setBatchDetailsOpen(false);
-                  onEdit();
-                }}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit batch
-              </Button>
-            )}
+          <DialogFooter className="shrink-0 border-t border-border pt-4 sm:justify-end">
             <Button type="button" variant="outline" onClick={() => setBatchDetailsOpen(false)}>
               Close
             </Button>
@@ -1742,8 +2028,10 @@ interface BatchLineTableRowProps {
   row: ProductionBatchItem;
   name: string;
   canRemove: boolean;
+  canEditExpected: boolean;
   canEditActual: boolean;
   onRemove: () => void;
+  onSaveExpected: (raw: string) => void;
   onSaveActual: (raw: string) => void;
 }
 
@@ -1751,44 +2039,117 @@ const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
   row,
   name,
   canRemove,
+  canEditExpected,
   canEditActual,
   onRemove,
+  onSaveExpected,
   onSaveActual,
 }) => {
+  const [localExpected, setLocalExpected] = useState(row.expected_quantity?.toString() ?? '');
   const [localActual, setLocalActual] = useState(row.actual_quantity?.toString() ?? '');
+  const [editingExpected, setEditingExpected] = useState(false);
+  const [editingActual, setEditingActual] = useState(false);
 
   useEffect(() => {
+    setLocalExpected(row.expected_quantity?.toString() ?? '');
     setLocalActual(row.actual_quantity?.toString() ?? '');
-  }, [row.id, row.actual_quantity]);
+  }, [row.id, row.expected_quantity, row.actual_quantity]);
 
   return (
     <TableRow className="border-border/60">
       <TableCell className="py-2.5 align-middle font-medium">{name}</TableCell>
       <TableCell className="py-2.5 align-middle text-right text-sm tabular-nums text-muted-foreground">
-        {row.expected_quantity ?? '—'}
+        {canEditExpected && editingExpected ? (
+          <>
+            <Label htmlFor={`expected-${row.id}`} className="sr-only">
+              Expected for {name}
+            </Label>
+            <Input
+              id={`expected-${row.id}`}
+              autoFocus
+              className="ml-auto h-8 w-[5.5rem]"
+              type="text"
+              inputMode="numeric"
+              value={localExpected}
+              onChange={(e) => setLocalExpected(e.target.value)}
+              onBlur={() => {
+                if (localExpected !== (row.expected_quantity?.toString() ?? '')) {
+                  onSaveExpected(localExpected);
+                }
+                setEditingExpected(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  setLocalExpected(row.expected_quantity?.toString() ?? '');
+                  setEditingExpected(false);
+                }
+              }}
+              placeholder="—"
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums',
+              canEditExpected && 'cursor-text hover:bg-muted/40'
+            )}
+            onDoubleClick={() => {
+              if (canEditExpected) setEditingExpected(true);
+            }}
+            title={canEditExpected ? 'Double-click to edit expected qty' : undefined}
+          >
+            {row.expected_quantity ?? '—'}
+          </button>
+        )}
       </TableCell>
       <TableCell className="py-2.5 align-middle text-right">
-        {canEditActual ? (
+        {canEditActual && editingActual ? (
           <>
             <Label htmlFor={`actual-${row.id}`} className="sr-only">
               Actual for {name}
             </Label>
             <Input
               id={`actual-${row.id}`}
+              autoFocus
               className="ml-auto h-8 w-[5.5rem]"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
               value={localActual}
               onChange={(e) => setLocalActual(e.target.value)}
               onBlur={() => {
-                if (localActual === (row.actual_quantity?.toString() ?? '')) return;
-                onSaveActual(localActual);
+                if (localActual !== (row.actual_quantity?.toString() ?? '')) {
+                  onSaveActual(localActual);
+                }
+                setEditingActual(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  setLocalActual(row.actual_quantity?.toString() ?? '');
+                  setEditingActual(false);
+                }
               }}
               placeholder="—"
             />
           </>
         ) : (
-          <span className="text-sm tabular-nums text-muted-foreground">{row.actual_quantity ?? '—'}</span>
+          <button
+            type="button"
+            className={cn(
+              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums text-muted-foreground',
+              canEditActual && 'cursor-text hover:bg-muted/40'
+            )}
+            onDoubleClick={() => {
+              if (canEditActual) setEditingActual(true);
+            }}
+            title={canEditActual ? 'Double-click to edit actual qty' : undefined}
+          >
+            {row.actual_quantity ?? '—'}
+          </button>
         )}
       </TableCell>
       <TableCell className="p-1 align-middle text-right">
@@ -1908,6 +2269,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
   isCreating,
   onSuccess,
 }) => {
+  const [addBatchItem] = useAddBatchItemMutation();
   const [lineId, setLineId] = useState('');
   const [formulaId, setFormulaId] = useState('__none__');
   const [batchDate, setBatchDate] = useState(() =>
@@ -1916,6 +2278,20 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
   const [shift, setShift] = useState('');
   const [expectedOutput, setExpectedOutput] = useState('');
   const [notes, setNotes] = useState('');
+  const selectedFormulaId = formulaId && formulaId !== '__none__' ? parseInt(formulaId, 10) : null;
+  const parsedExpectedOutput =
+    expectedOutput.trim() === '' ? null : parseInt(expectedOutput, 10);
+  const { data: selectedFormulaItems = [] } = useGetFormulaItemsQuery(
+    { formulaId: selectedFormulaId ?? 0 },
+    { skip: !selectedFormulaId }
+  );
+
+  const formulaDefaultOutput = useMemo(() => {
+    if (!selectedFormulaId || selectedFormulaItems.length === 0) return 0;
+    return selectedFormulaItems
+      .filter((fi) => fi.item_role === 'output')
+      .reduce((sum, fi) => sum + fi.quantity, 0);
+  }, [selectedFormulaId, selectedFormulaItems]);
 
   React.useEffect(() => {
     if (open) {
@@ -1935,15 +2311,63 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       toast.error('Production line is required');
       return;
     }
+    if (
+      expectedOutput.trim() !== '' &&
+      (parsedExpectedOutput == null || Number.isNaN(parsedExpectedOutput) || parsedExpectedOutput < 1)
+    ) {
+      toast.error('Enter a positive integer for target output, or leave blank for the formula default');
+      return;
+    }
+
+    const effectiveTargetOutput =
+      selectedFormulaId && selectedFormulaItems.length > 0
+        ? parsedExpectedOutput != null && !Number.isNaN(parsedExpectedOutput) && parsedExpectedOutput >= 1
+          ? parsedExpectedOutput
+          : formulaDefaultOutput > 0
+            ? formulaDefaultOutput
+            : undefined
+        : parsedExpectedOutput != null && !Number.isNaN(parsedExpectedOutput) && parsedExpectedOutput >= 1
+          ? parsedExpectedOutput
+          : undefined;
+
     try {
-      await createBatch({
+      const createdBatch = await createBatch({
         production_line_id: lid,
-        formula_id: formulaId && formulaId !== '__none__' ? parseInt(formulaId, 10) : undefined,
+        formula_id: selectedFormulaId ?? undefined,
         batch_date: batchDate,
         shift: shift.trim() || undefined,
-        expected_output_quantity: expectedOutput ? parseInt(expectedOutput, 10) : undefined,
+        expected_output_quantity: effectiveTargetOutput,
         notes: notes.trim() || undefined,
       }).unwrap();
+
+      if (selectedFormulaId && selectedFormulaItems.length > 0) {
+        const formulaOutputBase = formulaDefaultOutput;
+        const targetOutput = effectiveTargetOutput;
+        const multiplier =
+          formulaOutputBase > 0 && targetOutput != null && targetOutput > 0
+            ? targetOutput / formulaOutputBase
+            : 1;
+
+        const addOps = selectedFormulaItems.map((fi) =>
+          addBatchItem({
+            batchId: createdBatch.id,
+            data: {
+              batch_id: createdBatch.id,
+              item_id: fi.item_id,
+              item_role: fi.item_role,
+              expected_quantity: Math.max(0, Math.trunc(fi.quantity * multiplier)),
+            },
+          }).unwrap()
+        );
+
+        try {
+          await Promise.all(addOps);
+        } catch {
+          // Keep draft batch even if one line insert fails.
+          toast.error('Batch created, but some formula lines could not be seeded');
+        }
+      }
+
       toast.success('Batch created');
       onSuccess();
       onOpenChange(false);
@@ -2000,6 +2424,30 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
               </Select>
             </div>
             <div className="grid gap-2">
+              <Label>
+                {selectedFormulaId ? 'Target output qty (optional)' : 'Expected output qty (optional)'}
+              </Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={expectedOutput}
+                onChange={(e) => setExpectedOutput(e.target.value)}
+                placeholder={
+                  selectedFormulaId
+                    ? formulaDefaultOutput > 0
+                      ? `Blank = default (${formulaDefaultOutput})`
+                      : 'Blank = formula base output'
+                    : 'Optional'
+                }
+              />
+              {selectedFormulaId && formulaDefaultOutput > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to use the formula&apos;s default output ({formulaDefaultOutput}) for scaling.
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
               <Label>Batch Date *</Label>
               <Input
                 type="date"
@@ -2013,16 +2461,6 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                 value={shift}
                 onChange={(e) => setShift(e.target.value)}
                 placeholder="e.g. Morning"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Expected Output Qty (optional)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={expectedOutput}
-                onChange={(e) => setExpectedOutput(e.target.value)}
-                placeholder="For formula scaling"
               />
             </div>
             <div className="grid gap-2">
@@ -2242,9 +2680,10 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
 }) => {
   const { data: batch, isLoading: loadingBatch, error: batchErr } = useGetProductionBatchByIdQuery(batchId);
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
+  const formulaId = batch?.formula_id ?? 0;
   const { data: formulaItems = [], isLoading: loadingFormulaItems } = useGetFormulaItemsQuery(
-    { formulaId: batch!.formula_id! },
-    { skip: !batch?.formula_id }
+    { formulaId },
+    { skip: formulaId <= 0 }
   );
   const { data: storageRows = [], isLoading: loadingStorage } = useGetInventoryListQuery(
     {
@@ -2256,27 +2695,10 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
     { skip: !line?.factory_id || !batch?.formula_id }
   );
 
-  const [targetOutput, setTargetOutput] = useState('');
-
-  useEffect(() => {
-    if (batch?.expected_output_quantity != null) {
-      setTargetOutput(String(batch.expected_output_quantity));
-    } else {
-      setTargetOutput('');
-    }
-  }, [batchId, batch?.expected_output_quantity]);
-
-  const parsedTarget = useMemo(() => {
-    const t = targetOutput.trim();
-    if (t === '') return null;
-    const n = parseInt(t, 10);
-    return !Number.isNaN(n) && n > 0 ? n : null;
-  }, [targetOutput]);
-
   const scaled = useMemo(() => {
     if (!batch?.formula_id || formulaItems.length === 0) return null;
-    return scaledInputRequired(formulaItems, parsedTarget);
-  }, [batch?.formula_id, formulaItems, parsedTarget]);
+    return scaledInputRequired(formulaItems, batch.expected_output_quantity ?? null);
+  }, [batch?.formula_id, batch?.expected_output_quantity, formulaItems]);
 
   const qtyByItem = useMemo(() => {
     const m = new Map<number, number>();
@@ -2318,7 +2740,7 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
     try {
       await startBatch({
         id: batch.id,
-        data: { target_output_quantity: parsedTarget ?? undefined },
+        data: {},
       }).unwrap();
       toast.success('Batch started');
       onClose();
@@ -2328,10 +2750,6 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
     }
   };
 
-  const invalidTarget =
-    targetOutput.trim() !== '' &&
-    (parsedTarget === null || (parsedTarget !== null && parsedTarget <= 0));
-
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
@@ -2340,8 +2758,8 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
             <DialogTitle>Start batch</DialogTitle>
             <DialogDescription>
               {batch?.formula_id
-                ? 'Set target output to scale formula inputs. Storage (STORAGE) is checked for required inputs on this line’s factory.'
-                : 'Simple mode: no formula stock check. Optional target output is sent to the server if provided.'}
+                ? 'Storage (STORAGE) is checked for required inputs on this line’s factory using draft expected output.'
+                : 'Simple mode: no formula stock check.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -2361,21 +2779,6 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
                 <span className="font-medium text-foreground">{batch.batch_number}</span>
                 {line && ` · ${line.name}`}
               </p>
-
-              <div className="grid gap-2">
-                <Label htmlFor="start-target-output">Target output quantity (optional)</Label>
-                <Input
-                  id="start-target-output"
-                  type="number"
-                  min={1}
-                  value={targetOutput}
-                  onChange={(e) => setTargetOutput(e.target.value)}
-                  placeholder={scaled ? `Default scale: ${scaled.target}` : 'Uses formula base if empty'}
-                />
-                {invalidTarget && (
-                  <p className="text-xs text-destructive">Enter a positive integer or leave empty.</p>
-                )}
-              </div>
 
               {batch.formula_id && scaled && (
                 <p className="text-xs text-muted-foreground">
@@ -2426,192 +2829,9 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Back
             </Button>
-            <Button type="submit" disabled={!canSubmit || invalidTarget || isStarting}>
+            <Button type="submit" disabled={!canSubmit || isStarting}>
               {isStarting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Start
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// ─── Edit Batch Dialog (PUT production-batches/:id — draft / in_progress) ─
-
-interface EditBatchDialogProps {
-  batchId: number;
-  updateProductionBatch: ReturnType<typeof useUpdateProductionBatchMutation>[0];
-  isUpdating: boolean;
-  onClose: () => void;
-}
-
-const EditBatchDialog: React.FC<EditBatchDialogProps> = ({
-  batchId,
-  updateProductionBatch,
-  isUpdating,
-  onClose,
-}) => {
-  const { data: batch, isLoading, error } = useGetProductionBatchByIdQuery(batchId);
-  const [batchDate, setBatchDate] = useState('');
-  const [shift, setShift] = useState('');
-  const [expectedOutput, setExpectedOutput] = useState('');
-  const [expectedDuration, setExpectedDuration] = useState('');
-  const [actualOutput, setActualOutput] = useState('');
-  const [actualDuration, setActualDuration] = useState('');
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    if (!batch) return;
-    setBatchDate(batch.batch_date.split('T')[0] ?? '');
-    setShift(batch.shift ?? '');
-    setExpectedOutput(batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '');
-    setExpectedDuration(batch.expected_duration_minutes != null ? String(batch.expected_duration_minutes) : '');
-    setActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
-    setActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
-    setNotes(batch.notes ?? '');
-  }, [batch]);
-
-  const canEdit = batch?.status === 'draft' || batch?.status === 'in_progress';
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batch || !canEdit) return;
-    try {
-      const base = {
-        batch_date: batchDate,
-        shift: shift.trim() || undefined,
-        notes: notes.trim() || undefined,
-      };
-      if (batch.status === 'draft') {
-        await updateProductionBatch({
-          id: batchId,
-          data: {
-            ...base,
-            expected_output_quantity: expectedOutput.trim() ? parseInt(expectedOutput, 10) : undefined,
-            expected_duration_minutes: expectedDuration.trim() ? parseInt(expectedDuration, 10) : undefined,
-          },
-        }).unwrap();
-      } else {
-        await updateProductionBatch({
-          id: batchId,
-          data: {
-            ...base,
-            actual_output_quantity: actualOutput.trim() ? parseInt(actualOutput, 10) : undefined,
-            actual_duration_minutes: actualDuration.trim() ? parseInt(actualDuration, 10) : undefined,
-          },
-        }).unwrap();
-      }
-      toast.success('Batch updated');
-      onClose();
-    } catch (err: unknown) {
-      const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to update');
-    }
-  };
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[440px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Edit batch</DialogTitle>
-            <DialogDescription>
-              {batch?.status === 'in_progress'
-                ? 'Update date, shift, notes, and logged actuals. Use Complete when the run is finished.'
-                : 'Update schedule, expected output, and notes. Formula is fixed after create.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {isLoading && (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-            </div>
-          )}
-
-          {error && <p className="py-4 text-sm text-destructive">Could not load batch.</p>}
-
-          {batch && (
-            <div className="grid gap-4 py-4">
-              {!canEdit && (
-                <p className="text-sm text-destructive">
-                  Only draft and in-progress batches can be edited here.
-                </p>
-              )}
-
-              <div className="grid gap-2">
-                <Label>Batch date</Label>
-                <Input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Shift</Label>
-                <Input value={shift} onChange={(e) => setShift(e.target.value)} placeholder="Optional" />
-              </div>
-
-              {batch.status === 'draft' && (
-                <>
-                  <div className="grid gap-2">
-                    <Label>Expected output qty</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={expectedOutput}
-                      onChange={(e) => setExpectedOutput(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Expected duration (minutes)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={expectedDuration}
-                      onChange={(e) => setExpectedDuration(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-                </>
-              )}
-
-              {batch.status === 'in_progress' && (
-                <>
-                  <div className="grid gap-2">
-                    <Label>Actual output qty</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={actualOutput}
-                      onChange={(e) => setActualOutput(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Actual duration (minutes)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={actualDuration}
-                      onChange={(e) => setActualDuration(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="grid gap-2">
-                <Label>Notes</Label>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Optional" />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isUpdating || !batch || !canEdit}>
-              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
             </Button>
           </DialogFooter>
         </form>

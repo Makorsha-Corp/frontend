@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Wrench } from 'lucide-react';
 import { machinesApi } from '@/features/machines/machinesApi';
+import { createSelector } from '@reduxjs/toolkit';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import type { RootState } from '@/app/store';
 import type { Machine } from '@/types/machine';
@@ -51,14 +52,23 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
     };
   }, [dispatch, nonRunningKey]);
 
-  const latestByMachineId = useAppSelector((state: RootState) => {
-    const out: Record<number, MachineEvent | undefined> = {};
-    for (const id of nonRunningIds) {
-      const slice = machinesApi.endpoints.getLatestMachineEvent.select(id)(state);
-      out[id] = slice.data ?? undefined;
-    }
-    return out;
-  });
+  const selectLatestByMachineId = useMemo(
+    () =>
+      createSelector(
+        [(state: RootState) => state],
+        (state) => {
+          const out: Record<number, MachineEvent | undefined> = {};
+          for (const id of nonRunningIds) {
+            const slice = machinesApi.endpoints.getLatestMachineEvent.select(id)(state);
+            out[id] = slice.data ?? undefined;
+          }
+          return out;
+        }
+      ),
+    [nonRunningIds]
+  );
+
+  const latestByMachineId = useAppSelector(selectLatestByMachineId);
 
   const latestPending = useAppSelector((state: RootState) => {
     if (nonRunningIds.length === 0) return false;
