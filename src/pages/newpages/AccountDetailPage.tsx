@@ -15,11 +15,13 @@ import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { Users, Pencil, Loader2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
+import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const AccountDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
 
   const accountId = id ? parseInt(id, 10) : null;
   const { data: account, isLoading, error } = useGetAccountByIdQuery(accountId!, {
@@ -70,14 +72,19 @@ const AccountDetailPage: React.FC = () => {
                 {account ? account.name : 'Account'}
               </h1>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditDialogOpen(true)}
-              disabled={!account}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+                Manage Accounts
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(true)}
+                disabled={!account}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -223,6 +230,7 @@ const AccountDetailPage: React.FC = () => {
         onOpenChange={setIsEditDialogOpen}
         account={account ?? null}
       />
+      <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
     </div>
   );
 };

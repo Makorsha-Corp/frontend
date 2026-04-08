@@ -24,6 +24,7 @@ import type { Account } from '@/types/account';
 import { Search, Plus, Loader2, Pencil, Trash2, Users } from 'lucide-react';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
+import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const SECTION_CONFIG: Record<string, { label: string; tagCode: string }> = {
@@ -42,6 +43,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const config = section ? SECTION_CONFIG[section] : null;
@@ -119,13 +121,18 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                 {config.label}
               </h1>
             </div>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add {singularLabel}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+                Manage Accounts
+              </Button>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add {singularLabel}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -250,6 +257,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
         onOpenChange={(open) => !open && setEditingAccount(null)}
         account={editingAccount}
       />
+      <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
     </div>
   );
 };

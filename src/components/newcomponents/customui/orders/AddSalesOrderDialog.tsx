@@ -19,6 +19,8 @@ import type { CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
+import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
+import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 
 interface AddSalesOrderDialogProps {
   open: boolean;
@@ -46,6 +48,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreateSalesOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
@@ -219,18 +222,28 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     <div className="grid min-w-0 gap-4">
       <div>
         <Label>Customer *</Label>
-        <Select value={accountId} onValueChange={setAccountId} required>
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Select customer" />
-          </SelectTrigger>
-          <SelectContent>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id.toString()}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AccountSelectSummaryButton
+          onClick={() => setAccountPickerOpen(true)}
+          ariaLabel={
+            accountId
+              ? `Change customer. Current account ID ${accountId}`
+              : 'Select customer'
+          }
+          selectedLine={accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null}
+          staleNumericId={accountId || null}
+        />
+        <AccountSelectorDialog
+          open={accountPickerOpen}
+          onOpenChange={setAccountPickerOpen}
+          title="Select customer"
+          description="Search and pick the customer account for this sales order."
+          filterTagCode="client"
+          selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
+          onSelect={(account) => {
+            if (!account) return;
+            setAccountId(String(account.id));
+          }}
+        />
       </div>
       <div>
         <Label>Factory *</Label>

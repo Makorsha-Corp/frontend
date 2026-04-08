@@ -24,6 +24,8 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
+import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
+import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -53,6 +55,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [unitPrice, setUnitPrice] = useState('');
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -225,18 +228,28 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     <div className="grid gap-4 min-w-0">
       <div>
         <Label>Supplier *</Label>
-        <Select value={accountId} onValueChange={setAccountId} required>
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Select supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id.toString()}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AccountSelectSummaryButton
+          onClick={() => setAccountPickerOpen(true)}
+          ariaLabel={
+            accountId
+              ? `Change supplier. Current account ID ${accountId}`
+              : 'Select supplier'
+          }
+          selectedLine={accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null}
+          staleNumericId={accountId || null}
+        />
+        <AccountSelectorDialog
+          open={accountPickerOpen}
+          onOpenChange={setAccountPickerOpen}
+          title="Select supplier"
+          description="Search and pick the supplier account for this purchase order."
+          filterTagCode="supplier"
+          selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
+          onSelect={(account) => {
+            if (!account) return;
+            setAccountId(String(account.id));
+          }}
+        />
       </div>
       <div>
         <Label>Destination type</Label>

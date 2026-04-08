@@ -21,6 +21,8 @@ import type { CreateExpenseOrder, CreateExpenseOrderItem } from '@/types/expense
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
+import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
+import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 
 const EXPENSE_CATEGORIES = [
   { value: 'utilities', label: 'Utilities' },
@@ -66,6 +68,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const [lineQty, setLineQty] = useState('1');
   const [lineUnit, setLineUnit] = useState<string>('none');
   const [linePrice, setLinePrice] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreateExpenseOrderMutation();
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
@@ -274,19 +277,31 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Account</Label>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select account (optional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id.toString()}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AccountSelectSummaryButton
+            onClick={() => setAccountPickerOpen(true)}
+            ariaLabel={
+              accountId !== 'none'
+                ? `Change account. Current account ID ${accountId}`
+                : 'Select optional account'
+            }
+            selectedLine={
+              accountId !== 'none'
+                ? accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null
+                : null
+            }
+            staleNumericId={accountId !== 'none' ? accountId : null}
+          />
+          <AccountSelectorDialog
+            open={accountPickerOpen}
+            onOpenChange={setAccountPickerOpen}
+            title="Select account (optional)"
+            description="Pick an account for this expense order, or clear to leave it unassigned."
+            selectedAccountId={accountId !== 'none' ? parseInt(accountId, 10) : undefined}
+            allowClear
+            onSelect={(account) => {
+              setAccountId(account ? String(account.id) : 'none');
+            }}
+          />
         </div>
         <div>
           <Label>Category *</Label>

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
+import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const SECTION_CONFIG = [
@@ -54,6 +55,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   }, [initialSection]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const navigate = useNavigate();
 
@@ -139,6 +141,9 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
               </div>
               <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Accounts</h1>
             </div>
+            <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+              Manage Accounts
+            </Button>
           </div>
         </div>
 
@@ -404,6 +409,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
         onOpenChange={(open) => !open && setEditingAccount(null)}
         account={editingAccount}
       />
+      <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
     </div>
   );
 };
