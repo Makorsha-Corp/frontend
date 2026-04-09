@@ -57,7 +57,7 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
   const filteredAccounts = useMemo(() => {
     if (selectedTagCodes.length === 0) return accounts;
     return accounts.filter((acc) => {
-      const accountTagCodes = (acc.tags || []).map((t) => t.tag_code);
+      const accountTagCodes = (acc.account_tags || []).map((t) => t.tag_code);
       return selectedTagCodes.every((tagCode) => accountTagCodes.includes(tagCode));
     });
   }, [accounts, selectedTagCodes]);
@@ -213,10 +213,10 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
                         {acc.primary_contact_person ? ` · ${acc.primary_contact_person}` : ''}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {(acc.tags || []).length === 0 ? (
+                        {(acc.account_tags || []).length === 0 ? (
                           <span className="text-[11px] text-muted-foreground">No tags</span>
                         ) : (
-                          (acc.tags || []).map((tag) => (
+                          (acc.account_tags || []).map((tag) => (
                             <span
                               key={tag.id}
                               className="rounded px-1.5 py-0.5 text-[11px] font-medium"

@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   Package,
   Archive,
+  BookOpen,
   FolderKanban,
   FlaskConical,
   Settings,
@@ -53,6 +54,8 @@ export const NAV_GRADIENT_PRESET_KEY_DARK = 'erp-navbar-gradient-preset-dark';
 const NAV_GRADIENT_PRESET_SCHEMA_KEY = 'erp-navbar-gradient-schema';
 /** `3` = current; `2` → run +8 for indices ≥3 (deep purple 3–10 inserted). Older → run legacy +1 then +8. */
 const NAV_GRADIENT_PRESET_SCHEMA_VERSION = '3';
+const FACTORIES_EXPANDED_SESSION_KEY = 'erp-navbar-factories-expanded';
+const ORDERS_EXPANDED_SESSION_KEY = 'erp-navbar-orders-expanded';
 
 /** Presets: follow = radial (cursor position via --nav-grad-x/y); fixed = linear. “No gradient” = flat `hsl(var(--secondary))` / `hsl(var(--nav-background))` (pre-frosted-wash sidebar). */
 const NAV_GRADIENT_PRESETS = [
@@ -333,7 +336,7 @@ interface DashboardNavbarProps {
 
 const HOVER_ZONE_WIDTH = 56; // Wide enough to cover button + easy to trigger
 
-const FACTORIES_SUB_PATHS = ['/factories', '/items', '/storage', '/project', '/production'];
+const FACTORIES_SUB_PATHS = ['/factories', '/items', '/storage', '/project', '/production', '/ledgers'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/sales', '/orders/work'];
 
 const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) => {
@@ -343,8 +346,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const { user, factory } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme } = useTheme();
   const [factoryDialogOpen, setFactoryDialogOpen] = useState(false);
-  const [factoriesExpanded, setFactoriesExpanded] = useState(false);
-  const [ordersExpanded, setOrdersExpanded] = useState(false);
+  const [factoriesExpanded, setFactoriesExpanded] = useState(() => {
+    if (typeof sessionStorage === 'undefined') return false;
+    return sessionStorage.getItem(FACTORIES_EXPANDED_SESSION_KEY) === 'true';
+  });
+  const [ordersExpanded, setOrdersExpanded] = useState(() => {
+    if (typeof sessionStorage === 'undefined') return false;
+    return sessionStorage.getItem(ORDERS_EXPANDED_SESSION_KEY) === 'true';
+  });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
@@ -446,39 +455,23 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const isOrdersActive = ORDERS_SUB_PATHS.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/')
   );
-  const ordersUserCollapsedRef = useRef(false);
   useEffect(() => {
-    if (isOrdersActive && !ordersUserCollapsedRef.current) {
-      setOrdersExpanded(true);
-    }
-  }, [isOrdersActive]);
-  useEffect(() => {
-    if (!isOrdersActive) ordersUserCollapsedRef.current = false;
-  }, [isOrdersActive]);
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(ORDERS_EXPANDED_SESSION_KEY, String(ordersExpanded));
+  }, [ordersExpanded]);
   const handleOrdersOpenChange = (open: boolean) => {
-    if (!open) ordersUserCollapsedRef.current = true;
     setOrdersExpanded(open);
   };
 
   const isFactoriesActive = FACTORIES_SUB_PATHS.some(
     (p) => location.pathname === p || (p !== '/dashboard' && location.pathname.startsWith(p + '/'))
   );
-  const userCollapsedRef = useRef(false);
-
-  // Auto-expand when navigating TO a factories path, but respect manual collapse
   useEffect(() => {
-    if (isFactoriesActive && !userCollapsedRef.current) {
-      setFactoriesExpanded(true);
-    }
-  }, [isFactoriesActive]);
-
-  // Reset "user collapsed" when navigating away from factories path
-  useEffect(() => {
-    if (!isFactoriesActive) userCollapsedRef.current = false;
-  }, [isFactoriesActive]);
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(FACTORIES_EXPANDED_SESSION_KEY, String(factoriesExpanded));
+  }, [factoriesExpanded]);
 
   const handleFactoriesOpenChange = (open: boolean) => {
-    if (!open) userCollapsedRef.current = true;
     setFactoriesExpanded(open);
   };
 
@@ -639,6 +632,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <DropdownMenuItem asChild>
                     <Link to="/production">Production</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/ledgers">Ledgers</Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -748,6 +744,19 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       >
                         <FlaskConical size={18} />
                         <span className="text-sm font-medium">Production</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/ledgers"
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                          isActive('/ledgers')
+                            ? 'bg-brand-primary text-white'
+                            : navInactiveClass
+                        }`}
+                      >
+                        <BookOpen size={18} />
+                        <span className="text-sm font-medium">Ledgers</span>
                       </Link>
                     </li>
                   </ul>

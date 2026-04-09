@@ -2,10 +2,21 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
 import type {
   AccountInvoice,
+  AccountInvoiceApiResponse,
   CreateAccountInvoiceRequest,
   UpdateAccountInvoiceRequest,
   ListAccountInvoicesParams
 } from '@/types/accountInvoice';
+
+const toNumber = (value: number | string | null | undefined): number =>
+  typeof value === 'number' ? value : Number(value ?? 0);
+
+const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice => ({
+  ...invoice,
+  invoice_amount: toNumber(invoice.invoice_amount),
+  paid_amount: toNumber(invoice.paid_amount),
+  outstanding_amount: toNumber(invoice.outstanding_amount),
+});
 
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
@@ -43,10 +54,12 @@ export const accountInvoicesApi = createApi({
         }
         return `account-invoices/?${params.toString()}`;
       },
+      transformResponse: (response: AccountInvoiceApiResponse[]) => response.map(normalizeInvoice),
       providesTags: ['AccountInvoice'],
     }),
     getAccountInvoiceById: builder.query<AccountInvoice, number>({
       query: (id) => `account-invoices/${id}/`,
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
       providesTags: (result, error, id) => [{ type: 'AccountInvoice', id }],
     }),
     createAccountInvoice: builder.mutation<AccountInvoice, CreateAccountInvoiceRequest>({
@@ -55,6 +68,7 @@ export const accountInvoicesApi = createApi({
         method: 'POST',
         body,
       }),
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
       invalidatesTags: ['AccountInvoice'],
     }),
     updateAccountInvoice: builder.mutation<AccountInvoice, { id: number; data: UpdateAccountInvoiceRequest }>({
@@ -63,6 +77,7 @@ export const accountInvoicesApi = createApi({
         method: 'PUT',
         body: data,
       }),
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
       invalidatesTags: (result, error, { id }) => [{ type: 'AccountInvoice', id }, 'AccountInvoice'],
     }),
     deleteAccountInvoice: builder.mutation<AccountInvoice, number>({
@@ -70,6 +85,7 @@ export const accountInvoicesApi = createApi({
         url: `account-invoices/${id}/`,
         method: 'DELETE',
       }),
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
       invalidatesTags: ['AccountInvoice'],
     }),
   }),

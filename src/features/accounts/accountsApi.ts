@@ -3,7 +3,11 @@
  */
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
-import type { Account, CreateAccountRequest, UpdateAccountRequest, ListAccountsParams } from '@/types/account';
+import type { Account, AccountApiResponse, CreateAccountRequest, UpdateAccountRequest, ListAccountsParams } from '@/types/account';
+
+const normalizeAccount = (account: AccountApiResponse): Account => ({
+  ...account,
+});
 
 export const accountsApi = createApi({
   reducerPath: 'accountsApi',
@@ -45,6 +49,7 @@ export const accountsApi = createApi({
 
         return `accounts/?${params.toString()}`;
       },
+      transformResponse: (response: AccountApiResponse[]) => response.map(normalizeAccount),
       providesTags: (result) =>
         result
           ? [
@@ -57,6 +62,7 @@ export const accountsApi = createApi({
     // Get single account by ID
     getAccountById: builder.query<Account, number>({
       query: (id) => `accounts/${id}/`,
+      transformResponse: (response: AccountApiResponse) => normalizeAccount(response),
       providesTags: (result, error, id) => [{ type: 'Account', id }],
     }),
 
@@ -67,6 +73,7 @@ export const accountsApi = createApi({
         method: 'POST',
         body,
       }),
+      transformResponse: (response: AccountApiResponse) => normalizeAccount(response),
       invalidatesTags: [{ type: 'Account', id: 'LIST' }],
     }),
 
@@ -77,6 +84,7 @@ export const accountsApi = createApi({
         method: 'PUT',
         body: data,
       }),
+      transformResponse: (response: AccountApiResponse) => normalizeAccount(response),
       invalidatesTags: (result, error, { id }) => [
         { type: 'Account', id },
         { type: 'Account', id: 'LIST' },

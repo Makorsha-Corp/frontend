@@ -1,3 +1,29 @@
+export type DecimalString = string;
+
+export interface AccountInvoiceApiResponse {
+  id: number;
+  workspace_id: number;
+  account_id: number;
+  order_id: number | null;
+  invoice_type: 'payable' | 'receivable';
+  invoice_amount: DecimalString;
+  paid_amount: DecimalString;
+  outstanding_amount: DecimalString;
+  invoice_number: string | null;
+  vendor_invoice_number: string | null;
+  invoice_date: string;
+  due_date: string | null;
+  payment_status: 'unpaid' | 'partial' | 'paid' | 'overdue';
+  allow_payments: boolean;
+  payment_locked_reason: string | null;
+  description: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: number | null;
+  updated_at: string | null;
+  updated_by: number | null;
+}
+
 export interface AccountInvoice {
   id: number;
   workspace_id: number;
@@ -42,7 +68,7 @@ export interface CreateAccountInvoiceRequest {
   account_id: number;
   order_id?: number;
   invoice_type: 'payable' | 'receivable';
-  invoice_amount: number;
+  invoice_amount: number | string;
   invoice_number?: string;
   vendor_invoice_number?: string;
   invoice_date: string;
@@ -57,7 +83,7 @@ export interface UpdateAccountInvoiceRequest {
   account_id?: number;
   order_id?: number;
   invoice_type?: 'payable' | 'receivable';
-  invoice_amount?: number;
+  invoice_amount?: number | string;
   invoice_number?: string;
   vendor_invoice_number?: string;
   invoice_date?: string;

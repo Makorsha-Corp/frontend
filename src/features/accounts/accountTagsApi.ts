@@ -12,6 +12,7 @@ export interface CreateTagRequest {
 
 export interface UpdateTagRequest {
   name?: string;
+  tag_code?: string | null;
   color?: string | null;
   icon?: string | null;
   description?: string | null;

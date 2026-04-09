@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Search, Loader2, Save } from 'lucide-react';
 import { useGetAccountsQuery, useUpdateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
@@ -29,10 +28,15 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
 
   const [name, setName] = useState('');
   const [accountCode, setAccountCode] = useState('');
-  const [primaryContact, setPrimaryContact] = useState('');
+  const [primaryContactPerson, setPrimaryContactPerson] = useState('');
   const [primaryEmail, setPrimaryEmail] = useState('');
   const [primaryPhone, setPrimaryPhone] = useState('');
-  const [notes, setNotes] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [paymentPreferences, setPaymentPreferences] = useState('');
+  const [bankDetails, setBankDetails] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery({
@@ -81,20 +85,30 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
     if (!selectedAccount) {
       setName('');
       setAccountCode('');
-      setPrimaryContact('');
+      setPrimaryContactPerson('');
       setPrimaryEmail('');
       setPrimaryPhone('');
-      setNotes('');
+      setAddress('');
+      setCity('');
+      setCountry('');
+      setPostalCode('');
+      setPaymentPreferences('');
+      setBankDetails('');
       setSelectedTagIds([]);
       return;
     }
     setName(selectedAccount.name || '');
     setAccountCode(selectedAccount.account_code || '');
-    setPrimaryContact(selectedAccount.primary_contact_person || '');
+    setPrimaryContactPerson(selectedAccount.primary_contact_person || '');
     setPrimaryEmail(selectedAccount.primary_email || '');
     setPrimaryPhone(selectedAccount.primary_phone || '');
-    setNotes(selectedAccount.notes || '');
-    setSelectedTagIds((selectedAccount.tags || []).map((t) => t.id));
+    setAddress(selectedAccount.address || '');
+    setCity(selectedAccount.city || '');
+    setCountry(selectedAccount.country || '');
+    setPostalCode(selectedAccount.postal_code || '');
+    setPaymentPreferences(selectedAccount.payment_preferences || '');
+    setBankDetails(selectedAccount.bank_details || '');
+    setSelectedTagIds((selectedAccount.account_tags || []).map((t) => t.id));
     setTagsSearch('');
   }, [selectedAccount]);
 
@@ -116,10 +130,15 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
     const payload: UpdateAccountRequest = {
       name: name.trim(),
       account_code: accountCode.trim() || null,
-      primary_contact_person: primaryContact.trim() || null,
+      primary_contact_person: primaryContactPerson.trim() || null,
       primary_email: primaryEmail.trim() || null,
       primary_phone: primaryPhone.trim() || null,
-      notes: notes.trim() || null,
+      address: address.trim() || null,
+      city: city.trim() || null,
+      country: country.trim() || null,
+      postal_code: postalCode.trim() || null,
+      payment_preferences: paymentPreferences.trim() || null,
+      bank_details: bankDetails.trim() || null,
       tag_ids: selectedTagIds,
     };
 
@@ -186,10 +205,10 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
                           {acc.account_code || `#${acc.id}`}
                         </p>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {(acc.tags || []).length === 0 ? (
+                          {(acc.account_tags || []).length === 0 ? (
                             <span className="text-[11px] text-muted-foreground">No tags</span>
                           ) : (
-                            (acc.tags || []).map((tag) => (
+                            (acc.account_tags || []).map((tag) => (
                               <span
                                 key={tag.id}
                                 className="px-1.5 py-0.5 rounded text-[11px] font-medium"
@@ -238,26 +257,25 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
                     />
                   </div>
                   <div>
-                    <Label htmlFor="manage-account-contact">Primary Contact</Label>
+                    <Label htmlFor="manage-account-contact">Primary Contact Person</Label>
                     <Input
                       id="manage-account-contact"
-                      value={primaryContact}
-                      onChange={(e) => setPrimaryContact(e.target.value)}
+                      value={primaryContactPerson}
+                      onChange={(e) => setPrimaryContactPerson(e.target.value)}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="manage-account-email">Email</Label>
+                    <Label htmlFor="manage-account-email">Primary Email</Label>
                     <Input
                       id="manage-account-email"
-                      type="email"
                       value={primaryEmail}
                       onChange={(e) => setPrimaryEmail(e.target.value)}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="manage-account-phone">Phone</Label>
+                    <Label htmlFor="manage-account-phone">Primary Phone</Label>
                     <Input
                       id="manage-account-phone"
                       value={primaryPhone}
@@ -265,13 +283,57 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
                       className="mt-1"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <Label htmlFor="manage-account-notes">Notes</Label>
-                    <Textarea
-                      id="manage-account-notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
+                  <div>
+                    <Label htmlFor="manage-account-address">Address</Label>
+                    <Input
+                      id="manage-account-address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manage-account-city">City</Label>
+                    <Input
+                      id="manage-account-city"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manage-account-country">Country</Label>
+                    <Input
+                      id="manage-account-country"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manage-account-postal-code">Postal Code</Label>
+                    <Input
+                      id="manage-account-postal-code"
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manage-account-payment-preferences">Payment Preferences</Label>
+                    <Input
+                      id="manage-account-payment-preferences"
+                      value={paymentPreferences}
+                      onChange={(e) => setPaymentPreferences(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="manage-account-bank-details">Bank Details</Label>
+                    <Input
+                      id="manage-account-bank-details"
+                      value={bankDetails}
+                      onChange={(e) => setBankDetails(e.target.value)}
                       className="mt-1"
                     />
                   </div>

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import { Users, Pencil, Loader2, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { Users, Pencil, Loader2, FileText } from 'lucide-react';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import toast, { Toaster } from 'react-hot-toast';
@@ -116,56 +116,53 @@ const AccountDetailPage: React.FC = () => {
                   )}
                   {account.primary_contact_person && (
                     <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Primary Contact</div>
+                      <div className="text-sm font-medium text-muted-foreground">Primary Contact Person</div>
                       <div className="text-card-foreground">{account.primary_contact_person}</div>
                     </div>
                   )}
                   {account.primary_email && (
-                    <div className="space-y-2 flex items-start gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Email</div>
-                        <a href={`mailto:${account.primary_email}`} className="text-brand-primary hover:underline">
-                          {account.primary_email}
-                        </a>
-                      </div>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-muted-foreground">Primary Email</div>
+                      <div className="text-card-foreground">{account.primary_email}</div>
                     </div>
                   )}
                   {account.primary_phone && (
-                    <div className="space-y-2 flex items-start gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Phone</div>
-                        <a href={`tel:${account.primary_phone}`} className="text-brand-primary hover:underline">
-                          {account.primary_phone}
-                        </a>
-                      </div>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-muted-foreground">Primary Phone</div>
+                      <div className="text-card-foreground">{account.primary_phone}</div>
                     </div>
                   )}
                   {account.address && (
-                    <div className="space-y-2 flex items-start gap-2 md:col-span-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Address</div>
-                        <div className="text-card-foreground">
-                          {[account.address, account.city, account.postal_code, account.country]
-                            .filter(Boolean)
-                            .join(', ')}
-                        </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="text-sm font-medium text-muted-foreground">Address</div>
+                      <div className="text-card-foreground">{account.address}</div>
+                    </div>
+                  )}
+                  {(account.city || account.country || account.postal_code) && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-muted-foreground">Location</div>
+                      <div className="text-card-foreground">
+                        {[account.city, account.country, account.postal_code].filter(Boolean).join(', ')}
                       </div>
                     </div>
                   )}
-                  {account.payment_terms && (
+                  {account.payment_preferences && (
                     <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Payment Terms</div>
-                      <div className="text-card-foreground">{account.payment_terms}</div>
+                      <div className="text-sm font-medium text-muted-foreground">Payment Preferences</div>
+                      <div className="text-card-foreground">{account.payment_preferences}</div>
                     </div>
                   )}
-                  {account.tags && account.tags.length > 0 && (
+                  {account.bank_details && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-muted-foreground">Bank Details</div>
+                      <div className="text-card-foreground">{account.bank_details}</div>
+                    </div>
+                  )}
+                  {account.account_tags && account.account_tags.length > 0 && (
                     <div className="space-y-2 md:col-span-2">
                       <div className="text-sm font-medium text-muted-foreground">Tags</div>
                       <div className="flex flex-wrap gap-2">
-                        {account.tags.map((tag) => (
+                        {account.account_tags.map((tag) => (
                           <span
                             key={tag.id}
                             className="px-2 py-1 rounded-md text-xs font-medium"

@@ -90,6 +90,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   }
 
   const singularLabel = config.label.slice(0, -1);
+  const getContactSummary = (acc: Account) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
+  const getAddressSummary = (acc: Account) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -188,8 +190,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                         <TableHead className="w-[60px]">ID</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Code</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead>Contact Details</TableHead>
+                        <TableHead>Address</TableHead>
                         <TableHead className="text-right w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -203,8 +205,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                           <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
                           <TableCell className="font-medium">{acc.name}</TableCell>
                           <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
-                          <TableCell>{acc.primary_contact_person || '-'}</TableCell>
-                          <TableCell>{acc.primary_email || '-'}</TableCell>
+                          <TableCell>{getContactSummary(acc)}</TableCell>
+                          <TableCell>{getAddressSummary(acc)}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <TooltipProvider>
                               <Tooltip>
