@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { createBaseQueryWithSessionExpiry } from '@/features/api/baseQueryWithSessionExpiry';
 import type {
   AccountInvoice,
   AccountInvoiceApiResponse,
@@ -20,22 +20,7 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
 
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQueryWithSessionExpiry(),
   tagTypes: ['AccountInvoice'],
   endpoints: (builder) => ({
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({

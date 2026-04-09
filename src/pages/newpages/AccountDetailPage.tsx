@@ -1,36 +1,154 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from '@/components/ui/breadcrumb';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import { Users, Pencil, Loader2, FileText } from 'lucide-react';
+import {
+  useCreateInvoicePaymentMutation,
+  useGetInvoicePaymentsByInvoiceQuery,
+} from '@/features/invoicePayments/invoicePaymentsApi';
+import { Users, Pencil, Loader2, FileText, CreditCard } from 'lucide-react';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
+import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
 import toast, { Toaster } from 'react-hot-toast';
+import type { AccountInvoice } from '@/types/accountInvoice';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const AccountDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [paymentInvoice, setPaymentInvoice] = useState<AccountInvoice | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
 
   const accountId = id ? parseInt(id, 10) : null;
   const { data: account, isLoading, error } = useGetAccountByIdQuery(accountId!, {
     skip: !accountId || isNaN(accountId),
   });
-  const { data: invoices = [] } = useGetAccountInvoicesQuery(
+  const { data: invoices = [], refetch: refetchInvoices } = useGetAccountInvoicesQuery(
     { account_id: accountId!, limit: 50 },
     { skip: !accountId || isNaN(accountId) }
   );
+  const [createPayment, { isLoading: isCreatingPayment }] = useCreateInvoicePaymentMutation();
+  const filteredInvoices = useMemo(() => {
+    const q = invoiceSearch.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((inv) => {
+      const haystack = [
+        inv.invoice_number,
+        inv.vendor_invoice_number,
+        inv.invoice_type,
+        inv.payment_status,
+        inv.notes,
+        String(inv.id),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [invoices, invoiceSearch]);
+
+  const selectedInvoice = useMemo(
+    () => filteredInvoices.find((inv) => inv.id === selectedInvoiceId) ?? filteredInvoices[0] ?? null,
+    [filteredInvoices, selectedInvoiceId]
+  );
+
+  useEffect(() => {
+    if (!filteredInvoices.length) {
+      setSelectedInvoiceId(null);
+      return;
+    }
+    if (!selectedInvoiceId || !filteredInvoices.some((inv) => inv.id === selectedInvoiceId)) {
+      setSelectedInvoiceId(filteredInvoices[0].id);
+    }
+  }, [filteredInvoices, selectedInvoiceId]);
+
+  const {
+    data: selectedInvoicePayments = [],
+    isLoading: isLoadingSelectedInvoicePayments,
+  } = useGetInvoicePaymentsByInvoiceQuery(
+    { invoice_id: selectedInvoice?.id ?? 0, skip: 0, limit: 100 },
+    { skip: !selectedInvoice }
+  );
+
+  const invoiceTotals = useMemo(() => {
+    return invoices.reduce(
+      (acc, inv) => ({
+        invoiced: acc.invoiced + inv.invoice_amount,
+        paid: acc.paid + inv.paid_amount,
+        outstanding: acc.outstanding + inv.outstanding_amount,
+      }),
+      { invoiced: 0, paid: 0, outstanding: 0 }
+    );
+  }, [invoices]);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value);
+
+  const formatDate = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString() : '—';
+
+  const openPaymentDialog = (inv: AccountInvoice) => {
+    setPaymentInvoice(inv);
+    setPaymentAmount(inv.outstanding_amount > 0 ? String(inv.outstanding_amount) : '');
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentMethod('');
+    setPaymentReference('');
+    setPaymentNotes('');
+  };
+
+  const handleCreatePayment = async () => {
+    if (!paymentInvoice) return;
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid payment amount');
+      return;
+    }
+    try {
+      await createPayment({
+        invoice_id: paymentInvoice.id,
+        payment_amount: amount,
+        payment_date: paymentDate,
+        payment_method: paymentMethod || undefined,
+        payment_reference: paymentReference || undefined,
+        notes: paymentNotes || undefined,
+      }).unwrap();
+      toast.success('Payment created');
+      setPaymentInvoice(null);
+      if (selectedInvoice) {
+        setSelectedInvoiceId(selectedInvoice.id);
+      }
+      await refetchInvoices();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to create payment');
+    }
+  };
 
   if (!accountId || isNaN(accountId)) {
     return (
@@ -57,10 +175,6 @@ const AccountDetailPage: React.FC = () => {
                     <BreadcrumbLink asChild>
                       <Link to="/accounts">Accounts</Link>
                     </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{account ? account.name : 'Account'}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -100,119 +214,287 @@ const AccountDetailPage: React.FC = () => {
           ) : (
             <>
               <Card className="shadow-sm bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="text-card-foreground">Details</CardTitle>
+                <CardHeader className="border-b border-border px-4 py-3">
+                  <CardTitle className="text-lg font-semibold text-card-foreground">Details</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-muted-foreground">Name</div>
-                    <div className="text-card-foreground">{account.name}</div>
+                <CardContent className="grid gap-6 py-4 px-4 xl:grid-cols-3 xl:gap-0">
+                  <div className="space-y-3 xl:border-r xl:border-border xl:pr-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Account Profile
+                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Name</p>
+                      <p className="mt-0.5 text-sm font-medium text-card-foreground">{account.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Account Code</p>
+                      <p className="mt-0.5 text-sm font-mono text-card-foreground">{account.account_code || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Tags</p>
+                      {account.account_tags && account.account_tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {account.account_tags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="px-2 py-0.5 rounded-md text-xs font-medium"
+                              style={{
+                                backgroundColor: tag.color ? `${tag.color}20` : undefined,
+                                color: tag.color || undefined,
+                              }}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-0.5 text-sm text-muted-foreground">No tags</p>
+                      )}
+                    </div>
                   </div>
-                  {account.account_code && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Account Code</div>
-                      <div className="font-mono text-card-foreground">{account.account_code}</div>
+
+                  <div className="space-y-3 xl:border-r xl:border-border xl:px-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Contact
+                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Primary Contact</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.primary_contact_person || '—'}</p>
                     </div>
-                  )}
-                  {account.primary_contact_person && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Primary Contact Person</div>
-                      <div className="text-card-foreground">{account.primary_contact_person}</div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Primary Email</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.primary_email || '—'}</p>
                     </div>
-                  )}
-                  {account.primary_email && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Primary Email</div>
-                      <div className="text-card-foreground">{account.primary_email}</div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Primary Phone</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.primary_phone || '—'}</p>
                     </div>
-                  )}
-                  {account.primary_phone && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Primary Phone</div>
-                      <div className="text-card-foreground">{account.primary_phone}</div>
+                  </div>
+
+                  <div className="space-y-3 xl:pl-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      Finance & Address
+                    </p>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Payment Preferences</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.payment_preferences || '—'}</p>
                     </div>
-                  )}
-                  {account.address && (
-                    <div className="space-y-2 md:col-span-2">
-                      <div className="text-sm font-medium text-muted-foreground">Address</div>
-                      <div className="text-card-foreground">{account.address}</div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Bank Details</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.bank_details || '—'}</p>
                     </div>
-                  )}
-                  {(account.city || account.country || account.postal_code) && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Location</div>
-                      <div className="text-card-foreground">
-                        {[account.city, account.country, account.postal_code].filter(Boolean).join(', ')}
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Address</p>
+                      <p className="mt-0.5 text-sm text-card-foreground">{account.address || '—'}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {[account.city, account.country, account.postal_code].filter(Boolean).join(', ') || '—'}
+                      </p>
                     </div>
-                  )}
-                  {account.payment_preferences && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Payment Preferences</div>
-                      <div className="text-card-foreground">{account.payment_preferences}</div>
-                    </div>
-                  )}
-                  {account.bank_details && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-muted-foreground">Bank Details</div>
-                      <div className="text-card-foreground">{account.bank_details}</div>
-                    </div>
-                  )}
-                  {account.account_tags && account.account_tags.length > 0 && (
-                    <div className="space-y-2 md:col-span-2">
-                      <div className="text-sm font-medium text-muted-foreground">Tags</div>
-                      <div className="flex flex-wrap gap-2">
-                        {account.account_tags.map((tag) => (
-                          <span
-                            key={tag.id}
-                            className="px-2 py-1 rounded-md text-xs font-medium"
-                            style={{
-                              backgroundColor: tag.color ? `${tag.color}20` : undefined,
-                              color: tag.color || undefined,
-                            }}
-                          >
-                            {tag.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="text-card-foreground flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
+                <CardHeader className="border-b border-border px-4 py-3">
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-card-foreground">
+                    <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
                     Invoices ({invoices.length})
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {invoices.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No invoices for this account yet.</p>
+                    <p className="text-muted-foreground text-sm px-4 py-3">No invoices for this account yet.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {invoices.slice(0, 10).map((inv) => (
-                        <div
-                          key={inv.id}
-                          className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                        >
-                          <div>
-                            <span className="font-medium">{inv.invoice_number || `#${inv.id}`}</span>
-                            <span className="text-muted-foreground ml-2">
-                              {inv.invoice_type} • {inv.payment_status}
-                            </span>
+                    <div className="p-4">
+                      <div className="grid gap-4 xl:grid-cols-12 min-h-[420px]">
+                        <div className="xl:col-span-5 rounded-lg border border-border bg-muted/10 flex flex-col min-h-0">
+                          <div className="border-b border-border p-3">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="min-w-0 rounded-md border border-border bg-card px-2 py-2">
+                                <p className="text-xs font-medium text-muted-foreground">Invoiced</p>
+                                <p className="mt-1 text-sm font-semibold tabular-nums text-card-foreground truncate sm:text-base">
+                                  {formatCurrency(invoiceTotals.invoiced)}
+                                </p>
+                              </div>
+                              <div className="min-w-0 rounded-md border border-border bg-card px-2 py-2">
+                                <p className="text-xs font-medium text-muted-foreground">Paid</p>
+                                <p className="mt-1 text-sm font-semibold tabular-nums text-card-foreground truncate sm:text-base">
+                                  {formatCurrency(invoiceTotals.paid)}
+                                </p>
+                              </div>
+                              <div className="min-w-0 rounded-md border border-border bg-card px-2 py-2">
+                                <p className="text-xs font-medium text-muted-foreground">Outstanding</p>
+                                <p className="mt-1 text-sm font-semibold tabular-nums text-card-foreground truncate sm:text-base">
+                                  {formatCurrency(invoiceTotals.outstanding)}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm">
-                            {inv.invoice_amount.toLocaleString()} {inv.paid_amount > 0 && `(paid: ${inv.paid_amount})`}
+                          <div className="border-b border-border px-3 py-3">
+                            <Input
+                              value={invoiceSearch}
+                              onChange={(e) => setInvoiceSearch(e.target.value)}
+                              placeholder="Search invoice number, status, type..."
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+                            {filteredInvoices.length === 0 ? (
+                              <p className="text-sm text-muted-foreground p-2">No matching invoices.</p>
+                            ) : (
+                              filteredInvoices.map((inv) => {
+                                const isSelected = selectedInvoice?.id === inv.id;
+                                return (
+                                  <button
+                                    key={inv.id}
+                                    type="button"
+                                    onClick={() => setSelectedInvoiceId(inv.id)}
+                                    className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
+                                      isSelected
+                                        ? 'border-brand-primary bg-brand-primary/10'
+                                        : 'border-border bg-background hover:bg-muted/40'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-sm font-medium text-card-foreground">
+                                        {inv.invoice_number || `#${inv.id}`}
+                                      </p>
+                                      <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
+                                        {inv.payment_status}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                                      <span className="capitalize">{inv.invoice_type}</span>
+                                      <span>{formatCurrency(inv.outstanding_amount)}</span>
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            )}
                           </div>
                         </div>
-                      ))}
-                      {invoices.length > 10 && (
-                        <p className="text-sm text-muted-foreground pt-2">
-                          + {invoices.length - 10} more invoices
-                        </p>
-                      )}
+
+                        <div className="xl:col-span-7 rounded-lg border border-border bg-background p-4">
+                          {!selectedInvoice ? (
+                            <p className="text-sm text-muted-foreground py-1">Select an invoice to view details.</p>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 pr-2">
+                                  <p className="text-base font-semibold text-card-foreground">
+                                    {selectedInvoice.invoice_number || `#${selectedInvoice.id}`}
+                                  </p>
+                                  <p className="mt-0.5 text-sm text-muted-foreground">
+                                    {selectedInvoice.vendor_invoice_number
+                                      ? `Vendor ref: ${selectedInvoice.vendor_invoice_number}`
+                                      : 'No vendor reference'}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                                  <OrderDetailsSummary invoice={selectedInvoice} />
+                                  <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
+                                    {selectedInvoice.payment_status}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <div className="rounded-md border border-border bg-card px-2.5 py-2">
+                                  <p className="text-xs font-medium text-muted-foreground">Invoice amount</p>
+                                  <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
+                                    {formatCurrency(selectedInvoice.invoice_amount)}
+                                  </p>
+                                </div>
+                                <div className="rounded-md border border-border bg-card px-2.5 py-2">
+                                  <p className="text-xs font-medium text-muted-foreground">Paid</p>
+                                  <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
+                                    {formatCurrency(selectedInvoice.paid_amount)}
+                                  </p>
+                                </div>
+                                <div className="rounded-md border border-border bg-card px-2.5 py-2">
+                                  <p className="text-xs font-medium text-muted-foreground">Outstanding</p>
+                                  <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
+                                    {formatCurrency(selectedInvoice.outstanding_amount)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Invoice Date</p>
+                                  <p className="mt-0.5 text-sm text-card-foreground">{formatDate(selectedInvoice.invoice_date)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Due Date</p>
+                                  <p className="mt-0.5 text-sm text-card-foreground">{formatDate(selectedInvoice.due_date)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Type</p>
+                                  <p className="mt-0.5 text-sm capitalize text-card-foreground">{selectedInvoice.invoice_type}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Payments</p>
+                                  <p
+                                    className={`mt-0.5 text-sm font-medium ${
+                                      selectedInvoice.allow_payments
+                                        ? 'text-green-600 dark:text-green-400'
+                                        : 'text-amber-600 dark:text-amber-400'
+                                    }`}
+                                  >
+                                    {selectedInvoice.allow_payments ? 'Allowed' : 'Locked'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="rounded-md border border-border bg-muted/10 p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-semibold text-card-foreground">Payments</p>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => openPaymentDialog(selectedInvoice)}
+                                    disabled={!selectedInvoice.allow_payments}
+                                  >
+                                    <CreditCard className="mr-1 h-4 w-4" />
+                                    Add Payment
+                                  </Button>
+                                </div>
+                                {isLoadingSelectedInvoicePayments ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading payments...
+                                  </div>
+                                ) : selectedInvoicePayments.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">No payments for this invoice yet.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {selectedInvoicePayments.map((p) => (
+                                      <div key={p.id} className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                                        <span className="font-medium">{formatCurrency(p.payment_amount)}</span>
+                                        <span className="text-muted-foreground ml-2">
+                                          on {new Date(p.payment_date).toLocaleDateString()}
+                                        </span>
+                                        {p.payment_method && (
+                                          <span className="text-muted-foreground ml-2">({p.payment_method})</span>
+                                        )}
+                                        {p.payment_reference && (
+                                          <span className="text-muted-foreground ml-2">Ref: {p.payment_reference}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {selectedInvoice.notes && (
+                                <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+                                  <span className="font-medium mr-2">Notes:</span>
+                                  {selectedInvoice.notes}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -228,6 +510,86 @@ const AccountDetailPage: React.FC = () => {
         account={account ?? null}
       />
       <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
+
+      <Dialog open={!!paymentInvoice} onOpenChange={(open) => !open && setPaymentInvoice(null)}>
+        <DialogContent className="w-[min(34rem,94vw)] max-w-none">
+          <DialogHeader>
+            <DialogTitle>Add Invoice Payment</DialogTitle>
+            <DialogDescription>
+              {paymentInvoice
+                ? `Invoice ${paymentInvoice.invoice_number || `#${paymentInvoice.id}`} · Outstanding ${paymentInvoice.outstanding_amount.toLocaleString()}`
+                : 'Create a payment for this invoice.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <Label htmlFor="payment-amount">Amount *</Label>
+              <Input
+                id="payment-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="payment-date">Payment Date *</Label>
+              <Input
+                id="payment-date"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="payment-method">Method</Label>
+              <Input
+                id="payment-method"
+                placeholder="cash / bank_transfer / cheque / card"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="payment-reference">Reference</Label>
+              <Input
+                id="payment-reference"
+                placeholder="Transaction ID / Cheque no."
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="payment-notes">Notes</Label>
+              <Textarea
+                id="payment-notes"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                placeholder="Optional notes"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentInvoice(null)} disabled={isCreatingPayment}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreatePayment} disabled={isCreatingPayment}>
+              {isCreatingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Payment'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -155,18 +154,15 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(68rem,96vw)] max-w-none sm:max-w-none h-[66vh] max-h-[66vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[min(68rem,96vw)] max-w-none sm:max-w-none h-[68vh] max-h-[68vh] flex flex-col overflow-hidden gap-0 pb-4 pt-6 px-6">
         <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="text-card-foreground">Add Account</DialogTitle>
-            <DialogDescription>
-              {defaultTag
-                ? `Create a new ${defaultTag.name.toLowerCase()} account.`
-                : 'Create a new account.'}
-            </DialogDescription>
+          <DialogHeader className="shrink-0 space-y-0 pb-4">
+            <DialogTitle className="text-card-foreground text-xl font-semibold tracking-tight">
+              Add Account
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 pr-1">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-1 pb-2 px-2">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
                 <div className="grid gap-2 md:col-span-2">
@@ -320,11 +316,16 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
             </div>
           </div>
 
-          <DialogFooter className="shrink-0">
-            <Button type="button" variant="outline" onClick={handleCancel}>
+          <DialogFooter className="shrink-0 gap-1.5 pt-1.5 sm:space-x-0 sm:gap-1.5">
+            <Button type="button" variant="outline" size="sm" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isLoading}>
+            <Button
+              type="submit"
+              size="sm"
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

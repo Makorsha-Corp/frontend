@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   useGetPurchaseOrderItemsQuery,
+  useCreateInvoiceFromPurchaseOrderMutation,
   useUpdatePurchaseOrderMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
@@ -28,6 +29,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   onUpdated,
 }) => {
   const [updateOrder, { isLoading: isUpdating }] = useUpdatePurchaseOrderMutation();
+  const [createInvoiceFromOrder, { isLoading: isCreatingInvoice }] = useCreateInvoiceFromPurchaseOrderMutation();
   const { data: items = [], isLoading: itemsLoading } = useGetPurchaseOrderItemsQuery(order.id);
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: 100 });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
@@ -71,6 +73,17 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     }
   };
 
+  const handleCreateInvoice = async () => {
+    try {
+      await createInvoiceFromOrder(order.id).unwrap();
+      toast.success('Invoice created from purchase order');
+      onUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to create invoice');
+    }
+  };
+
   return (
     <div className="p-6 flex flex-col gap-6 min-h-0 overflow-y-auto">
       {/* Header */}
@@ -85,7 +98,26 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       <div className="shrink-0 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold text-card-foreground">{order.po_number}</h2>
-          <Badge variant="secondary" className="shrink-0">{statusLabel}</Badge>
+          <div className="flex items-center gap-2">
+            {!order.invoice_id && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCreateInvoice}
+                disabled={isCreatingInvoice}
+              >
+                {isCreatingInvoice ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Invoice...
+                  </>
+                ) : (
+                  'Create Invoice'
+                )}
+              </Button>
+            )}
+            <Badge variant="secondary" className="shrink-0">{statusLabel}</Badge>
+          </div>
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">

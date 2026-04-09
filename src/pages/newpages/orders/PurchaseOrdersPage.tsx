@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import PurchaseOrderListRow from '@/components/newcomponents/customui/orders/Pur
 import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
 
 const PurchaseOrdersPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -41,6 +43,31 @@ const PurchaseOrdersPage: React.FC = () => {
   }, [orders, searchQuery, accounts]);
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
+  const selectedOrderFromUrl = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (!selectedOrderFromUrl) return;
+    const parsed = Number(selectedOrderFromUrl);
+    if (Number.isNaN(parsed)) return;
+    setSelectedOrderId(parsed);
+  }, [selectedOrderFromUrl]);
+
+  const setSelectedOrder = (orderId: number | null) => {
+    setSelectedOrderId(orderId);
+    if (orderId == null) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      });
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('orderId', String(orderId));
+      return next;
+    });
+  };
 
   const formatCurrency = (v: number | null | undefined) =>
     v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
@@ -64,7 +91,7 @@ const PurchaseOrdersPage: React.FC = () => {
     try {
       await deleteOrder(o.id).unwrap();
       toast.success('Purchase order deleted');
-      if (selectedOrderId === o.id) setSelectedOrderId(null);
+      if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to delete');
@@ -136,7 +163,7 @@ const PurchaseOrdersPage: React.FC = () => {
                       key={o.id}
                       order={o}
                       isSelected={selectedOrderId === o.id}
-                      onClick={() => setSelectedOrderId(o.id)}
+                      onClick={() => setSelectedOrder(o.id)}
                       accountName={accountName(o.account_id)}
                       statusLabel={statusLabel(o.current_status_id)}
                       destinationLabel={destinationLabel(o)}
@@ -154,9 +181,9 @@ const PurchaseOrdersPage: React.FC = () => {
             {selectedOrder ? (
               <PurchaseOrderDetailPanel
                 order={selectedOrder}
-                onClose={() => setSelectedOrderId(null)}
+                onClose={() => setSelectedOrder(null)}
                 onDelete={() => handleDelete(selectedOrder)}
-                onUpdated={() => setSelectedOrderId(selectedOrder.id)}
+                onUpdated={() => setSelectedOrder(selectedOrder.id)}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -174,7 +201,7 @@ const PurchaseOrdersPage: React.FC = () => {
         accounts={accounts}
         factories={factories}
         onSuccess={(order) => {
-          setSelectedOrderId(order.id);
+          setSelectedOrder(order.id);
           setIsAddOpen(false);
         }}
       />

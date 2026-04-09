@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   useGetExpenseOrderItemsQuery,
+  useCreateInvoiceFromExpenseOrderMutation,
   useUpdateExpenseOrderMutation,
 } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
@@ -31,6 +32,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const { data: items = [], isLoading: itemsLoading } = useGetExpenseOrderItemsQuery(order.id);
   const { data: statuses = [] } = useGetStatusesQuery({ skip: 0, limit: 100 });
   const [updateOrder, { isLoading: isUpdating }] = useUpdateExpenseOrderMutation();
+  const [createInvoiceFromOrder, { isLoading: isCreatingInvoice }] = useCreateInvoiceFromExpenseOrderMutation();
 
   const accountName = order.account_id
     ? accounts.find((a) => a.id === order.account_id)?.name ?? `#${order.account_id}`
@@ -55,6 +57,17 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     }
   };
 
+  const handleCreateInvoice = async () => {
+    try {
+      await createInvoiceFromOrder(order.id).unwrap();
+      toast.success('Invoice created from expense order');
+      onUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to create invoice');
+    }
+  };
+
   return (
     <div className="p-6 flex flex-col gap-6 min-h-0 overflow-y-auto">
       <div className="flex items-center gap-3 shrink-0">
@@ -71,7 +84,26 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             <p className="text-sm text-muted-foreground mt-1">Category: {order.expense_category}</p>
             <p className="text-sm text-muted-foreground">Account: {accountName}</p>
           </div>
-          <Badge variant="secondary">{statusLabel}</Badge>
+          <div className="flex items-center gap-2">
+            {!order.invoice_id && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCreateInvoice}
+                disabled={isCreatingInvoice}
+              >
+                {isCreatingInvoice ? (
+                  <>
+                    <Package className="mr-2 h-4 w-4 animate-pulse" />
+                    Creating Invoice...
+                  </>
+                ) : (
+                  'Create Invoice'
+                )}
+              </Button>
+            )}
+            <Badge variant="secondary">{statusLabel}</Badge>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">

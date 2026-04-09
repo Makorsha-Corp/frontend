@@ -1,9 +1,9 @@
 /**
  * RTK Query API for Accounts
  */
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
 import type { Account, AccountApiResponse, CreateAccountRequest, UpdateAccountRequest, ListAccountsParams } from '@/types/account';
+import { createBaseQueryWithSessionExpiry } from '@/features/api/baseQueryWithSessionExpiry';
 
 const normalizeAccount = (account: AccountApiResponse): Account => ({
   ...account,
@@ -11,25 +11,7 @@ const normalizeAccount = (account: AccountApiResponse): Account => ({
 
 export const accountsApi = createApi({
   reducerPath: 'accountsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-
-      // Accounts API requires workspace context
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQueryWithSessionExpiry(),
   tagTypes: ['Account'],
   endpoints: (builder) => ({
     // Get all accounts with pagination and search
