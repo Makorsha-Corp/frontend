@@ -66,11 +66,13 @@ const App: React.FC = () => {
             <Route path="/items" element={<ItemsPage />} />
             <Route path="/accounts" element={<AccountsLandingPage />} />
             <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />
-            <Route path="/accounts/suppliers" element={<AccountsLandingPage initialSection="suppliers" />} />
-            <Route path="/accounts/vendors" element={<AccountsLandingPage initialSection="vendors" />} />
-            <Route path="/accounts/customers" element={<AccountsLandingPage initialSection="customers" />} />
+            <Route path="/accounts/payable" element={<AccountsLandingPage initialSection="payable" />} />
+            <Route path="/accounts/receivable" element={<AccountsLandingPage initialSection="receivable" />} />
             <Route path="/accounts/utilities" element={<AccountsLandingPage initialSection="utilities" />} />
             <Route path="/accounts/payroll" element={<AccountsLandingPage initialSection="payroll" />} />
+            <Route path="/accounts/suppliers" element={<Navigate to="/accounts/payable" replace />} />
+            <Route path="/accounts/vendors" element={<Navigate to="/accounts/payable" replace />} />
+            <Route path="/accounts/customers" element={<Navigate to="/accounts/receivable" replace />} />
             <Route path="/accounts/:id" element={<AccountDetailPage />} />
             <Route path="/project" element={<ProjectsPage />} />
             <Route path="/production" element={<ProductionPage />} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useGetAccountsQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
 import type { Account } from '@/types/account';
-import { Search, Plus, Loader2, Pencil, Trash2, Users } from 'lucide-react';
+import { Search, Plus, Loader2, Pencil, Trash2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
@@ -45,19 +46,29 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [listPage, setListPage] = useState(0);
 
   const config = section ? SECTION_CONFIG[section] : null;
   const tagCode = config?.tagCode;
 
-  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(
-    {
-      skip: 0,
-      limit: 100,
+  useEffect(() => {
+    setListPage(0);
+  }, [searchQuery, tagCode]);
+
+  const listParams = useMemo(
+    () => ({
+      skip: listPage * API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
+      limit: API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
       search: searchQuery || undefined,
       tag_code: tagCode,
-    },
-    { skip: !tagCode }
+    }),
+    [listPage, searchQuery, tagCode]
   );
+
+  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(listParams, { skip: !tagCode });
+
+  const canListPrev = listPage > 0;
+  const canListNext = accounts.length === API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
 
   const handleEdit = (account: Account) => {
@@ -146,6 +157,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                   {!isLoading && (
                     <span className="font-medium">
                       {accounts.length} {accounts.length === 1 ? singularLabel : config.label}
+                      <span className="text-muted-foreground font-normal"> · page {listPage + 1}</span>
                     </span>
                   )}
                 </div>
@@ -244,6 +256,35 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                   </Table>
                 )}
               </div>
+              {!isLoading && !error && accounts.length > 0 ? (
+                <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2 bg-muted/20">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!canListPrev}
+                    onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE} per page
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!canListNext}
+                    onClick={() => setListPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>

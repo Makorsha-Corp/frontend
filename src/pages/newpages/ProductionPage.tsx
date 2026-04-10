@@ -64,6 +64,7 @@ import {
   useDeleteProductionBatchMutation,
   useStartBatchMutation,
   useCompleteBatchMutation,
+  usePostBatchFinishedGoodsMutation,
   useCancelBatchMutation,
   useGetBatchItemsQuery,
   useAddBatchItemMutation,
@@ -259,6 +260,7 @@ const ProductionPage: React.FC = () => {
   const [createBatch, { isLoading: isCreatingBatch }] = useCreateProductionBatchMutation();
   const [startBatch, { isLoading: isStartingBatch }] = useStartBatchMutation();
   const [completeBatch] = useCompleteBatchMutation();
+  const [postBatchFinishedGoods, { isLoading: isPostingFinishedGoods }] = usePostBatchFinishedGoodsMutation();
   const [cancelBatch] = useCancelBatchMutation();
   const [updateProductionBatch, { isLoading: isUpdatingBatch }] = useUpdateProductionBatchMutation();
   const [deleteProductionBatch, { isLoading: isDeletingBatch }] = useDeleteProductionBatchMutation();
@@ -856,6 +858,8 @@ const ProductionPage: React.FC = () => {
                     isUpdatingBatch={isUpdatingBatch}
                     deleteProductionBatch={deleteProductionBatch}
                     isDeletingBatch={isDeletingBatch}
+                    postBatchFinishedGoods={postBatchFinishedGoods}
+                    isPostingFinishedGoods={isPostingFinishedGoods}
                   />
                 ) : (
                   <Card className="border-dashed border-border bg-muted/20">
@@ -1299,6 +1303,8 @@ interface BatchDetailPanelProps {
   isUpdatingBatch: boolean;
   deleteProductionBatch: ReturnType<typeof useDeleteProductionBatchMutation>[0];
   isDeletingBatch: boolean;
+  postBatchFinishedGoods: ReturnType<typeof usePostBatchFinishedGoodsMutation>[0];
+  isPostingFinishedGoods: boolean;
 }
 
 const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
@@ -1317,6 +1323,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   isUpdatingBatch,
   deleteProductionBatch,
   isDeletingBatch,
+  postBatchFinishedGoods,
+  isPostingFinishedGoods,
 }) => {
   const {
     data: batch,
@@ -1927,6 +1935,38 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </Button>
           </>
         )}
+      {batch.status === 'completed' && !batch.finished_goods_posted && (
+        <Button
+          type="button"
+          size="sm"
+          className="bg-brand-primary hover:bg-brand-primary-hover"
+          disabled={isPostingFinishedGoods}
+          onClick={async () => {
+            try {
+              await postBatchFinishedGoods({
+                id: batch.id,
+                data: { include_byproducts: true },
+              }).unwrap();
+              toast.success('Outputs added to factory finished goods (Products)');
+            } catch (e: unknown) {
+              const err = e as { data?: { detail?: string; title?: string } };
+              toast.error(
+                err?.data?.detail || err?.data?.title || 'Failed to post to finished goods'
+              );
+            }
+          }}
+        >
+          {isPostingFinishedGoods ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <Package className="mr-1 h-4 w-4" />
+          )}
+          Receive into finished goods
+        </Button>
+      )}
+      {batch.status === 'completed' && batch.finished_goods_posted && (
+        <span className="text-xs text-muted-foreground">Finished goods updated for this batch.</span>
+      )}
     </div>
   );
 
@@ -2507,6 +2547,8 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
   );
   const [actualDuration, setActualDuration] = useState('');
   const [notes, setNotes] = useState(batch.notes ?? '');
+  const [postToFinishedGoods, setPostToFinishedGoods] = useState(false);
+  const [includeByproductsInFg, setIncludeByproductsInFg] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -2519,9 +2561,15 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           actual_output_quantity: actualOutput ? parseInt(actualOutput, 10) : undefined,
           actual_duration_minutes: actualDuration ? parseInt(actualDuration, 10) : undefined,
           notes: notes.trim() || undefined,
+          post_outputs_to_finished_goods: postToFinishedGoods,
+          post_finished_goods_include_byproducts: includeByproductsInFg,
         },
       }).unwrap();
-      toast.success('Batch completed');
+      toast.success(
+        postToFinishedGoods
+          ? 'Batch completed; outputs added to finished goods'
+          : 'Batch completed'
+      );
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -2570,6 +2618,36 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Completion notes"
               />
+            </div>
+            <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-3">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="complete-post-fg"
+                  checked={postToFinishedGoods}
+                  onCheckedChange={(v) => setPostToFinishedGoods(v === true)}
+                />
+                <div className="grid gap-1">
+                  <Label htmlFor="complete-post-fg" className="text-sm font-medium leading-snug cursor-pointer">
+                    Add outputs to factory finished goods (Products)
+                  </Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Increments the not-for-sale product bucket for this factory using output line actuals (or expected),
+                    or batch actual output when the formula has a single output item. Each batch can only be posted once.
+                  </p>
+                </div>
+              </div>
+              {postToFinishedGoods && (
+                <div className="flex items-start gap-2 pl-6">
+                  <Checkbox
+                    id="complete-post-byproduct"
+                    checked={includeByproductsInFg}
+                    onCheckedChange={(v) => setIncludeByproductsInFg(v === true)}
+                  />
+                  <Label htmlFor="complete-post-byproduct" className="text-sm font-normal cursor-pointer">
+                    Include byproduct lines
+                  </Label>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

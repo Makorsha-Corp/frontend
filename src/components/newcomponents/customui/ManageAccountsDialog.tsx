@@ -10,7 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, Loader2, Save } from 'lucide-react';
+import { Search, Loader2, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { API_LIMITS } from '@/constants/apiLimits';
 import { useGetAccountsQuery, useUpdateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { UpdateAccountRequest } from '@/types/account';
@@ -23,6 +24,7 @@ interface ManageAccountsDialogProps {
 
 const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpenChange }) => {
   const [accountsSearch, setAccountsSearch] = useState('');
+  const [accountsPage, setAccountsPage] = useState(0);
   const [tagsSearch, setTagsSearch] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
@@ -40,10 +42,13 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery({
-    skip: 0,
-    limit: 100,
+    skip: accountsPage * API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
+    limit: API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
     search: accountsSearch || undefined,
   });
+
+  const canAccountsPrev = accountsPage > 0;
+  const canAccountsNext = accounts.length === API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
   const { data: tags = [], isLoading: isLoadingTags } = useGetTagsQuery();
   const [updateAccount, { isLoading: isSaving }] = useUpdateAccountMutation();
 
@@ -75,11 +80,22 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
   );
 
   useEffect(() => {
-    if (!open) return;
-    if (selectedAccountId !== null) return;
-    if (accounts.length === 0) return;
-    setSelectedAccountId(accounts[0].id);
-  }, [open, selectedAccountId, accounts]);
+    setAccountsPage(0);
+  }, [accountsSearch]);
+
+  useEffect(() => {
+    if (!open) {
+      setAccountsPage(0);
+      return;
+    }
+    if (accounts.length === 0) {
+      if (selectedAccountId !== null) setSelectedAccountId(null);
+      return;
+    }
+    if (selectedAccountId === null || !accounts.some((a) => a.id === selectedAccountId)) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [open, accounts, selectedAccountId]);
 
   useEffect(() => {
     if (!selectedAccount) {
@@ -228,6 +244,33 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
                 </div>
               )}
             </div>
+            {!isLoadingAccounts && accounts.length > 0 ? (
+              <div className="shrink-0 flex items-center justify-between gap-2 border-t border-border px-2 py-2 bg-muted/20">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2"
+                  disabled={!canAccountsPrev}
+                  onClick={() => setAccountsPage((p) => Math.max(0, p - 1))}
+                  aria-label="Previous accounts page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-[11px] text-muted-foreground tabular-nums">Page {accountsPage + 1}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2"
+                  disabled={!canAccountsNext}
+                  onClick={() => setAccountsPage((p) => p + 1)}
+                  aria-label="Next accounts page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col min-h-0 border border-border rounded-lg">
