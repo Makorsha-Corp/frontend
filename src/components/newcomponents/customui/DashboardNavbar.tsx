@@ -49,7 +49,7 @@ interface DashboardNavbarProps {
 
 const HOVER_ZONE_WIDTH = 56; // Wide enough to cover button + easy to trigger
 
-const FACTORIES_SUB_PATHS = ['/factories', '/items', '/storage', '/project', '/production'];
+const FACTORIES_SUB_PATHS = ['/factories', '/storage', '/project', '/production'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/sales', '/orders/work'];
 
 const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) => {
@@ -229,6 +229,22 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </Link>
           </li>
 
+          {/* Items independent section */}
+          <li>
+            <Link
+              to="/items"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive('/items')
+                  ? 'bg-brand-primary text-white'
+                  : 'text-gray-300 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-muted hover:text-white dark:hover:text-foreground'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title={isCollapsed ? 'Items' : ''}
+            >
+              <Package size={20} />
+              {!isCollapsed && <span className="font-medium">Items</span>}
+            </Link>
+          </li>
+
           {/* Factories expandable section */}
           <li>
             {isCollapsed ? (
@@ -256,9 +272,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link to={factory ? `/factories/${factory.id}` : '/factories'}>Factories</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/items">Items</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/storage">Storage</Link>
@@ -326,19 +339,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       >
                         <Factory size={18} />
                         <span className="text-sm font-medium">Factories</span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/items"
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-                          isActive('/items')
-                            ? 'bg-brand-primary text-white'
-                            : 'text-gray-300 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-muted hover:text-white dark:hover:text-foreground'
-                        }`}
-                      >
-                        <Package size={18} />
-                        <span className="text-sm font-medium">Items</span>
                       </Link>
                     </li>
                     <li>
