@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
+import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
 import type { SalesOrder, CreateSalesOrderDTO, UpdateSalesOrderDTO } from '@/types/salesOrder';
 import type { SalesOrderItem, CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
@@ -32,7 +33,7 @@ export const salesOrdersApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['SalesOrder', 'SalesOrderItem'],
+  tagTypes: ['SalesOrder', 'SalesOrderItem', 'AccountInvoice'],
   endpoints: (builder) => ({
     getSalesOrders: builder.query<SalesOrder[], ListSalesOrdersParams>({
       query: ({ skip = 0, limit = 100 } = {}) => {
@@ -45,7 +46,7 @@ export const salesOrdersApi = createApi({
     }),
     getSalesOrderById: builder.query<SalesOrder, number>({
       query: (id) => `sales-orders/${id}/`,
-      providesTags: (result, error, id) => [{ type: 'SalesOrder', id }],
+      providesTags: (_r, _e, id) => [{ type: 'SalesOrder', id }],
     }),
     createSalesOrder: builder.mutation<SalesOrder, CreateSalesOrderWithItemsDTO>({
       query: ({ order, items }) => ({
@@ -64,15 +65,33 @@ export const salesOrdersApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'SalesOrder', id }, 'SalesOrder'],
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'SalesOrder', id }, 'SalesOrder'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data.invoice_id != null || data.is_invoiced) {
+            dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
+    }),
+    createInvoiceFromSalesOrder: builder.mutation<SalesOrder, number>({
+      query: (id) => ({ url: `sales-orders/${id}/create-invoice`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'SalesOrder', id },
+        'SalesOrder',
+        'AccountInvoice',
+      ],
     }),
     getSalesOrderItems: builder.query<SalesOrderItem[], number>({
       query: (orderId) => `sales-orders/${orderId}/items/`,
-      providesTags: (result, error, orderId) => [{ type: 'SalesOrderItem', id: `order-${orderId}` }],
+      providesTags: (_r, _e, orderId) => [{ type: 'SalesOrderItem', id: `order-${orderId}` }],
     }),
     getSalesOrderDeliveries: builder.query<SalesDelivery[], number>({
       query: (orderId) => `sales-orders/${orderId}/deliveries/`,
-      providesTags: (result, error, orderId) => [{ type: 'SalesOrder', id: `deliveries-${orderId}` }],
+      providesTags: (_r, _e, orderId) => [{ type: 'SalesOrder', id: `deliveries-${orderId}` }],
     }),
   }),
 });
@@ -82,6 +101,7 @@ export const {
   useGetSalesOrderByIdQuery,
   useCreateSalesOrderMutation,
   useUpdateSalesOrderMutation,
+  useCreateInvoiceFromSalesOrderMutation,
   useGetSalesOrderItemsQuery,
   useGetSalesOrderDeliveriesQuery,
 } = salesOrdersApi;

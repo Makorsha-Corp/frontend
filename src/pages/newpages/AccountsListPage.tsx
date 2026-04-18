@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,11 @@ import {
 } from '@/components/ui/tooltip';
 import { useGetAccountsQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
 import type { Account } from '@/types/account';
-import { Search, Plus, Loader2, Pencil, Trash2, Users } from 'lucide-react';
+import { Search, Plus, Loader2, Pencil, Trash2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
+import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const SECTION_CONFIG: Record<string, { label: string; tagCode: string }> = {
@@ -40,25 +42,33 @@ interface AccountsListPageProps {
 
 const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   const navigate = useNavigate();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [listPage, setListPage] = useState(0);
 
   const config = section ? SECTION_CONFIG[section] : null;
   const tagCode = config?.tagCode;
 
-  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(
-    {
-      skip: 0,
-      limit: 100,
+  useEffect(() => {
+    setListPage(0);
+  }, [searchQuery, tagCode]);
+
+  const listParams = useMemo(
+    () => ({
+      skip: listPage * API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
+      limit: API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
       search: searchQuery || undefined,
       tag_code: tagCode,
-    },
-    { skip: !tagCode }
+    }),
+    [listPage, searchQuery, tagCode]
   );
+
+  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(listParams, { skip: !tagCode });
+
+  const canListPrev = listPage > 0;
+  const canListNext = accounts.length === API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
 
   const handleEdit = (account: Account) => {
@@ -91,13 +101,15 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   }
 
   const singularLabel = config.label.slice(0, -1);
+  const getContactSummary = (acc: Account) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
+  const getAddressSummary = (acc: Account) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -122,13 +134,18 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                 {config.label}
               </h1>
             </div>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add {singularLabel}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+                Manage Accounts
+              </Button>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add {singularLabel}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -140,6 +157,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                   {!isLoading && (
                     <span className="font-medium">
                       {accounts.length} {accounts.length === 1 ? singularLabel : config.label}
+                      <span className="text-muted-foreground font-normal"> · page {listPage + 1}</span>
                     </span>
                   )}
                 </div>
@@ -184,8 +202,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                         <TableHead className="w-[60px]">ID</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Code</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead>Contact Details</TableHead>
+                        <TableHead>Address</TableHead>
                         <TableHead className="text-right w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -199,8 +217,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                           <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
                           <TableCell className="font-medium">{acc.name}</TableCell>
                           <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
-                          <TableCell>{acc.primary_contact_person || '-'}</TableCell>
-                          <TableCell>{acc.primary_email || '-'}</TableCell>
+                          <TableCell>{getContactSummary(acc)}</TableCell>
+                          <TableCell>{getAddressSummary(acc)}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <TooltipProvider>
                               <Tooltip>
@@ -238,6 +256,35 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                   </Table>
                 )}
               </div>
+              {!isLoading && !error && accounts.length > 0 ? (
+                <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2 bg-muted/20">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!canListPrev}
+                    onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE} per page
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!canListNext}
+                    onClick={() => setListPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -253,6 +300,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
         onOpenChange={(open) => !open && setEditingAccount(null)}
         account={editingAccount}
       />
+      <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
     </div>
   );
 };

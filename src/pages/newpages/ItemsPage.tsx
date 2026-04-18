@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -21,22 +21,23 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useGetItemsQuery, useDeleteItemMutation } from '@/features/items/itemsApi';
 import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { Item } from '@/types/item';
-import { Search, Plus, Loader2, Eye, Pencil, Filter, X, Trash2, Package2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, Plus, Loader2, Eye, Pencil, Filter, X, Trash2, Package2, ChevronLeft, ChevronRight, ChevronDown, Tags } from 'lucide-react';
 import ItemTagBadge from '@/components/newcomponents/customui/ItemTagBadge';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import EditItemDialog from '@/components/newcomponents/customui/EditItemDialog';
+import ItemTagsManagerDialog from '@/components/newcomponents/customui/ItemTagsManagerDialog';
+import ItemDetailsDialog from '@/components/newcomponents/customui/ItemDetailsDialog';
 import toast, { Toaster } from 'react-hot-toast';
 
 const ItemsPage: React.FC = () => {
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [searchQuery, setSearchQuery] = useState('');
   const [filterUnit, setFilterUnit] = useState<string>('');
   const [filterTagId, setFilterTagId] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   
   const itemsPerPage = 20;
@@ -98,10 +99,8 @@ const ItemsPage: React.FC = () => {
   };
 
   const handleView = (item: Item) => {
-    // For now, just show the details in a toast
-    toast.success(`Viewing item: ${item.name}`, {
-      duration: 3000,
-    });
+    setSelectedItem(item);
+    setIsDetailsDialogOpen(true);
   };
 
   const handleDelete = async (item: Item) => {
@@ -113,6 +112,10 @@ const ItemsPage: React.FC = () => {
     try {
       await deleteItem(item.id).unwrap();
       toast.success(`Item "${item.name}" has been marked as inactive`);
+      if (selectedItem?.id === item.id) {
+        setSelectedItem(null);
+        setIsDetailsDialogOpen(false);
+      }
     } catch (error: any) {
       console.error('Failed to delete item:', error);
       toast.error(error?.data?.detail || 'Failed to delete item');
@@ -126,10 +129,10 @@ const ItemsPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      
+      <DashboardNavbar />
+
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
@@ -139,13 +142,22 @@ const ItemsPage: React.FC = () => {
               </div>
               <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Items Catalog</h1>
             </div>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Item
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsTagsDialogOpen(true)}
+              >
+                <Tags className="mr-2 h-4 w-4" />
+                Manage Tags
+              </Button>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Item
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -215,7 +227,6 @@ const ItemsPage: React.FC = () => {
                                   <SelectItem key={tag.id} value={tag.id.toString()}>
                                     <div className="flex items-center gap-2">
                                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#9067c6' }} />
-                                      {tag.icon && <span>{tag.icon}</span>}
                                       <span>{tag.name}</span>
                                     </div>
                                   </SelectItem>
@@ -286,7 +297,11 @@ const ItemsPage: React.FC = () => {
                       </TableHeader>
                       <TableBody>
                         {items.map((item) => (
-                          <TableRow key={item.id} className="hover:bg-brand-primary/10 dark:hover:bg-brand-primary/15 transition-colors border-b border-border last:border-b-0">
+                          <TableRow
+                            key={item.id}
+                            className="hover:bg-brand-primary/10 dark:hover:bg-brand-primary/15 transition-colors border-b border-border last:border-b-0 cursor-pointer"
+                            onClick={() => handleView(item)}
+                          >
                             <td className="font-mono text-sm text-muted-foreground py-4 px-4">{item.id}</td>
                             <td className="font-semibold text-card-foreground py-4 text-sm max-w-[250px] truncate">{item.name}</td>
                             <td className="py-4">
@@ -336,7 +351,10 @@ const ItemsPage: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleView(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleView(item);
+                                  }}
                                   className="h-8 w-8 p-0 text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary/10 transition-colors"
                                   title="View details"
                                 >
@@ -345,7 +363,10 @@ const ItemsPage: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEdit(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEdit(item);
+                                  }}
                                   className="h-8 w-8 p-0 text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary/10 transition-colors"
                                   title="Edit item"
                                 >
@@ -354,7 +375,10 @@ const ItemsPage: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDelete(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(item);
+                                  }}
                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10 transition-colors"
                                   title="Delete item"
                                 >
@@ -418,6 +442,18 @@ const ItemsPage: React.FC = () => {
       {/* Dialogs */}
       <AddItemDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
       <EditItemDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} item={selectedItem} />
+      <ItemTagsManagerDialog open={isTagsDialogOpen} onOpenChange={setIsTagsDialogOpen} />
+      <ItemDetailsDialog
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        item={selectedItem}
+        onEdit={(item) => {
+          setSelectedItem(item);
+          setIsDetailsDialogOpen(false);
+          setIsEditDialogOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
     </div>
   );
 };

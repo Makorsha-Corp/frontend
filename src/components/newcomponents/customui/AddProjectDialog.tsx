@@ -20,11 +20,9 @@ import {
 } from '@/components/ui/select';
 import { useCreateProjectMutation } from '@/features/projects/projectsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import type { Project, ProjectStatus } from '@/types/project';
+import type { Project } from '@/types/project';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-
-const STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
 interface AddProjectDialogProps {
   open: boolean;
@@ -42,8 +40,6 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [factoryId, setFactoryId] = useState<string>(defaultFactoryId?.toString() ?? '');
-  const [budget, setBudget] = useState('');
-  const [status, setStatus] = useState<ProjectStatus>('PLANNING');
 
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const [createProject, { isLoading }] = useCreateProjectMutation();
@@ -69,14 +65,10 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
         factory_id: parseInt(factoryId, 10),
         name: name.trim(),
         description: description.trim() || '',
-        budget: budget ? parseFloat(budget) : null,
-        status,
       }).unwrap();
       toast.success('Project created');
       setName('');
       setDescription('');
-      setBudget('');
-      setStatus('PLANNING');
       onOpenChange(false);
       onSuccess?.(project);
     } catch (err: unknown) {
@@ -88,8 +80,6 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const handleCancel = () => {
     setName('');
     setDescription('');
-    setBudget('');
-    setStatus('PLANNING');
     onOpenChange(false);
   };
 
@@ -98,7 +88,9 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Project</DialogTitle>
-          <DialogDescription>Create a new project.</DialogDescription>
+          <DialogDescription>
+            Create a new project with basic details. Budget and costs will be calculated later.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -136,34 +128,6 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
               rows={3}
               className="mt-1"
             />
-          </div>
-          <div>
-            <Label htmlFor="budget">Budget</Label>
-            <Input
-              id="budget"
-              type="number"
-              step="0.01"
-              min="0"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              placeholder="0.00"
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s.replace('_', ' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>

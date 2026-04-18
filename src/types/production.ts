@@ -121,8 +121,10 @@ export interface ProductionBatch {
   actual_start_time: string | null;
   actual_end_time: string | null;
   output_variance_quantity: number | null;
-  output_variance_percentage: number | null;
-  efficiency_percentage: number | null;
+  /** API may serialize Numeric as string */
+  output_variance_percentage: number | string | null;
+  /** API may serialize Numeric as string */
+  efficiency_percentage: number | string | null;
   notes: string | null;
   created_by: number | null;
   updated_by: number | null;
@@ -132,6 +134,8 @@ export interface ProductionBatch {
   started_at: string | null;
   completed_by: number | null;
   completed_at: string | null;
+  /** True after outputs were posted to factory finished goods (products). Accurate on batch detail GET. */
+  finished_goods_posted?: boolean;
 }
 
 export interface CreateProductionBatchDTO {
@@ -163,6 +167,13 @@ export interface CompleteBatchDTO {
   actual_output_quantity?: number;
   actual_duration_minutes?: number;
   notes?: string;
+  /** Post output/byproduct quantities to factory products (finished goods) when completing. */
+  post_outputs_to_finished_goods?: boolean;
+  post_finished_goods_include_byproducts?: boolean;
+}
+
+export interface PostBatchFinishedGoodsDTO {
+  include_byproducts?: boolean;
 }
 
 export interface CancelBatchDTO {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,10 +8,18 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   useGetMachineEventsQuery,
   useCreateMachineEventMutation,
+  useGetLatestMachineEventQuery,
 } from '@/features/machines/machinesApi';
 import {
   useGetMachineItemsQuery,
@@ -22,7 +30,20 @@ import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Machine } from '@/types/machine';
 import type { MachineEventType } from '@/types/machine';
 import type { MachineItem } from '@/types/machineItem';
-import { Loader2, Plus, Pencil, Trash2, Play, Pause, Wrench, Power } from 'lucide-react';
+import {
+  Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  Play,
+  Pause,
+  Wrench,
+  Power,
+  Check,
+  X,
+  Package,
+  CalendarClock,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import AddMachineMaintenanceLogDialog from './AddMachineMaintenanceLogDialog';
@@ -32,6 +53,15 @@ import {
   useDeleteMachineMaintenanceLogMutation,
 } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
 import type { MachineMaintenanceLog } from '@/types/machineMaintenanceLog';
+import { cn } from '@/lib/utils';
+import {
+  getHighlightedEventType,
+  getMachineVisualKind,
+  activeEventButtonClass,
+  machineTopBarClass,
+  machineBadgeClass,
+  machineVisualKindFromEventType,
+} from '@/lib/machineVisualStatus';
 
 interface MachineDetailsDialogProps {
   open: boolean;
@@ -41,17 +71,17 @@ interface MachineDetailsDialogProps {
   onMachineUpdated?: () => void;
 }
 
-const EVENT_TYPES: { type: MachineEventType; label: string; icon: React.ReactNode }[] = [
-  { type: 'IDLE', label: 'Idle', icon: <Pause className="h-4 w-4" /> },
-  { type: 'RUNNING', label: 'Running', icon: <Play className="h-4 w-4" /> },
-  { type: 'OFF', label: 'Off', icon: <Power className="h-4 w-4" /> },
-  { type: 'MAINTENANCE', label: 'Maintenance', icon: <Wrench className="h-4 w-4" /> },
+const STATUS_CONTROLS: {
+  type: MachineEventType;
+  shortLabel: string;
+  icon: React.ReactNode;
+}[] = [
+  { type: 'IDLE', shortLabel: 'Idle', icon: <Pause className="h-3.5 w-3.5 shrink-0" /> },
+  { type: 'RUNNING', shortLabel: 'Running', icon: <Play className="h-3.5 w-3.5 shrink-0" /> },
+  { type: 'OFF', shortLabel: 'Off', icon: <Power className="h-3.5 w-3.5 shrink-0" /> },
+  { type: 'MAINTENANCE', shortLabel: 'Maint.', icon: <Wrench className="h-3.5 w-3.5 shrink-0" /> },
 ];
 
-/**
- * Full machine details dialog - advanced view with metadata, status controls,
- * event history, machine items (with item names), and running orders.
- */
 const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   open,
   onOpenChange,
@@ -67,6 +97,10 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateMachineEventMutation();
   const [updateMachineItem] = useUpdateMachineItemMutation();
   const [deleteMachineItem] = useDeleteMachineItemMutation();
+
+  const { data: latestEvent } = useGetLatestMachineEventQuery(machine?.id ?? 0, {
+    skip: !machine?.id || !open,
+  });
 
   const { data: events, isLoading: eventsLoading } = useGetMachineEventsQuery(
     { machine_id: machine?.id ?? 0, skip: 0, limit: 50 },
@@ -85,11 +119,25 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   );
   const [deleteMaintenanceLog] = useDeleteMachineMaintenanceLogMutation();
 
-  const itemsMap = React.useMemo(() => {
+  const itemsMap = useMemo(() => {
     const m = new Map<number, { name: string; unit: string }>();
     (items ?? []).forEach((i) => m.set(i.id, { name: i.name, unit: i.unit }));
     return m;
   }, [items]);
+
+  const sortedEvents = useMemo(() => {
+    if (!events?.length) return [];
+    return [...events].sort(
+      (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+    );
+  }, [events]);
+
+  const sortedLogs = useMemo(() => {
+    if (!maintenanceLogs.length) return [];
+    return [...maintenanceLogs].sort(
+      (a, b) => new Date(b.maintenance_date).getTime() - new Date(a.maintenance_date).getTime()
+    );
+  }, [maintenanceLogs]);
 
   const handleStatusChange = async (eventType: MachineEventType) => {
     if (!machine) return;
@@ -142,265 +190,389 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
 
   if (!machine) return null;
 
+  const highlightedType = getHighlightedEventType(machine, latestEvent);
+  const visualKind = getMachineVisualKind(machine, latestEvent);
+  const metaLine = [machine.model_number, machine.manufacturer].filter(Boolean).join(' · ');
+
+  const sectionLabel = 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-xl">{machine.name}</DialogTitle>
-              <DialogDescription>
-                {machine.model_number && `Model: ${machine.model_number}`}
-                {machine.manufacturer && ` • ${machine.manufacturer}`}
-              </DialogDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => onEditRequest?.()}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-          </div>
-        </DialogHeader>
+      <DialogContent
+        className={cn(
+          'flex max-h-[min(90vh,880px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0',
+          'border-border bg-card text-card-foreground sm:rounded-lg'
+        )}
+      >
+        <TooltipProvider delayDuration={300}>
+          <div className={cn('h-1 shrink-0 rounded-t-lg', machineTopBarClass[visualKind])} aria-hidden />
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-6 py-4">
-          {/* Status controls */}
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-2">Status</p>
-            <div className="flex flex-wrap gap-2">
-              {EVENT_TYPES.map(({ type, label, icon }) => (
+          <div className="shrink-0 space-y-4 px-6 pb-2 pt-6 pr-14">
+            <DialogHeader className="space-y-2 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <DialogTitle className="text-xl font-semibold tracking-tight leading-tight">
+                    {machine.name}
+                  </DialogTitle>
+                  {metaLine ? (
+                    <DialogDescription className="text-xs text-muted-foreground line-clamp-2">
+                      {metaLine}
+                    </DialogDescription>
+                  ) : (
+                    <DialogDescription className="text-xs text-muted-foreground/70 italic">
+                      No model / manufacturer on file
+                    </DialogDescription>
+                  )}
+                </div>
                 <Button
-                  key={type}
-                  variant={machine.is_running && type === 'RUNNING' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleStatusChange(type)}
-                  disabled={isCreatingEvent}
-                  className={
-                    machine.is_running && type === 'RUNNING'
-                      ? 'bg-brand-primary hover:bg-brand-primary-hover'
-                      : ''
-                  }
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => onEditRequest?.()}
+                  aria-label="Edit machine"
+                  title="Edit machine"
                 >
-                  {icon}
-                  <span className="ml-1">{label}</span>
+                  <Pencil className="h-4 w-4" />
                 </Button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Current: <Badge variant={machine.is_running ? 'default' : 'secondary'}>
-                {machine.is_running ? 'Running' : 'Not running'}
-              </Badge>
-            </p>
-          </div>
+              </div>
+            </DialogHeader>
 
-          {/* Metadata */}
-          {/* NOTE: next_maintenance_schedule/note - design unclear. Should be driven by Maintenance Logs?
-              See progressDesign.md 2026-02-28. Revisit before auto-deriving from logs. */}
-          {(machine.note || machine.next_maintenance_schedule || machine.next_maintenance_note) && (
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Details</p>
-              <dl className="text-sm space-y-1">
-                {machine.note && (
-                  <div>
-                    <dt className="text-muted-foreground">Note</dt>
-                    <dd className="text-card-foreground">{machine.note}</dd>
-                  </div>
-                )}
-                {machine.next_maintenance_schedule && (
-                  <div>
-                    <dt className="text-muted-foreground">Next maintenance</dt>
-                    <dd className="text-card-foreground">{machine.next_maintenance_schedule.slice(0, 10)}</dd>
-                  </div>
-                )}
-                {machine.next_maintenance_note && (
-                  <div>
-                    <dt className="text-muted-foreground">Maintenance note</dt>
-                    <dd className="text-card-foreground">{machine.next_maintenance_note}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {/* Maintenance Logs */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">Maintenance Logs</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsAddMaintenanceLogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Log
-              </Button>
-            </div>
-            {logsLoading ? (
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            ) : !maintenanceLogs || maintenanceLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No maintenance logs yet</p>
-            ) : (
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {maintenanceLogs.map((log: MachineMaintenanceLog) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-muted/30 border border-border"
-                  >
-                    <div>
-                      <Badge variant="outline" className="text-xs">{log.maintenance_type}</Badge>
-                      <span className="ml-2 font-medium">{log.summary}</span>
-                      <span className="ml-2 text-muted-foreground">
-                        {log.maintenance_date} {log.performed_by && `• ${log.performed_by}`}
-                      </span>
-                    </div>
+              <p className={cn(sectionLabel, 'mb-2')}>Status</p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
+                {STATUS_CONTROLS.map(({ type, shortLabel, icon }) => {
+                  const active = highlightedType === type;
+                  return (
                     <Button
-                      variant="ghost"
+                      key={type}
+                      type="button"
+                      variant="outline"
                       size="sm"
-                      className="h-7 text-destructive hover:text-destructive"
-                      onClick={async () => {
-                        if (!window.confirm('Delete this maintenance log?')) return;
-                        try {
-                          await deleteMaintenanceLog(log.id).unwrap();
-                          toast.success('Log deleted');
-                          onMachineUpdated?.();
-                        } catch (err: unknown) {
-                          const e = err as { data?: { detail?: string } };
-                          toast.error(e?.data?.detail || 'Failed to delete');
-                        }
-                      }}
+                      onClick={() => handleStatusChange(type)}
+                      disabled={isCreatingEvent}
+                      className={cn(
+                        'h-9 justify-center gap-1.5 px-2 text-xs font-medium',
+                        active && activeEventButtonClass(type)
+                      )}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {icon}
+                      <span className="truncate">{shortLabel}</span>
                     </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
-          </div>
-
-          {/* Event history */}
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-2">Event History</p>
-            {eventsLoading ? (
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            ) : !events || events.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No events yet</p>
-            ) : (
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {events.map((e) => (
-                  <div
-                    key={e.id}
-                    className="flex items-center justify-between text-sm py-1 border-b border-border last:border-0"
-                  >
-                    <Badge variant="outline">{e.event_type}</Badge>
-                    <span className="text-muted-foreground">
-                      {new Date(e.started_at).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Machine items - with item names */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-muted-foreground">Machine Items</p>
-              <Button
-                size="sm"
-                className="bg-brand-primary hover:bg-brand-primary-hover"
-                onClick={() => setIsAddItemOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
             </div>
-            {!machineItems || machineItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">No items assigned</p>
-            ) : (
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="py-2">Item Name</TableHead>
-                      <TableHead className="py-2 w-20">Unit</TableHead>
-                      <TableHead className="py-2 w-24">Qty</TableHead>
-                      <TableHead className="py-2 w-24">Req</TableHead>
-                      <TableHead className="py-2 w-24">Defective</TableHead>
-                      <TableHead className="py-2 w-24 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {machineItems.map((mi) => {
-                      const info = getItemDisplay(mi);
-                      const isEditing = editingItemId === mi.id;
-                      return (
-                        <TableRow key={mi.id} className="border-b border-border">
-                          <TableCell className="py-2 font-medium">{info.name}</TableCell>
-                          <TableCell className="py-2 text-muted-foreground">{info.unit}</TableCell>
-                          <TableCell className="py-2">
-                            {isEditing ? (
-                              <div className="flex gap-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={editQty}
-                                  onChange={(e) => setEditQty(e.target.value)}
-                                  className="w-16 px-2 py-1 text-sm border rounded bg-background"
-                                />
-                                <Button size="sm" variant="ghost" onClick={() => handleSaveEditQty(mi)}>
-                                  Save
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
+          </div>
+
+          <Separator />
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-5">
+            {/* Details */}
+            {(machine.note || machine.next_maintenance_schedule || machine.next_maintenance_note) && (
+              <div className="space-y-2">
+                <p className={sectionLabel}>Machine details</p>
+                <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3 text-sm">
+                  {machine.note && (
+                    <p className="text-card-foreground border-l-2 border-brand-primary/35 pl-2.5 leading-relaxed">
+                      {machine.note}
+                    </p>
+                  )}
+                  {(machine.next_maintenance_schedule || machine.next_maintenance_note) && (
+                    <div className="flex gap-2 text-xs">
+                      <CalendarClock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                      <div className="space-y-1 min-w-0">
+                        {machine.next_maintenance_schedule && (
+                          <p>
+                            <span className="text-muted-foreground">Next maintenance: </span>
+                            <span className="font-medium tabular-nums">
+                              {machine.next_maintenance_schedule.slice(0, 10)}
+                            </span>
+                          </p>
+                        )}
+                        {machine.next_maintenance_note && (
+                          <p className="text-muted-foreground">{machine.next_maintenance_note}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Maintenance logs */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className={sectionLabel}>Maintenance logs</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => setIsAddMaintenanceLogOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add log
+                </Button>
+              </div>
+              {logsLoading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : sortedLogs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/15 py-8 text-center">
+                  <Wrench className="h-7 w-7 text-muted-foreground/35" />
+                  <p className="text-xs text-muted-foreground">No maintenance logs yet.</p>
+                </div>
+              ) : (
+                <ul className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                  {sortedLogs.map((log: MachineMaintenanceLog) => (
+                    <li
+                      key={log.id}
+                      className="flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="text-[10px] font-medium">
+                            {log.maintenance_type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {log.maintenance_date}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-card-foreground">{log.summary}</p>
+                        {log.performed_by ? (
+                          <p className="text-[11px] text-muted-foreground">{log.performed_by}</p>
+                        ) : null}
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 self-end sm:self-center text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                              if (!window.confirm('Delete this maintenance log?')) return;
+                              try {
+                                await deleteMaintenanceLog(log.id).unwrap();
+                                toast.success('Log deleted');
+                                onMachineUpdated?.();
+                              } catch (err: unknown) {
+                                const e = err as { data?: { detail?: string } };
+                                toast.error(e?.data?.detail || 'Failed to delete');
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete log</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete log</TooltipContent>
+                      </Tooltip>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Event history */}
+            <div className="space-y-2">
+              <p className={sectionLabel}>Event history</p>
+              {eventsLoading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : sortedEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/15 py-8 text-center">
+                  <Pause className="h-7 w-7 text-muted-foreground/35" />
+                  <p className="text-xs text-muted-foreground">No status events recorded yet.</p>
+                </div>
+              ) : (
+                <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                  {sortedEvents.map((e) => {
+                    const vk = machineVisualKindFromEventType(e.event_type);
+                    return (
+                      <li
+                        key={e.id}
+                        className="flex items-center justify-between gap-3 rounded-md border border-border/80 bg-muted/10 px-3 py-2"
+                      >
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                            machineBadgeClass[vk]
+                          )}
+                        >
+                          {e.event_type}
+                        </span>
+                        <time
+                          className="text-xs text-muted-foreground tabular-nums shrink-0"
+                          dateTime={e.started_at}
+                        >
+                          {new Date(e.started_at).toLocaleString()}
+                        </time>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Machine items */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className={sectionLabel}>Items on machine</p>
+                <Button
+                  size="sm"
+                  className="h-8 bg-brand-primary text-xs hover:bg-brand-primary-hover"
+                  onClick={() => setIsAddItemOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add item
+                </Button>
+              </div>
+              {!machineItems || machineItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/15 py-10 text-center">
+                  <Package className="h-8 w-8 text-muted-foreground/35" />
+                  <p className="text-xs text-muted-foreground">No items assigned to this machine.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[520px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <th className="px-3 py-2.5 font-medium">Item</th>
+                        <th className="px-2 py-2.5 font-medium w-16">Unit</th>
+                        <th className="px-2 py-2.5 font-medium w-28 text-right">Qty</th>
+                        <th className="px-2 py-2.5 font-medium w-20 text-right">Req</th>
+                        <th className="px-2 py-2.5 font-medium w-24 text-right">Defective</th>
+                        <th className="px-2 py-2.5 font-medium w-24 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {machineItems.map((mi) => {
+                        const info = getItemDisplay(mi);
+                        const isEditing = editingItemId === mi.id;
+                        const low = mi.req_qty != null && mi.qty < mi.req_qty;
+                        return (
+                          <tr key={mi.id} className={cn('hover:bg-muted/20', low && 'bg-destructive/[0.04]')}>
+                            <td className="px-3 py-2.5 font-medium text-card-foreground max-w-[200px]">
+                              <span className="line-clamp-2">{info.name}</span>
+                            </td>
+                            <td className="px-2 py-2.5 text-muted-foreground text-xs">{info.unit}</td>
+                            <td className="px-2 py-2.5 text-right tabular-nums">
+                              {isEditing ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    value={editQty}
+                                    onChange={(e) => setEditQty(e.target.value)}
+                                    className="h-8 w-16 px-2 text-right text-sm"
+                                  />
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 shrink-0 text-emerald-600"
+                                        onClick={() => handleSaveEditQty(mi)}
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Save quantity</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => {
+                                          setEditingItemId(null);
+                                          setEditQty('');
+                                        }}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cancel</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    'rounded px-1.5 py-0.5 -mr-1.5 hover:bg-muted/80',
+                                    low && 'text-destructive font-semibold'
+                                  )}
                                   onClick={() => {
-                                    setEditingItemId(null);
-                                    setEditQty('');
+                                    setEditingItemId(mi.id);
+                                    setEditQty(mi.qty.toString());
                                   }}
                                 >
-                                  Cancel
-                                </Button>
-                              </div>
-                            ) : (
-                              <span
-                                className="cursor-pointer hover:underline"
-                                onClick={() => {
-                                  setEditingItemId(mi.id);
-                                  setEditQty(mi.qty.toString());
-                                }}
-                              >
-                                {mi.qty}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-2 text-muted-foreground">
-                            {mi.req_qty ?? '—'}
-                          </TableCell>
-                          <TableCell className="py-2 text-muted-foreground">
-                            {mi.defective_qty ?? '—'}
-                          </TableCell>
-                          <TableCell className="py-2 text-right">
-                            {!isEditing && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive"
-                                onClick={() => handleDeleteItem(mi)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
+                                  {mi.qty}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">
+                              {mi.req_qty ?? '—'}
+                            </td>
+                            <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">
+                              {mi.defective_qty ?? '—'}
+                            </td>
+                            <td className="px-2 py-2.5 text-right">
+                              {!isEditing && (
+                                <div className="flex justify-end gap-0.5">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => {
+                                          setEditingItemId(mi.id);
+                                          setEditQty(mi.qty.toString());
+                                        }}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Edit quantity</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Edit qty</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleDeleteItem(mi)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <span className="sr-only">Remove item</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Remove from machine</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
-          {/* Running orders */}
-          <RunningOrdersPlaceholder />
-        </div>
+            <RunningOrdersPlaceholder />
+          </div>
+        </TooltipProvider>
 
         <AddMachineItemDialog
           open={isAddItemOpen}

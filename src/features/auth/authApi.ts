@@ -7,6 +7,8 @@ import type {
   RegisterResponse,
   User,
   WorkspaceListItem,
+  WorkspaceCreatedResponse,
+  CreateWorkspaceRequest,
   ValidateInvitationResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
@@ -60,6 +62,15 @@ export const authApi = createApi({
     getWorkspaces: builder.query<WorkspaceListItem[], void>({
       query: () => 'workspaces/',
       providesTags: ['Workspace'],
+    }),
+
+    createWorkspace: builder.mutation<WorkspaceCreatedResponse, CreateWorkspaceRequest>({
+      query: (body) => ({
+        url: 'workspaces/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Workspace'],
     }),
 
     // Validate invitation token (public endpoint)

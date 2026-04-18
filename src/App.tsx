@@ -30,6 +30,7 @@ import WorkOrdersPage from "./pages/newpages/orders/WorkOrdersPage";
 import MachinePage from "./pages/MachinePage";
 import ProjectsPage from "./pages/newpages/ProjectsPage";
 import ProductionPage from "./pages/newpages/ProductionPage";
+import LedgersPage from "./pages/newpages/LedgersPage";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import PrivateRoute from "./components/customui/routing/PrivateRouting";
@@ -48,7 +49,12 @@ const App: React.FC = () => {
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <Router>
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/login2" element={<Login2Page />} />
@@ -60,14 +66,17 @@ const App: React.FC = () => {
             <Route path="/items" element={<ItemsPage />} />
             <Route path="/accounts" element={<AccountsLandingPage />} />
             <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />
-            <Route path="/accounts/suppliers" element={<AccountsLandingPage initialSection="suppliers" />} />
-            <Route path="/accounts/vendors" element={<AccountsLandingPage initialSection="vendors" />} />
-            <Route path="/accounts/customers" element={<AccountsLandingPage initialSection="customers" />} />
+            <Route path="/accounts/payable" element={<AccountsLandingPage initialSection="payable" />} />
+            <Route path="/accounts/receivable" element={<AccountsLandingPage initialSection="receivable" />} />
             <Route path="/accounts/utilities" element={<AccountsLandingPage initialSection="utilities" />} />
             <Route path="/accounts/payroll" element={<AccountsLandingPage initialSection="payroll" />} />
+            <Route path="/accounts/suppliers" element={<Navigate to="/accounts/payable" replace />} />
+            <Route path="/accounts/vendors" element={<Navigate to="/accounts/payable" replace />} />
+            <Route path="/accounts/customers" element={<Navigate to="/accounts/receivable" replace />} />
             <Route path="/accounts/:id" element={<AccountDetailPage />} />
             <Route path="/project" element={<ProjectsPage />} />
             <Route path="/production" element={<ProductionPage />} />
+            <Route path="/ledgers" element={<LedgersPage />} />
             <Route path="/machine" element={<Navigate to="/factories" replace />} />
             <Route path="/orders" element={<OrdersOverviewPage />} />
             <Route path="/orders/purchase" element={<PurchaseOrdersPage />} />
@@ -76,7 +85,7 @@ const App: React.FC = () => {
             <Route path="/orders/sales" element={<SalesOrdersPage />} />
             <Route path="/orders/work" element={<WorkOrdersPage />} />
             <Route path="/management" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/login2" replace />} />
             <Route path="/api-test" element={<ApiTestPage />} />
 
             {/* Legacy routes - commented out */}

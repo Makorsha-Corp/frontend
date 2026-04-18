@@ -153,12 +153,12 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
       <div className="flex-1 min-h-0 flex flex-col shrink-0">
         <div className="flex items-center gap-2 mb-3">
           <Package className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-base font-semibold text-card-foreground">Items ({items.length})</h3>
+          <h3 className="text-base font-semibold text-card-foreground">Transfer items ({items.length})</h3>
         </div>
         {itemsLoading ? (
           <p className="text-sm text-muted-foreground py-4">Loading...</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No items</p>
+          <p className="text-sm text-muted-foreground py-4">No transfer items</p>
         ) : (
           <div className="border border-border rounded-lg overflow-auto flex-1 min-h-0">
             <Table>

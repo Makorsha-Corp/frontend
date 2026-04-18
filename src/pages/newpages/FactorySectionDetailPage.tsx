@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,18 +17,25 @@ import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factor
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
-import { Layers, Pencil, Loader2, Plus, Search, Trash2, Cog, Play, Pause, ClipboardList, Wrench } from 'lucide-react';
+import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList, Wrench } from 'lucide-react';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
 import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
+import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
+import {
+  brandIconGlyphClass,
+  brandIconTileClass,
+  neutralMetricIconClass,
+  neutralMetricTileClass,
+  statusMetricIconClass,
+  statusMetricTileClass,
+} from '@/lib/machineVisualStatus';
+import { cn } from '@/lib/utils';
 import toast, { Toaster } from 'react-hot-toast';
 
 const FactorySectionDetailPage: React.FC = () => {
   const { id, sectionId } = useParams<{ id: string; sectionId: string }>();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
@@ -59,7 +65,7 @@ const FactorySectionDetailPage: React.FC = () => {
     { skip: !sectionIdNum || isNaN(sectionIdNum) }
   );
 
-  const [deleteMachine] = useDeleteMachineMutation();
+  const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
   const selectedMachine = machines?.find((m) => m.id === selectedMachineId) ?? null;
 
@@ -84,11 +90,6 @@ const FactorySectionDetailPage: React.FC = () => {
     }
   };
 
-  const handleEditMachine = (machine: Machine) => {
-    setSelectedMachineId(machine.id);
-    setIsEditMachineOpen(true);
-  };
-
   if (!factoryId || isNaN(factoryId) || !sectionIdNum || isNaN(sectionIdNum)) {
     return (
       <div className="flex min-h-screen bg-background items-center justify-center">
@@ -102,13 +103,13 @@ const FactorySectionDetailPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 flex flex-col min-h-0 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header */}
         <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
@@ -128,39 +129,41 @@ const FactorySectionDetailPage: React.FC = () => {
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-              <div className="h-6 w-px bg-border" />
-              <div className="w-10 h-10 bg-brand-primary/10 rounded-lg flex items-center justify-center">
-                <Layers className="h-5 w-5 text-brand-primary" />
+              <div className="hidden h-6 w-px bg-border sm:block" />
+              <div className="flex min-w-0 items-center gap-3">
+                <div className={brandIconTileClass} aria-hidden>
+                  <Layers className={brandIconGlyphClass} strokeWidth={2} />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  {section ? section.name : 'Section'}
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground">
-                {section ? section.name : 'Section'}
-              </h1>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {section && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="border-border h-9"
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit Section
-                </Button>
-              )}
-              <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <div className="flex flex-nowrap items-center gap-2 sm:gap-3">
+              <div className="relative w-[min(200px,36vw)] min-w-[140px] shrink-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search machines..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background"
+                  className="h-9 bg-background pl-9"
                 />
               </div>
+              {section && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="h-9 shrink-0 border-border"
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Section
+                </Button>
+              )}
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm h-9"
+                className="h-9 shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
@@ -187,70 +190,90 @@ const FactorySectionDetailPage: React.FC = () => {
         ) : (
           <div className="flex-1 min-h-0 flex flex-col gap-4 p-6 overflow-hidden">
             {/* Section summary card - spans full width above both panels */}
-            <Card className="flex-shrink-0 shadow-sm bg-card border-border">
-              <CardContent className="py-4 px-6">
-                <div className="flex flex-wrap items-center gap-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-brand-primary/10 flex items-center justify-center">
-                      <Layers className="h-5 w-5 text-brand-primary" />
+            <Card className="flex-shrink-0 border-border bg-card shadow-sm">
+              <CardContent className="px-4 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                  <div className="flex min-w-0 max-w-full items-center gap-3 sm:max-w-[14rem]">
+                    <div className={brandIconTileClass} aria-hidden>
+                      <Layers className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Section</p>
-                      <p className="text-sm font-semibold text-card-foreground">{section.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Section</p>
+                      <p className="truncate text-sm font-semibold text-card-foreground">{section.name}</p>
                       {factory && (
-                        <p className="text-xs text-muted-foreground">{factory.name} (ID {section.id})</p>
+                        <p className="truncate text-xs text-muted-foreground">{factory.name} · ID {section.id}</p>
                       )}
                     </div>
                   </div>
-                  <div className="h-8 w-px bg-border" />
+                  <div className="hidden h-9 w-px bg-border sm:block" />
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-                      <Cog className="h-4 w-4 text-muted-foreground" />
+                    <div className={brandIconTileClass} aria-hidden>
+                      <Cog className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Total Machines</p>
-                      <p className="text-sm font-semibold text-card-foreground">{machines?.length ?? 0}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total machines</p>
+                      <p className="text-base font-semibold tabular-nums text-card-foreground">{machines?.length ?? 0}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                      <Play className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <div className={statusMetricTileClass.running} aria-hidden>
+                      <Play className={statusMetricIconClass.running} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Running</p>
-                      <p className="text-sm font-semibold text-card-foreground">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Running</p>
+                      <p className="text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                         {machines?.filter((m) => m.is_running).length ?? 0}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-                      <Pause className="h-4 w-4 text-muted-foreground" />
+                    <div className={statusMetricTileClass.stopped} aria-hidden>
+                      <Pause className={statusMetricIconClass.stopped} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Stopped</p>
-                      <p className="text-sm font-semibold text-card-foreground">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Not running</p>
+                      <p className="text-base font-semibold tabular-nums text-red-700 dark:text-red-400">
                         {machines ? machines.length - machines.filter((m) => m.is_running).length : 0}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${maintenanceDueCount > 0 ? 'bg-amber-500/10' : 'bg-muted'}`}>
-                      <Wrench className={`h-4 w-4 ${maintenanceDueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} />
+                    <div
+                      className={cn(
+                        maintenanceDueCount > 0 ? statusMetricTileClass.maintenance : neutralMetricTileClass
+                      )}
+                      aria-hidden
+                    >
+                      <Wrench
+                        className={
+                          maintenanceDueCount > 0
+                            ? statusMetricIconClass.maintenance
+                            : neutralMetricIconClass
+                        }
+                        strokeWidth={2}
+                      />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Maintenance Due</p>
-                      <p className="text-sm font-semibold text-card-foreground">{maintenanceDueCount}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Maint. due</p>
+                      <p
+                        className={
+                          maintenanceDueCount > 0
+                            ? 'text-base font-semibold tabular-nums text-amber-800 dark:text-amber-400'
+                            : 'text-base font-semibold tabular-nums text-card-foreground'
+                        }
+                      >
+                        {maintenanceDueCount}
+                      </p>
                     </div>
                   </div>
-                  <div className="h-8 w-px bg-border" />
+                  <div className="hidden h-9 w-px bg-border lg:block" />
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                    <div className={neutralMetricTileClass} aria-hidden>
+                      <ClipboardList className={neutralMetricIconClass} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase">Running Orders</p>
-                      <p className="text-sm font-semibold text-card-foreground">—</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Orders</p>
+                      <p className="text-base font-semibold tabular-nums text-muted-foreground">—</p>
                     </div>
                   </div>
                 </div>
@@ -289,62 +312,15 @@ const FactorySectionDetailPage: React.FC = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-brand-primary/5 dark:bg-brand-primary/10 border-b border-border">
-                            <TableHead className="w-[60px] py-3 text-xs font-semibold text-muted-foreground uppercase">ID</TableHead>
-                            <TableHead className="py-3 text-xs font-semibold text-muted-foreground uppercase">Name</TableHead>
-                            <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Status</TableHead>
-                            <TableHead className="text-right w-[120px] py-3 text-xs font-semibold text-muted-foreground uppercase">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {machines.map((m) => (
-                            <TableRow
-                              key={m.id}
-                              className={`cursor-pointer hover:bg-brand-primary/10 border-b border-border last:border-0 ${
-                                selectedMachineId === m.id ? 'bg-brand-primary/10' : ''
-                              }`}
-                              onClick={() => setSelectedMachineId(m.id)}
-                            >
-                              <td className="font-mono text-sm text-muted-foreground py-3 px-4">{m.id}</td>
-                              <td className="font-medium text-card-foreground py-3">{m.name}</td>
-                              <td className="py-3">
-                                <span
-                                  className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                                    m.is_running ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
-                                  }`}
-                                >
-                                  {m.is_running ? 'Running' : 'Stopped'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
-                                    onClick={() => handleEditMachine(m)}
-                                    title="Edit"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleDeleteMachine(m)}
-                                    title="Deactivate"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
+                      {machines.map((m) => (
+                        <MachineListCardWithLatest
+                          key={m.id}
+                          machine={m}
+                          selected={selectedMachineId === m.id}
+                          onSelect={() => setSelectedMachineId(m.id)}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -357,6 +333,10 @@ const FactorySectionDetailPage: React.FC = () => {
                 machine={selectedMachine}
                 onMachineUpdated={() => {}}
                 onEditRequest={() => setIsEditMachineOpen(true)}
+                onDeactivateRequest={
+                  selectedMachine ? () => handleDeleteMachine(selectedMachine) : undefined
+                }
+                isDeactivating={isDeletingMachine}
                 className="flex-1"
               />
             </div>

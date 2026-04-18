@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,9 +18,7 @@ import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/Expe
 import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
 
 const ExpenseOrdersPage: React.FC = () => {
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -43,6 +42,31 @@ const ExpenseOrdersPage: React.FC = () => {
   }, [orders, searchQuery]);
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
+  const selectedOrderFromUrl = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (!selectedOrderFromUrl) return;
+    const parsed = Number(selectedOrderFromUrl);
+    if (Number.isNaN(parsed)) return;
+    setSelectedOrderId(parsed);
+  }, [selectedOrderFromUrl]);
+
+  const setSelectedOrder = (orderId: number | null) => {
+    setSelectedOrderId(orderId);
+    if (orderId == null) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      });
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('orderId', String(orderId));
+      return next;
+    });
+  };
 
   const formatCurrency = (v: number | null | undefined) =>
     v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
@@ -52,7 +76,7 @@ const ExpenseOrdersPage: React.FC = () => {
     try {
       await deleteOrder(o.id).unwrap();
       toast.success('Expense order deleted');
-      if (selectedOrderId === o.id) setSelectedOrderId(null);
+      if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to delete');
@@ -62,9 +86,9 @@ const ExpenseOrdersPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 flex flex-col min-h-0 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
@@ -121,7 +145,7 @@ const ExpenseOrdersPage: React.FC = () => {
                       key={o.id}
                       order={o}
                       isSelected={selectedOrderId === o.id}
-                      onClick={() => setSelectedOrderId(o.id)}
+                      onClick={() => setSelectedOrder(o.id)}
                       accountName={accountName(o.account_id)}
                       statusLabel={statusLabel(o.current_status_id)}
                       formatCurrency={formatCurrency}
@@ -138,7 +162,7 @@ const ExpenseOrdersPage: React.FC = () => {
               <ExpenseOrderDetailPanel
                 order={selectedOrder}
                 accounts={accounts}
-                onClose={() => setSelectedOrderId(null)}
+                onClose={() => setSelectedOrder(null)}
                 onDelete={() => handleDelete(selectedOrder)}
               />
             ) : (
@@ -154,7 +178,7 @@ const ExpenseOrdersPage: React.FC = () => {
       <AddExpenseOrderDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onSuccess={(order) => setSelectedOrderId(order.id)}
+        onSuccess={(order) => setSelectedOrder(order.id)}
       />
     </div>
   );

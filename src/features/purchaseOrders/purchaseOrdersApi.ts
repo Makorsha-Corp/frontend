@@ -23,14 +23,15 @@ export const purchaseOrdersApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem'],
+  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem', 'AccountInvoice'],
   endpoints: (builder) => ({
     getPurchaseOrders: builder.query<PurchaseOrder[], ListPurchaseOrdersParams>({
-      query: ({ skip = 0, limit = 100, account_id } = {}) => {
+      query: ({ skip = 0, limit = 100, account_id, invoice_id } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
         if (account_id) params.append('account_id', account_id.toString());
+        if (invoice_id) params.append('invoice_id', invoice_id.toString());
         return `purchase-orders/?${params.toString()}`;
       },
       providesTags: ['PurchaseOrder'],
@@ -50,6 +51,15 @@ export const purchaseOrdersApi = createApi({
     deletePurchaseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `purchase-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['PurchaseOrder'],
+    }),
+    createInvoiceFromPurchaseOrder: builder.mutation<PurchaseOrder, number>({
+      query: (id) => ({ url: `purchase-orders/${id}/create-invoice`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'PurchaseOrder', id },
+        'PurchaseOrder',
+        'PurchaseOrderItem',
+        'AccountInvoice',
+      ],
     }),
     // Items
     getPurchaseOrderItems: builder.query<PurchaseOrderItem[], number>({
@@ -77,6 +87,7 @@ export const {
   useCreatePurchaseOrderMutation,
   useUpdatePurchaseOrderMutation,
   useDeletePurchaseOrderMutation,
+  useCreateInvoiceFromPurchaseOrderMutation,
   useGetPurchaseOrderItemsQuery,
   useAddPurchaseOrderItemMutation,
   useUpdatePurchaseOrderItemMutation,

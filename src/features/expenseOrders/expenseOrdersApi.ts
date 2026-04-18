@@ -23,15 +23,16 @@ export const expenseOrdersApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem'],
+  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'AccountInvoice'],
   endpoints: (builder) => ({
     getExpenseOrders: builder.query<ExpenseOrder[], ListExpenseOrdersParams>({
-      query: ({ skip = 0, limit = 100, expense_category, account_id } = {}) => {
+      query: ({ skip = 0, limit = 100, expense_category, account_id, invoice_id } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
         if (expense_category) params.append('expense_category', expense_category);
         if (account_id) params.append('account_id', account_id.toString());
+        if (invoice_id) params.append('invoice_id', invoice_id.toString());
         return `expense-orders/?${params.toString()}`;
       },
       providesTags: ['ExpenseOrder'],
@@ -51,6 +52,15 @@ export const expenseOrdersApi = createApi({
     deleteExpenseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `expense-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['ExpenseOrder'],
+    }),
+    createInvoiceFromExpenseOrder: builder.mutation<ExpenseOrder, number>({
+      query: (id) => ({ url: `expense-orders/${id}/create-invoice`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'ExpenseOrder', id },
+        'ExpenseOrder',
+        'ExpenseOrderItem',
+        'AccountInvoice',
+      ],
     }),
     // Items
     getExpenseOrderItems: builder.query<ExpenseOrderItem[], number>({
@@ -78,6 +88,7 @@ export const {
   useCreateExpenseOrderMutation,
   useUpdateExpenseOrderMutation,
   useDeleteExpenseOrderMutation,
+  useCreateInvoiceFromExpenseOrderMutation,
   useGetExpenseOrderItemsQuery,
   useAddExpenseOrderItemMutation,
   useUpdateExpenseOrderItemMutation,

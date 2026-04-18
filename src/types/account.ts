@@ -5,7 +5,6 @@
  */
 
 import { PaginationParams } from './common';
-import { AccountTag } from './accountTag';
 
 /**
  * Tag information in account response
@@ -20,64 +19,35 @@ export interface AccountTagInfo {
 }
 
 /**
- * Account represents an external entity (supplier, client, utility, employee)
+ * Strict backend account response shape (OpenAPI AccountResponse).
  */
-export interface Account {
+export interface AccountApiResponse {
   id: number;
   workspace_id: number;
-
-  // Basic Info
   name: string;
   account_code: string | null;
-
-  // Contact Info
   primary_contact_person: string | null;
   primary_email: string | null;
   primary_phone: string | null;
   secondary_contact_person: string | null;
   secondary_email: string | null;
   secondary_phone: string | null;
-
-  // Address
   address: string | null;
   city: string | null;
-  country: string | null;
   postal_code: string | null;
-
-  // Business Details
-  tax_id: string | null;
-  business_registration_number: string | null;
-
-  // Financial Terms
-  payment_terms: string | null;
-  credit_limit: number | null;
-  currency: string | null;
-
-  // Banking Info
-  bank_name: string | null;
-  bank_account_number: string | null;
-  bank_swift_code: string | null;
-
-  // Admin Controls
+  country: string | null;
+  payment_preferences: string | null;
+  bank_details: string | null;
   allow_invoices: boolean;
-  invoices_disabled_reason: string | null;
-
-  // Notes
-  notes: string | null;
-
-  // Status & Audit
-  is_active: boolean;
-  is_deleted: boolean;
   created_at: string;
-  updated_at: string | null;
-  created_by: number | null;
-  updated_by: number | null;
-  deleted_at: string | null;
-  deleted_by: number | null;
-
-  // Tags
-  tags?: AccountTagInfo[];  // Tags assigned to this account
 }
+
+/**
+ * UI account model (strict response + optional expanded fields returned by backend).
+ */
+export type Account = AccountApiResponse & {
+  account_tags?: AccountTagInfo[];
+};
 
 /**
  * Request body for creating a new account
@@ -86,34 +56,21 @@ export interface CreateAccountRequest {
   // Basic Info
   name: string;
   account_code?: string | null;
-
-  // Contact Info
   primary_contact_person?: string | null;
   primary_email?: string | null;
   primary_phone?: string | null;
-
-  // Address
+  secondary_contact_person?: string | null;
+  secondary_email?: string | null;
+  secondary_phone?: string | null;
   address?: string | null;
   city?: string | null;
   postal_code?: string | null;
   country?: string | null;
+  payment_preferences?: string | null;
+  bank_details?: string | null;
 
-  // Financial
-  payment_terms?: string | null;
-  tax_id?: string | null;
-
-  // Notes
-  notes?: string | null;
-
-  // Admin Controls
   allow_invoices?: boolean;
-  invoices_disabled_reason?: string | null;
-
-  // Status
-  is_active?: boolean;
-
-  // Tags
-  tag_ids?: number[];  // IDs of tags to assign
+  tag_ids?: number[];
 }
 
 /**
@@ -123,34 +80,21 @@ export interface UpdateAccountRequest {
   // Basic Info
   name?: string;
   account_code?: string | null;
-
-  // Contact Info
   primary_contact_person?: string | null;
   primary_email?: string | null;
   primary_phone?: string | null;
-
-  // Address
+  secondary_contact_person?: string | null;
+  secondary_email?: string | null;
+  secondary_phone?: string | null;
   address?: string | null;
   city?: string | null;
   postal_code?: string | null;
   country?: string | null;
+  payment_preferences?: string | null;
+  bank_details?: string | null;
 
-  // Financial
-  payment_terms?: string | null;
-  tax_id?: string | null;
-
-  // Notes
-  notes?: string | null;
-
-  // Admin Controls
   allow_invoices?: boolean;
-  invoices_disabled_reason?: string | null;
-
-  // Status
-  is_active?: boolean;
-
-  // Tags
-  tag_ids?: number[];  // IDs of tags to assign (replaces existing tags)
+  tag_ids?: number[];
 }
 
 /**

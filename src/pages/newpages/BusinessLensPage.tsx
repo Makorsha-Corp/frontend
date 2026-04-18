@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,10 +95,6 @@ type ParamState = {
 
 const BusinessLensPage: React.FC = () => {
   const navigate = useNavigate();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
-
   useEffect(() => {
     document.title = 'BusinessLens — Choose a template';
   }, []);
@@ -140,8 +136,8 @@ const BusinessLensPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <DashboardNavbar />
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-3">
@@ -166,7 +162,7 @@ const BusinessLensPage: React.FC = () => {
               <button
                 key={t.id}
                 onClick={() => onTileClick(t)}
-                className="text-left group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary rounded-2xl"
+                className="text-left group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
               >
                 <Card className="h-full transition hover:shadow-lg border-2 border-transparent hover:border-brand-primary/30 rounded-2xl w-full bg-card">
                   <CardHeader className="flex flex-row items-center gap-3 pb-2">

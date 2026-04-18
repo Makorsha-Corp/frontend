@@ -83,4 +83,5 @@ export interface ListExpenseOrdersParams {
   limit?: number;
   expense_category?: string;
   account_id?: number;
+  invoice_id?: number;
 }

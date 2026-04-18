@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,9 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  DollarSign,
+  Boxes,
+  BadgeCheck,
 } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
@@ -48,9 +51,6 @@ const SECTION_CONFIG = [
 
 const StoragePage: React.FC = () => {
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [selectedSection, setSelectedSection] = useState<SectionType>('storage');
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
@@ -113,6 +113,32 @@ const StoragePage: React.FC = () => {
       ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
       : '—';
 
+  const formatNumber = (value: number | null | undefined) =>
+    value != null ? new Intl.NumberFormat('en-US').format(value) : '—';
+
+  const storageOverview = useMemo(() => {
+    const records = filteredInventory.length;
+    const totalQty = filteredInventory.reduce((sum, inv) => sum + (inv.qty ?? 0), 0);
+    const estimatedValue = filteredInventory.reduce(
+      (sum, inv) => sum + (inv.qty ?? 0) * (inv.avg_price ?? 0),
+      0
+    );
+    const byType = INVENTORY_TYPES.map((t) => ({
+      type: t.label,
+      count: filteredInventory.filter((inv) => inv.inventory_type === t.value).length,
+    }));
+    return { records, totalQty, estimatedValue, byType };
+  }, [filteredInventory]);
+
+  const productsOverview = useMemo(() => {
+    const records = filteredProducts.length;
+    const totalQty = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0), 0);
+    const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0) * (p.avg_cost ?? 0), 0);
+    const totalSalesValue = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0) * (p.selling_price ?? 0), 0);
+    const availableForSale = filteredProducts.filter((p) => p.is_available_for_sale).length;
+    return { records, totalQty, totalCostValue, totalSalesValue, availableForSale };
+  }, [filteredProducts]);
+
   const handleDeleteInventory = async (inv: Inventory) => {
     if (!window.confirm(`Deactivate "${inv.item_name ?? `Item #${inv.item_id}`}" from inventory?`)) return;
     try {
@@ -138,9 +164,9 @@ const StoragePage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -251,6 +277,109 @@ const StoragePage: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Top overview */}
+          {selectedSection === 'storage' ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Inventory records</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatNumber(storageOverview.records)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <Boxes className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total qty</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatNumber(storageOverview.totalQty)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <Archive className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Estimated value</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatCurrency(storageOverview.estimatedValue)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <DollarSign className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">By type</p>
+                  <div className="mt-2 space-y-1.5 text-sm">
+                    {storageOverview.byType.map((row) => (
+                      <div key={row.type} className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{row.type}</span>
+                        <span className="font-medium text-card-foreground tabular-nums">{formatNumber(row.count)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Products</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatNumber(productsOverview.records)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <Package className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Total qty</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatNumber(productsOverview.totalQty)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <Boxes className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Cost value</p>
+                    <p className="mt-1 text-2xl font-semibold text-card-foreground">{formatCurrency(productsOverview.totalCostValue)}</p>
+                  </div>
+                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
+                    <DollarSign className="h-5 w-5 text-brand-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-card shadow-sm">
+                <CardContent className="p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Sales readiness</p>
+                  <div className="mt-2 space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Available for sale</span>
+                      <span className="font-medium text-card-foreground tabular-nums">{formatNumber(productsOverview.availableForSale)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Potential sales value</span>
+                      <span className="font-medium text-card-foreground tabular-nums">{formatCurrency(productsOverview.totalSalesValue)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Content card */}
           <Card className="shadow-sm bg-card border-border">

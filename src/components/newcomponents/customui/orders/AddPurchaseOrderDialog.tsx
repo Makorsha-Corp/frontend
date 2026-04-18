@@ -22,6 +22,10 @@ import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
+import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
+import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
+import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -43,10 +47,15 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [destinationId, setDestinationId] = useState<string>('');
   const [description, setDescription] = useState('');
   const [orderNote, setOrderNote] = useState('');
-  const [items, setItems] = useState<Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>>([]);
+  const [items, setItems] = useState<
+    Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
+  >([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [machinePickerOpen, setMachinePickerOpen] = useState(false);
+  const [machineDisplayLine, setMachineDisplayLine] = useState('');
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -61,6 +70,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setItemId('');
     setQty('');
     setUnitPrice('');
+    setMachineDisplayLine('');
+    setMachinePickerOpen(false);
   };
 
   const handleAddItem = () => {
@@ -125,146 +136,223 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     }
   };
 
-  const destOptions = destinationType === 'storage'
-    ? factories.map((f) => ({ value: f.id.toString(), label: `${f.name} (${f.abbreviation})` }))
-    : [];
+  const lineItemsBlock = (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 shrink-0">
+        <Label className="text-base">Line items *</Label>
+        <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
+      </div>
+
+      <div className="space-y-2 shrink-0 rounded-lg border border-border bg-muted/20 p-3">
+        <Select value={itemId} onValueChange={setItemId}>
+          <SelectTrigger className="w-full bg-background">
+            <SelectValue placeholder="Select item" />
+          </SelectTrigger>
+          <SelectContent>
+            {itemsList.map((i) => (
+              <SelectItem key={i.id} value={i.id.toString()}>
+                {i.name} {i.unit && `(${i.unit})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid flex-1 min-w-[5rem] gap-1">
+            <Label className="text-xs text-muted-foreground">Qty</Label>
+            <Input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="0"
+              className="bg-background"
+            />
+          </div>
+          <div className="grid flex-1 min-w-[5.5rem] gap-1">
+            <Label className="text-xs text-muted-foreground">Unit price</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+              placeholder="0.00"
+              className="bg-background"
+            />
+          </div>
+          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={handleAddItem}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background divide-y">
+        {items.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No line items yet</p>
+        ) : (
+          items.map((it, idx) => {
+            const item = itemsList.find((i) => i.id === it.item_id);
+            const unitSuffix = item?.unit ? ` ${item.unit}` : '';
+            const priceStr = Number(it.unit_price).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
+            return (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate text-sm font-medium leading-tight text-foreground">
+                    {item?.name ?? `Item #${it.item_id}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    Quantity {it.quantity_ordered}
+                    {unitSuffix}
+                    <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                      ·
+                    </span>
+                    {priceStr} per unit
+                  </p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+
+  const orderFieldsBlock = (
+    <div className="grid gap-4 min-w-0">
+      <div>
+        <Label>Supplier *</Label>
+        <AccountSelectSummaryButton
+          onClick={() => setAccountPickerOpen(true)}
+          ariaLabel={
+            accountId
+              ? `Change supplier. Current account ID ${accountId}`
+              : 'Select supplier'
+          }
+          selectedLine={accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null}
+          staleNumericId={accountId || null}
+        />
+        <AccountSelectorDialog
+          open={accountPickerOpen}
+          onOpenChange={setAccountPickerOpen}
+          title="Select supplier"
+          description="Search and pick the supplier account for this purchase order."
+          filterTagCode="supplier"
+          selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
+          onSelect={(account) => {
+            if (!account) return;
+            setAccountId(String(account.id));
+          }}
+        />
+      </div>
+      <div>
+        <Label>Destination type</Label>
+        <Select
+          value={destinationType}
+          onValueChange={(v) => {
+            setDestinationType(v as 'storage' | 'machine' | 'project');
+            setDestinationId('');
+            setMachineDisplayLine('');
+          }}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="storage">Storage (Factory)</SelectItem>
+            <SelectItem value="machine">Machine</SelectItem>
+            <SelectItem value="project">Project</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {destinationType === 'storage' && (
+        <div>
+          <Label>Factory *</Label>
+          <Select value={destinationId} onValueChange={setDestinationId} required>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select factory" />
+            </SelectTrigger>
+            <SelectContent>
+              {factories.map((f) => (
+                <SelectItem key={f.id} value={f.id.toString()}>
+                  {f.name} ({f.abbreviation})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {destinationType === 'machine' && (
+        <div>
+          <Label>Machine *</Label>
+          <MachineSelectSummaryButton
+            onClick={() => setMachinePickerOpen(true)}
+            ariaLabel={
+              machineDisplayLine
+                ? `Change machine. Current: ${machineDisplayLine}`
+                : 'Select machine'
+            }
+            selectedLine={machineDisplayLine || null}
+            staleNumericId={machineDisplayLine ? null : destinationId || null}
+          />
+          <MachineSelectorDialog
+            open={machinePickerOpen}
+            onOpenChange={setMachinePickerOpen}
+            title="Select destination machine"
+            description="Pick factory and section, highlight a machine, then confirm."
+            onSelect={(m, ctx) => {
+              setDestinationId(String(m.id));
+              setMachineDisplayLine(`${ctx.factoryAbbreviation} · ${ctx.sectionAbbreviation} · ${ctx.machineName}`);
+            }}
+          />
+        </div>
+      )}
+      {destinationType === 'project' && (
+        <div>
+          <Label>Destination ID *</Label>
+          <Input
+            type="number"
+            value={destinationId}
+            onChange={(e) => setDestinationId(e.target.value)}
+            placeholder="Project component ID"
+            className="mt-1"
+          />
+        </div>
+      )}
+      <div>
+        <Label>Description</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
+      </div>
+      <div>
+        <Label>Order note</Label>
+        <Input value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Optional" className="mt-1" />
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
+        <DialogHeader className="shrink-0 space-y-0 text-left">
           <DialogTitle>Add Purchase Order</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label>Supplier *</Label>
-            <Select value={accountId} onValueChange={setAccountId} required>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id.toString()}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Destination type</Label>
-            <Select
-              value={destinationType}
-              onValueChange={(v) => {
-                setDestinationType(v as 'storage' | 'machine' | 'project');
-                setDestinationId('');
-              }}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="storage">Storage (Factory)</SelectItem>
-                <SelectItem value="machine">Machine</SelectItem>
-                <SelectItem value="project">Project</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {destinationType === 'storage' && (
-            <div>
-              <Label>Factory *</Label>
-              <Select value={destinationId} onValueChange={setDestinationId} required>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.name} ({f.abbreviation})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-2 md:gap-8 md:items-stretch">
+            <div className="min-h-0 min-w-0 overflow-y-auto pl-2 pr-4 md:flex md:flex-col md:justify-center">
+              {orderFieldsBlock}
             </div>
-          )}
-          {(destinationType === 'machine' || destinationType === 'project') && (
-            <div>
-              <Label>Destination ID *</Label>
-              <Input
-                type="number"
-                value={destinationId}
-                onChange={(e) => setDestinationId(e.target.value)}
-                placeholder={destinationType === 'machine' ? 'Machine ID' : 'Project component ID'}
-                className="mt-1"
-              />
+            <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
+              {lineItemsBlock}
             </div>
-          )}
-          <div>
-            <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
-          </div>
-          <div>
-            <Label>Order note</Label>
-            <Input value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Optional" />
           </div>
 
-          <div>
-            <Label className="block mb-2">Line items *</Label>
-            <div className="flex gap-2 mb-2">
-              <Select value={itemId} onValueChange={setItemId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemsList.map((i) => (
-                    <SelectItem key={i.id} value={i.id.toString()}>
-                      {i.name} {i.unit && `(${i.unit})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="Qty"
-                className="w-20"
-              />
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                placeholder="Price"
-                className="w-24"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={handleAddItem}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {items.length > 0 && (
-              <div className="border rounded-lg divide-y max-h-32 overflow-y-auto">
-                {items.map((it, idx) => {
-                  const item = itemsList.find((i) => i.id === it.item_id);
-                  return (
-                    <div key={idx} className="flex items-center justify-between px-3 py-2 text-sm">
-                      <span>
-                        {item?.name ?? `Item #${it.item_id}`} × {it.quantity_ordered} @ {it.unit_price}
-                      </span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(idx)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

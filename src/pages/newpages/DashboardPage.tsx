@@ -1,15 +1,11 @@
 import React from 'react';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, TrendingUp, DollarSign, Users as UsersIcon, Activity, Percent } from 'lucide-react';
 import { useAppSelector } from '@/app/hooks';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const [isNavCollapsed, setIsNavCollapsed] = React.useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
-
   const stats = [
     { title: 'Current MRR', value: '—', bgColor: 'bg-brand-primary', icon: <DollarSign size={24} /> },
     { title: 'Current Customers', value: '—', bgColor: 'bg-brand-primary-hover', icon: <UsersIcon size={24} /> },
@@ -22,10 +18,10 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
-      
+      <DashboardNavbar />
+
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border dark:border-border px-8 py-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
@@ -36,7 +32,7 @@ const DashboardPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search transactions, customers, subscriptions..."
-                  className="pl-10 pr-4 py-2 w-96 border border-border rounded-lg bg-background dark:bg-background/50 text-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
+                  className="pl-10 pr-4 py-2 w-96 border border-border rounded-lg bg-background dark:bg-background/50 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-transparent"
                 />
               </div>
               <div className="w-10 h-10 bg-brand-primary rounded-full flex items-center justify-center text-white font-semibold">

@@ -73,4 +73,5 @@ export interface ListPurchaseOrdersParams {
   skip?: number;
   limit?: number;
   account_id?: number;
+  invoice_id?: number;
 }

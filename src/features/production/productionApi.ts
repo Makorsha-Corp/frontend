@@ -1,11 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
+import { productsApi } from '@/features/products/productsApi';
 import type {
   ProductionLine, CreateProductionLineDTO, UpdateProductionLineDTO,
   ProductionFormula, CreateProductionFormulaDTO, UpdateProductionFormulaDTO,
   ProductionFormulaItem, CreateProductionFormulaItemDTO, UpdateProductionFormulaItemDTO,
   ProductionBatch, CreateProductionBatchDTO, UpdateProductionBatchDTO,
-  StartBatchDTO, CompleteBatchDTO, CancelBatchDTO,
+  StartBatchDTO, CompleteBatchDTO, CancelBatchDTO, PostBatchFinishedGoodsDTO,
   ProductionBatchItem, CreateProductionBatchItemDTO, UpdateProductionBatchItemDTO,
 } from '@/types/production';
 
@@ -224,6 +225,37 @@ export const productionApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          if (arg.data.post_outputs_to_finished_goods) {
+            dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
+          }
+        } catch {
+          /* noop */
+        }
+      },
+    }),
+    postBatchFinishedGoods: builder.mutation<ProductionBatch, { id: number; data?: PostBatchFinishedGoodsDTO }>({
+      query: ({ id, data }) => ({
+        // Use products route (shallower path); avoids 404s on some proxies/gateways with long hyphenated paths.
+        url: `products/receive-from-batch/${id}/`,
+        method: 'POST',
+        body: data ?? { include_byproducts: true },
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'ProductionBatch', id },
+        'ProductionBatch',
+        'BatchItem',
+      ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
+        } catch {
+          /* noop */
+        }
+      },
     }),
     cancelBatch: builder.mutation<ProductionBatch, { id: number; data: CancelBatchDTO }>({
       query: ({ id, data }) => ({
@@ -250,7 +282,10 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchItem', id: `batch-${batchId}` }],
+      invalidatesTags: (result, error, { batchId }) => [
+        { type: 'BatchItem', id: `batch-${batchId}` },
+        'ProductionBatch',
+      ],
     }),
     updateBatchItem: builder.mutation<ProductionBatchItem, { id: number; data: UpdateProductionBatchItemDTO }>({
       query: ({ id, data }) => ({
@@ -258,14 +293,14 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['BatchItem'],
+      invalidatesTags: ['BatchItem', 'ProductionBatch'],
     }),
     removeBatchItem: builder.mutation<void, number>({
       query: (id) => ({
         url: `production-batches/items/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['BatchItem'],
+      invalidatesTags: ['BatchItem', 'ProductionBatch'],
     }),
   }),
 });
@@ -297,6 +332,7 @@ export const {
   // Batch Workflow
   useStartBatchMutation,
   useCompleteBatchMutation,
+  usePostBatchFinishedGoodsMutation,
   useCancelBatchMutation,
   // Batch Items
   useGetBatchItemsQuery,

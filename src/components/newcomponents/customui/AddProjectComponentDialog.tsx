@@ -11,19 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCreateProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
-import type { ProjectStatus } from '@/types/project';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-
-const STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
 interface AddProjectComponentDialogProps {
   open: boolean;
@@ -40,7 +30,6 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<ProjectStatus>('PLANNING');
 
   const [createComponent, { isLoading }] = useCreateProjectComponentMutation();
 
@@ -55,12 +44,10 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
         project_id: projectId,
         name: name.trim(),
         description: description.trim() || null,
-        status,
       }).unwrap();
       toast.success('Component created');
       setName('');
       setDescription('');
-      setStatus('PLANNING');
       onOpenChange(false);
       onSuccess?.(component.id);
     } catch (err: unknown) {
@@ -72,7 +59,6 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
   const handleCancel = () => {
     setName('');
     setDescription('');
-    setStatus('PLANNING');
     onOpenChange(false);
   };
 
@@ -81,7 +67,9 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Component</DialogTitle>
-          <DialogDescription>Create a new project component.</DialogDescription>
+          <DialogDescription>
+            Create a new project component with basic details. Status will be auto assigned to planning.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -104,21 +92,6 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
               rows={3}
               className="mt-1"
             />
-          </div>
-          <div>
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s.replace('_', ' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardNavbar, { SIDEBAR_COLLAPSED_KEY } from '@/components/newcomponents/customui/DashboardNavbar';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronR
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import DepartmentsManageDialog from '@/components/newcomponents/customui/DepartmentsManageDialog';
+import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
 
 interface FactoryCardProps {
@@ -38,38 +39,38 @@ const FactoryCard: React.FC<FactoryCardProps> = ({
   isDeleting,
 }) => (
     <Card
-      className="border-border hover:border-brand-primary/30 hover:shadow-md transition-all cursor-pointer group"
+      className="border-border hover:border-brand-primary/30 hover:shadow-md transition-all cursor-pointer group h-full flex flex-col"
       onClick={onView}
     >
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-brand-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <FactoryIcon className="h-7 w-7 text-brand-primary" />
+      <CardHeader className="space-y-0 p-4 pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={brandIconTileClass} aria-hidden>
+              <FactoryIcon className={brandIconGlyphClass} strokeWidth={2} />
             </div>
-            <div>
-              <CardTitle className="text-xl font-semibold text-card-foreground">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="truncate text-base font-semibold leading-snug text-card-foreground">
                 {factory.name}
               </CardTitle>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="px-2.5 py-1 rounded-md text-sm font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="rounded-md border border-brand-primary/20 bg-brand-primary/10 px-2 py-0.5 text-xs font-medium text-brand-primary">
                   {factory.abbreviation}
                 </span>
-                <span className="text-sm text-muted-foreground">ID #{factory.id}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">#{factory.id}</span>
               </div>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-brand-primary transition-colors flex-shrink-0" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-brand-primary" />
         </div>
       </CardHeader>
-      <CardContent className="pt-0 space-y-4">
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Layers className="h-4 w-4" />
-            <span>{sectionsCount} {sectionsCount === 1 ? 'section' : 'sections'}</span>
-          </div>
+      <CardContent className="flex flex-1 flex-col justify-end space-y-3 p-4 pt-0">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Layers className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {sectionsCount} {sectionsCount === 1 ? 'section' : 'sections'}
+          </span>
         </div>
-        <div className="flex items-center justify-between pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-t border-border pt-2" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
             size="sm"
@@ -125,9 +126,6 @@ const FactoryCard: React.FC<FactoryCardProps> = ({
 
 const FactoriesPage: React.FC = () => {
   const navigate = useNavigate();
-  const [isNavCollapsed, setIsNavCollapsed] = useState(() =>
-    localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingFactory, setEditingFactory] = useState<Factory | null>(null);
@@ -189,25 +187,58 @@ const FactoriesPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
-      <DashboardNavbar onCollapsedChange={setIsNavCollapsed} />
+      <DashboardNavbar />
 
-      <div className={`flex-1 transition-all duration-300 ${isNavCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                <FactoryIcon className="h-5 w-5 text-brand-primary" />
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20">
+                  <FactoryIcon className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="min-w-0 truncate text-2xl font-bold text-card-foreground dark:text-foreground">
+                  Factories
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Factories</h1>
+              <button
+                type="button"
+                onClick={() => setIsDeptsDialogOpen(true)}
+                className="flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-muted/20 px-2.5 py-1.5 text-left shadow-sm transition-colors hover:border-brand-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:focus-visible:ring-offset-[hsl(var(--nav-background))]"
+                aria-label={`Manage departments, ${departments.length} total`}
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-primary/10">
+                  <Users className="h-4 w-4 text-brand-primary" />
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <span className="block text-xs font-semibold text-foreground">Departments</span>
+                  <span className="block text-[11px] text-muted-foreground tabular-nums">
+                    {departments.length} {departments.length === 1 ? 'dept' : 'depts'}
+                  </span>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </button>
             </div>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Factory
-            </Button>
+            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
+              <div className="relative w-[min(200px,40vw)] min-w-[140px] shrink-0">
+                <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search factories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 pl-10"
+                />
+              </div>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Factory
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -215,24 +246,15 @@ const FactoriesPage: React.FC = () => {
         <div className="p-8 bg-background">
           <Card className="shadow-sm bg-card border-border">
             <CardContent className="p-0">
-              {/* Table/data header bar: search */}
-              <div className="border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                {/* Left: count */}
-                <div className="text-sm text-muted-foreground shrink-0">
+              {/* Table/data header bar: count only (search lives in page header) */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                <div className="shrink-0 text-sm text-muted-foreground">
                   {!isLoading && (
-                    <span className="font-medium">{filteredFactories.length} {filteredFactories.length === 1 ? 'factory' : 'factories'}</span>
+                    <span className="font-medium">
+                      {filteredFactories.length}{' '}
+                      {filteredFactories.length === 1 ? 'factory' : 'factories'}
+                    </span>
                   )}
-                </div>
-                {/* Right: search */}
-                <div className="relative w-[180px] min-w-[140px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                  <Input
-                    type="text"
-                    placeholder="Search factories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-9"
-                  />
                 </div>
               </div>
 
@@ -266,7 +288,7 @@ const FactoriesPage: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
                   {filteredFactories.map((factory) => (
                     <FactoryCard
                       key={factory.id}
@@ -281,27 +303,6 @@ const FactoriesPage: React.FC = () => {
                 </div>
               )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Departments card - opens popup */}
-          <Card
-            className="mt-6 max-w-sm shadow-sm bg-card border-border cursor-pointer hover:border-brand-primary/30 hover:shadow-md transition-all"
-            onClick={() => setIsDeptsDialogOpen(true)}
-          >
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-brand-primary/10 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-brand-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-card-foreground">Departments</p>
-                  <p className="text-sm text-muted-foreground">
-                    {departments.length} {departments.length === 1 ? 'department' : 'departments'}
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </CardContent>
           </Card>
         </div>
