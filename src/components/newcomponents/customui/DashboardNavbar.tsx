@@ -594,7 +594,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 to="/items"
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/items')
                     ? 'bg-brand-primary text-white'
-                    : 'text-gray-300 dark:text-gray-400 hover:bg-white/5 dark:hover:bg-muted hover:text-white dark:hover:text-foreground'
+                    : navInactiveClass
                   } ${isCollapsed ? 'justify-center' : ''}`}
                 title={isCollapsed ? 'Items' : ''}
               >
@@ -699,18 +699,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                           <span className="text-sm font-medium">Factories</span>
                         </Link>
                       </li>
-                      <li>
-                        <Link
-                          to="/items"
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/items')
-                              ? 'bg-brand-primary text-white'
-                              : navInactiveClass
-                            }`}
-                        >
-                          <Package size={18} />
-                          <span className="text-sm font-medium">Items</span>
-                        </Link>
-                      </li>
+
                       <li>
                         <Link
                           to="/storage"
