@@ -18,6 +18,7 @@ import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronR
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import DepartmentsManageDialog from '@/components/newcomponents/customui/DepartmentsManageDialog';
+import FactoryDetailCard from '@/components/newcomponents/customui/FactoryDetailCard';
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -126,6 +127,7 @@ const FactoryCard: React.FC<FactoryCardProps> = ({
 
 const FactoriesPage: React.FC = () => {
   const navigate = useNavigate();
+  const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingFactory, setEditingFactory] = useState<Factory | null>(null);
@@ -163,7 +165,11 @@ const FactoriesPage: React.FC = () => {
   };
 
   const handleView = (factory: Factory) => {
-    navigate(`/factories/${factory.id}`);
+    setSelectedFactoryId(factory.id);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedFactoryId(null);
   };
 
   const handleDelete = async (factory: Factory) => {
@@ -307,6 +313,10 @@ const FactoriesPage: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {selectedFactoryId && (
+        <FactoryDetailCard factoryId={selectedFactoryId} onClose={handleCloseDetail} />
+      )}
 
       <AddFactoryDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} factories={factories ?? []} />
       <EditFactoryDialog

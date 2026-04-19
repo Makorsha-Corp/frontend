@@ -11,6 +11,7 @@ import DashboardPage from "./pages/newpages/DashboardPage";
 import FactoriesPage from "./pages/newpages/FactoriesPage";
 import FactoryDetailPage from "./pages/newpages/FactoryDetailPage";
 import FactorySectionDetailPage from "./pages/newpages/FactorySectionDetailPage";
+import MachinesPage from "./pages/newpages/MachinesPage";
 import ItemsPage from "./pages/newpages/ItemsPage";
 import AccountsLandingPage from "./pages/newpages/AccountsLandingPage";
 import AccountDetailPage from "./pages/newpages/AccountDetailPage";
@@ -63,6 +64,7 @@ const App: React.FC = () => {
             <Route path="/factories" element={<FactoriesPage />} />
             <Route path="/factories/:id" element={<FactoryDetailPage />} />
             <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
+            <Route path="/machines" element={<MachinesPage />} />
             <Route path="/items" element={<ItemsPage />} />
             <Route path="/accounts" element={<AccountsLandingPage />} />
             <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />

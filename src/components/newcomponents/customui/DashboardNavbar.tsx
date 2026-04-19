@@ -23,6 +23,7 @@ import {
   BarChart3,
   MousePointer2,
   Palette,
+  Cog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -603,6 +604,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               </Link>
             </li>
 
+
             {/* Factories expandable section */}
             <li>
               {isCollapsed ? (
@@ -629,6 +631,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link to={factory ? `/factories/${factory.id}` : '/factories'}>Factories</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/machines">Machines</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/storage">Storage</Link>
@@ -697,6 +702,19 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         >
                           <Factory size={18} />
                           <span className="text-sm font-medium">Factories</span>
+                        </Link>
+                      </li>
+                      
+                      <li>
+                        <Link
+                          to="/machines"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/machines')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <Cog size={18} />
+                          <span className="text-sm font-medium">Machines</span>
                         </Link>
                       </li>
 
