@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import AddTransferOrderDialog from '@/components/newcomponents/customui/orders/A
 import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
 
 const TransferOrdersPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -33,6 +35,14 @@ const TransferOrdersPage: React.FC = () => {
   }, [orders, searchQuery]);
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
+  const orderIdFromUrl = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (!orderIdFromUrl) return;
+    const parsed = Number(orderIdFromUrl);
+    if (Number.isNaN(parsed)) return;
+    setSelectedOrderId(parsed);
+  }, [orderIdFromUrl]);
 
   const handleDelete = async (o: TransferOrder) => {
     if (!window.confirm(`Delete transfer order ${o.transfer_number}?`)) return;

@@ -47,7 +47,7 @@ import {
 import toast from 'react-hot-toast';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import AddMachineMaintenanceLogDialog from './AddMachineMaintenanceLogDialog';
-import RunningOrdersPlaceholder from './RunningOrdersPlaceholder';
+import ActiveOrdersPanel from './RunningOrdersPlaceholder';
 import {
   useGetMachineMaintenanceLogsQuery,
   useDeleteMachineMaintenanceLogMutation,
@@ -570,7 +570,7 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
               )}
             </div>
 
-            <RunningOrdersPlaceholder />
+            <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
           </div>
         </TooltipProvider>
 

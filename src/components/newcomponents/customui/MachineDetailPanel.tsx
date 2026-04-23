@@ -20,7 +20,7 @@ import { Loader2, Plus, Pencil, Trash2, Play, Pause, Wrench, Power } from 'lucid
 import toast from 'react-hot-toast';
 import EditMachineDialog from './EditMachineDialog';
 import AddMachineItemDialog from './AddMachineItemDialog';
-import RunningOrdersPlaceholder from './RunningOrdersPlaceholder';
+import ActiveOrdersPanel from './RunningOrdersPlaceholder';
 
 interface MachineDetailPanelProps {
   machine: Machine | null;
@@ -309,8 +309,7 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
         </CardContent>
       </Card>
 
-      {/* Running Orders Placeholder */}
-      <RunningOrdersPlaceholder />
+      <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
 
       <EditMachineDialog
         open={isEditOpen}

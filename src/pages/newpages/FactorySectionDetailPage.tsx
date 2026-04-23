@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,7 +21,9 @@ import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList,
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
-import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
+import MachineDetailCard, {
+  type MachineFullDetailsIntent,
+} from '@/components/newcomponents/customui/MachineDetailCard';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import {
   brandIconGlyphClass,
@@ -41,6 +43,7 @@ const FactorySectionDetailPage: React.FC = () => {
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
+  const [fullDetailsIntent, setFullDetailsIntent] = useState<MachineFullDetailsIntent | null>(null);
 
   const factoryId = id ? parseInt(id, 10) : null;
   const sectionIdNum = sectionId ? parseInt(sectionId, 10) : null;
@@ -78,6 +81,13 @@ const FactorySectionDetailPage: React.FC = () => {
       return d && d <= in7Days;
     }).length;
   }, [machines]);
+
+  const clearFullDetailsIntent = useCallback(() => setFullDetailsIntent(null), []);
+
+  const openMachineFullDetails = useCallback((id: number) => {
+    setSelectedMachineId(id);
+    setFullDetailsIntent({ id });
+  }, []);
 
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
@@ -319,6 +329,7 @@ const FactorySectionDetailPage: React.FC = () => {
                           machine={m}
                           selected={selectedMachineId === m.id}
                           onSelect={() => setSelectedMachineId(m.id)}
+                          onExpandDetails={() => openMachineFullDetails(m.id)}
                         />
                       ))}
                     </div>
@@ -331,6 +342,8 @@ const FactorySectionDetailPage: React.FC = () => {
             <div className="w-[400px] shrink-0 min-h-0 flex flex-col overflow-hidden">
               <MachineDetailCard
                 machine={selectedMachine}
+                fullDetailsIntent={fullDetailsIntent}
+                onFullDetailsIntentConsumed={clearFullDetailsIntent}
                 onMachineUpdated={() => {}}
                 onEditRequest={() => setIsEditMachineOpen(true)}
                 onDeactivateRequest={

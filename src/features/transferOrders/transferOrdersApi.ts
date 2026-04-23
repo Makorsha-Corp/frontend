@@ -9,6 +9,7 @@ import type {
   UpdateTransferOrderItem,
   ListTransferOrdersParams,
 } from '../../types/transferOrder';
+import { purchaseOrdersApi } from '../purchaseOrders/purchaseOrdersApi';
 
 export const transferOrdersApi = createApi({
   reducerPath: 'transferOrdersApi',
@@ -41,14 +42,35 @@ export const transferOrdersApi = createApi({
     createTransferOrder: builder.mutation<TransferOrder, CreateTransferOrder>({
       query: (body) => ({ url: 'transfer-orders/', method: 'POST', body }),
       invalidatesTags: ['TransferOrder'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
     updateTransferOrder: builder.mutation<TransferOrder, { id: number; data: UpdateTransferOrder }>({
       query: ({ id, data }) => ({ url: `transfer-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [{ type: 'TransferOrder', id }, 'TransferOrder'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
     deleteTransferOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `transfer-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: ['TransferOrder'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
     // Items
     getTransferOrderItems: builder.query<TransferOrderItem[], number>({
@@ -58,14 +80,35 @@ export const transferOrdersApi = createApi({
     addTransferOrderItem: builder.mutation<TransferOrderItem, { toId: number; data: CreateTransferOrderItem }>({
       query: ({ toId, data }) => ({ url: `transfer-orders/${toId}/items/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { toId }) => [{ type: 'TransferOrderItem', id: toId }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
     updateTransferOrderItem: builder.mutation<TransferOrderItem, { itemId: number; data: UpdateTransferOrderItem }>({
       query: ({ itemId, data }) => ({ url: `transfer-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: ['TransferOrderItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
     removeTransferOrderItem: builder.mutation<void, number>({
       query: (itemId) => ({ url: `transfer-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: ['TransferOrderItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } finally {
+          dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+        }
+      },
     }),
   }),
 });

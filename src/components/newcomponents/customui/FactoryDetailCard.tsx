@@ -207,6 +207,14 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
   const [sectionSearchQuery, setSectionSearchQuery] = useState('');
   const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
 
+  const handleHorizontalWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    if (el.scrollWidth <= el.clientWidth) return;
+    e.preventDefault();
+    el.scrollLeft += e.deltaY;
+  };
+
   const [deleteSection, { isLoading: isDeletingSection }] = useDeleteFactorySectionMutation();
 
   const { data: factory, isLoading, error } = useGetFactoryByIdQuery(factoryId);
@@ -316,8 +324,8 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
         {/* Scrollable Container inside Dialog */}
         <div className="flex-1 overflow-y-auto min-h-[60vh]">
           <div className="flex flex-col w-full relative bg-background">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card/50 p-6 sticky top-0 z-10">
-              <div className="flex items-center gap-4">
+            <div className="pointer-events-none flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card/50 px-6 py-4 sticky top-0 z-10">
+              <div className="pointer-events-auto flex items-center gap-4">
                 <div className={cn(brandIconTileClass, 'h-10 w-10 shrink-0 hidden sm:flex')} aria-hidden>
                   <FactoryIcon className="h-5 w-5 text-brand-primary" strokeWidth={2} />
                 </div>
@@ -334,7 +342,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pr-8">
+              <div className="pointer-events-auto flex items-center gap-2 pr-12 sm:pr-14">
                   <Button
                       variant="outline"
                       size="sm"
@@ -355,11 +363,11 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
               </div>
             </div>
 
-            <div className="p-6 space-y-8 bg-background">
+            <div className="p-4 space-y-4 bg-background">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-6">
              {/* At a Glance Section */}
-             <div className="rounded-xl border border-border/70 bg-card px-5 py-6 shadow-sm">
+             <div className="rounded-xl border border-border/70 bg-card px-5 py-4 shadow-sm">
                 <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   At a glance
                 </p>
@@ -406,18 +414,23 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
         </div>
 
         {/* Factory Sections Horizontal Scroll Area or Drill-Down */}
-        <div className="space-y-4 pt-4 border-t border-border min-h-[350px]">
+        <div className="flex min-h-[350px] flex-col space-y-3 border-t border-border pt-3">
           {activeSectionId ? (() => {
             const activeSection = sections.find(s => s.id === activeSectionId);
             const activeSectionMachines = factoryMachines.filter(m => m.factory_section_id === activeSectionId);
             return (
-              <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="flex items-center gap-4">
-                  <Button variant="ghost" onClick={() => setActiveSectionId(null)} className="-ml-2 text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to sections
-                  </Button>
-                </div>
+              <div className="flex h-full min-h-0 flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex items-center gap-2 border-b border-border/50 pb-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setActiveSectionId(null)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    aria-label="Back to sections"
+                    title="Back to sections"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
                   <Layers className="h-5 w-5 text-brand-primary" />
                   <h3 className="text-lg font-semibold">{activeSection?.name}</h3>
                   <span className="text-sm text-muted-foreground tabular-nums px-2 py-0.5 bg-muted rounded-md">{activeSectionMachines.length} machines</span>
@@ -429,15 +442,21 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                     No machines assigned to this section.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                    {activeSectionMachines.map((m) => (
-                      <MachineListCardWithLatest 
-                        key={m.id} 
-                        machine={m} 
-                        selected={false} 
-                        onSelect={() => navigate(`/machines?sectionId=${activeSectionId}&machineId=${m.id}`)} 
-                      />
-                    ))}
+                  <div className="relative w-full overflow-hidden">
+                    <div
+                      className="grid min-w-[732px] grid-cols-3 gap-3 overflow-x-auto overflow-y-auto pb-2"
+                      onWheel={handleHorizontalWheelScroll}
+                    >
+                      {activeSectionMachines.map((m) => (
+                        <div key={m.id} className="min-w-0">
+                          <MachineListCardWithLatest
+                            machine={m}
+                            selected={false}
+                            onSelect={() => navigate(`/machines?sectionId=${activeSectionId}&machineId=${m.id}`)}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -468,7 +487,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
               <div className="relative w-full -mx-1 px-1 overflow-hidden">
                   <div 
                     className="flex w-full gap-4 overflow-x-auto pb-4 snap-x snap-mandatory" 
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    onWheel={handleHorizontalWheelScroll}
                   >
                     {filteredSections.length === 0 ? (
                       <div className="flex w-full flex-col items-center justify-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg">

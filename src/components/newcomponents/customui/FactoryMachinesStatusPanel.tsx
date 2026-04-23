@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Wrench } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { machinesApi } from '@/features/machines/machinesApi';
 import { createSelector } from '@reduxjs/toolkit';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -9,6 +8,7 @@ import type { RootState } from '@/app/store';
 import type { Machine } from '@/types/machine';
 import type { MachineEvent } from '@/types/machine';
 import { cn } from '@/lib/utils';
+import DueStatusCard, { DueStatusRow } from './DueStatusCard';
 
 export interface FactoryMachinesStatusPanelProps {
   factoryId: number;
@@ -108,6 +108,28 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
       );
   }, [machines]);
 
+  const dueRows: DueStatusRow[] = useMemo(
+    () =>
+      maintenanceRows.map((m) => {
+        const d = m.next_maintenance_schedule
+          ? new Date(m.next_maintenance_schedule).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '—';
+        const sectionName = sectionNameById.get(m.factory_section_id) ?? `Section ${m.factory_section_id}`;
+        return {
+          id: m.id,
+          name: m.name,
+          dateLabel: d,
+          contextLabel: sectionName,
+          href: `/factories/${factoryId}/sections/${m.factory_section_id}`,
+        };
+      }),
+    [maintenanceRows, sectionNameById, factoryId]
+  );
+
   const segments: { key: StatusBucket; label: string; count: number; className: string }[] = [
     { key: 'active', label: 'Active', count: counts.active, className: 'bg-emerald-500' },
     { key: 'maintenance', label: 'Maintenance', count: counts.maintenance, className: 'bg-amber-500' },
@@ -117,32 +139,32 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   const pct = (n: number) => (counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0);
 
   return (
-    <Card className="flex h-full min-h-0 flex-col border-border bg-card shadow-sm">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="min-w-0 text-lg font-semibold tracking-tight text-card-foreground">
-            Machine Statuses
-          </CardTitle>
-          {latestPending && nonRunningIds.length > 0 ? (
-            <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              Syncing…
-            </span>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-6 pt-0">
-        {machinesLoading ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Loading machines…
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <Card className="flex h-full min-h-0 flex-col border-border bg-card shadow-sm lg:col-span-2">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="min-w-0 text-lg font-semibold tracking-tight text-card-foreground">
+              Machine Statuses
+            </CardTitle>
+            {latestPending && nonRunningIds.length > 0 ? (
+              <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Syncing…
+              </span>
+            ) : null}
           </div>
-        ) : counts.total === 0 ? (
-          <p className="flex-1 py-6 text-center text-sm text-muted-foreground">
-            No machines in this factory yet. Add machines from a section.
-          </p>
-        ) : (
-          <>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col gap-4 pt-0">
+          {machinesLoading ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading machines…
+            </div>
+          ) : counts.total === 0 ? (
+            <p className="flex-1 py-6 text-center text-sm text-muted-foreground">
+              No machines in this factory yet. Add machines from a section.
+            </p>
+          ) : (
             <div className="space-y-3">
               <div
                 className="flex h-4 w-full overflow-hidden rounded-full bg-muted"
@@ -172,48 +194,12 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
                 ))}
               </ul>
             </div>
+          )}
+        </CardContent>
+      </Card>
 
-            <div className="mt-auto border-t border-border pt-5">
-              <p className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <Wrench className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                Due within 7 days
-              </p>
-              {maintenanceRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing scheduled this week.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {maintenanceRows.map((m) => {
-                    const d = m.next_maintenance_schedule
-                      ? new Date(m.next_maintenance_schedule).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : '—';
-                    const sectionName = sectionNameById.get(m.factory_section_id) ?? `Section ${m.factory_section_id}`;
-                    return (
-                      <li key={m.id}>
-                        <Link
-                          to={`/factories/${factoryId}/sections/${m.factory_section_id}`}
-                          className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2 text-sm transition-colors hover:border-brand-primary/25 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-                        >
-                          <span className="font-medium text-card-foreground">{m.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {d}
-                            <span className="mx-1.5 text-border">·</span>
-                            {sectionName}
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+      <DueStatusCard loading={machinesLoading} rows={dueRows} />
+    </div>
   );
 };
 

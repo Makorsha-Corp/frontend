@@ -27,12 +27,12 @@ import {
   Trash2,
   DollarSign,
   Boxes,
-  BadgeCheck,
 } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
+import ActiveOrdersPanel from '@/components/newcomponents/customui/RunningOrdersPlaceholder';
 import toast, { Toaster } from 'react-hot-toast';
 
 const INVENTORY_TYPES: { value: InventoryType; label: string }[] = [
@@ -380,6 +380,10 @@ const StoragePage: React.FC = () => {
               </Card>
             </div>
           )}
+
+          {selectedSection === 'storage' && factoryId ? (
+            <ActiveOrdersPanel scope={{ factoryId }} className="max-w-4xl" />
+          ) : null}
 
           {/* Content card */}
           <Card className="shadow-sm bg-card border-border">

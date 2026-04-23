@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -13,7 +13,7 @@ import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi
 import type { Machine } from '@/types/machine';
 import type { MachineEventType } from '@/types/machine';
 import type { MachineItem } from '@/types/machineItem';
-import { Pencil, Play, Pause, Wrench, Power, ExternalLink, Package, Trash2, AlertTriangle } from 'lucide-react';
+import { Pencil, Play, Pause, Wrench, Power, Maximize2, Package, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineDetailsDialog from './MachineDetailsDialog';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,10 @@ import {
   machineTopBarClass,
 } from '@/lib/machineVisualStatus';
 
+export interface MachineFullDetailsIntent {
+  id: number;
+}
+
 interface MachineDetailCardProps {
   machine: Machine | null;
   onMachineUpdated?: () => void;
@@ -31,6 +35,9 @@ interface MachineDetailCardProps {
   onDeactivateRequest?: () => void;
   isDeactivating?: boolean;
   className?: string;
+  /** When set with matching `machine.id`, opens the full-details dialog once; parent should clear via `onFullDetailsIntentConsumed`. */
+  fullDetailsIntent?: MachineFullDetailsIntent | null;
+  onFullDetailsIntentConsumed?: () => void;
 }
 
 /** Short labels so four buttons fit a narrow panel in a 2×2 grid. */
@@ -52,10 +59,19 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
   onDeactivateRequest,
   isDeactivating = false,
   className = '',
+  fullDetailsIntent,
+  onFullDetailsIntentConsumed,
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateMachineEventMutation();
+
+  useEffect(() => {
+    if (!machine || !fullDetailsIntent) return;
+    if (fullDetailsIntent.id !== machine.id) return;
+    setIsDetailsOpen(true);
+    onFullDetailsIntentConsumed?.();
+  }, [fullDetailsIntent, machine, onFullDetailsIntentConsumed]);
 
   const { data: latestEvent } = useGetLatestMachineEventQuery(machine?.id ?? 0, {
     skip: !machine?.id,
@@ -129,13 +145,15 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-brand-primary hover:text-brand-primary hover:bg-brand-primary/10"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-brand-primary"
                       onClick={() => setIsDetailsOpen(true)}
+                      aria-label="Open full details"
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="sr-only">Full details</span>
+                      <Maximize2 className="h-4 w-4" strokeWidth={2} />
+                      <span className="sr-only">Open full details</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Full details</TooltipContent>

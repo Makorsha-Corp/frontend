@@ -32,7 +32,19 @@ export const machinesApi = createApi({
   endpoints: (builder) => ({
     // ==================== MACHINE CRUD ====================
     getMachines: builder.query<Machine[], ListMachinesParams>({
-      query: ({ skip = 0, limit = 100, factory_section_id, is_running, search } = {}) => {
+      query: ({
+        skip = 0,
+        limit = 100,
+        factory_section_id,
+        is_running,
+        search,
+        maintenance_window,
+        has_model_number,
+        has_manufacturer,
+        latest_event_type,
+        sort_by,
+        sort_dir,
+      } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
@@ -44,6 +56,24 @@ export const machinesApi = createApi({
         }
         if (search) {
           params.append('search', search);
+        }
+        if (maintenance_window) {
+          params.append('maintenance_window', maintenance_window);
+        }
+        if (has_model_number !== undefined) {
+          params.append('has_model_number', has_model_number.toString());
+        }
+        if (has_manufacturer !== undefined) {
+          params.append('has_manufacturer', has_manufacturer.toString());
+        }
+        if (latest_event_type) {
+          params.append('latest_event_type', latest_event_type);
+        }
+        if (sort_by) {
+          params.append('sort_by', sort_by);
+        }
+        if (sort_dir) {
+          params.append('sort_dir', sort_dir);
         }
         return `machines/?${params.toString()}`;
       },

@@ -55,6 +55,12 @@ export interface ListMachinesParams {
   factory_section_id?: number;
   is_running?: boolean;
   search?: string;
+  maintenance_window?: 'all' | 'overdue' | 'next_7_days' | 'next_30_days' | 'none_scheduled';
+  has_model_number?: boolean;
+  has_manufacturer?: boolean;
+  latest_event_type?: MachineEventType;
+  sort_by?: 'name' | 'created_at' | 'maintenance_date';
+  sort_dir?: 'asc' | 'desc';
 }
 
 export type MachineEventType = 'IDLE' | 'RUNNING' | 'OFF' | 'MAINTENANCE';

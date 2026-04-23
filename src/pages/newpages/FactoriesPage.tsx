@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
   TooltipContent,
@@ -13,6 +14,7 @@ import {
 import { useGetFactoriesQuery, useDeleteFactoryMutation } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
+import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { Factory } from '@/types/factory';
 import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronRight, Layers, Users } from 'lucide-react';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
@@ -21,10 +23,12 @@ import DepartmentsManageDialog from '@/components/newcomponents/customui/Departm
 import FactoryDetailCard from '@/components/newcomponents/customui/FactoryDetailCard';
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
+import DueStatusCard, { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
 
 interface FactoryCardProps {
   factory: Factory;
   sectionsCount?: number;
+  isSelected?: boolean;
   onEdit: () => void;
   onView: () => void;
   onDelete: () => void;
@@ -34,13 +38,18 @@ interface FactoryCardProps {
 const FactoryCard: React.FC<FactoryCardProps> = ({
   factory,
   sectionsCount = 0,
+  isSelected = false,
   onEdit,
   onView,
   onDelete,
   isDeleting,
 }) => (
     <Card
-      className="border-border hover:border-brand-primary/30 hover:shadow-md transition-all cursor-pointer group h-full flex flex-col"
+      className={`transition-all cursor-pointer group h-full flex flex-col ${
+        isSelected
+          ? 'border-brand-primary/40 bg-brand-primary/[0.06] ring-1 ring-brand-primary/25 shadow-sm'
+          : 'border-border hover:border-brand-primary/30 hover:shadow-md'
+      }`}
       onClick={onView}
     >
       <CardHeader className="space-y-0 p-4 pb-3">
@@ -126,7 +135,7 @@ const FactoryCard: React.FC<FactoryCardProps> = ({
 );
 
 const FactoriesPage: React.FC = () => {
-  const navigate = useNavigate();
+  const selectedFactory = useAppSelector((state) => state.auth.factory);
   const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -140,6 +149,7 @@ const FactoriesPage: React.FC = () => {
   });
   const { data: allSections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: 500 });
   const { data: departments = [] } = useGetDepartmentsQuery({ skip: 0, limit: 100 });
+  const { data: machines = [], isLoading: machinesLoading } = useGetMachinesQuery({ skip: 0, limit: 1000 });
   const sectionsByFactory = React.useMemo(() => {
     const map: Record<number, number> = {};
     for (const s of allSections) {
@@ -148,6 +158,14 @@ const FactoriesPage: React.FC = () => {
     return map;
   }, [allSections]);
   const [deleteFactory, { isLoading: isDeleting }] = useDeleteFactoryMutation();
+  const factoryById = React.useMemo(
+    () => new Map((factories ?? []).map((f) => [f.id, f])),
+    [factories]
+  );
+  const sectionById = React.useMemo(
+    () => new Map(allSections.map((s) => [s.id, s])),
+    [allSections]
+  );
 
   const filteredFactories = React.useMemo(() => {
     if (!factories) return [];
@@ -159,6 +177,78 @@ const FactoriesPage: React.FC = () => {
         f.abbreviation.toLowerCase().includes(q)
     );
   }, [factories, searchQuery]);
+
+  const totalSectionsCount = React.useMemo(
+    () => Object.values(sectionsByFactory).reduce((sum, count) => sum + count, 0),
+    [sectionsByFactory]
+  );
+
+  const avgSectionsPerFactory = React.useMemo(() => {
+    if (!factories || factories.length === 0) return 0;
+    return totalSectionsCount / factories.length;
+  }, [factories, totalSectionsCount]);
+
+  const activitySummary = React.useMemo(() => {
+    if (!factories || factories.length === 0) {
+      return { high: 0, medium: 0, low: 0 };
+    }
+    let high = 0;
+    let medium = 0;
+    let low = 0;
+    for (const factory of factories) {
+      const count = sectionsByFactory[factory.id] ?? 0;
+      if (count >= 3) high += 1;
+      else if (count >= 1) medium += 1;
+      else low += 1;
+    }
+    return { high, medium, low };
+  }, [factories, sectionsByFactory]);
+
+  const activityTotal = activitySummary.high + activitySummary.medium + activitySummary.low;
+  const activityHighPct = activityTotal > 0 ? (activitySummary.high / activityTotal) * 100 : 0;
+  const activityMediumPct = activityTotal > 0 ? (activitySummary.medium / activityTotal) * 100 : 0;
+  const activityLowPct = activityTotal > 0 ? (activitySummary.low / activityTotal) * 100 : 0;
+
+  const trendSeries = React.useMemo(() => {
+    if (!factories || factories.length === 0) return { active: 0, dormant: 0 };
+    const active = factories.filter((f) => (sectionsByFactory[f.id] ?? 0) > 0).length;
+    return { active, dormant: factories.length - active };
+  }, [factories, sectionsByFactory]);
+
+  const overviewDueRows: DueStatusRow[] = React.useMemo(() => {
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return machines
+      .filter((m) => {
+        if (!m.next_maintenance_schedule) return false;
+        const d = new Date(m.next_maintenance_schedule);
+        return !Number.isNaN(d.getTime()) && d <= horizon;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.next_maintenance_schedule!).getTime() -
+          new Date(b.next_maintenance_schedule!).getTime()
+      )
+      .slice(0, 5)
+      .map((m) => {
+        const section = sectionById.get(m.factory_section_id);
+        const factory = section ? factoryById.get(section.factory_id) : undefined;
+        const dateLabel = m.next_maintenance_schedule
+          ? new Date(m.next_maintenance_schedule).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '—';
+        return {
+          id: m.id,
+          name: m.name,
+          dateLabel,
+          contextLabel: `${factory?.abbreviation ?? 'Factory'} · ${section?.name ?? `Section ${m.factory_section_id}`}`,
+          href: section ? `/factories/${section.factory_id}/sections/${section.id}` : '/factories',
+        };
+      });
+  }, [machines, sectionById, factoryById]);
 
   const handleEdit = (factory: Factory) => {
     setEditingFactory(factory);
@@ -250,6 +340,82 @@ const FactoriesPage: React.FC = () => {
 
         {/* Content */}
         <div className="p-8 bg-background">
+          <Card className="mb-5 border-border bg-card shadow-sm">
+            <CardContent className="px-6 py-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/[0.06] px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">Workspace factories</p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{factories?.length ?? 0}</p>
+                </div>
+                <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total sections</p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{totalSectionsCount}</p>
+                </div>
+                <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.07] px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-400">Visible now</p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{filteredFactories.length}</p>
+                </div>
+                <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Avg sections / factory</p>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
+                    {avgSectionsPerFactory.toFixed(1)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-4 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-400">High activity</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-3xl font-semibold tabular-nums text-card-foreground">{activitySummary.high}</p>
+                    <Badge className="bg-violet-500/15 text-violet-700 hover:bg-violet-500/20 dark:text-violet-300">
+                      {activitySummary.medium} medium
+                    </Badge>
+                    <Badge variant="outline" className="border-violet-400/35 text-violet-700 dark:text-violet-300">
+                      {activitySummary.low} low
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300">
+                      {trendSeries.active} active
+                    </Badge>
+                    <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
+                      {trendSeries.dormant} dormant
+                    </Badge>
+                  </div>
+                  <div className="mt-4">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-700/80 dark:text-violet-300/80">
+                      Activity mix
+                    </p>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
+                      <div
+                        className="h-full bg-emerald-500"
+                        style={{ width: `${activityHighPct}%`, float: 'left' }}
+                        title={`High: ${activitySummary.high}`}
+                      />
+                      <div
+                        className="h-full bg-amber-500"
+                        style={{ width: `${activityMediumPct}%`, float: 'left' }}
+                        title={`Medium: ${activitySummary.medium}`}
+                      />
+                      <div
+                        className="h-full bg-slate-400 dark:bg-slate-600"
+                        style={{ width: `${activityLowPct}%`, float: 'left' }}
+                        title={`Low: ${activitySummary.low}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="mb-5">
+            <DueStatusCard
+              title="Upcoming maintenance (overview)"
+              loading={machinesLoading}
+              rows={overviewDueRows}
+              emptyMessage="No machines due within 7 days across factories."
+            />
+          </div>
+
           <Card className="shadow-sm bg-card border-border">
             <CardContent className="p-0">
               {/* Table/data header bar: count only (search lives in page header) */}
@@ -300,6 +466,7 @@ const FactoriesPage: React.FC = () => {
                       key={factory.id}
                       factory={factory}
                       sectionsCount={sectionsByFactory[factory.id] ?? 0}
+                      isSelected={selectedFactory?.id === factory.id}
                       onEdit={() => handleEdit(factory)}
                       onView={() => handleView(factory)}
                       onDelete={() => handleDelete(factory)}

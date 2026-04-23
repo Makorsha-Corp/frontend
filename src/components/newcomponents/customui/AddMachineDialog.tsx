@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateMachineMutation } from '@/features/machines/machinesApi';
 import { useCreateMachineItemMutation } from '@/features/machineItems/machineItemsApi';
+import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import MachineDialogItemsBlock, { type MachineItemDraft } from '@/components/newcomponents/customui/MachineDialogItemsBlock';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -20,8 +22,8 @@ import { Loader2 } from 'lucide-react';
 interface AddMachineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  factoryId: number;
-  sectionId: number;
+  factoryId?: number;
+  sectionId?: number;
   onSuccess?: () => void;
 }
 
@@ -36,14 +38,21 @@ const resetForm = () => ({
 const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
   open,
   onOpenChange,
+  factoryId,
   sectionId,
   onSuccess,
 }) => {
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sectionId ?? null);
   const [name, setName] = useState('');
   const [modelNumber, setModelNumber] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<MachineItemDraft[]>([]);
+  const { data: sections = [], isLoading: sectionsLoading } = useGetFactorySectionsQuery(
+    factoryId
+      ? { factory_id: factoryId, limit: 500 }
+      : { skip: 0, limit: 500 }
+  );
 
   const [createMachine, { isLoading: isCreatingMachine }] = useCreateMachineMutation();
   const [createMachineItem] = useCreateMachineItemMutation();
@@ -53,12 +62,19 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
   const reset = () => {
     const r = resetForm();
+    setSelectedSectionId(sectionId ?? null);
     setName(r.name);
     setModelNumber(r.modelNumber);
     setManufacturer(r.manufacturer);
     setNote(r.note);
     setLines(r.lines);
   };
+
+  React.useEffect(() => {
+    if (open) {
+      setSelectedSectionId(sectionId ?? null);
+    }
+  }, [open, sectionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,10 +84,15 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
       return;
     }
 
+    if (!selectedSectionId) {
+      toast.error('Factory section is required');
+      return;
+    }
+
     try {
       const created = await createMachine({
         name: name.trim(),
-        factory_section_id: sectionId,
+        factory_section_id: selectedSectionId,
         model_number: modelNumber.trim() || undefined,
         manufacturer: manufacturer.trim() || undefined,
         note: note.trim() || undefined,
@@ -121,6 +142,27 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
   const fieldsBlock = (
     <div className="grid min-w-0 gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="machine-section">
+          Factory Section <span className="text-red-500">*</span>
+        </Label>
+        <Select
+          value={selectedSectionId ? String(selectedSectionId) : ''}
+          onValueChange={(v) => setSelectedSectionId(v ? Number(v) : null)}
+        >
+          <SelectTrigger id="machine-section" className="bg-background">
+            <SelectValue placeholder={sectionsLoading ? 'Loading sections...' : 'Select a section'} />
+          </SelectTrigger>
+          <SelectContent>
+            {sections.map((s) => (
+              <SelectItem key={s.id} value={String(s.id)}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid gap-2">
         <Label htmlFor="name">
           Machine Name <span className="text-red-500">*</span>
@@ -182,7 +224,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
         <DialogHeader className="shrink-0 space-y-1 text-left">
           <DialogTitle className="text-brand-secondary">Add New Machine</DialogTitle>
           <DialogDescription>
-            Section is set from the page header. Add optional catalog lines on the right; they are saved after the machine is created.
+            Choose a section, then add machine details. Optional catalog lines on the right are saved after the machine is created.
           </DialogDescription>
         </DialogHeader>
 
@@ -204,7 +246,11 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isBusy}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isBusy || !name.trim()}>
+            <Button
+              type="submit"
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              disabled={isBusy || !name.trim() || !selectedSectionId}
+            >
               {isBusy ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,19 +10,23 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
+import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
+import { clearFactory, setFactory } from '@/features/auth/authSlice';
 import type { Machine } from '@/types/machine';
-import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList, Wrench, Menu, ArrowLeft } from 'lucide-react';
+import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList, Wrench, SlidersHorizontal } from 'lucide-react';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
-import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
+import MachineDetailCard, {
+  type MachineFullDetailsIntent,
+} from '@/components/newcomponents/customui/MachineDetailCard';
+import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
+import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import {
   brandIconGlyphClass,
@@ -34,42 +39,150 @@ import {
 import { cn } from '@/lib/utils';
 import toast, { Toaster } from 'react-hot-toast';
 
+const defaultMachineFilters: MachinesFiltersValue = {
+  search: '',
+  running_status: 'all',
+  maintenance_window: 'all',
+  has_model_number: 'all',
+  has_manufacturer: 'all',
+  latest_event_type: 'all',
+  sort_by: 'name',
+  sort_dir: 'asc',
+  factory_ids: [],
+  section_ids: [],
+};
+
+const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFiltersValue => {
+  const running_status = params.get('running_status');
+  const maintenance_window = params.get('maintenance_window');
+  const has_model_number = params.get('has_model_number');
+  const has_manufacturer = params.get('has_manufacturer');
+  const latest_event_type = params.get('latest_event_type');
+  const sort_by = params.get('sort_by');
+  const sort_dir = params.get('sort_dir');
+  const search = params.get('search') ?? '';
+  const factory_ids = (params.get('filter_factory_ids') ?? '')
+    .split(',')
+    .map((v) => parseInt(v, 10))
+    .filter((n) => Number.isFinite(n));
+  const section_ids = (params.get('filter_section_ids') ?? '')
+    .split(',')
+    .map((v) => parseInt(v, 10))
+    .filter((n) => Number.isFinite(n));
+
+  return {
+    search,
+    running_status: running_status === 'running' || running_status === 'not_running' ? running_status : 'all',
+    maintenance_window:
+      maintenance_window === 'overdue' ||
+      maintenance_window === 'next_7_days' ||
+      maintenance_window === 'next_30_days' ||
+      maintenance_window === 'none_scheduled'
+        ? maintenance_window
+        : 'all',
+    has_model_number: has_model_number === 'yes' || has_model_number === 'no' ? has_model_number : 'all',
+    has_manufacturer: has_manufacturer === 'yes' || has_manufacturer === 'no' ? has_manufacturer : 'all',
+    latest_event_type:
+      latest_event_type === 'IDLE' ||
+      latest_event_type === 'RUNNING' ||
+      latest_event_type === 'OFF' ||
+      latest_event_type === 'MAINTENANCE'
+        ? latest_event_type
+        : 'all',
+    sort_by: sort_by === 'created_at' || sort_by === 'maintenance_date' ? sort_by : 'name',
+    sort_dir: sort_dir === 'desc' ? 'desc' : 'asc',
+    factory_ids,
+    section_ids,
+  };
+};
+
 const MachinesPage: React.FC = () => {
+  const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
+  const selectedGlobalFactory = useAppSelector((state) => state.auth.factory);
+  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 200 });
+  const factoryIdParam = searchParams.get('factoryId');
   const sectionIdParam = searchParams.get('sectionId');
   const machineIdParam = searchParams.get('machineId');
+  const selectedFactoryId = factoryIdParam ? parseInt(factoryIdParam, 10) : selectedGlobalFactory?.id ?? null;
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [fullDetailsIntent, setFullDetailsIntent] = useState<MachineFullDetailsIntent | null>(null);
+  const activeFilters = React.useMemo(
+    () => parseMachineFiltersFromParams(searchParams),
+    [searchParams]
+  );
   
   const selectedMachineId = machineIdParam ? parseInt(machineIdParam, 10) : null;
   const sectionIdNum = sectionIdParam ? parseInt(sectionIdParam, 10) : null;
 
-  const handleSelectMachine = (id: number | null) => {
-    setSearchParams(prev => {
+  const handleSelectMachine = useCallback((id: number | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
       if (id) {
-        prev.set('machineId', id.toString());
+        next.set('machineId', id.toString());
       } else {
-        prev.delete('machineId');
+        next.delete('machineId');
       }
-      return prev;
+      return next;
     }, { replace: true });
+  }, [setSearchParams]);
+
+  const clearFullDetailsIntent = useCallback(() => setFullDetailsIntent(null), []);
+
+  const openMachineFullDetails = useCallback(
+    (id: number) => {
+      handleSelectMachine(id);
+      setFullDetailsIntent({ id });
+    },
+    [handleSelectMachine]
+  );
+
+  const writeFiltersToParams = (
+    prev: URLSearchParams,
+    filters: MachinesFiltersValue
+  ): URLSearchParams => {
+    const next = new URLSearchParams(prev);
+    const setOrDelete = (key: string, value: string, defaultValue: string) => {
+      if (!value || value === defaultValue) next.delete(key);
+      else next.set(key, value);
+    };
+    setOrDelete('search', filters.search.trim(), defaultMachineFilters.search);
+    setOrDelete('running_status', filters.running_status, defaultMachineFilters.running_status);
+    setOrDelete('maintenance_window', filters.maintenance_window, defaultMachineFilters.maintenance_window);
+    setOrDelete('has_model_number', filters.has_model_number, defaultMachineFilters.has_model_number);
+    setOrDelete('has_manufacturer', filters.has_manufacturer, defaultMachineFilters.has_manufacturer);
+    setOrDelete('latest_event_type', filters.latest_event_type, defaultMachineFilters.latest_event_type);
+    setOrDelete('sort_by', filters.sort_by, defaultMachineFilters.sort_by);
+    setOrDelete('sort_dir', filters.sort_dir, defaultMachineFilters.sort_dir);
+    if (filters.factory_ids.length > 0) next.set('filter_factory_ids', filters.factory_ids.join(','));
+    else next.delete('filter_factory_ids');
+    if (filters.section_ids.length > 0) next.set('filter_section_ids', filters.section_ids.join(','));
+    else next.delete('filter_section_ids');
+    return next;
   };
 
-  const clearSectionFilter = () => {
-    setSearchParams(prev => {
-      prev.delete('sectionId');
-      return prev;
-    });
-  };
+  // Keep page scope aligned with global factory context changes.
+  useEffect(() => {
+    if (selectedGlobalFactory?.id && selectedFactoryId !== selectedGlobalFactory.id) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('factoryId', String(selectedGlobalFactory.id));
+        next.delete('sectionId');
+        next.delete('machineId');
+        return next;
+      }, { replace: true });
+    }
+  }, [selectedGlobalFactory?.id, selectedFactoryId, setSearchParams]);
 
   const { data: section, isLoading: isLoadingSection } = useGetFactorySectionByIdQuery(sectionIdNum!, {
     skip: !sectionIdNum || isNaN(sectionIdNum),
   });
 
-  const factoryId = section?.factory_id;
+  const factoryId = section?.factory_id ?? selectedFactoryId ?? undefined;
 
   const { data: factory } = useGetFactoryByIdQuery(factoryId!, {
     skip: !factoryId,
@@ -79,29 +192,169 @@ const MachinesPage: React.FC = () => {
     { factory_id: factoryId!, limit: 500 },
     { skip: !factoryId }
   );
+  const { data: allSections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: 1000 });
+
+  const allFactoryIdsList = React.useMemo(() => factories.map((f) => f.id), [factories]);
+
+  const commitMachineFilters = (nextFilters: MachinesFiltersValue) => {
+    const prevFilters = parseMachineFiltersFromParams(searchParams);
+    const locationChanged =
+      prevFilters.factory_ids.join(',') !== nextFilters.factory_ids.join(',') ||
+      prevFilters.section_ids.join(',') !== nextFilters.section_ids.join(',');
+
+    const effF =
+      nextFilters.factory_ids.length === 0 ? allFactoryIdsList : nextFilters.factory_ids;
+    const fset = new Set(effF);
+    const allS = allSections.filter((s) => fset.has(s.factory_id)).map((s) => s.id);
+    const effS =
+      nextFilters.section_ids.length === 0
+        ? allS
+        : nextFilters.section_ids.filter((id) => allS.includes(id));
+
+    if (locationChanged) {
+      if (effF.length === 1) {
+        const f = factories.find((x) => x.id === effF[0]);
+        if (f) dispatch(setFactory(f));
+      } else {
+        dispatch(clearFactory());
+      }
+    }
+
+    setSearchParams((prev) => {
+      const next = writeFiltersToParams(prev, nextFilters);
+      if (locationChanged) {
+        if (effF.length === 1) next.set('factoryId', String(effF[0]));
+        else next.delete('factoryId');
+        if (effS.length === 1) next.set('sectionId', String(effS[0]));
+        else next.delete('sectionId');
+        next.delete('machineId');
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const clearFilters = () => {
+    commitMachineFilters(defaultMachineFilters);
+  };
 
   const { data: machines, isLoading: machinesLoading, error: machinesError } = useGetMachinesQuery(
     {
       skip: 0,
       limit: 1000,
       factory_section_id: sectionIdNum || undefined,
-      search: searchQuery || undefined,
+      search: activeFilters.search || undefined,
+      is_running:
+        activeFilters.running_status === 'all'
+          ? undefined
+          : activeFilters.running_status === 'running',
+      maintenance_window:
+        activeFilters.maintenance_window === 'all' ? undefined : activeFilters.maintenance_window,
+      has_model_number:
+        activeFilters.has_model_number === 'all'
+          ? undefined
+          : activeFilters.has_model_number === 'yes',
+      has_manufacturer:
+        activeFilters.has_manufacturer === 'all'
+          ? undefined
+          : activeFilters.has_manufacturer === 'yes',
+      latest_event_type:
+        activeFilters.latest_event_type === 'all' ? undefined : activeFilters.latest_event_type,
+      sort_by: activeFilters.sort_by,
+      sort_dir: activeFilters.sort_dir,
     }
   );
 
   const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
-  const selectedMachine = machines?.find((m) => m.id === selectedMachineId) ?? null;
+  const factorySectionIds = React.useMemo(() => new Set(sections.map((s) => s.id)), [sections]);
+
+  const filteredMachines = React.useMemo(() => {
+    if (!machines) return [];
+    if (sectionIdNum) return machines;
+    if (!selectedFactoryId) return machines;
+    return machines.filter((m) => factorySectionIds.has(m.factory_section_id));
+  }, [machines, sectionIdNum, selectedFactoryId, factorySectionIds]);
+
+  const allSectionsById = React.useMemo(
+    () => new Map(allSections.map((s) => [s.id, s])),
+    [allSections]
+  );
+
+  const effectiveFilteredMachines = React.useMemo(() => {
+    let list = filteredMachines;
+    if (activeFilters.factory_ids.length > 0) {
+      const allowedFactoryIds = new Set(activeFilters.factory_ids);
+      list = list.filter((m) => {
+        const sec = allSectionsById.get(m.factory_section_id);
+        return !!sec && allowedFactoryIds.has(sec.factory_id);
+      });
+    }
+    if (activeFilters.section_ids.length > 0) {
+      const allowedSectionIds = new Set(activeFilters.section_ids);
+      list = list.filter((m) => allowedSectionIds.has(m.factory_section_id));
+    }
+    return list;
+  }, [filteredMachines, activeFilters.factory_ids, activeFilters.section_ids, allSectionsById]);
+
+  const machinesGroupedBySection = React.useMemo(() => {
+    if (!factory || sectionIdNum) return [];
+    const grouped = new Map<number, Machine[]>();
+    for (const machine of effectiveFilteredMachines) {
+      const current = grouped.get(machine.factory_section_id) ?? [];
+      current.push(machine);
+      grouped.set(machine.factory_section_id, current);
+    }
+    return sections
+      .map((s) => ({
+        section: s,
+        machines: (grouped.get(s.id) ?? []).sort((a, b) => a.id - b.id),
+      }))
+      .filter((g) => g.machines.length > 0);
+  }, [factory, sectionIdNum, effectiveFilteredMachines, sections]);
+
+  const machinesGroupedByFactorySection = React.useMemo(() => {
+    if (factory || sectionIdNum) return [];
+    const sectionById = new Map(allSections.map((s) => [s.id, s]));
+    const factoryById = new Map(factories.map((f) => [f.id, f]));
+
+    const factoryMap = new Map<number, Map<number, Machine[]>>();
+    for (const machine of effectiveFilteredMachines) {
+      const sec = sectionById.get(machine.factory_section_id);
+      if (!sec) continue;
+      const sectionMap = factoryMap.get(sec.factory_id) ?? new Map<number, Machine[]>();
+      const list = sectionMap.get(sec.id) ?? [];
+      list.push(machine);
+      sectionMap.set(sec.id, list);
+      factoryMap.set(sec.factory_id, sectionMap);
+    }
+
+    return Array.from(factoryMap.entries())
+      .map(([factoryIdKey, sectionMap]) => {
+        const factoryData = factoryById.get(factoryIdKey);
+        const sectionsData = Array.from(sectionMap.entries())
+          .map(([sectionKey, machinesInSection]) => ({
+            section: sectionById.get(sectionKey),
+            machines: machinesInSection.sort((a, b) => a.id - b.id),
+          }))
+          .filter((g) => g.section)
+          .sort((a, b) => (a.section?.name ?? '').localeCompare(b.section?.name ?? ''));
+        return { factory: factoryData, sections: sectionsData };
+      })
+      .filter((g) => g.factory && g.sections.length > 0)
+      .sort((a, b) => (a.factory?.name ?? '').localeCompare(b.factory?.name ?? ''));
+  }, [factory, sectionIdNum, allSections, factories, effectiveFilteredMachines]);
+
+  const selectedMachine = effectiveFilteredMachines.find((m) => m.id === selectedMachineId) ?? null;
 
   const maintenanceDueCount = React.useMemo(() => {
-    if (!machines) return 0;
+    if (!effectiveFilteredMachines) return 0;
     const now = new Date();
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return machines.filter((m) => {
+    return effectiveFilteredMachines.filter((m) => {
       const d = m.next_maintenance_schedule ? new Date(m.next_maintenance_schedule) : null;
       return d && d <= in7Days;
     }).length;
-  }, [machines]);
+  }, [effectiveFilteredMachines]);
 
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
@@ -131,42 +384,76 @@ const MachinesPage: React.FC = () => {
                       <Link to="/machines">Machines</Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
-                  {section && (
-                    <>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage>{factory?.name || 'Factory'} - {section.name}</BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </>
-                  )}
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
+                      <MachinesInlineLocationFilters
+                        which="factories"
+                        variant="breadcrumb"
+                        value={{
+                          factory_ids: activeFilters.factory_ids,
+                          section_ids: activeFilters.section_ids,
+                        }}
+                        onChange={(slice) =>
+                          commitMachineFilters({ ...activeFilters, ...slice })
+                        }
+                        factories={factories}
+                        sections={allSections}
+                      />
+                    </BreadcrumbItem>
+                  </>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
+                    <MachinesInlineLocationFilters
+                      which="sections"
+                      variant="breadcrumb"
+                      value={{
+                        factory_ids: activeFilters.factory_ids,
+                        section_ids: activeFilters.section_ids,
+                      }}
+                      onChange={(slice) =>
+                        commitMachineFilters({ ...activeFilters, ...slice })
+                      }
+                      factories={factories}
+                      sections={allSections}
+                    />
+                  </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="hidden h-6 w-px bg-border sm:block" />
               <div className="flex min-w-0 items-center gap-3">
-                <div className={brandIconTileClass} aria-hidden>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
                   <Cog className={brandIconGlyphClass} strokeWidth={2} />
                 </div>
                 <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                  {section ? `Machines in ${section.name}` : 'All Machines'}
+                  {section ? `Machines in ${section.name}` : factory ? `Machines in ${factory.name}` : 'All Machines'}
                 </h1>
               </div>
             </div>
-            <div className="flex flex-nowrap items-center gap-2 sm:gap-3">
-              {sectionIdNum && (
-                <Button variant="ghost" onClick={clearSectionFilter} className="h-9 shrink-0 text-muted-foreground mr-2">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> View All
-                </Button>
-              )}
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
               <div className="relative w-[min(200px,36vw)] min-w-[140px] shrink-0">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search machines..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 bg-background pl-9"
+                  value={activeFilters.search}
+                  onChange={(e) =>
+                    commitMachineFilters({
+                      ...activeFilters,
+                      search: e.target.value,
+                    })
+                  }
+                  className="h-9 bg-background pl-9 focus-visible:ring-inset"
                 />
               </div>
+              <Button
+                variant="outline"
+                className="h-9 shrink-0 focus-visible:ring-offset-0"
+                onClick={() => setIsFiltersOpen(true)}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Filters
+              </Button>
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
                 className="h-9 shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
@@ -221,7 +508,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total machines</p>
-                      <p className="text-base font-semibold tabular-nums text-card-foreground">{machines?.length ?? 0}</p>
+                      <p className="text-base font-semibold tabular-nums text-card-foreground">{effectiveFilteredMachines.length}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -231,7 +518,7 @@ const MachinesPage: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Running</p>
                       <p className="text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                        {machines?.filter((m) => m.is_running).length ?? 0}
+                        {effectiveFilteredMachines.filter((m) => m.is_running).length}
                       </p>
                     </div>
                   </div>
@@ -242,7 +529,7 @@ const MachinesPage: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Not running</p>
                       <p className="text-base font-semibold tabular-nums text-red-700 dark:text-red-400">
-                        {machines ? machines.length - machines.filter((m) => m.is_running).length : 0}
+                        {effectiveFilteredMachines.length - effectiveFilteredMachines.filter((m) => m.is_running).length}
                       </p>
                     </div>
                   </div>
@@ -294,19 +581,12 @@ const MachinesPage: React.FC = () => {
             {/* Left: Machines list */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <Card className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-sm bg-card border-border">
-                <div className="flex-shrink-0 border-b border-border px-4 py-3">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {machinesLoading
-                      ? 'Loading...'
-                      : `${machines?.length ?? 0} machine${(machines?.length ?? 0) === 1 ? '' : 's'}`}
-                  </span>
-                </div>
                 <div className="flex-1 min-h-0 overflow-y-auto p-4">
                   {machinesError ? (
                     <div className="text-center py-16 text-destructive">
                       Failed to load machines. Please try again.
                     </div>
-                  ) : !machines || machines.length === 0 ? (
+                  ) : effectiveFilteredMachines.length === 0 ? (
                     <div className="text-center py-16">
                       <Cog className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground mb-4">
@@ -320,14 +600,71 @@ const MachinesPage: React.FC = () => {
                         Add Machine
                       </Button>
                     </div>
+                  ) : factory && !sectionIdNum ? (
+                    <div className="space-y-5">
+                      {machinesGroupedBySection.map(({ section: sec, machines: secMachines }) => (
+                        <div key={sec.id} className="space-y-3">
+                          <div className="flex items-center gap-2 border-b border-border/70 pb-2">
+                            <Layers className="h-4 w-4 text-brand-primary" />
+                            <p className="text-sm font-medium text-foreground/90">{sec.name}</p>
+                            <span className="text-xs text-muted-foreground/90 tabular-nums">
+                              {secMachines.length} machine{secMachines.length === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
+                            {secMachines.map((m) => (
+                              <MachineListCardWithLatest
+                                key={m.id}
+                                machine={m}
+                                selected={selectedMachineId === m.id}
+                                onSelect={() => handleSelectMachine(m.id)}
+                                onExpandDetails={() => openMachineFullDetails(m.id)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !factory && !sectionIdNum ? (
+                    <div className="space-y-6">
+                      {machinesGroupedByFactorySection.map((group) => (
+                        <div key={group.factory!.id} className="space-y-5">
+                          {group.sections.map((secGroup) => (
+                            <div key={secGroup.section!.id} className="space-y-2">
+                              <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+                                <Layers className="h-3.5 w-3.5 text-brand-primary/70" />
+                                <p className="text-sm font-medium text-foreground/90">
+                                  {group.factory!.name} ({group.factory!.abbreviation}) - {secGroup.section!.name}
+                                </p>
+                                <span className="text-xs text-muted-foreground/80 tabular-nums">
+                                  {secGroup.machines.length}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
+                                {secGroup.machines.map((m) => (
+                                  <MachineListCardWithLatest
+                                    key={m.id}
+                                    machine={m}
+                                    selected={selectedMachineId === m.id}
+                                    onSelect={() => handleSelectMachine(m.id)}
+                                    onExpandDetails={() => openMachineFullDetails(m.id)}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
-                      {machines.map((m) => (
+                      {effectiveFilteredMachines.map((m) => (
                         <MachineListCardWithLatest
                           key={m.id}
                           machine={m}
                           selected={selectedMachineId === m.id}
                           onSelect={() => handleSelectMachine(m.id)}
+                          onExpandDetails={() => openMachineFullDetails(m.id)}
                         />
                       ))}
                     </div>
@@ -340,6 +677,8 @@ const MachinesPage: React.FC = () => {
             <div className="w-[400px] shrink-0 min-h-0 flex flex-col overflow-hidden">
               <MachineDetailCard
                 machine={selectedMachine}
+                fullDetailsIntent={fullDetailsIntent}
+                onFullDetailsIntentConsumed={clearFullDetailsIntent}
                 onMachineUpdated={() => {}}
                 onEditRequest={() => setIsEditMachineOpen(true)}
                 onDeactivateRequest={
@@ -353,6 +692,22 @@ const MachinesPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <MachinesFiltersDialog
+        open={isFiltersOpen}
+        onOpenChange={setIsFiltersOpen}
+        value={activeFilters}
+        factories={factories}
+        sections={allSections}
+        onApply={(next) => {
+          commitMachineFilters(next);
+          setIsFiltersOpen(false);
+        }}
+        onClear={() => {
+          clearFilters();
+          setIsFiltersOpen(false);
+        }}
+      />
 
       <EditFactorySectionDialog
         open={isEditDialogOpen}

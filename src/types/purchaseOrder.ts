@@ -75,3 +75,22 @@ export interface ListPurchaseOrdersParams {
   account_id?: number;
   invoice_id?: number;
 }
+
+export type ActiveOrderKind = 'purchase' | 'transfer';
+
+export interface ActiveOrderRow {
+  order_kind: ActiveOrderKind;
+  id: number;
+  number: string;
+  summary: string | null;
+  current_status_id: number;
+  status_name: string | null;
+  created_at: string;
+  total_amount: string | null;
+}
+
+/** Exactly one key — matches GET /purchase-orders/active/ */
+export type ActiveOrdersScope =
+  | { machineId: number }
+  | { factoryId: number }
+  | { projectComponentId: number };
