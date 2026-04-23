@@ -16,6 +16,7 @@ import type { MachineItem } from '@/types/machineItem';
 import { Pencil, Play, Pause, Wrench, Power, Maximize2, Package, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineDetailsDialog from './MachineDetailsDialog';
+import ActiveOrdersPanel from './RunningOrdersPlaceholder';
 import { cn } from '@/lib/utils';
 import {
   getHighlightedEventType,
@@ -227,17 +228,13 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
               </div>
 
               {!machineItems || machineItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 py-8 px-3 text-center">
+                <div className="flex min-h-[122px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 py-8 px-3 text-center">
                   <Package className="h-8 w-8 text-muted-foreground/40" />
                   <p className="text-xs text-muted-foreground">No parts assigned to this machine yet.</p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-border overflow-hidden bg-card">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-3 py-2 bg-muted/50 border-b border-border text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <span>Item</span>
-                    <span className="text-right whitespace-nowrap">Qty</span>
-                  </div>
-                  <ul className="divide-y divide-border max-h-[min(240px,40vh)] overflow-y-auto">
+                <div className="flex min-h-[122px] flex-col rounded-lg border border-border overflow-hidden bg-card">
+                  <ul className="min-h-0 flex-1 border-b border-border/40 max-h-[min(240px,40vh)] overflow-y-auto">
                     {machineItems.map((mi) => {
                       const low = isLowStock(mi);
                       const defective = mi.defective_qty != null && mi.defective_qty > 0;
@@ -264,12 +261,12 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                         <li
                           key={mi.id}
                           className={cn(
-                            'grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-3 py-2.5 items-center text-sm',
+                            'flex items-center justify-between gap-3 border-b border-border/40 px-3 py-2.5 text-sm last:border-b-0',
                             'hover:bg-muted/30 transition-colors',
                             low && 'bg-destructive/[0.06]'
                           )}
                         >
-                          <div className="min-w-0 flex items-start gap-2">
+                          <div className="min-w-0 flex flex-1 items-start gap-2">
                             {low ? (
                               <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive mt-0.5" aria-hidden />
                             ) : (
@@ -286,7 +283,9 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                               ) : null}
                             </div>
                           </div>
-                          <div className="text-right text-sm shrink-0">{qtyDisplay}</div>
+                          <div className="shrink-0 text-right text-sm tabular-nums" title="Quantity">
+                            {qtyDisplay}
+                          </div>
                         </li>
                       );
                     })}
@@ -294,6 +293,10 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                 </div>
               )}
             </div>
+
+            <Separator className="bg-border" />
+
+            <ActiveOrdersPanel scope={{ machineId: machine.id }} minimal compact />
           </div>
         </div>
       </Card>

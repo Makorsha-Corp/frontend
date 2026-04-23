@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 import {
   useGetMachineEventsQuery,
   useCreateMachineEventMutation,
@@ -309,7 +310,9 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
         </CardContent>
       </Card>
 
-      <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
+      <Separator className="bg-border" />
+
+      <ActiveOrdersPanel scope={{ machineId: machine.id }} minimal compact />
 
       <EditMachineDialog
         open={isEditOpen}
