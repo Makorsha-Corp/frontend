@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import FormulaDetailsDialog from '@/components/newcomponents/customui/FormulaDetailsDialog';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
@@ -64,7 +65,6 @@ import {
   useDeleteProductionBatchMutation,
   useStartBatchMutation,
   useCompleteBatchMutation,
-  usePostBatchFinishedGoodsMutation,
   useCancelBatchMutation,
   useGetBatchItemsQuery,
   useAddBatchItemMutation,
@@ -131,25 +131,6 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
   return `${n.toFixed(digits)}%`;
 }
 
-/** Required integer qty per input line after scaling (ceil to align with backend int scaling). */
-function scaledInputRequired(
-  formulaItems: ProductionFormulaItem[],
-  targetOutput: number | null
-): { baseOut: number; target: number; rows: { item_id: number; required: number; optional: boolean }[] } | null {
-  const outputs = formulaItems.filter((fi) => fi.item_role === 'output');
-  const baseOut = outputs.reduce((s, fi) => s + fi.quantity, 0);
-  if (baseOut <= 0) return null;
-  const target = targetOutput != null && targetOutput > 0 ? targetOutput : baseOut;
-  const mult = target / baseOut;
-  const rows = formulaItems
-    .filter((fi) => fi.item_role === 'input')
-    .map((fi) => ({
-      item_id: fi.item_id,
-      required: Math.max(0, Math.ceil(fi.quantity * mult)),
-      optional: fi.is_optional,
-    }));
-  return { baseOut, target, rows };
-}
 
 const ProductionPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -184,6 +165,7 @@ const ProductionPage: React.FC = () => {
   const [editingFormula, setEditingFormula] = useState<ProductionFormula | null>(null);
   const [selectedFormulaId, setSelectedFormulaId] = useState<number | null>(null);
   const [isAddBatchOpen, setIsAddBatchOpen] = useState(false);
+  const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<ProductionBatch | null>(null);
   const [startBatchId, setStartBatchId] = useState<number | null>(null);
@@ -261,7 +243,6 @@ const ProductionPage: React.FC = () => {
   const [createBatch, { isLoading: isCreatingBatch }] = useCreateProductionBatchMutation();
   const [startBatch, { isLoading: isStartingBatch }] = useStartBatchMutation();
   const [completeBatch] = useCompleteBatchMutation();
-  const [postBatchFinishedGoods, { isLoading: isPostingFinishedGoods }] = usePostBatchFinishedGoodsMutation();
   const [cancelBatch] = useCancelBatchMutation();
   const [updateProductionBatch, { isLoading: isUpdatingBatch }] = useUpdateProductionBatchMutation();
   const [deleteProductionBatch, { isLoading: isDeletingBatch }] = useDeleteProductionBatchMutation();
@@ -402,10 +383,16 @@ const ProductionPage: React.FC = () => {
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
-            onClick={() => navigate('/factories')}
+            onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
+
+          <AddFactoryDialog
+            open={isAddFactoryOpen}
+            onOpenChange={setIsAddFactoryOpen}
+            factories={factories}
+          />
         </div>
       </div>
     );
@@ -884,8 +871,6 @@ const ProductionPage: React.FC = () => {
                     isUpdatingBatch={isUpdatingBatch}
                     deleteProductionBatch={deleteProductionBatch}
                     isDeletingBatch={isDeletingBatch}
-                    postBatchFinishedGoods={postBatchFinishedGoods}
-                    isPostingFinishedGoods={isPostingFinishedGoods}
                   />
                 ) : (
                   <Card className="border-dashed border-border bg-muted/20">
@@ -1329,8 +1314,6 @@ interface BatchDetailPanelProps {
   isUpdatingBatch: boolean;
   deleteProductionBatch: ReturnType<typeof useDeleteProductionBatchMutation>[0];
   isDeletingBatch: boolean;
-  postBatchFinishedGoods: ReturnType<typeof usePostBatchFinishedGoodsMutation>[0];
-  isPostingFinishedGoods: boolean;
 }
 
 const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
@@ -1349,8 +1332,6 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   isUpdatingBatch,
   deleteProductionBatch,
   isDeletingBatch,
-  postBatchFinishedGoods,
-  isPostingFinishedGoods,
 }) => {
   const {
     data: batch,
@@ -1961,37 +1942,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </Button>
           </>
         )}
-      {batch.status === 'completed' && !batch.finished_goods_posted && (
-        <Button
-          type="button"
-          size="sm"
-          className="bg-brand-primary hover:bg-brand-primary-hover"
-          disabled={isPostingFinishedGoods}
-          onClick={async () => {
-            try {
-              await postBatchFinishedGoods({
-                id: batch.id,
-                data: { include_byproducts: true },
-              }).unwrap();
-              toast.success('Outputs added to factory finished goods (Products)');
-            } catch (e: unknown) {
-              const err = e as { data?: { detail?: string; title?: string } };
-              toast.error(
-                err?.data?.detail || err?.data?.title || 'Failed to post to finished goods'
-              );
-            }
-          }}
-        >
-          {isPostingFinishedGoods ? (
-            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-          ) : (
-            <Package className="mr-1 h-4 w-4" />
-          )}
-          Receive into finished goods
-        </Button>
-      )}
-      {batch.status === 'completed' && batch.finished_goods_posted && (
-        <span className="text-xs text-muted-foreground">Finished goods updated for this batch.</span>
+      {batch.status === 'completed' && (
+        <span className="text-xs text-muted-foreground">Outputs and waste auto-posted on completion.</span>
       )}
     </div>
   );
@@ -2573,8 +2525,6 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
   );
   const [actualDuration, setActualDuration] = useState('');
   const [notes, setNotes] = useState(batch.notes ?? '');
-  const [postToFinishedGoods, setPostToFinishedGoods] = useState(false);
-  const [includeByproductsInFg, setIncludeByproductsInFg] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -2587,15 +2537,9 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           actual_output_quantity: actualOutput ? parseInt(actualOutput, 10) : undefined,
           actual_duration_minutes: actualDuration ? parseInt(actualDuration, 10) : undefined,
           notes: notes.trim() || undefined,
-          post_outputs_to_finished_goods: postToFinishedGoods,
-          post_finished_goods_include_byproducts: includeByproductsInFg,
         },
       }).unwrap();
-      toast.success(
-        postToFinishedGoods
-          ? 'Batch completed; outputs added to finished goods'
-          : 'Batch completed'
-      );
+      toast.success('Batch completed — outputs and waste posted to inventory');
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -2645,36 +2589,9 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
                 placeholder="Completion notes"
               />
             </div>
-            <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-3">
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="complete-post-fg"
-                  checked={postToFinishedGoods}
-                  onCheckedChange={(v) => setPostToFinishedGoods(v === true)}
-                />
-                <div className="grid gap-1">
-                  <Label htmlFor="complete-post-fg" className="text-sm font-medium leading-snug cursor-pointer">
-                    Add outputs to factory finished goods (Products)
-                  </Label>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Increments the not-for-sale product bucket for this factory using output line actuals (or expected),
-                    or batch actual output when the formula has a single output item. Each batch can only be posted once.
-                  </p>
-                </div>
-              </div>
-              {postToFinishedGoods && (
-                <div className="flex items-start gap-2 pl-6">
-                  <Checkbox
-                    id="complete-post-byproduct"
-                    checked={includeByproductsInFg}
-                    onCheckedChange={(v) => setIncludeByproductsInFg(v === true)}
-                  />
-                  <Label htmlFor="complete-post-byproduct" className="text-sm font-normal cursor-pointer">
-                    Include byproduct lines
-                  </Label>
-                </div>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground rounded-lg border border-border/60 bg-muted/20 p-3">
+              Completing will automatically post output and byproduct quantities to finished goods and waste to the damaged ledger.
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
@@ -2783,12 +2700,17 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
   onClose,
 }) => {
   const { data: batch, isLoading: loadingBatch, error: batchErr } = useGetProductionBatchByIdQuery(batchId);
-  const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
-  const formulaId = batch?.formula_id ?? 0;
-  const { data: formulaItems = [], isLoading: loadingFormulaItems } = useGetFormulaItemsQuery(
-    { formulaId },
-    { skip: formulaId <= 0 }
+  const { data: batchItems = [], isLoading: loadingItems } = useGetBatchItemsQuery(
+    { batchId },
+    { skip: !batchId }
   );
+  const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
+
+  const inputItems = useMemo(
+    () => batchItems.filter((bi) => bi.item_role === 'input'),
+    [batchItems]
+  );
+
   const { data: storageRows = [], isLoading: loadingStorage } = useGetInventoryListQuery(
     {
       skip: 0,
@@ -2796,13 +2718,8 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
       inventory_type: 'STORAGE',
       factory_id: line?.factory_id,
     },
-    { skip: !line?.factory_id || !batch?.formula_id }
+    { skip: !line?.factory_id || inputItems.length === 0 }
   );
-
-  const scaled = useMemo(() => {
-    if (!batch?.formula_id || formulaItems.length === 0) return null;
-    return scaledInputRequired(formulaItems, batch.expected_output_quantity ?? null);
-  }, [batch?.formula_id, batch?.expected_output_quantity, formulaItems]);
 
   const qtyByItem = useMemo(() => {
     const m = new Map<number, number>();
@@ -2813,30 +2730,31 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
   }, [storageRows]);
 
   const shortages = useMemo(() => {
-    if (!scaled) return [];
+    if (inputItems.length === 0 || loadingStorage) return [];
     const out: { item_id: number; required: number; onHand: number }[] = [];
-    for (const row of scaled.rows) {
-      if (row.optional) continue;
-      const onHand = qtyByItem.get(row.item_id) ?? 0;
-      if (onHand < row.required) {
-        out.push({ item_id: row.item_id, required: row.required, onHand });
+    for (const bi of inputItems) {
+      const required = bi.actual_quantity ?? bi.expected_quantity ?? 0;
+      if (required <= 0) continue;
+      const onHand = qtyByItem.get(bi.item_id) ?? 0;
+      if (onHand < required) {
+        out.push({ item_id: bi.item_id, required, onHand });
       }
     }
     return out;
-  }, [scaled, qtyByItem]);
+  }, [inputItems, qtyByItem, loadingStorage]);
 
-  const lineMissing = !!(batch?.formula_id && !line);
-  const needsStockCheck = !!(batch?.formula_id && scaled && scaled.rows.some((r) => !r.optional));
-  const stockCheckLoading = !!(batch?.formula_id && line?.factory_id && loadingStorage);
-  const blockedByStock = needsStockCheck && shortages.length > 0;
+  const noItems = !loadingItems && batchItems.length === 0;
+  const stockCheckLoading = inputItems.length > 0 && !!line?.factory_id && loadingStorage;
+  const blockedByStock = shortages.length > 0;
+
   const canSubmit =
     !!batch &&
     batch.status === 'draft' &&
-    !lineMissing &&
+    !noItems &&
     !blockedByStock &&
     !stockCheckLoading &&
     !loadingBatch &&
-    (!batch.formula_id || !loadingFormulaItems);
+    !loadingItems;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2846,7 +2764,7 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
         id: batch.id,
         data: {},
       }).unwrap();
-      toast.success('Batch started');
+      toast.success('Batch started — inputs deducted from storage');
       onClose();
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
@@ -2861,13 +2779,11 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
           <DialogHeader>
             <DialogTitle>Start batch</DialogTitle>
             <DialogDescription>
-              {batch?.formula_id
-                ? 'Storage (STORAGE) is checked for required inputs on this line’s factory using draft expected output.'
-                : 'Simple mode: no formula stock check.'}
+              Input items will be deducted from storage. Starting will be blocked if storage is insufficient.
             </DialogDescription>
           </DialogHeader>
 
-          {loadingBatch && (
+          {(loadingBatch || loadingItems) && (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
             </div>
@@ -2877,36 +2793,34 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
             <p className="text-sm text-destructive py-4">Could not load batch.</p>
           )}
 
-          {batch && (
+          {batch && !loadingBatch && !loadingItems && (
             <div className="grid gap-4 py-2">
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{batch.batch_number}</span>
                 {line && ` · ${line.name}`}
               </p>
 
-              {batch.formula_id && scaled && (
-                <p className="text-xs text-muted-foreground">
-                  Scaling to output <span className="font-medium text-foreground">{scaled.target}</span> (base output{' '}
-                  {scaled.baseOut}).
-                </p>
+              {noItems && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                  <p className="font-medium text-destructive">No items added to this batch.</p>
+                  <p className="text-muted-foreground mt-1">Add at least one item before starting.</p>
+                </div>
               )}
 
-              {batch.formula_id && scaled === null && !loadingFormulaItems && formulaItems.length > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  Formula has no output lines — storage check skipped.
-                </p>
+              {!noItems && inputItems.length === 0 && (
+                <p className="text-xs text-muted-foreground">No input items — no storage deduction needed.</p>
               )}
 
-              {needsStockCheck && stockCheckLoading && (
+              {stockCheckLoading && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading storage…
+                  Checking storage…
                 </p>
               )}
 
-              {needsStockCheck && !stockCheckLoading && shortages.length > 0 && (
+              {!stockCheckLoading && shortages.length > 0 && (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                  <p className="font-medium text-destructive mb-2">Not enough storage for required inputs</p>
+                  <p className="font-medium text-destructive mb-2">Insufficient storage for input items</p>
                   <ul className="list-disc pl-4 space-y-1">
                     {shortages.map((s) => (
                       <li key={s.item_id}>
@@ -2915,12 +2829,6 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
                     ))}
                   </ul>
                 </div>
-              )}
-
-              {lineMissing && (
-                <p className="text-sm text-destructive">
-                  Cannot run storage check: production line is missing from the current list.
-                </p>
               )}
 
               {batch.status !== 'draft' && (

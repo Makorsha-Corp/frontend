@@ -22,6 +22,7 @@ import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList,
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import MachineDetailCard, {
   type MachineFullDetailsIntent,
 } from '@/components/newcomponents/customui/MachineDetailCard';
@@ -111,6 +112,7 @@ const MachinesPage: React.FC = () => {
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [fullDetailsIntent, setFullDetailsIntent] = useState<MachineFullDetailsIntent | null>(null);
   const activeFilters = React.useMemo(
     () => parseMachineFiltersFromParams(searchParams),
@@ -384,10 +386,16 @@ const MachinesPage: React.FC = () => {
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
-            onClick={() => navigate('/factories')}
+            onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
+
+          <AddFactoryDialog
+            open={isAddFactoryOpen}
+            onOpenChange={setIsAddFactoryOpen}
+            factories={factories}
+          />
         </div>
       </div>
     );

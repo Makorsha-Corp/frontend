@@ -6,7 +6,7 @@ import type {
   ProductionFormula, CreateProductionFormulaDTO, UpdateProductionFormulaDTO,
   ProductionFormulaItem, CreateProductionFormulaItemDTO, UpdateProductionFormulaItemDTO,
   ProductionBatch, CreateProductionBatchDTO, UpdateProductionBatchDTO,
-  StartBatchDTO, CompleteBatchDTO, CancelBatchDTO, PostBatchFinishedGoodsDTO,
+  StartBatchDTO, CompleteBatchDTO, CancelBatchDTO,
   ProductionBatchItem, CreateProductionBatchItemDTO, UpdateProductionBatchItemDTO,
 } from '@/types/production';
 
@@ -225,29 +225,6 @@ export const productionApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-        try {
-          await queryFulfilled;
-          if (arg.data.post_outputs_to_finished_goods) {
-            dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
-          }
-        } catch {
-          /* noop */
-        }
-      },
-    }),
-    postBatchFinishedGoods: builder.mutation<ProductionBatch, { id: number; data?: PostBatchFinishedGoodsDTO }>({
-      query: ({ id, data }) => ({
-        // Use products route (shallower path); avoids 404s on some proxies/gateways with long hyphenated paths.
-        url: `products/receive-from-batch/${id}/`,
-        method: 'POST',
-        body: data ?? { include_byproducts: true },
-      }),
-      invalidatesTags: (result, error, { id }) => [
-        { type: 'ProductionBatch', id },
-        'ProductionBatch',
-        'BatchItem',
-      ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -332,7 +309,6 @@ export const {
   // Batch Workflow
   useStartBatchMutation,
   useCompleteBatchMutation,
-  usePostBatchFinishedGoodsMutation,
   useCancelBatchMutation,
   // Batch Items
   useGetBatchItemsQuery,

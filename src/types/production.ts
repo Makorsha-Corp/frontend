@@ -167,13 +167,6 @@ export interface CompleteBatchDTO {
   actual_output_quantity?: number;
   actual_duration_minutes?: number;
   notes?: string;
-  /** Post output/byproduct quantities to factory products (finished goods) when completing. */
-  post_outputs_to_finished_goods?: boolean;
-  post_finished_goods_include_byproducts?: boolean;
-}
-
-export interface PostBatchFinishedGoodsDTO {
-  include_byproducts?: boolean;
 }
 
 export interface CancelBatchDTO {

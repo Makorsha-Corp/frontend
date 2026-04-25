@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -79,6 +79,7 @@ const ProjectsPage: React.FC = () => {
   const [isAddMiscCostOpen, setIsAddMiscCostOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
+  const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
   const navigate = useNavigate();
@@ -246,10 +247,16 @@ const ProjectsPage: React.FC = () => {
           <Button
             size="lg"
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
-            onClick={() => navigate('/factories')}
+            onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
+
+          <AddFactoryDialog
+            open={isAddFactoryOpen}
+            onOpenChange={setIsAddFactoryOpen}
+            factories={factories}
+          />
         </div>
       </div>
     );

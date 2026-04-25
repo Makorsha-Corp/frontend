@@ -30,6 +30,7 @@ import {
   Boxes,
 } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
@@ -60,6 +61,7 @@ const StoragePage: React.FC = () => {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingInventory, setEditingInventory] = useState<Inventory | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
 
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
@@ -179,10 +181,16 @@ const StoragePage: React.FC = () => {
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
-            onClick={() => navigate('/factories')}
+            onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
+
+          <AddFactoryDialog
+            open={isAddFactoryOpen}
+            onOpenChange={setIsAddFactoryOpen}
+            factories={factories}
+          />
         </div>
       </div>
     );

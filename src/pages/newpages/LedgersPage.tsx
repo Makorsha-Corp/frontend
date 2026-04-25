@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,7 @@ const LedgersPage: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [transactionType, setTransactionType] = useState('');
+  const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
 
   const navigate = useNavigate();
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
@@ -218,10 +220,16 @@ const LedgersPage: React.FC = () => {
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
-            onClick={() => navigate('/factories')}
+            onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
+
+          <AddFactoryDialog
+            open={isAddFactoryOpen}
+            onOpenChange={setIsAddFactoryOpen}
+            factories={factories}
+          />
         </div>
       </div>
     );
