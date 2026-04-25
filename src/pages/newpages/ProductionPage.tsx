@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
@@ -175,6 +175,7 @@ const ProductionPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'batches'>(tabFromUrl);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   // Dialog states
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
@@ -200,7 +201,7 @@ const ProductionPage: React.FC = () => {
     window.localStorage.setItem(BATCH_STATUS_FILTER_STORAGE_KEY, JSON.stringify(batchStatusFilter));
   }, [batchStatusFilter]);
 
-  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: false });
 
   const {
@@ -384,6 +385,31 @@ const ProductionPage: React.FC = () => {
 
   const selectedFormula =
     selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) : undefined;
+
+  if (!isLoadingFactories && factories.length === 0) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Toaster position="top-right" />
+        <DashboardNavbar />
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <FlaskConical className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+            You need to create a factory before you can manage production lines, formulas, and batches.
+          </p>
+          <Button 
+            size="lg" 
+            className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
+            onClick={() => navigate('/factories')}
+          >
+            Create Your First Factory
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">

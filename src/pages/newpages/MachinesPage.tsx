@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -100,7 +100,8 @@ const MachinesPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedGlobalFactory = useAppSelector((state) => state.auth.factory);
-  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 200 });
+  const navigate = useNavigate();
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const factoryIdParam = searchParams.get('factoryId');
   const sectionIdParam = searchParams.get('sectionId');
   const machineIdParam = searchParams.get('machineId');
@@ -366,6 +367,31 @@ const MachinesPage: React.FC = () => {
       toast.error(err?.data?.detail || 'Failed to deactivate machine');
     }
   };
+
+  if (!isLoadingFactories && factories.length === 0) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Toaster position="top-right" />
+        <DashboardNavbar />
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <Cog className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+            You need to create a factory before you can use the machines page. Set up a factory to start tracking your machines and their maintenance schedules.
+          </p>
+          <Button 
+            size="lg" 
+            className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
+            onClick={() => navigate('/factories')}
+          >
+            Create Your First Factory
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

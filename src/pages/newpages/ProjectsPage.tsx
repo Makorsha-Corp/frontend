@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,8 +81,9 @@ const ProjectsPage: React.FC = () => {
   const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
+  const navigate = useNavigate();
 
-  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery(
     {
       skip: 0,
@@ -228,6 +230,31 @@ const ProjectsPage: React.FC = () => {
     return map[status] ?? 'bg-muted text-muted-foreground';
   };
 
+  if (!isLoadingFactories && factories.length === 0) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Toaster position="top-right" />
+        <DashboardNavbar />
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <FolderKanban className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+            You need to create a factory before you can maintain projects. Set up a factory to start tracking projects, components, and related costs.
+          </p>
+          <Button
+            size="lg"
+            className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
+            onClick={() => navigate('/factories')}
+          >
+            Create Your First Factory
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       <Toaster position="top-right" />
@@ -293,118 +320,116 @@ const ProjectsPage: React.FC = () => {
           {/* Left panel - Navigator */}
           <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
             <>
-                {/* Projects list */}
+              {/* Projects list */}
+              <Card className="border-border flex-1 min-h-0 flex flex-col">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">Projects</CardTitle>
+                  <span className="text-sm text-muted-foreground">{filteredProjects.length} projects</span>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto p-0">
+                  {loadingProjects ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                    </div>
+                  ) : filteredProjects.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground text-sm">
+                      No projects found
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {filteredProjects.map((project) => (
+                        <div
+                          key={project.id}
+                          className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${selectedProjectId === project.id ? 'bg-brand-primary/10' : ''
+                            }`}
+                          onClick={() => handleProjectSelect(project)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-card-foreground truncate">{project.name ?? 'Unnamed'}</div>
+                            <span className={`text-xs px-2 py-0.5 rounded ${getStatusBadge(project.status ?? 'PLANNING')}`}>
+                              {(project.status ?? 'PLANNING').replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeleteProject(project)}
+                                    disabled={isDeletingProject}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Deactivate project</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Components list - when project selected */}
+              {selectedProjectId && (
                 <Card className="border-border flex-1 min-h-0 flex flex-col">
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                    <CardTitle className="text-base">Projects</CardTitle>
-                    <span className="text-sm text-muted-foreground">{filteredProjects.length} projects</span>
+                    <CardTitle className="text-base">Components</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7"
+                      onClick={() => setIsAddComponentOpen(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add
+                    </Button>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
-                    {loadingProjects ? (
+                    {loadingComponents ? (
                       <div className="flex items-center justify-center py-12">
                         <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                       </div>
-                    ) : filteredProjects.length === 0 ? (
+                    ) : components.length === 0 ? (
                       <div className="py-8 text-center text-muted-foreground text-sm">
-                        No projects found
+                        No components
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
-                        {filteredProjects.map((project) => (
+                        {components.map((component) => (
                           <div
-                            key={project.id}
-                            className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                              selectedProjectId === project.id ? 'bg-brand-primary/10' : ''
-                            }`}
-                            onClick={() => handleProjectSelect(project)}
+                            key={component.id}
+                            className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${selectedComponentId === component.id ? 'bg-brand-primary/10' : ''
+                              }`}
+                            onClick={() => handleComponentSelect(component)}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-card-foreground truncate">{project.name ?? 'Unnamed'}</div>
-                              <span className={`text-xs px-2 py-0.5 rounded ${getStatusBadge(project.status ?? 'PLANNING')}`}>
-                                {(project.status ?? 'PLANNING').replace('_', ' ')}
-                              </span>
+                              <div className="font-medium text-card-foreground truncate">{component.name}</div>
                             </div>
-                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                      onClick={() => handleDeleteProject(project)}
-                                      disabled={isDeletingProject}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Deactivate project</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteComponent(component);
+                              }}
+                              disabled={isDeletingComponent}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         ))}
                       </div>
                     )}
                   </CardContent>
                 </Card>
-
-                {/* Components list - when project selected */}
-                {selectedProjectId && (
-                  <Card className="border-border flex-1 min-h-0 flex flex-col">
-                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">Components</CardTitle>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7"
-                        onClick={() => setIsAddComponentOpen(true)}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add
-                      </Button>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto p-0">
-                      {loadingComponents ? (
-                        <div className="flex items-center justify-center py-12">
-                          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                        </div>
-                      ) : components.length === 0 ? (
-                        <div className="py-8 text-center text-muted-foreground text-sm">
-                          No components
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-border">
-                          {components.map((component) => (
-                            <div
-                              key={component.id}
-                              className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                                selectedComponentId === component.id ? 'bg-brand-primary/10' : ''
-                              }`}
-                              onClick={() => handleComponentSelect(component)}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-card-foreground truncate">{component.name}</div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteComponent(component);
-                                }}
-                                disabled={isDeletingComponent}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
+              )}
             </>
           </div>
 

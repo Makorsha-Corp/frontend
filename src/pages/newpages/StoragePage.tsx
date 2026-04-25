@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,8 @@ const StoragePage: React.FC = () => {
     setFactoryId(globalFactory?.id ?? null);
   }, [globalFactory?.id]);
 
-  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const navigate = useNavigate();
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
 
   const { data: inventoryList = [], isLoading: loadingInventory, error: inventoryError } = useGetInventoryListQuery(
     {
@@ -160,6 +162,31 @@ const StoragePage: React.FC = () => {
       toast.error(e?.data?.detail || 'Failed to deactivate');
     }
   };
+
+  if (!isLoadingFactories && factories.length === 0) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Toaster position="top-right" />
+        <DashboardNavbar />
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <Archive className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+            You need to create a factory before you can access storage. Set up a factory to start tracking your inventory and products.
+          </p>
+          <Button 
+            size="lg" 
+            className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
+            onClick={() => navigate('/factories')}
+          >
+            Create Your First Factory
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
