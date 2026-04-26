@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,7 +51,6 @@ const LedgersPage: React.FC = () => {
   const [transactionType, setTransactionType] = useState('');
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
 
-  const navigate = useNavigate();
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 });
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 500 });
@@ -240,7 +239,7 @@ const LedgersPage: React.FC = () => {
       <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -253,7 +252,7 @@ const LedgersPage: React.FC = () => {
               Reconcile
             </Button>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 space-y-6">
           <Card>

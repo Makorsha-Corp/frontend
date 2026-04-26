@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -134,7 +135,7 @@ const ItemsPage: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -146,20 +147,21 @@ const ItemsPage: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => setIsTagsDialogOpen(true)}
+                className={appShellHeaderControlClass}
               >
                 <Tags className="mr-2 h-4 w-4" />
                 Manage Tags
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add New Item
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         <div className="p-8 bg-background">

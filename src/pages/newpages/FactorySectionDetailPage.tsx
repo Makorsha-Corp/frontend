@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,7 +118,7 @@ const FactorySectionDetailPage: React.FC = () => {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               <Breadcrumb>
@@ -157,7 +158,7 @@ const FactorySectionDetailPage: React.FC = () => {
                   placeholder="Search machines..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 bg-background pl-9"
+                  className={`${appShellHeaderControlClass} bg-background pl-9`}
                 />
               </div>
               {section && (
@@ -165,7 +166,7 @@ const FactorySectionDetailPage: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditDialogOpen(true)}
-                  className="h-9 shrink-0 border-border"
+                  className={`${appShellHeaderControlClass} shrink-0 border-border`}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit Section
@@ -173,14 +174,14 @@ const FactorySectionDetailPage: React.FC = () => {
               )}
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
-                className="h-9 shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
+                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         {isLoadingFactory || isLoadingSection ? (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -287,7 +288,7 @@ const FactoriesPage: React.FC = () => {
 
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -301,7 +302,7 @@ const FactoriesPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsDeptsDialogOpen(true)}
-                className="flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-muted/20 px-2.5 py-1.5 text-left shadow-sm transition-colors hover:border-brand-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:focus-visible:ring-offset-[hsl(var(--nav-background))]"
+                className={`flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-muted/20 px-2.5 text-left shadow-sm transition-colors hover:border-brand-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:focus-visible:ring-offset-[hsl(var(--nav-background))] ${appShellHeaderControlClass}`}
                 aria-label={`Manage departments, ${departments.length} total`}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-primary/10">
@@ -324,19 +325,19 @@ const FactoriesPage: React.FC = () => {
                   placeholder="Search factories..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-10"
+                  className={`${appShellHeaderControlClass} pl-10`}
                 />
               </div>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
+                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Factory
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         <div className="p-8 bg-background">

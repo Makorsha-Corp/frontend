@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
@@ -29,6 +28,7 @@ import MachineDetailCard, {
 import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import {
   brandIconGlyphClass,
   brandIconTileClass,
@@ -408,39 +408,42 @@ const MachinesPage: React.FC = () => {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/machines">Machines</Link>
-                    </BreadcrumbLink>
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
+                  <Cog className={brandIconGlyphClass} strokeWidth={2} />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Machines
+                </h1>
+              </div>
+              <div className="hidden h-6 w-px bg-border sm:block" />
+              <Breadcrumb className="min-w-0 self-end">
+                <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                  <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
+                    <MachinesInlineLocationFilters
+                      which="factories"
+                      variant="breadcrumb"
+                      baseline="lowered"
+                      value={{
+                        factory_ids: activeFilters.factory_ids,
+                        section_ids: activeFilters.section_ids,
+                      }}
+                      onChange={(slice) =>
+                        commitMachineFilters({ ...activeFilters, ...slice })
+                      }
+                      factories={factories}
+                      sections={allSections}
+                    />
                   </BreadcrumbItem>
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
-                      <MachinesInlineLocationFilters
-                        which="factories"
-                        variant="breadcrumb"
-                        value={{
-                          factory_ids: activeFilters.factory_ids,
-                          section_ids: activeFilters.section_ids,
-                        }}
-                        onChange={(slice) =>
-                          commitMachineFilters({ ...activeFilters, ...slice })
-                        }
-                        factories={factories}
-                        sections={allSections}
-                      />
-                    </BreadcrumbItem>
-                  </>
-                  <BreadcrumbSeparator />
+                  <BreadcrumbSeparator className="-translate-y-[3px]" />
                   <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
                     <MachinesInlineLocationFilters
                       which="sections"
                       variant="breadcrumb"
+                      baseline="lowered"
                       value={{
                         factory_ids: activeFilters.factory_ids,
                         section_ids: activeFilters.section_ids,
@@ -454,15 +457,6 @@ const MachinesPage: React.FC = () => {
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-              <div className="hidden h-6 w-px bg-border sm:block" />
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
-                  <Cog className={brandIconGlyphClass} strokeWidth={2} />
-                </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                  {section ? `Machines in ${section.name}` : factory ? `Machines in ${factory.name}` : 'All Machines'}
-                </h1>
-              </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
               <div className="relative w-[min(200px,36vw)] min-w-[140px] shrink-0">
@@ -477,12 +471,12 @@ const MachinesPage: React.FC = () => {
                       search: e.target.value,
                     })
                   }
-                  className="h-9 bg-background pl-9 focus-visible:ring-inset"
+                  className={`${appShellHeaderControlClass} bg-background pl-9 focus-visible:ring-inset`}
                 />
               </div>
               <Button
                 variant="outline"
-                className="h-9 shrink-0 focus-visible:ring-offset-0"
+                className={`${appShellHeaderControlClass} shrink-0 focus-visible:ring-offset-0`}
                 onClick={() => setIsFiltersOpen(true)}
               >
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -490,14 +484,14 @@ const MachinesPage: React.FC = () => {
               </Button>
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
-                className="h-9 shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
+                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         {isLoadingSection ? (

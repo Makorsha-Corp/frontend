@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -110,7 +111,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
       <DashboardNavbar />
 
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Breadcrumb>
@@ -135,19 +136,23 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                className={appShellHeaderControlClass}
+              >
                 Manage Accounts
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add {singularLabel}
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 bg-background">
           <Card className="shadow-sm bg-card border-border">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -239,7 +240,7 @@ const FactoryDetailPage: React.FC = () => {
 
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="sticky top-0 z-10 border-b border-border bg-card px-8 py-5 shadow-sm dark:bg-[hsl(var(--nav-background))]">
+        <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               <Breadcrumb>
@@ -279,13 +280,13 @@ const FactoryDetailPage: React.FC = () => {
                     placeholder="Search sections..."
                     value={sectionSearchQuery}
                     onChange={(e) => setSectionSearchQuery(e.target.value)}
-                    className="h-9 bg-background pl-10"
+                    className={`${appShellHeaderControlClass} bg-background pl-10`}
                   />
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 shrink-0 border-border"
+                  className={`${appShellHeaderControlClass} shrink-0 border-border`}
                   onClick={() => setIsEditDialogOpen(true)}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
@@ -293,7 +294,7 @@ const FactoryDetailPage: React.FC = () => {
                 </Button>
                 <Button
                   size="sm"
-                  className="h-9 shrink-0 bg-brand-primary hover:bg-brand-primary-hover"
+                  className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary hover:bg-brand-primary-hover`}
                   onClick={() => setIsAddSectionDialogOpen(true)}
                 >
                   <Plus className="mr-1 h-4 w-4" />
@@ -302,7 +303,7 @@ const FactoryDetailPage: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         <div className="p-8 bg-background">

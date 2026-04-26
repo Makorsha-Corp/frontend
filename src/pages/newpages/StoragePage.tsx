@@ -1,9 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+} from '@/components/ui/breadcrumb';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Select,
@@ -12,6 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useGetInventoryListQuery, useDeleteInventoryMutation } from '@/features/inventory/inventoryApi';
 import { useGetProductsQuery, useDeleteProductMutation } from '@/features/products/productsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -35,6 +47,7 @@ import EditInventoryDialog from '@/components/newcomponents/customui/EditInvento
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
 import ActiveOrdersPanel from '@/components/newcomponents/customui/RunningOrdersPlaceholder';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import toast, { Toaster } from 'react-hot-toast';
 
 const INVENTORY_TYPES: { value: InventoryType; label: string }[] = [
@@ -67,7 +80,6 @@ const StoragePage: React.FC = () => {
     setFactoryId(globalFactory?.id ?? null);
   }, [globalFactory?.id]);
 
-  const navigate = useNavigate();
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
 
   const { data: inventoryList = [], isLoading: loadingInventory, error: inventoryError } = useGetInventoryListQuery(
@@ -143,6 +155,19 @@ const StoragePage: React.FC = () => {
     return { records, totalQty, totalCostValue, totalSalesValue, availableForSale };
   }, [filteredProducts]);
 
+  const selectedFactory = useMemo(
+    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
+    [factoryId, factories]
+  );
+  const factorySelectorLabel = useMemo(() => {
+    if (selectedFactory) return `${selectedFactory.name} (${selectedFactory.abbreviation})`;
+    if (factories.length === 1) {
+      const only = factories[0];
+      return `${only.name} (${only.abbreviation})`;
+    }
+    return `All factories (${factories.length})`;
+  }, [selectedFactory, factories]);
+
   const handleDeleteInventory = async (inv: Inventory) => {
     if (!window.confirm(`Deactivate "${inv.item_name ?? `Item #${inv.item_id}`}" from inventory?`)) return;
     try {
@@ -203,31 +228,63 @@ const StoragePage: React.FC = () => {
 
       <div className="flex-1 min-w-0">
         {/* Header */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                <Archive className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
+                  <Archive className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Storage</h1>
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Storage</h1>
+              <div className="hidden h-6 w-px bg-border sm:block" />
+              <Breadcrumb className="min-w-0 self-end">
+                <BreadcrumbList className="text-card-foreground dark:text-foreground">
+                  <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-7 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+                        align="start"
+                      >
+                        <DropdownMenuLabel>Factories</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          className={factoryId == null ? 'bg-accent/70' : ''}
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setFactoryId(null);
+                          }}
+                        >
+                          All factories
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {factories.map((f) => (
+                          <DropdownMenuItem
+                            key={f.id}
+                            className={factoryId === f.id ? 'bg-accent/70' : ''}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setFactoryId(f.id);
+                            }}
+                          >
+                            {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <Select
-                value={factoryId?.toString() ?? '__none__'}
-                onValueChange={(v) => setFactoryId(v === '__none__' ? null : parseInt(v))}
-              >
-                <SelectTrigger className="w-[200px] bg-background border-border">
-                  <SelectValue placeholder="Select factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">All factories</SelectItem>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.name} ({f.abbreviation})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <div className="relative w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -235,7 +292,7 @@ const StoragePage: React.FC = () => {
                   placeholder={selectedSection === 'storage' ? 'Search inventory...' : 'Search products...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background"
+                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
               {selectedSection === 'storage' && (
@@ -244,7 +301,7 @@ const StoragePage: React.FC = () => {
                     value={inventoryTypeFilter}
                     onValueChange={(v) => setInventoryTypeFilter(v as InventoryType | 'all')}
                   >
-                    <SelectTrigger className="w-[140px] bg-background border-border">
+                    <SelectTrigger className={`w-[140px] ${appShellHeaderControlClass} bg-background border-border`}>
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -258,7 +315,7 @@ const StoragePage: React.FC = () => {
                   </Select>
                   <Button
                     onClick={() => setIsAddInventoryOpen(true)}
-                    className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm h-9"
+                    className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
                     disabled={!factoryId}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -269,7 +326,7 @@ const StoragePage: React.FC = () => {
               {selectedSection === 'products' && (
                 <Button
                   onClick={() => setIsAddProductOpen(true)}
-                  className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm h-9"
+                  className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
                   disabled={!factoryId}
                 >
                   <Plus className="mr-2 h-4 w-4" />
@@ -278,7 +335,7 @@ const StoragePage: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 bg-background space-y-6">
           {/* Section pills */}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,7 +75,6 @@ import {
 import type {
   ProductionLine,
   ProductionFormula,
-  ProductionFormulaItem,
   ProductionBatch,
   ProductionBatchItem,
   ItemRole,
@@ -89,8 +89,6 @@ import {
   Play,
   Check,
   X,
-  Layers,
-  FileText,
   Package,
   LayoutDashboard,
   Maximize2,
@@ -156,7 +154,6 @@ const ProductionPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'batches'>(tabFromUrl);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
-  const navigate = useNavigate();
 
   // Dialog states
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
@@ -403,7 +400,7 @@ const ProductionPage: React.FC = () => {
       <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -494,7 +491,7 @@ const ProductionPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-6">
           <Tabs value={activeTab} onValueChange={handleTabChange}>

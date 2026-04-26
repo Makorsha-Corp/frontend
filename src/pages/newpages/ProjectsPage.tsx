@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
@@ -268,7 +269,7 @@ const ProjectsPage: React.FC = () => {
       <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -322,7 +323,7 @@ const ProjectsPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-6 flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-120px)]">
           {/* Left panel - Navigator */}

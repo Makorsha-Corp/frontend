@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,7 +140,7 @@ const BusinessLensPage: React.FC = () => {
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
               <BarChart3 className="h-5 w-5 text-brand-primary" />
@@ -153,7 +154,7 @@ const BusinessLensPage: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Template tiles */}
         <div className="p-8">

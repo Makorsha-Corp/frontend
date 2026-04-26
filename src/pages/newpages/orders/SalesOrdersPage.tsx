@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -48,13 +49,13 @@ const SalesOrdersPage: React.FC = () => {
       <DashboardNavbar />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
                 <ShoppingBag className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Sales Orders</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Sales Orders</h1>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative w-[220px]">
@@ -64,11 +65,11 @@ const SalesOrdersPage: React.FC = () => {
                   placeholder="Search by SO# or customer..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background"
+                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'list')}>
-                <TabsList className="h-9">
+                <TabsList className={appShellHeaderControlClass}>
                   <TabsTrigger value="kanban" className="gap-1.5 px-3">
                     <LayoutGrid className="h-4 w-4" />
                     Kanban
@@ -80,7 +81,7 @@ const SalesOrdersPage: React.FC = () => {
                 </TabsList>
               </Tabs>
               <Button
-                className="bg-brand-primary hover:bg-brand-primary-hover h-9"
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
                 onClick={() => setAddDialogOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -88,7 +89,7 @@ const SalesOrdersPage: React.FC = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-6 py-4">
           {isLoading ? (

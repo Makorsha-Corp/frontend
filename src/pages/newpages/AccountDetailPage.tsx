@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -227,7 +228,7 @@ const AccountDetailPage: React.FC = () => {
       <DashboardNavbar />
 
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Breadcrumb>
@@ -248,20 +249,25 @@ const AccountDetailPage: React.FC = () => {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                className={appShellHeaderControlClass}
+              >
                 Manage Accounts
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setIsEditDialogOpen(true)}
                 disabled={!account}
+                className={appShellHeaderControlClass}
               >
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 bg-background space-y-6">
           {isLoading ? (

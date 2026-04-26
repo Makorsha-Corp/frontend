@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -261,7 +262,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
       <DashboardNavbar />
 
       <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
-        <div className="shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -269,11 +270,15 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
               </div>
               <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Accounts</h1>
             </div>
-            <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsManageAccountsOpen(true)}
+              className={appShellHeaderControlClass}
+            >
               Manage Accounts
             </Button>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-8 gap-6 bg-background">
           <div className="flex flex-nowrap gap-2 overflow-x-auto shrink-0">

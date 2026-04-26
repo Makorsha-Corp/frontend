@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -69,13 +70,13 @@ const WorkOrdersPage: React.FC = () => {
       <DashboardNavbar />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
                 <Wrench className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Work Orders</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Work Orders</h1>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative w-[220px]">
@@ -85,13 +86,13 @@ const WorkOrdersPage: React.FC = () => {
                   placeholder="Search by WO# or title..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background"
+                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as WorkOrderStatus | '')}
-                className="h-9 px-3 rounded-md border border-border bg-background text-sm"
+                className={`${appShellHeaderControlClass} px-3 rounded-md border border-border bg-background text-sm`}
               >
                 <option value="">All statuses</option>
                 {STATUS_OPTIONS.map((s) => (
@@ -100,13 +101,17 @@ const WorkOrdersPage: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Button type="button" onClick={() => setIsAddOpen(true)} className="bg-brand-primary hover:bg-brand-primary-hover h-9">
+              <Button
+                type="button"
+                onClick={() => setIsAddOpen(true)}
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Work Order
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="flex-1 min-h-0 flex overflow-hidden">
           <div className="flex-shrink-0 border-r border-border flex flex-col min-h-0 bg-card" style={{ width: ORDER_LIST_WIDTH }}>
