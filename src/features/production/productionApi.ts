@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
 import { productsApi } from '@/features/products/productsApi';
+import { inventoryApi } from '@/features/inventory/inventoryApi';
 import type {
   ProductionLine, CreateProductionLineDTO, UpdateProductionLineDTO,
   ProductionFormula, CreateProductionFormulaDTO, UpdateProductionFormulaDTO,
@@ -217,6 +218,14 @@ export const productionApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(inventoryApi.util.invalidateTags(['Inventory', 'InventoryLedger']));
+        } catch {
+          /* noop */
+        }
+      },
     }),
     completeBatch: builder.mutation<ProductionBatch, { id: number; data: CompleteBatchDTO }>({
       query: ({ id, data }) => ({
@@ -229,6 +238,7 @@ export const productionApi = createApi({
         try {
           await queryFulfilled;
           dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
+          dispatch(inventoryApi.util.invalidateTags(['Inventory', 'InventoryLedger']));
         } catch {
           /* noop */
         }
