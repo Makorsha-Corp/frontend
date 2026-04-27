@@ -192,6 +192,24 @@ const FactoriesPage: React.FC = () => {
     if (!factories || factories.length === 0) return 0;
     return totalSectionsCount / factories.length;
   }, [factories, totalSectionsCount]);
+  const visibleRatio = React.useMemo(() => {
+    if (!factories || factories.length === 0) return 0;
+    return (filteredFactories.length / factories.length) * 100;
+  }, [factories, filteredFactories.length]);
+  const sectionsForVisible = React.useMemo(
+    () =>
+      filteredFactories.reduce((sum, f) => {
+        return sum + (sectionsByFactory[f.id] ?? 0);
+      }, 0),
+    [filteredFactories, sectionsByFactory]
+  );
+  const visibleFactoryCount = filteredFactories.length;
+  const avgSectionsVisible = visibleFactoryCount > 0 ? sectionsForVisible / visibleFactoryCount : 0;
+  const deptsPerFactory = React.useMemo(() => {
+    if (!factories || factories.length === 0) return 0;
+    return departments.length / factories.length;
+  }, [departments.length, factories]);
+  const avgSectionsVsBaseline = avgSectionsPerFactory - 2;
 
   const activitySummary = React.useMemo(() => {
     if (!factories || factories.length === 0) {
@@ -303,23 +321,6 @@ const FactoriesPage: React.FC = () => {
                   Factories
                 </h1>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsDeptsDialogOpen(true)}
-                className={`flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-muted/20 px-2.5 text-left shadow-sm transition-colors hover:border-brand-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:focus-visible:ring-offset-[hsl(var(--nav-background))] ${appShellHeaderControlClass}`}
-                aria-label={`Manage departments, ${departments.length} total`}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-primary/10">
-                  <Users className="h-4 w-4 text-brand-primary" />
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <span className="block text-xs font-semibold text-foreground">Departments</span>
-                  <span className="block text-[11px] text-muted-foreground tabular-nums">
-                    {departments.length} {departments.length === 1 ? 'dept' : 'depts'}
-                  </span>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              </button>
             </div>
             <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
               <div className="relative w-[min(200px,40vw)] min-w-[140px] shrink-0">
@@ -332,13 +333,6 @@ const FactoriesPage: React.FC = () => {
                   className={`${appShellHeaderControlClass} pl-10`}
                 />
               </div>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Factory
-              </Button>
             </div>
           </div>
         </AppShellHeader>
@@ -348,45 +342,143 @@ const FactoriesPage: React.FC = () => {
           <Card className="mb-5 border-border bg-card shadow-sm">
             <CardContent className="px-6 py-6">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/[0.06] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">Workspace factories</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{factories?.length ?? 0}</p>
+                <div
+                  className="rounded-lg border border-border px-4 py-4"
+                  style={{ backgroundColor: 'var(--pastel-1)' }}
+                >
+                  <div className="flex min-h-5 items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">
+                      Workspace factories
+                    </p>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-1)' }}>
+                      <FactoryIcon className="h-3.5 w-3.5 text-foreground/80" />
+                    </span>
+                  </div>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
+                    {factories?.length ?? 0}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
+                      {filteredFactories.length} visible
+                    </Badge>
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
+                      {visibleRatio.toFixed(0)}% in view
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
+                    {selectedFactory ? `Current navbar scope: ${selectedFactory.name}` : 'Global scope (all factories)'}
+                  </p>
                 </div>
-                <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total sections</p>
+
+                <div
+                  className="rounded-lg border border-border px-4 py-4"
+                  style={{ backgroundColor: 'var(--pastel-3)' }}
+                >
+                  <div className="flex min-h-5 items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Total sections</p>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-3)' }}>
+                      <Layers className="h-3.5 w-3.5 text-foreground/80" />
+                    </span>
+                  </div>
                   <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{totalSectionsCount}</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
+                      {sectionsForVisible} in filtered view
+                    </Badge>
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
+                      {avgSectionsVisible.toFixed(1)} avg visible
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
+                    Across {visibleFactoryCount} visible {visibleFactoryCount === 1 ? 'factory' : 'factories'}
+                  </p>
                 </div>
-                <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-400">Visible now</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{filteredFactories.length}</p>
-                </div>
-                <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Avg sections / factory</p>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDeptsDialogOpen(true)}
+                  className="m-0 flex h-full w-full appearance-none flex-col rounded-lg border border-border px-4 py-4 text-left align-top leading-normal transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  style={{ backgroundColor: 'var(--pastel-2)' }}
+                  aria-label={`Manage departments, ${departments.length} total`}
+                >
+                  <div className="flex min-h-5 items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Departments</p>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-2)' }}>
+                      <Users className="h-3.5 w-3.5 text-foreground/80" />
+                    </span>
+                  </div>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
+                    {departments.length}
+                  </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
+                      {deptsPerFactory.toFixed(1)} per factory
+                    </Badge>
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
+                      Manage
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
+                    {departments.length === 1 ? 'dept configured' : 'depts configured'}
+                  </p>
+                </button>
+
+                <div
+                  className="rounded-lg border border-border px-4 py-4"
+                  style={{ backgroundColor: 'var(--pastel-4)' }}
+                >
+                  <div className="flex min-h-5 items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Avg sections / factory</p>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-4)' }}>
+                      <ChevronRight className="h-3.5 w-3.5 text-foreground/80" />
+                    </span>
+                  </div>
                   <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
                     {avgSectionsPerFactory.toFixed(1)}
                   </p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
+                      {totalSectionsCount} / {factories?.length ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
+                      {avgSectionsVsBaseline >= 0 ? '+' : ''}
+                      {avgSectionsVsBaseline.toFixed(1)} vs baseline
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
+                    Baseline target is 2.0 sections per factory
+                  </p>
                 </div>
-                <div className="rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-400">High activity</p>
+
+                <div
+                  className="rounded-lg border border-border px-4 py-4"
+                  style={{ backgroundColor: 'var(--pastel-5)' }}
+                >
+                  <div className="flex min-h-5 items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">High activity</p>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-5)' }}>
+                      <Layers className="h-3.5 w-3.5 text-foreground/80" />
+                    </span>
+                  </div>
                   <div className="mt-2 flex items-center gap-2">
                     <p className="text-3xl font-semibold tabular-nums text-card-foreground">{activitySummary.high}</p>
-                    <Badge className="bg-violet-500/15 text-violet-700 hover:bg-violet-500/20 dark:text-violet-300">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
                       {activitySummary.medium} medium
                     </Badge>
-                    <Badge variant="outline" className="border-violet-400/35 text-violet-700 dark:text-violet-300">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
                       {activitySummary.low} low
                     </Badge>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
                       {trendSeries.active} active
                     </Badge>
-                    <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
+                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
                       {trendSeries.dormant} dormant
                     </Badge>
                   </div>
                   <div className="mt-4">
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-700/80 dark:text-violet-300/80">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/75 dark:text-white/85">
                       Activity mix
                     </p>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
@@ -425,13 +517,22 @@ const FactoriesPage: React.FC = () => {
             <CardContent className="p-0">
               {/* Table/data header bar: count only (search lives in page header) */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="shrink-0 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {!isLoading && (
                     <span className="font-medium">
                       {filteredFactories.length}{' '}
                       {filteredFactories.length === 1 ? 'factory' : 'factories'}
                     </span>
                   )}
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setIsAddDialogOpen(true)}
+                    title="Add factory"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 

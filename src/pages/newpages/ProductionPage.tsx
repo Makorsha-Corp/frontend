@@ -133,11 +133,7 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
 
 
 const ProductionPage: React.FC = () => {
-  const handleHorizontalWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    container.scrollLeft += e.deltaY;
-  };
+  const CARDS_PER_PAGE = 3;
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [lineId, setLineId] = useState<number | null>(null);
@@ -157,6 +153,8 @@ const ProductionPage: React.FC = () => {
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [linePage, setLinePage] = useState(1);
+  const [formulaPage, setFormulaPage] = useState(1);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Dialog states
@@ -273,10 +271,38 @@ const ProductionPage: React.FC = () => {
         (f.description && f.description.toLowerCase().includes(q))
     );
   }, [formulas, searchQuery]);
+  const lineTotalPages = Math.max(1, Math.ceil(filteredLines.length / CARDS_PER_PAGE));
+  const formulaTotalPages = Math.max(1, Math.ceil(filteredFormulas.length / CARDS_PER_PAGE));
+  const linePageOptions = useMemo(
+    () => Array.from({ length: lineTotalPages }, (_, idx) => (idx + 1).toString()),
+    [lineTotalPages]
+  );
+  const formulaPageOptions = useMemo(
+    () => Array.from({ length: formulaTotalPages }, (_, idx) => (idx + 1).toString()),
+    [formulaTotalPages]
+  );
+  const pagedLines = useMemo(() => {
+    const start = (linePage - 1) * CARDS_PER_PAGE;
+    return filteredLines.slice(start, start + CARDS_PER_PAGE);
+  }, [filteredLines, linePage, CARDS_PER_PAGE]);
+  const pagedFormulas = useMemo(() => {
+    const start = (formulaPage - 1) * CARDS_PER_PAGE;
+    return filteredFormulas.slice(start, start + CARDS_PER_PAGE);
+  }, [filteredFormulas, formulaPage, CARDS_PER_PAGE]);
   const selectedFormula = useMemo(
     () => (selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) ?? null : null),
     [selectedFormulaId, formulas]
   );
+  useEffect(() => {
+    setLinePage(1);
+    setFormulaPage(1);
+  }, [factoryId, searchQuery]);
+  useEffect(() => {
+    setLinePage((prev) => Math.min(prev, lineTotalPages));
+  }, [lineTotalPages]);
+  useEffect(() => {
+    setFormulaPage((prev) => Math.min(prev, formulaTotalPages));
+  }, [formulaTotalPages]);
 
   const filteredBatches = useMemo(() => {
     const statusFiltered = batches.filter((b) =>
@@ -639,18 +665,56 @@ const ProductionPage: React.FC = () => {
             {/* Production Lines */}
               <Card className="border-border h-full">
                 <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
-                  </span>
-                  <Button
-                    size="sm"
-                    className="bg-brand-primary hover:bg-brand-primary-hover"
-                    onClick={() => setIsAddLineOpen(true)}
-                    disabled={!factoryId}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Line
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
+                    </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() => setIsAddLineOpen(true)}
+                      disabled={!factoryId}
+                      title="Add line"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setLinePage((p) => Math.max(1, p - 1))}
+                      disabled={linePage <= 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setLinePage((p) => Math.min(lineTotalPages, p + 1))}
+                      disabled={linePage >= lineTotalPages}
+                    >
+                      Next
+                    </Button>
+                    <Select value={linePage.toString()} onValueChange={(value) => setLinePage(parseInt(value, 10))}>
+                      <SelectTrigger className="h-8 w-[92px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {linePageOptions.map((page) => (
+                          <SelectItem key={page} value={page}>
+                            {page} / {lineTotalPages}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <CardContent className="p-0">
                   {linesError ? (
@@ -671,16 +735,13 @@ const ProductionPage: React.FC = () => {
                         : 'No production lines. Add one to get started.'}
                     </div>
                   ) : (
-                    <div
-                      className="flex gap-3 overflow-x-auto p-4"
-                      onWheel={handleHorizontalWheelScroll}
-                    >
-                      {filteredLines.map((line) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                      {pagedLines.map((line) => (
                         <button
                           key={line.id}
                           type="button"
                           onClick={() => setLineActionTarget(line)}
-                          className="flex min-h-[118px] w-[260px] shrink-0 flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
                         >
                           <div>
                             <div className="font-medium text-card-foreground">{line.name}</div>
@@ -706,17 +767,58 @@ const ProductionPage: React.FC = () => {
                 <div className="h-full">
               <Card className="border-border h-full">
                 <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {filteredFormulas.length} formulas
-                  </span>
-                  <Button
-                    size="sm"
-                    className="bg-brand-primary hover:bg-brand-primary-hover"
-                    onClick={() => setIsAddFormulaOpen(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Formula
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {filteredFormulas.length} formulas
+                    </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() => setIsAddFormulaOpen(true)}
+                      title="Add formula"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setFormulaPage((p) => Math.max(1, p - 1))}
+                      disabled={formulaPage <= 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setFormulaPage((p) => Math.min(formulaTotalPages, p + 1))}
+                      disabled={formulaPage >= formulaTotalPages}
+                    >
+                      Next
+                    </Button>
+                    <Select
+                      value={formulaPage.toString()}
+                      onValueChange={(value) => setFormulaPage(parseInt(value, 10))}
+                    >
+                      <SelectTrigger className="h-8 w-[92px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formulaPageOptions.map((page) => (
+                          <SelectItem key={page} value={page}>
+                            {page} / {formulaTotalPages}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <CardContent className="p-0">
                   {formulasError ? (
@@ -735,15 +837,12 @@ const ProductionPage: React.FC = () => {
                       No formulas. Add one to define production recipes.
                     </div>
                   ) : (
-                    <div
-                      className="flex gap-3 overflow-x-auto p-4"
-                      onWheel={handleHorizontalWheelScroll}
-                    >
-                      {filteredFormulas.map((formula) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                      {pagedFormulas.map((formula) => (
                         <button
                           key={formula.id}
                           type="button"
-                          className="flex min-h-[118px] w-[260px] shrink-0 flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
                           onClick={() => setSelectedFormulaId(formula.id)}
                         >
                           <div>
