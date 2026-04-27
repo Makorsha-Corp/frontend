@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import FormulaDetailsDialog from '@/components/newcomponents/customui/FormulaDetailsDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
@@ -105,9 +106,16 @@ const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
 
 const BATCH_ROLE_SECTION_TITLE: Record<ItemRole, string> = {
   input: 'Inputs',
-  output: 'Outputs',
+  output: 'Products',
   waste: 'Waste',
   byproduct: 'Byproducts',
+};
+
+const BATCH_ROLE_BADGE_LABEL: Record<ItemRole, string> = {
+  input: 'input',
+  output: 'products',
+  waste: 'waste',
+  byproduct: 'byproduct',
 };
 
 /** Backend Numeric/Decimal fields often arrive as strings in JSON */
@@ -125,6 +133,11 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
 
 
 const ProductionPage: React.FC = () => {
+  const handleHorizontalWheelScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    container.scrollLeft += e.deltaY;
+  };
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [lineId, setLineId] = useState<number | null>(null);
@@ -148,9 +161,11 @@ const ProductionPage: React.FC = () => {
 
   // Dialog states
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
+  const [editingFormula, setEditingFormula] = useState<ProductionFormula | null>(null);
   const [isAddFormulaOpen, setIsAddFormulaOpen] = useState(false);
   const [lineActionTarget, setLineActionTarget] = useState<ProductionLine | null>(null);
   const [formulaActionTarget, setFormulaActionTarget] = useState<ProductionFormula | null>(null);
+  const [selectedFormulaId, setSelectedFormulaId] = useState<number | null>(null);
   const [isLineEditMode, setIsLineEditMode] = useState(false);
   const [isFormulaEditMode, setIsFormulaEditMode] = useState(false);
   const [lineDraftName, setLineDraftName] = useState('');
@@ -258,6 +273,10 @@ const ProductionPage: React.FC = () => {
         (f.description && f.description.toLowerCase().includes(q))
     );
   }, [formulas, searchQuery]);
+  const selectedFormula = useMemo(
+    () => (selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) ?? null : null),
+    [selectedFormulaId, formulas]
+  );
 
   const filteredBatches = useMemo(() => {
     const statusFiltered = batches.filter((b) =>
@@ -652,13 +671,16 @@ const ProductionPage: React.FC = () => {
                         : 'No production lines. Add one to get started.'}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3 p-4">
+                    <div
+                      className="flex gap-3 overflow-x-auto p-4"
+                      onWheel={handleHorizontalWheelScroll}
+                    >
                       {filteredLines.map((line) => (
                         <button
                           key={line.id}
                           type="button"
                           onClick={() => setLineActionTarget(line)}
-                          className="flex min-h-[118px] w-full flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          className="flex min-h-[118px] w-[260px] shrink-0 flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
                         >
                           <div>
                             <div className="font-medium text-card-foreground">{line.name}</div>
@@ -713,13 +735,16 @@ const ProductionPage: React.FC = () => {
                       No formulas. Add one to define production recipes.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3 p-4">
+                    <div
+                      className="flex gap-3 overflow-x-auto p-4"
+                      onWheel={handleHorizontalWheelScroll}
+                    >
                       {filteredFormulas.map((formula) => (
                         <button
                           key={formula.id}
                           type="button"
-                          className="flex min-h-[118px] w-full flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
-                          onClick={() => setFormulaActionTarget(formula)}
+                          className="flex min-h-[118px] w-[260px] shrink-0 flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          onClick={() => setSelectedFormulaId(formula.id)}
                         >
                           <div>
                             <div className="font-medium text-card-foreground">
@@ -788,10 +813,10 @@ const ProductionPage: React.FC = () => {
                             batch={batch}
                             lines={linesForFactory}
                             formulas={formulas}
+                            getItemName={getItemName}
                             getStatusBadge={getStatusBadge}
                             isSelected={selectedBatchId === batch.id}
                             onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
-                            onStart={() => setStartBatchId(batch.id)}
                             onComplete={() => setCompletingBatch(batch)}
                             onCancel={() => setCancellingBatch(batch)}
                           />
@@ -1029,13 +1054,14 @@ const ProductionPage: React.FC = () => {
 
       {/* Add/Edit Formula Dialog */}
       <AddEditFormulaDialog
-        open={isAddFormulaOpen}
+        open={isAddFormulaOpen || !!editingFormula}
         onOpenChange={(open) => {
           if (!open) {
             setIsAddFormulaOpen(false);
+            setEditingFormula(null);
           }
         }}
-        formula={null}
+        formula={editingFormula}
         formulas={formulas}
         createFormula={createFormula}
         updateFormula={updateFormula}
@@ -1043,8 +1069,26 @@ const ProductionPage: React.FC = () => {
         isUpdating={isUpdatingFormula}
         onSuccess={() => {
           setIsAddFormulaOpen(false);
+          setEditingFormula(null);
         }}
       />
+
+      {selectedFormula && (
+        <FormulaDetailsDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelectedFormulaId(null);
+          }}
+          formula={selectedFormula}
+          items={items}
+          getItemName={getItemName}
+          onEditRequest={() => {
+            setEditingFormula(selectedFormula);
+            setIsAddFormulaOpen(false);
+            setSelectedFormulaId(null);
+          }}
+        />
+      )}
 
       {/* Add Batch Dialog */}
       <AddBatchDialog
@@ -1708,13 +1752,6 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
   const linesBlock = (
     <div className="flex min-h-0 flex-col">
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch lines</p>
-        {!loadingItems && (
-          <span className="text-xs tabular-nums text-muted-foreground">{batchItems.length} lines</span>
-        )}
-      </div>
-      <Separator className="mb-3 shrink-0" />
       {loadingItems ? (
         <div className="flex items-center justify-center py-10">
           <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
@@ -1758,7 +1795,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
                         BATCH_ROLE_BADGE[role]
                       )}
                     >
-                      {role}
+                      {BATCH_ROLE_BADGE_LABEL[role]}
                     </Badge>
                     <span className="truncate text-sm font-medium text-foreground">
                       {BATCH_ROLE_SECTION_TITLE[role]}
@@ -1860,7 +1897,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           <SelectContent>
             {ITEM_ROLES.map((r) => (
               <SelectItem key={r} value={r}>
-                {r}
+                {r === 'output' ? 'products' : r}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1925,7 +1962,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           {batch.status === 'draft' && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-out">Expected output qty</Label>
+                <Label htmlFor="batch-edit-exp-out">Expected product qty</Label>
                 <Input id="batch-edit-exp-out" type="number" min={0} value={editExpectedOutput} onChange={(e) => setEditExpectedOutput(e.target.value)} placeholder="Optional" />
               </div>
               <div className="grid gap-1.5">
@@ -1937,7 +1974,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           {batch.status === 'in_progress' && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-out">Actual output qty</Label>
+                <Label htmlFor="batch-edit-act-out">Actual product qty</Label>
                 <Input id="batch-edit-act-out" type="number" min={0} value={editActualOutput} onChange={(e) => setEditActualOutput(e.target.value)} placeholder="Optional" />
               </div>
               <div className="grid gap-1.5">
@@ -1979,13 +2016,13 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </div>
             {batch.expected_output_quantity != null && (
               <div>
-                <dt className="text-xs text-muted-foreground">Expected output</dt>
+                <dt className="text-xs text-muted-foreground">Expected products</dt>
                 <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
               </div>
             )}
             {batch.actual_output_quantity != null && (
               <div>
-                <dt className="text-xs text-muted-foreground">Actual output</dt>
+                <dt className="text-xs text-muted-foreground">Actual products</dt>
                 <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
               </div>
             )}
@@ -2067,7 +2104,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           </>
         )}
       {batch.status === 'completed' && (
-        <span className="text-xs text-muted-foreground">Outputs and waste auto-posted on completion.</span>
+        <span className="text-xs text-muted-foreground">Products and waste auto-posted on completion.</span>
       )}
     </div>
   );
@@ -2284,10 +2321,10 @@ interface BatchRowProps {
   batch: ProductionBatch;
   lines: ProductionLine[];
   formulas: ProductionFormula[];
+  getItemName: (itemId: number) => string;
   getStatusBadge: (s: string) => string;
   isSelected?: boolean;
   onClick?: () => void;
-  onStart: () => void;
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -2296,10 +2333,10 @@ const BatchRow: React.FC<BatchRowProps> = ({
   batch,
   lines,
   formulas,
+  getItemName,
   getStatusBadge,
   isSelected,
   onClick,
-  onStart,
   onComplete,
   onCancel,
 }) => {
@@ -2307,6 +2344,26 @@ const BatchRow: React.FC<BatchRowProps> = ({
   const formula = batch.formula_id
     ? formulas.find((f) => f.id === batch.formula_id)
     : null;
+  const { data: formulaItems = [] } = useGetFormulaItemsQuery(
+    { formulaId: batch.formula_id ?? 0 },
+    { skip: !batch.formula_id }
+  );
+  const { data: batchRowItems = [] } = useGetBatchItemsQuery(
+    { batchId: batch.id },
+    { skip: !batch.id }
+  );
+  const returnProductNames = useMemo(() => {
+    const outputIds = new Set<number>();
+    for (const row of formulaItems) {
+      if (row.item_role === 'output') outputIds.add(row.item_id);
+    }
+    for (const row of batchRowItems) {
+      if (row.item_role === 'output') outputIds.add(row.item_id);
+    }
+    return Array.from(outputIds).map(getItemName).filter(Boolean);
+  }, [formulaItems, batchRowItems, getItemName]);
+  const returnProductsDisplay =
+    returnProductNames.length > 0 ? returnProductNames.join(', ') : 'No products yet';
 
   return (
     <div
@@ -2330,13 +2387,9 @@ const BatchRow: React.FC<BatchRowProps> = ({
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        {batch.status === 'draft' && (
-          <Button size="sm" variant="outline" onClick={onStart}>
-            <Play className="h-4 w-4 mr-1" />
-            Start
-          </Button>
-        )}
+      <div className="flex flex-col items-end gap-2 text-right" onClick={(e) => e.stopPropagation()}>
+        <div className="text-xs text-muted-foreground">{returnProductsDisplay}</div>
+        <div className="flex items-center gap-1">
         {batch.status === 'in_progress' && (
           <>
             <Button size="sm" variant="outline" onClick={onComplete}>
@@ -2349,6 +2402,7 @@ const BatchRow: React.FC<BatchRowProps> = ({
             </Button>
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -2423,7 +2477,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       expectedOutput.trim() !== '' &&
       (parsedExpectedOutput == null || Number.isNaN(parsedExpectedOutput) || parsedExpectedOutput < 1)
     ) {
-      toast.error('Enter a positive integer for target output, or leave blank for the formula default');
+      toast.error('Enter a positive integer for target products, or leave blank for the formula default');
       return;
     }
 
@@ -2533,7 +2587,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
             </div>
             <div className="grid gap-2">
               <Label>
-                {selectedFormulaId ? 'Target output qty (optional)' : 'Expected output qty (optional)'}
+                {selectedFormulaId ? 'Target product qty (optional)' : 'Expected product qty (optional)'}
               </Label>
               <Input
                 type="text"
@@ -2545,13 +2599,13 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                   selectedFormulaId
                     ? formulaDefaultOutput > 0
                       ? `Blank = default (${formulaDefaultOutput})`
-                      : 'Blank = formula base output'
+                      : 'Blank = formula base products'
                     : 'Optional'
                 }
               />
               {selectedFormulaId && formulaDefaultOutput > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Leave blank to use the formula&apos;s default output ({formulaDefaultOutput}) for scaling.
+                  Leave blank to use the formula&apos;s default products ({formulaDefaultOutput}) for scaling.
                 </p>
               )}
             </div>
@@ -2629,7 +2683,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           notes: notes.trim() || undefined,
         },
       }).unwrap();
-      toast.success('Batch completed — outputs and waste posted to inventory');
+      toast.success('Batch completed — products and waste posted to inventory');
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -2647,7 +2701,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           <DialogHeader>
             <DialogTitle>Complete Batch {batch.batch_number}</DialogTitle>
             <DialogDescription>
-              Enter actual output and duration. Variance will be calculated automatically.
+              Enter actual products and duration. Variance will be calculated automatically.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -2680,7 +2734,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
               />
             </div>
             <p className="text-xs text-muted-foreground rounded-lg border border-border/60 bg-muted/20 p-3">
-              Completing will automatically post output and byproduct quantities to finished goods and waste to the damaged ledger.
+              Completing will automatically post product and byproduct quantities to finished goods and waste to the damaged ledger.
             </p>
           </div>
           <DialogFooter>

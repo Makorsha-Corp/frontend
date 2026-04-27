@@ -47,9 +47,16 @@ const FORMULA_ROLE_BADGE: Record<ItemRole, string> = {
 
 const FORMULA_ROLE_SECTION_TITLE: Record<ItemRole, string> = {
   input: 'Inputs',
-  output: 'Outputs',
+  output: 'Products',
   waste: 'Waste',
   byproduct: 'Byproducts',
+};
+
+const FORMULA_ROLE_BADGE_LABEL: Record<ItemRole, string> = {
+  input: 'input',
+  output: 'product',
+  waste: 'waste',
+  byproduct: 'byproduct',
 };
 
 export interface FormulaDetailsDialogProps {
@@ -58,6 +65,7 @@ export interface FormulaDetailsDialogProps {
   formula: ProductionFormula;
   items: { id: number; name: string }[];
   getItemName: (id: number) => string;
+  onEditRequest?: () => void;
 }
 
 const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
@@ -66,6 +74,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
   formula,
   items,
   getItemName,
+  onEditRequest,
 }) => {
   const formulaId = formula.id;
   const { data: formulaItems = [], isLoading } = useGetFormulaItemsQuery(
@@ -217,7 +226,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
                         FORMULA_ROLE_BADGE[role]
                       )}
                     >
-                      {role}
+                      {FORMULA_ROLE_BADGE_LABEL[role]}
                     </Badge>
                     <span className="truncate text-sm font-medium text-foreground">
                       {FORMULA_ROLE_SECTION_TITLE[role]}
@@ -366,6 +375,11 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
         </div>
 
         <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
+          {onEditRequest && (
+            <Button type="button" variant="outline" onClick={onEditRequest}>
+              Edit formula
+            </Button>
+          )}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>

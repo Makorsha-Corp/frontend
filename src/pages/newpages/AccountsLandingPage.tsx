@@ -514,7 +514,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
             <Card className="shadow-sm bg-card border-border flex flex-1 min-h-0 flex-col overflow-hidden">
               <CardContent className="p-0 flex flex-1 min-h-0 flex-col overflow-hidden">
                 <div className="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {!isLoading && (
                       <span className="font-medium">
                         {displayedAccounts.length}{' '}
@@ -526,6 +526,15 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                           : ''}
                       </span>
                     )}
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7"
+                      onClick={() => setIsAddDialogOpen(true)}
+                      title="Add account"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative w-[200px] min-w-[140px]">
@@ -542,14 +551,6 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                         className="pl-10 h-9"
                       />
                     </div>
-                    <Button
-                      size="sm"
-                      className="bg-brand-primary hover:bg-brand-primary-hover"
-                      onClick={() => setIsAddDialogOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
                   </div>
                 </div>
 
