@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -241,10 +245,10 @@ const AccountDetailPage: React.FC = () => {
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="h-6 w-px bg-border" />
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className={appShellHeaderIconTileClass}>
                 <Users className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
+              <h1 className={appShellHeaderTitleClass}>
                 {account ? account.name : 'Account'}
               </h1>
             </div>

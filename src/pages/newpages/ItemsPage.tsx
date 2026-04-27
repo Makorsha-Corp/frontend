@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -137,11 +142,11 @@ const ItemsPage: React.FC = () => {
         {/* Top Bar */}
         <AppShellHeader sticky>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
                 <Package2 className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Items Catalog</h1>
+              <h1 className={appShellHeaderTitleClass}>Items Catalog</h1>
             </div>
             <div className="flex items-center gap-2">
               <Button

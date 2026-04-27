@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
@@ -271,11 +275,11 @@ const ProjectsPage: React.FC = () => {
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
                 <FolderKanban className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Projects</h1>
+              <h1 className={appShellHeaderTitleClass}>Projects</h1>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Button

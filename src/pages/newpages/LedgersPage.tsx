@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -241,11 +245,11 @@ const LedgersPage: React.FC = () => {
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
                 <BookOpen className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Ledgers</h1>
+              <h1 className={appShellHeaderTitleClass}>Ledgers</h1>
             </div>
             <Button onClick={handleReconcile} disabled={!canReconcile || isReconcileLoading} variant="outline" className="h-9">
               {isReconcileLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}

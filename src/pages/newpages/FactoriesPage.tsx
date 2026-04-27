@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -292,10 +296,10 @@ const FactoriesPage: React.FC = () => {
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20">
+                <div className={appShellHeaderIconTileClass}>
                   <FactoryIcon className="h-5 w-5 text-brand-primary" />
                 </div>
-                <h1 className="min-w-0 truncate text-2xl font-bold text-card-foreground dark:text-foreground">
+                <h1 className={appShellHeaderTitleClass}>
                   Factories
                 </h1>
               </div>

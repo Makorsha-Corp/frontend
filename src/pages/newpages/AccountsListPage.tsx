@@ -1,7 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -128,10 +132,10 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="h-6 w-px bg-border" />
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className={appShellHeaderIconTileClass}>
                 <Users className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
+              <h1 className={appShellHeaderTitleClass}>
                 {config.label}
               </h1>
             </div>

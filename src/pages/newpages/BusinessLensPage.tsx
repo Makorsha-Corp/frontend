@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,12 +145,12 @@ const BusinessLensPage: React.FC = () => {
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <AppShellHeader sticky>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+          <div className={appShellHeaderLeftGroupClass}>
+            <div className={appShellHeaderIconTileClass}>
               <BarChart3 className="h-5 w-5 text-brand-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
+              <h1 className={appShellHeaderTitleClass}>
                 BusinessLens
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">

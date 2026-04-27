@@ -12,6 +12,12 @@ interface AppShellHeaderProps {
  * Apply to header Inputs/Buttons/SelectTriggers to keep rows consistent.
  */
 export const appShellHeaderControlClass = '!h-9';
+export const appShellHeaderBoxedControlClass = `${appShellHeaderControlClass} border-border bg-background`;
+export const appShellHeaderLeftGroupClass = 'flex min-w-0 items-center gap-3';
+export const appShellHeaderIconTileClass =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35';
+export const appShellHeaderTitleClass =
+  'truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground';
 
 /**
  * Lowered breadcrumb-style selector baseline used in shell headers.
