@@ -73,11 +73,3 @@ export interface InventoryLedgerEntry {
   performed_by: number | null;
   performed_at: string;
 }
-
-export interface ListInventoryLedgerParams {
-  skip?: number;
-  limit?: number;
-  inventory_type?: InventoryType;
-  factory_id?: number;
-  item_id?: number;
-}

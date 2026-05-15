@@ -18,31 +18,58 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import {
-  useGetStorageLedgerQuery,
-  useGetStorageBalanceQuery,
-  useReconcileStorageMutation,
-  useGetMachineLedgerQuery,
-  useGetMachineBalanceQuery,
-  useReconcileMachineMutation,
-  useGetDamagedLedgerQuery,
-  useGetDamagedBalanceQuery,
-  useReconcileDamagedMutation,
   useGetInventoryLedgerQuery,
   useGetInventoryBalanceQuery,
   useReconcileInventoryMutation,
+  useGetMachineLedgerQuery,
+  useGetMachineBalanceQuery,
+  useReconcileMachineMutation,
   useGetProjectComponentLedgerQuery,
   useGetProjectComponentTotalCostQuery,
 } from '@/features/ledgers/ledgersApi';
+import type {
+  InventoryLedgerEntry,
+  MachineLedgerEntry,
+  ProjectComponentLedgerEntry,
+} from '@/types/ledger';
+import type { InventoryType } from '@/types/inventory';
 
-type LedgerScope = 'storage' | 'machine' | 'damaged' | 'inventory' | 'project_component';
+type LedgerScope =
+  | 'storage'
+  | 'damaged'
+  | 'waste'
+  | 'scrap'
+  | 'machine'
+  | 'project_component';
+
+type LedgerRow = InventoryLedgerEntry | MachineLedgerEntry | ProjectComponentLedgerEntry;
 
 const scopeOptions: Array<{ value: LedgerScope; label: string }> = [
   { value: 'storage', label: 'Storage ledger' },
-  { value: 'machine', label: 'Machine ledger' },
   { value: 'damaged', label: 'Damaged ledger' },
-  { value: 'inventory', label: 'Inventory ledger' },
+  { value: 'waste', label: 'Waste ledger' },
+  { value: 'scrap', label: 'Scrap ledger' },
+  { value: 'machine', label: 'Machine ledger' },
   { value: 'project_component', label: 'Project component ledger' },
 ];
+
+const INVENTORY_SCOPES: ReadonlyArray<LedgerScope> = ['storage', 'damaged', 'waste', 'scrap'];
+
+const inventoryTypeForScope = (scope: LedgerScope): InventoryType | null => {
+  switch (scope) {
+    case 'storage': return 'STORAGE';
+    case 'damaged': return 'DAMAGED';
+    case 'waste': return 'WASTE';
+    case 'scrap': return 'SCRAP';
+    default: return null;
+  }
+};
+
+const isInventoryRow = (row: LedgerRow): row is InventoryLedgerEntry =>
+  'inventory_type' in row;
+
+const isMachineRow = (row: LedgerRow): row is MachineLedgerEntry =>
+  'machine_id' in row;
 
 const LedgersPage: React.FC = () => {
   const [scope, setScope] = useState<LedgerScope>('storage');
@@ -55,30 +82,46 @@ const LedgersPage: React.FC = () => {
   const [transactionType, setTransactionType] = useState('');
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
 
+  // Backend caps: factories le=1000, machines le=1000, items le=100,
+  // project_components le=100. Requesting above the cap returns 422 and the
+  // hook silently falls back to []; keep request sizes within those caps.
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 });
-  const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 500 });
-  const { data: projectComponents = [] } = useGetProjectComponentsQuery({ skip: 0, limit: 500 });
+  const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 });
+  const { data: projectComponents = [] } = useGetProjectComponentsQuery({ skip: 0, limit: 100 });
 
-  const commonFactoryItemReady = factoryId != null && itemId != null;
+  const inventoryType = inventoryTypeForScope(scope);
+  const isInventoryScope = inventoryType != null;
+  const isMachineScope = scope === 'machine';
+  const isProjectComponentScope = scope === 'project_component';
+
+  const factoryItemReady = factoryId != null && itemId != null;
   const machineItemReady = machineId != null && itemId != null;
   const projectComponentReady = projectComponentId != null;
 
-  const storageLedger = useGetStorageLedgerQuery(
+  // Unified inventory ledger (STORAGE / DAMAGED / WASTE / SCRAP).
+  // All filters optional — listing works without picking factory/item.
+  // Backend caps `limit` at le=100 for all ledger endpoints.
+  const inventoryLedger = useGetInventoryLedgerQuery(
     {
-      factory_id: factoryId ?? 0,
-      item_id: itemId ?? 0,
+      inventory_type: inventoryType ?? undefined,
+      factory_id: factoryId ?? undefined,
+      item_id: itemId ?? undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       transaction_type: transactionType || undefined,
       skip: 0,
-      limit: 200,
+      limit: 100,
     },
-    { skip: !(scope === 'storage' && commonFactoryItemReady) }
+    { skip: !isInventoryScope }
   );
-  const storageBalance = useGetStorageBalanceQuery(
-    { factory_id: factoryId ?? 0, item_id: itemId ?? 0 },
-    { skip: !(scope === 'storage' && commonFactoryItemReady) }
+  const inventoryBalance = useGetInventoryBalanceQuery(
+    {
+      factory_id: factoryId ?? 0,
+      item_id: itemId ?? 0,
+      inventory_type: inventoryType ?? 'STORAGE',
+    },
+    { skip: !(isInventoryScope && factoryItemReady) }
   );
 
   const machineLedger = useGetMachineLedgerQuery(
@@ -89,46 +132,13 @@ const LedgersPage: React.FC = () => {
       end_date: endDate || undefined,
       transaction_type: transactionType || undefined,
       skip: 0,
-      limit: 200,
+      limit: 100,
     },
-    { skip: !(scope === 'machine' && machineItemReady) }
+    { skip: !(isMachineScope && machineItemReady) }
   );
   const machineBalance = useGetMachineBalanceQuery(
     { machine_id: machineId ?? 0, item_id: itemId ?? 0 },
-    { skip: !(scope === 'machine' && machineItemReady) }
-  );
-
-  const damagedLedger = useGetDamagedLedgerQuery(
-    {
-      factory_id: factoryId ?? 0,
-      item_id: itemId ?? 0,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-      skip: 0,
-      limit: 200,
-    },
-    { skip: !(scope === 'damaged' && commonFactoryItemReady) }
-  );
-  const damagedBalance = useGetDamagedBalanceQuery(
-    { factory_id: factoryId ?? 0, item_id: itemId ?? 0 },
-    { skip: !(scope === 'damaged' && commonFactoryItemReady) }
-  );
-
-  const inventoryLedger = useGetInventoryLedgerQuery(
-    {
-      factory_id: factoryId ?? 0,
-      item_id: itemId ?? 0,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-      transaction_type: transactionType || undefined,
-      skip: 0,
-      limit: 200,
-    },
-    { skip: !(scope === 'inventory' && commonFactoryItemReady) }
-  );
-  const inventoryBalance = useGetInventoryBalanceQuery(
-    { factory_id: factoryId ?? 0, item_id: itemId ?? 0 },
-    { skip: !(scope === 'inventory' && commonFactoryItemReady) }
+    { skip: !(isMachineScope && machineItemReady) }
   );
 
   const projectComponentLedger = useGetProjectComponentLedgerQuery(
@@ -136,65 +146,69 @@ const LedgersPage: React.FC = () => {
       project_component_id: projectComponentId ?? 0,
       item_id: itemId ?? undefined,
       skip: 0,
-      limit: 200,
+      limit: 100,
     },
-    { skip: !(scope === 'project_component' && projectComponentReady) }
+    { skip: !(isProjectComponentScope && projectComponentReady) }
   );
   const projectComponentTotalCost = useGetProjectComponentTotalCostQuery(projectComponentId ?? 0, {
-    skip: !(scope === 'project_component' && projectComponentReady),
+    skip: !(isProjectComponentScope && projectComponentReady),
   });
 
-  const [reconcileStorage, reconcileStorageState] = useReconcileStorageMutation();
-  const [reconcileMachine, reconcileMachineState] = useReconcileMachineMutation();
-  const [reconcileDamaged, reconcileDamagedState] = useReconcileDamagedMutation();
   const [reconcileInventory, reconcileInventoryState] = useReconcileInventoryMutation();
+  const [reconcileMachine, reconcileMachineState] = useReconcileMachineMutation();
 
-  const rows = useMemo(() => {
-    if (scope === 'storage') return storageLedger.data ?? [];
-    if (scope === 'machine') return machineLedger.data ?? [];
-    if (scope === 'damaged') return damagedLedger.data ?? [];
-    if (scope === 'inventory') return inventoryLedger.data ?? [];
-    return projectComponentLedger.data ?? [];
-  }, [scope, storageLedger.data, machineLedger.data, damagedLedger.data, inventoryLedger.data, projectComponentLedger.data]);
+  const rows: LedgerRow[] = useMemo(() => {
+    if (isInventoryScope) return inventoryLedger.data ?? [];
+    if (isMachineScope) return machineLedger.data ?? [];
+    if (isProjectComponentScope) return projectComponentLedger.data ?? [];
+    return [];
+  }, [
+    isInventoryScope,
+    isMachineScope,
+    isProjectComponentScope,
+    inventoryLedger.data,
+    machineLedger.data,
+    projectComponentLedger.data,
+  ]);
 
   const balance = useMemo(() => {
-    if (scope === 'storage') return storageBalance.data;
-    if (scope === 'machine') return machineBalance.data;
-    if (scope === 'damaged') return damagedBalance.data;
-    if (scope === 'inventory') return inventoryBalance.data;
+    if (isInventoryScope) return factoryItemReady ? inventoryBalance.data : null;
+    if (isMachineScope) return machineItemReady ? machineBalance.data : null;
     return null;
-  }, [scope, storageBalance.data, machineBalance.data, damagedBalance.data, inventoryBalance.data]);
+  }, [
+    isInventoryScope,
+    isMachineScope,
+    factoryItemReady,
+    machineItemReady,
+    inventoryBalance.data,
+    machineBalance.data,
+  ]);
 
-  const isLoading = storageLedger.isLoading || machineLedger.isLoading || damagedLedger.isLoading || inventoryLedger.isLoading || projectComponentLedger.isLoading;
+  const isLoading =
+    inventoryLedger.isLoading ||
+    machineLedger.isLoading ||
+    projectComponentLedger.isLoading;
   const isReconcileLoading =
-    reconcileStorageState.isLoading ||
-    reconcileMachineState.isLoading ||
-    reconcileDamagedState.isLoading ||
-    reconcileInventoryState.isLoading;
+    reconcileInventoryState.isLoading ||
+    reconcileMachineState.isLoading;
 
   const handleReconcile = async () => {
     try {
-      if (scope === 'storage' && commonFactoryItemReady) {
-        const res = await reconcileStorage({ factory_id: factoryId!, item_id: itemId! }).unwrap();
-        toast.success(String(res?.message || 'Storage reconcile complete'));
+      if (isInventoryScope && factoryItemReady && inventoryType) {
+        const res = await reconcileInventory({
+          factory_id: factoryId!,
+          item_id: itemId!,
+          inventory_type: inventoryType,
+        }).unwrap();
+        toast.success(String(res?.message || `${inventoryType.toLowerCase()} reconcile complete`));
         return;
       }
-      if (scope === 'machine' && machineItemReady) {
+      if (isMachineScope && machineItemReady) {
         const res = await reconcileMachine({ machine_id: machineId!, item_id: itemId! }).unwrap();
         toast.success(String(res?.message || 'Machine reconcile complete'));
         return;
       }
-      if (scope === 'damaged' && commonFactoryItemReady) {
-        const res = await reconcileDamaged({ factory_id: factoryId!, item_id: itemId! }).unwrap();
-        toast.success(String(res?.message || 'Damaged reconcile complete'));
-        return;
-      }
-      if (scope === 'inventory' && commonFactoryItemReady) {
-        const res = await reconcileInventory({ factory_id: factoryId!, item_id: itemId! }).unwrap();
-        toast.success(String(res?.message || 'Inventory reconcile complete'));
-        return;
-      }
-      toast.error('Reconcile is not available for this selection');
+      toast.error('Reconcile requires a factory + item (or machine + item) selection');
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Reconcile failed');
@@ -202,10 +216,8 @@ const LedgersPage: React.FC = () => {
   };
 
   const canReconcile =
-    (scope === 'storage' && commonFactoryItemReady) ||
-    (scope === 'machine' && machineItemReady) ||
-    (scope === 'damaged' && commonFactoryItemReady) ||
-    (scope === 'inventory' && commonFactoryItemReady);
+    (isInventoryScope && factoryItemReady) ||
+    (isMachineScope && machineItemReady);
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
@@ -220,8 +232,8 @@ const LedgersPage: React.FC = () => {
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
             You need to create a factory before viewing ledgers. Set up a factory to start tracking inventory and transactions.
           </p>
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
@@ -277,11 +289,11 @@ const LedgersPage: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              {(scope === 'storage' || scope === 'damaged' || scope === 'inventory') && (
+              {isInventoryScope && (
                 <Select value={factoryId?.toString() ?? '__none__'} onValueChange={(v) => setFactoryId(v === '__none__' ? null : Number(v))}>
-                  <SelectTrigger><SelectValue placeholder="Factory" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Factory (optional)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select factory</SelectItem>
+                    <SelectItem value="__none__">All factories</SelectItem>
                     {factories.map((factory) => (
                       <SelectItem key={factory.id} value={factory.id.toString()}>
                         {factory.name}
@@ -291,7 +303,7 @@ const LedgersPage: React.FC = () => {
                 </Select>
               )}
 
-              {scope === 'machine' && (
+              {isMachineScope && (
                 <Select value={machineId?.toString() ?? '__none__'} onValueChange={(v) => setMachineId(v === '__none__' ? null : Number(v))}>
                   <SelectTrigger><SelectValue placeholder="Machine" /></SelectTrigger>
                   <SelectContent>
@@ -305,7 +317,7 @@ const LedgersPage: React.FC = () => {
                 </Select>
               )}
 
-              {scope === 'project_component' && (
+              {isProjectComponentScope && (
                 <Select
                   value={projectComponentId?.toString() ?? '__none__'}
                   onValueChange={(v) => setProjectComponentId(v === '__none__' ? null : Number(v))}
@@ -323,9 +335,11 @@ const LedgersPage: React.FC = () => {
               )}
 
               <Select value={itemId?.toString() ?? '__none__'} onValueChange={(v) => setItemId(v === '__none__' ? null : Number(v))}>
-                <SelectTrigger><SelectValue placeholder="Item" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder={isInventoryScope ? 'Item (optional)' : 'Item'} />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Select item</SelectItem>
+                  <SelectItem value="__none__">{isInventoryScope ? 'All items' : 'Select item'}</SelectItem>
                   {items.map((item) => (
                     <SelectItem key={item.id} value={item.id.toString()}>
                       {item.name}
@@ -334,7 +348,7 @@ const LedgersPage: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              {(scope !== 'project_component') && (
+              {!isProjectComponentScope && (
                 <>
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -354,13 +368,22 @@ const LedgersPage: React.FC = () => {
               <CardContent className="text-2xl font-semibold">{rows.length}</CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Balance Qty</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">
+                  Balance Qty
+                  {isInventoryScope && !factoryItemReady && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      (pick factory + item)
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
               <CardContent className="text-2xl font-semibold">{balance?.quantity ?? '—'}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Project Total Cost</CardTitle></CardHeader>
               <CardContent className="text-2xl font-semibold">
-                {scope === 'project_component' ? String(projectComponentTotalCost.data?.total_cost ?? '—') : '—'}
+                {isProjectComponentScope ? String(projectComponentTotalCost.data?.total_cost ?? '—') : '—'}
               </CardContent>
             </Card>
           </div>
@@ -381,6 +404,7 @@ const LedgersPage: React.FC = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>ID</TableHead>
+                        {isInventoryScope && <TableHead>Type</TableHead>}
                         <TableHead>Transaction</TableHead>
                         <TableHead>Qty</TableHead>
                         <TableHead>Before</TableHead>
@@ -393,23 +417,33 @@ const LedgersPage: React.FC = () => {
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={isInventoryScope ? 9 : 8} className="text-center text-muted-foreground py-8">
                             No ledger entries found for current filters.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        rows.map((row: any) => (
-                          <TableRow key={row.id}>
-                            <TableCell>{row.id}</TableCell>
-                            <TableCell>{row.transaction_type}</TableCell>
-                            <TableCell>{row.quantity}</TableCell>
-                            <TableCell>{row.qty_before}</TableCell>
-                            <TableCell>{row.qty_after}</TableCell>
-                            <TableCell>{row.unit_cost ?? '—'}</TableCell>
-                            <TableCell>{row.total_cost ?? '—'}</TableCell>
-                            <TableCell>{new Date(row.performed_at).toLocaleString()}</TableCell>
-                          </TableRow>
-                        ))
+                        rows.map((row) => {
+                          const typeLabel = isInventoryRow(row)
+                            ? row.inventory_type ?? '—'
+                            : isMachineRow(row)
+                              ? `Machine #${row.machine_id}`
+                              : '—';
+                          return (
+                            <TableRow key={row.id}>
+                              <TableCell>{row.id}</TableCell>
+                              {isInventoryScope && (
+                                <TableCell className="font-medium">{typeLabel}</TableCell>
+                              )}
+                              <TableCell>{row.transaction_type}</TableCell>
+                              <TableCell>{row.quantity}</TableCell>
+                              <TableCell>{row.qty_before}</TableCell>
+                              <TableCell>{row.qty_after}</TableCell>
+                              <TableCell>{row.unit_cost ?? '—'}</TableCell>
+                              <TableCell>{row.total_cost ?? '—'}</TableCell>
+                              <TableCell>{new Date(row.performed_at).toLocaleString()}</TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
