@@ -1,5 +1,5 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '@/app/store';
 import { productsApi } from '@/features/products/productsApi';
 import { inventoryApi } from '@/features/inventory/inventoryApi';
 import { ledgersApi } from '@/features/ledgers/ledgersApi';
@@ -35,7 +35,22 @@ export interface ListProductionBatchesParams {
 
 export const productionApi = createApi({
   reducerPath: 'productionApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const state = getState() as RootState;
+      const token = state.auth.token;
+      const workspaceId = state.auth.workspace?.id;
+
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      if (workspaceId) {
+        headers.set('X-Workspace-ID', workspaceId.toString());
+      }
+      return headers;
+    },
+  }),
   tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'ProductionBatch', 'BatchItem'],
   endpoints: (builder) => ({
     // ─── Production Lines ────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createBaseQueryWithSessionExpiry } from '@/features/api/baseQueryWithSessionExpiry';
 import type {
   AccountInvoice,
   AccountInvoiceApiResponse,
@@ -20,7 +20,7 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
 
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: createBaseQueryWithSessionExpiry(),
   tagTypes: ['AccountInvoice'],
   endpoints: (builder) => ({
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({

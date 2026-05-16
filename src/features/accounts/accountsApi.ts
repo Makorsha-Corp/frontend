@@ -3,14 +3,15 @@
  */
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { Account, AccountApiResponse, CreateAccountRequest, UpdateAccountRequest, ListAccountsParams } from '@/types/account';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createBaseQueryWithSessionExpiry } from '@/features/api/baseQueryWithSessionExpiry';
+
 const normalizeAccount = (account: AccountApiResponse): Account => ({
   ...account,
 });
 
 export const accountsApi = createApi({
   reducerPath: 'accountsApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: createBaseQueryWithSessionExpiry(),
   tagTypes: ['Account'],
   endpoints: (builder) => ({
     // Get all accounts with pagination and search

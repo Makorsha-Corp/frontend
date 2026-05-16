@@ -1,5 +1,5 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '../../app/store';
 import type {
   Product,
   CreateProductRequest,
@@ -11,7 +11,22 @@ import type {
 
 export const productsApi = createApi({
   reducerPath: 'productsApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const state = getState() as RootState;
+      const token = state.auth.token;
+      const workspaceId = state.auth.workspace?.id;
+
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      if (workspaceId) {
+        headers.set('X-Workspace-ID', workspaceId.toString());
+      }
+      return headers;
+    },
+  }),
   tagTypes: ['Product', 'ProductLedger'],
   endpoints: (builder) => ({
     getProducts: builder.query<Product[], ListProductsParams>({

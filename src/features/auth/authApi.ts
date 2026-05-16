@@ -1,32 +1,37 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
-import { logout as logoutAction } from '@/features/auth/authSlice';
-// Import from explicit module files: the project has both `src/types.ts`
-// (legacy) and `src/types/` (current). The `@/types` alias resolves to the
-// legacy file, so module-explicit imports are required for new auth types.
 import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
   RegisterResponse,
   User,
+  WorkspaceListItem,
+  WorkspaceCreatedResponse,
+  CreateWorkspaceRequest,
   ValidateInvitationResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  TokenPair,
-  RefreshTokenRequest,
-  LogoutRequest,
-} from '@/types/auth';
-import type {
-  Workspace,
-  WorkspaceListItem,
-  CreateWorkspaceRequest,
-} from '@/types/workspace';
+} from '@/types';
 
 export const authApi = createApi({
   reducerPath: 'authApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as RootState).auth.token;
+      const workspace = (getState() as RootState).auth.workspace;
+
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      if (workspace) {
+        headers.set('X-Workspace-ID', workspace.id.toString());
+      }
+
+      return headers;
+    },
+  }),
   tagTypes: ['User', 'Workspace'],
   endpoints: (builder) => ({
     // Login
@@ -47,18 +52,6 @@ export const authApi = createApi({
       }),
     }),
 
-    /**
-     * Refresh — exchange a refresh token for a new access + refresh pair.
-     * Used directly by `baseQueryWithReauth`; rarely called from components.
-     */
-    refreshToken: builder.mutation<TokenPair, RefreshTokenRequest>({
-      query: (body) => ({
-        url: 'auth/refresh/',
-        method: 'POST',
-        body,
-      }),
-    }),
-
     // Get current user
     getCurrentUser: builder.query<User, void>({
       query: () => 'auth/me/',
@@ -71,7 +64,7 @@ export const authApi = createApi({
       providesTags: ['Workspace'],
     }),
 
-    createWorkspace: builder.mutation<Workspace, CreateWorkspaceRequest>({
+    createWorkspace: builder.mutation<WorkspaceCreatedResponse, CreateWorkspaceRequest>({
       query: (body) => ({
         url: 'workspaces/',
         method: 'POST',
@@ -103,34 +96,12 @@ export const authApi = createApi({
       }),
     }),
 
-    /**
-     * Logout — revoke the refresh token on the server, then clear local
-     * auth state. Best-effort: if the network call fails (e.g. user is
-     * offline or token is already revoked), we still clear locally so the
-     * UI doesn't get stuck in a stale logged-in state.
-     */
-    logout: builder.mutation<void, LogoutRequest | void>({
-      async queryFn(arg, api, _extraOptions, baseQuery) {
-        const state = api.getState() as RootState;
-        const refreshToken = arg?.refresh_token ?? state.auth.refreshToken;
-        const allDevices = !!arg?.all_devices;
-
-        // Fire and (effectively) forget: ignore errors so logout always
-        // succeeds locally.
-        try {
-          await baseQuery({
-            url: 'auth/logout/',
-            method: 'POST',
-            body: {
-              refresh_token: refreshToken ?? null,
-              all_devices: allDevices,
-            },
-          });
-        } catch {
-          // swallow — local logout still happens below
-        }
-
-        api.dispatch(logoutAction());
+    // Logout (client-side only for now)
+    logout: builder.mutation<void, void>({
+      queryFn: () => {
+        // Just clear local storage, no API call needed for JWT
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('workspace_id');
         return { data: undefined };
       },
     }),
@@ -140,10 +111,8 @@ export const authApi = createApi({
 export const {
   useLoginMutation,
   useRegisterMutation,
-  useRefreshTokenMutation,
   useGetCurrentUserQuery,
   useGetWorkspacesQuery,
-  useCreateWorkspaceMutation,
   useValidateInvitationQuery,
   useForgotPasswordMutation,
   useResetPasswordMutation,

@@ -1,5 +1,5 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '../../app/store';
 import { ItemTag } from '../../types/itemTag';
 
 export interface CreateTagRequest {
@@ -20,7 +20,22 @@ export interface UpdateTagRequest {
 
 export const itemTagsApi = createApi({
   reducerPath: 'itemTagsApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const state = getState() as RootState;
+      const token = state.auth.token;
+      const workspaceId = state.auth.workspace?.id;
+
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      if (workspaceId) {
+        headers.set('X-Workspace-ID', workspaceId.toString());
+      }
+      return headers;
+    },
+  }),
   tagTypes: ['ItemTag'],
   endpoints: (builder) => ({
     getTags: builder.query<ItemTag[], void>({

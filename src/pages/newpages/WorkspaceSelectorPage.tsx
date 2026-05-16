@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useGetWorkspacesQuery, useLogoutMutation } from '@/features/auth/authApi';
+import { useGetWorkspacesQuery } from '@/features/auth/authApi';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setWorkspace, logout } from '@/features/auth/authSlice';
 import { useTheme } from '@/context/ThemeContext';
@@ -71,17 +71,8 @@ const WorkspaceSelectorPage: React.FC = () => {
     };
   }, [gradientFollowsMouse]);
 
-  const [triggerLogout] = useLogoutMutation();
-
-  const handleLogout = async () => {
-    // useLogoutMutation revokes the refresh token on the server and clears
-    // local auth state via its queryFn. dispatch(logout()) is a safety net.
-    try {
-      // queryFn signature requires an explicit arg even when we don't use it.
-      await triggerLogout({}).unwrap();
-    } catch {
-      dispatch(logout());
-    }
+  const handleLogout = () => {
+    dispatch(logout());
     toast.success('Signed out');
     navigate('/login2');
   };

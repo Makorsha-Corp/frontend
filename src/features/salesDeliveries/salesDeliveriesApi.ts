@@ -1,5 +1,5 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithReauth } from '@/app/baseQuery';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '@/app/store';
 import type { SalesDelivery, CreateSalesDeliveryDTO, UpdateSalesDeliveryDTO } from '@/types/salesDelivery';
 import type { SalesDeliveryItem, CreateSalesDeliveryItemDTO } from '@/types/salesDeliveryItem';
 
@@ -21,7 +21,22 @@ export interface ActionResponse<T> {
 
 export const salesDeliveriesApi = createApi({
   reducerPath: 'salesDeliveriesApi',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const state = getState() as RootState;
+      const token = state.auth.token;
+      const workspaceId = state.auth.workspace?.id;
+
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      if (workspaceId) {
+        headers.set('X-Workspace-ID', workspaceId.toString());
+      }
+      return headers;
+    },
+  }),
   tagTypes: ['SalesDelivery', 'SalesDeliveryItem', 'SalesOrder'],
   endpoints: (builder) => ({
     getSalesDeliveries: builder.query<SalesDelivery[], ListSalesDeliveriesParams>({
