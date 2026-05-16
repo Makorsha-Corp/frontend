@@ -1,25 +1,10 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '../../app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import { Factory, CreateFactoryRequest, UpdateFactoryRequest, ListFactoriesParams } from '../../types/factory';
 
 export const factoriesApi = createApi({
   reducerPath: 'factoriesApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Factory'],
   endpoints: (builder) => ({
     getFactories: builder.query<Factory[], ListFactoriesParams>({

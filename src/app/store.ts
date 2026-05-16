@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
-import authReducer from '@/features/auth/authSlice';
+import authReducer, { installStorageSync } from '@/features/auth/authSlice';
 import { authApi } from '@/features/auth/authApi';
 import { workspaceApi } from '@/features/workspaces/workspaceApi';
 import { itemsApi } from '@/features/items/itemsApi';
@@ -108,6 +108,10 @@ export const store = configureStore({
 });
 
 setupListeners(store.dispatch);
+
+// Multi-tab sync: when tab A logs in / refreshes / logs out, mirror that
+// into tab B's Redux state so requests don't fire with a stale token.
+installStorageSync(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
