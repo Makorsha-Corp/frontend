@@ -6,6 +6,7 @@ import type {
   UpdateMachineItemRequest,
   ListMachineItemsParams,
 } from '../../types/machineItem';
+import { ledgersApi } from '../ledgers/ledgersApi';
 
 export const machineItemsApi = createApi({
   reducerPath: 'machineItemsApi',
@@ -50,6 +51,15 @@ export const machineItemsApi = createApi({
         body,
       }),
       invalidatesTags: ['MachineItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        // Backend writes a ledger row on create — refresh ledger views.
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          // Ignore: mutation already surfaced the error via RTK Query.
+        }
+      },
     }),
     updateMachineItem: builder.mutation<MachineItem, { id: number; data: UpdateMachineItemRequest }>({
       query: ({ id, data }) => ({
@@ -58,6 +68,15 @@ export const machineItemsApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'MachineItem', id }, 'MachineItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        // qty changes trigger a ledger adjustment row on the backend.
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          // Ignore: mutation already surfaced the error via RTK Query.
+        }
+      },
     }),
     deleteMachineItem: builder.mutation<void, number>({
       query: (id) => ({
@@ -65,6 +84,15 @@ export const machineItemsApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['MachineItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        // A delete with remaining stock writes a final adjustment row.
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          // Ignore: mutation already surfaced the error via RTK Query.
+        }
+      },
     }),
   }),
 });

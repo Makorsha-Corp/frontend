@@ -27,12 +27,14 @@ import {
   useGetProjectComponentLedgerQuery,
   useGetProjectComponentTotalCostQuery,
 } from '@/features/ledgers/ledgersApi';
+import { useGetProductLedgerQuery } from '@/features/products/productsApi';
 import type {
   InventoryLedgerEntry,
   MachineLedgerEntry,
   ProjectComponentLedgerEntry,
 } from '@/types/ledger';
 import type { InventoryType } from '@/types/inventory';
+import type { ProductLedgerEntry } from '@/types/product';
 
 type LedgerScope =
   | 'storage'
@@ -40,9 +42,14 @@ type LedgerScope =
   | 'waste'
   | 'scrap'
   | 'machine'
-  | 'project_component';
+  | 'project_component'
+  | 'product';
 
-type LedgerRow = InventoryLedgerEntry | MachineLedgerEntry | ProjectComponentLedgerEntry;
+type LedgerRow =
+  | InventoryLedgerEntry
+  | MachineLedgerEntry
+  | ProjectComponentLedgerEntry
+  | ProductLedgerEntry;
 
 const scopeOptions: Array<{ value: LedgerScope; label: string }> = [
   { value: 'storage', label: 'Storage ledger' },
@@ -51,9 +58,8 @@ const scopeOptions: Array<{ value: LedgerScope; label: string }> = [
   { value: 'scrap', label: 'Scrap ledger' },
   { value: 'machine', label: 'Machine ledger' },
   { value: 'project_component', label: 'Project component ledger' },
+  { value: 'product', label: 'Products (finished goods)' },
 ];
-
-const INVENTORY_SCOPES: ReadonlyArray<LedgerScope> = ['storage', 'damaged', 'waste', 'scrap'];
 
 const inventoryTypeForScope = (scope: LedgerScope): InventoryType | null => {
   switch (scope) {
@@ -94,8 +100,15 @@ const LedgersPage: React.FC = () => {
   const isInventoryScope = inventoryType != null;
   const isMachineScope = scope === 'machine';
   const isProjectComponentScope = scope === 'project_component';
+  const isProductScope = scope === 'product';
+  // Scopes that surface the start/end-date + transaction-type filter inputs.
+  const supportsDateFilters = !isProjectComponentScope;
+  // Scopes that show a factory selector (inventory + product are factory-scoped).
+  const showsFactorySelector = isInventoryScope || isProductScope;
 
   const factoryItemReady = factoryId != null && itemId != null;
+  // List view: just picking a machine is enough; balance + reconcile still need both.
+  const machineReady = machineId != null;
   const machineItemReady = machineId != null && itemId != null;
   const projectComponentReady = projectComponentId != null;
 
@@ -127,14 +140,14 @@ const LedgersPage: React.FC = () => {
   const machineLedger = useGetMachineLedgerQuery(
     {
       machine_id: machineId ?? 0,
-      item_id: itemId ?? 0,
+      item_id: itemId ?? undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       transaction_type: transactionType || undefined,
       skip: 0,
       limit: 100,
     },
-    { skip: !(isMachineScope && machineItemReady) }
+    { skip: !(isMachineScope && machineReady) }
   );
   const machineBalance = useGetMachineBalanceQuery(
     { machine_id: machineId ?? 0, item_id: itemId ?? 0 },
@@ -154,6 +167,20 @@ const LedgersPage: React.FC = () => {
     skip: !(isProjectComponentScope && projectComponentReady),
   });
 
+  // Product (finished goods) ledger. All filters optional — omit any to broaden.
+  const productLedger = useGetProductLedgerQuery(
+    {
+      factory_id: factoryId ?? undefined,
+      item_id: itemId ?? undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+      transaction_type: transactionType || undefined,
+      skip: 0,
+      limit: 100,
+    },
+    { skip: !isProductScope }
+  );
+
   const [reconcileInventory, reconcileInventoryState] = useReconcileInventoryMutation();
   const [reconcileMachine, reconcileMachineState] = useReconcileMachineMutation();
 
@@ -161,14 +188,17 @@ const LedgersPage: React.FC = () => {
     if (isInventoryScope) return inventoryLedger.data ?? [];
     if (isMachineScope) return machineLedger.data ?? [];
     if (isProjectComponentScope) return projectComponentLedger.data ?? [];
+    if (isProductScope) return productLedger.data ?? [];
     return [];
   }, [
     isInventoryScope,
     isMachineScope,
     isProjectComponentScope,
+    isProductScope,
     inventoryLedger.data,
     machineLedger.data,
     projectComponentLedger.data,
+    productLedger.data,
   ]);
 
   const balance = useMemo(() => {
@@ -187,7 +217,8 @@ const LedgersPage: React.FC = () => {
   const isLoading =
     inventoryLedger.isLoading ||
     machineLedger.isLoading ||
-    projectComponentLedger.isLoading;
+    projectComponentLedger.isLoading ||
+    productLedger.isLoading;
   const isReconcileLoading =
     reconcileInventoryState.isLoading ||
     reconcileMachineState.isLoading;
@@ -289,7 +320,7 @@ const LedgersPage: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              {isInventoryScope && (
+              {showsFactorySelector && (
                 <Select value={factoryId?.toString() ?? '__none__'} onValueChange={(v) => setFactoryId(v === '__none__' ? null : Number(v))}>
                   <SelectTrigger><SelectValue placeholder="Factory (optional)" /></SelectTrigger>
                   <SelectContent>
@@ -336,10 +367,14 @@ const LedgersPage: React.FC = () => {
 
               <Select value={itemId?.toString() ?? '__none__'} onValueChange={(v) => setItemId(v === '__none__' ? null : Number(v))}>
                 <SelectTrigger>
-                  <SelectValue placeholder={isInventoryScope ? 'Item (optional)' : 'Item'} />
+                  <SelectValue
+                    placeholder={isProjectComponentScope ? 'Item' : 'Item (optional)'}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">{isInventoryScope ? 'All items' : 'Select item'}</SelectItem>
+                  <SelectItem value="__none__">
+                    {isProjectComponentScope ? 'Select item' : 'All items'}
+                  </SelectItem>
                   {items.map((item) => (
                     <SelectItem key={item.id} value={item.id.toString()}>
                       {item.name}
@@ -348,7 +383,7 @@ const LedgersPage: React.FC = () => {
                 </SelectContent>
               </Select>
 
-              {!isProjectComponentScope && (
+              {supportsDateFilters && (
                 <>
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />

@@ -114,7 +114,8 @@ export interface InventoryReconcileParams {
 
 export interface MachineQueryParams {
   machine_id: number;
-  item_id: number;
+  /** Optional — omit to list every ledger row for the machine. */
+  item_id?: number;
   start_date?: string;
   end_date?: string;
   transaction_type?: string;

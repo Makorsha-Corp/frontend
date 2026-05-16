@@ -83,4 +83,7 @@ export interface ListProductLedgerParams {
   limit?: number;
   factory_id?: number;
   item_id?: number;
+  start_date?: string;
+  end_date?: string;
+  transaction_type?: string;
 }

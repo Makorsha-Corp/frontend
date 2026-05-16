@@ -107,9 +107,9 @@ export const ledgersApi = createApi({
       query: ({ machine_id, item_id, start_date, end_date, transaction_type, skip = 0, limit = 100 }) => {
         const params = new URLSearchParams();
         params.append('machine_id', machine_id.toString());
-        params.append('item_id', item_id.toString());
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
+        if (item_id !== undefined) params.append('item_id', item_id.toString());
         if (start_date) params.append('start_date', start_date);
         if (end_date) params.append('end_date', end_date);
         if (transaction_type) params.append('transaction_type', transaction_type);
