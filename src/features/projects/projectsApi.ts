@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import type { Project, CreateProjectDTO, UpdateProjectDTO } from '@/types/project';
 
 export interface ListProjectsParams {
@@ -11,22 +11,7 @@ export interface ListProjectsParams {
 
 export const projectsApi = createApi({
   reducerPath: 'projectsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Project'],
   endpoints: (builder) => ({
     getProjects: builder.query<Project[], ListProjectsParams>({

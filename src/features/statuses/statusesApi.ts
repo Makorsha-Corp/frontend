@@ -1,20 +1,10 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import type { Status } from '@/types/status';
 
 export const statusesApi = createApi({
   reducerPath: 'statusesApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-      if (token) headers.set('Authorization', `Bearer ${token}`);
-      if (workspaceId) headers.set('X-Workspace-ID', workspaceId.toString());
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Status'],
   endpoints: (builder) => ({
     getStatuses: builder.query<Status[], { skip?: number; limit?: number }>({

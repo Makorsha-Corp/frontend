@@ -28,6 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { logout } from '@/features/auth/authSlice';
+import { useLogoutMutation } from '@/features/auth/authApi';
 import { useTheme } from '@/context/ThemeContext';
 import toast from 'react-hot-toast';
 import {
@@ -476,8 +477,18 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     setFactoriesExpanded(open);
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const [triggerLogout] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    // useLogoutMutation revokes the refresh token on the server (best-effort)
+    // AND clears local auth state via its queryFn. We still dispatch logout()
+    // explicitly as a safety net in case the mutation throws before clearing.
+    try {
+      // queryFn signature requires an explicit arg even when we don't use it.
+      await triggerLogout({}).unwrap();
+    } catch {
+      dispatch(logout());
+    }
     toast.success('Logged out successfully');
     navigate('/login2');
   };
