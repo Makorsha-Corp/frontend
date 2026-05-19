@@ -23,15 +23,7 @@ import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
-
-const EXPENSE_CATEGORIES = [
-  { value: 'utilities', label: 'Utilities' },
-  { value: 'payroll', label: 'Payroll' },
-  { value: 'rent', label: 'Rent' },
-  { value: 'services', label: 'Services' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'other', label: 'Other' },
-] as const;
+import { EXPENSE_CATEGORIES } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 
 const UNITS = ['', 'hr', 'day', 'month', 'pcs', 'kg', 'L', 'm', 'sqm'];
 

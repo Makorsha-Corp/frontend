@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
@@ -91,7 +91,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
@@ -484,9 +484,8 @@ const ProductionPage: React.FC = () => {
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -514,7 +513,6 @@ const ProductionPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>

@@ -29,6 +29,141 @@ import FactoryDetailCard from '@/components/newcomponents/customui/FactoryDetail
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
 import DueStatusCard, { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
+import { cn } from '@/lib/utils';
+
+/** Matches DashboardPage stat cards — brand theme colors */
+type FactoryOverviewStatVariant =
+  | 'primary'
+  | 'primaryHover'
+  | 'accent'
+  | 'accentLight'
+  | 'outlined';
+
+const factoryOverviewStatStyles: Record<
+  FactoryOverviewStatVariant,
+  {
+    card: string;
+    title: string;
+    value: string;
+    icon: string;
+    foot: string;
+    badge: string;
+    badgeMuted: string;
+    sectionLabel: string;
+  }
+> = {
+  primary: {
+    card: 'bg-brand-primary text-white border-transparent shadow-sm',
+    title: 'text-white/80',
+    value: 'text-white',
+    icon: 'text-white/60',
+    foot: 'text-white/80',
+    badge: 'border-white/30 bg-white/15 text-white hover:bg-white/15',
+    badgeMuted: 'border-white/20 bg-white/10 text-white/90 hover:bg-white/10',
+    sectionLabel: 'text-white/75',
+  },
+  primaryHover: {
+    card: 'bg-brand-primary-hover text-white border-transparent shadow-sm',
+    title: 'text-white/80',
+    value: 'text-white',
+    icon: 'text-white/60',
+    foot: 'text-white/80',
+    badge: 'border-white/30 bg-white/15 text-white hover:bg-white/15',
+    badgeMuted: 'border-white/20 bg-white/10 text-white/90 hover:bg-white/10',
+    sectionLabel: 'text-white/75',
+  },
+  accent: {
+    card: 'bg-brand-accent text-card-foreground border-transparent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-card-foreground/70',
+    badge: 'border-card-foreground/15 bg-background/60 text-card-foreground hover:bg-background/60',
+    badgeMuted: 'border-card-foreground/10 bg-background/40 text-card-foreground/80 hover:bg-background/40',
+    sectionLabel: 'text-card-foreground/65',
+  },
+  accentLight: {
+    card: 'bg-brand-accent-light text-card-foreground border-transparent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-card-foreground/70',
+    badge: 'border-card-foreground/15 bg-background/50 text-card-foreground hover:bg-background/50',
+    badgeMuted: 'border-card-foreground/10 bg-background/35 text-card-foreground/80 hover:bg-background/35',
+    sectionLabel: 'text-card-foreground/65',
+  },
+  outlined: {
+    card: 'bg-card text-card-foreground border-2 border-brand-accent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-muted-foreground',
+    badge: 'border-brand-accent/40 bg-brand-accent/10 text-card-foreground hover:bg-brand-accent/10',
+    badgeMuted: 'border-border bg-muted/50 text-muted-foreground hover:bg-muted/50',
+    sectionLabel: 'text-card-foreground/60',
+  },
+};
+
+interface FactoryOverviewStatCardProps {
+  title: string;
+  value: React.ReactNode;
+  icon: React.ReactNode;
+  variant: FactoryOverviewStatVariant;
+  footer?: string;
+  children?: React.ReactNode;
+  interactive?: boolean;
+  onClick?: () => void;
+  ariaLabel?: string;
+}
+
+const FactoryOverviewStatCard: React.FC<FactoryOverviewStatCardProps> = ({
+  title,
+  value,
+  icon,
+  variant,
+  footer,
+  children,
+  interactive,
+  onClick,
+  ariaLabel,
+}) => {
+  const s = factoryOverviewStatStyles[variant];
+  return (
+    <Card
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? ariaLabel : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        s.card,
+        interactive &&
+          'cursor-pointer transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+      )}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className={cn('text-sm font-medium', s.title)}>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className={cn('text-3xl font-bold tabular-nums', s.value)}>{value}</div>
+          <div className={cn('shrink-0', s.icon)}>{icon}</div>
+        </div>
+        {children}
+        {footer ? <p className={cn('text-xs', s.foot)}>{footer}</p> : null}
+      </CardContent>
+    </Card>
+  );
+};
 
 interface FactoryCardProps {
   factory: Factory;
@@ -339,170 +474,136 @@ const FactoriesPage: React.FC = () => {
 
         {/* Content */}
         <div className="p-8 bg-background">
-          <Card className="mb-5 border-border bg-card shadow-sm">
-            <CardContent className="px-6 py-6">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-                <div
-                  className="rounded-lg border border-border px-4 py-4"
-                  style={{ backgroundColor: 'var(--pastel-1)' }}
-                >
-                  <div className="flex min-h-5 items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">
-                      Workspace factories
-                    </p>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-1)' }}>
-                      <FactoryIcon className="h-3.5 w-3.5 text-foreground/80" />
-                    </span>
-                  </div>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
-                    {factories?.length ?? 0}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {filteredFactories.length} visible
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      {visibleRatio.toFixed(0)}% in view
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
-                    {selectedFactory ? `Current navbar scope: ${selectedFactory.name}` : 'Global scope (all factories)'}
-                  </p>
-                </div>
+          <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+            <FactoryOverviewStatCard
+              variant="primary"
+              title="Workspace factories"
+              value={factories?.length ?? 0}
+              icon={<FactoryIcon size={24} />}
+              footer={
+                selectedFactory
+                  ? `Current navbar scope: ${selectedFactory.name}`
+                  : 'Global scope (all factories)'
+              }
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.primary.badge}>
+                  {filteredFactories.length} visible
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.primary.badgeMuted}>
+                  {visibleRatio.toFixed(0)}% in view
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
 
-                <div
-                  className="rounded-lg border border-border px-4 py-4"
-                  style={{ backgroundColor: 'var(--pastel-3)' }}
-                >
-                  <div className="flex min-h-5 items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Total sections</p>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-3)' }}>
-                      <Layers className="h-3.5 w-3.5 text-foreground/80" />
-                    </span>
-                  </div>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{totalSectionsCount}</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {sectionsForVisible} in filtered view
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      {avgSectionsVisible.toFixed(1)} avg visible
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
-                    Across {visibleFactoryCount} visible {visibleFactoryCount === 1 ? 'factory' : 'factories'}
-                  </p>
-                </div>
+            <FactoryOverviewStatCard
+              variant="primaryHover"
+              title="Total sections"
+              value={totalSectionsCount}
+              icon={<Layers size={24} />}
+              footer={`Across ${visibleFactoryCount} visible ${visibleFactoryCount === 1 ? 'factory' : 'factories'}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.primaryHover.badge}>
+                  {sectionsForVisible} in filtered view
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.primaryHover.badgeMuted}>
+                  {avgSectionsVisible.toFixed(1)} avg visible
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
 
-                <button
-                  type="button"
-                  onClick={() => setIsDeptsDialogOpen(true)}
-                  className="m-0 flex h-full w-full appearance-none flex-col rounded-lg border border-border px-4 py-4 text-left align-top leading-normal transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  style={{ backgroundColor: 'var(--pastel-2)' }}
-                  aria-label={`Manage departments, ${departments.length} total`}
-                >
-                  <div className="flex min-h-5 items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Departments</p>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-2)' }}>
-                      <Users className="h-3.5 w-3.5 text-foreground/80" />
-                    </span>
-                  </div>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
-                    {departments.length}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {deptsPerFactory.toFixed(1)} per factory
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      Manage
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
-                    {departments.length === 1 ? 'dept configured' : 'depts configured'}
-                  </p>
-                </button>
+            <FactoryOverviewStatCard
+              variant="accent"
+              title="Departments"
+              value={departments.length}
+              icon={<Users size={24} />}
+              footer={departments.length === 1 ? 'dept configured' : 'depts configured'}
+              interactive
+              onClick={() => setIsDeptsDialogOpen(true)}
+              ariaLabel={`Manage departments, ${departments.length} total`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badge}>
+                  {deptsPerFactory.toFixed(1)} per factory
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badgeMuted}>
+                  Manage
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
 
-                <div
-                  className="rounded-lg border border-border px-4 py-4"
-                  style={{ backgroundColor: 'var(--pastel-4)' }}
-                >
-                  <div className="flex min-h-5 items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">Avg sections / factory</p>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-4)' }}>
-                      <ChevronRight className="h-3.5 w-3.5 text-foreground/80" />
-                    </span>
-                  </div>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
-                    {avgSectionsPerFactory.toFixed(1)}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {totalSectionsCount} / {factories?.length ?? 0}
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      {avgSectionsVsBaseline >= 0 ? '+' : ''}
-                      {avgSectionsVsBaseline.toFixed(1)} vs baseline
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground dark:text-white/80">
-                    Baseline target is 2.0 sections per factory
-                  </p>
-                </div>
+            <FactoryOverviewStatCard
+              variant="accentLight"
+              title="Avg sections / factory"
+              value={avgSectionsPerFactory.toFixed(1)}
+              icon={<ChevronRight size={24} />}
+              footer="Baseline target is 2.0 sections per factory"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badge}>
+                  {totalSectionsCount} / {factories?.length ?? 0}
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badgeMuted}>
+                  {avgSectionsVsBaseline >= 0 ? '+' : ''}
+                  {avgSectionsVsBaseline.toFixed(1)} vs baseline
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
 
-                <div
-                  className="rounded-lg border border-border px-4 py-4"
-                  style={{ backgroundColor: 'var(--pastel-5)' }}
+            <FactoryOverviewStatCard
+              variant="outlined"
+              title="High activity"
+              value={
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>{activitySummary.high}</span>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                    {activitySummary.medium} medium
+                  </Badge>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                    {activitySummary.low} low
+                  </Badge>
+                </span>
+              }
+              icon={<Layers size={24} />}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                  {trendSeries.active} active
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                  {trendSeries.dormant} dormant
+                </Badge>
+              </div>
+              <div>
+                <p
+                  className={cn(
+                    'mb-1 text-[11px] font-semibold uppercase tracking-wider',
+                    factoryOverviewStatStyles.outlined.sectionLabel
+                  )}
                 >
-                  <div className="flex min-h-5 items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80 dark:text-white/90">High activity</p>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm" style={{ backgroundColor: 'var(--pastel-5)' }}>
-                      <Layers className="h-3.5 w-3.5 text-foreground/80" />
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <p className="text-3xl font-semibold tabular-nums text-card-foreground">{activitySummary.high}</p>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {activitySummary.medium} medium
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      {activitySummary.low} low
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-foreground/85 dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-100">
-                      {trendSeries.active} active
-                    </Badge>
-                    <Badge variant="outline" className="border-border/60 bg-background/65 text-muted-foreground dark:border-slate-200/35 dark:bg-slate-100/15 dark:text-slate-200">
-                      {trendSeries.dormant} dormant
-                    </Badge>
-                  </div>
-                  <div className="mt-4">
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/75 dark:text-white/85">
-                      Activity mix
-                    </p>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{ width: `${activityHighPct}%`, float: 'left' }}
-                        title={`High: ${activitySummary.high}`}
-                      />
-                      <div
-                        className="h-full bg-amber-500"
-                        style={{ width: `${activityMediumPct}%`, float: 'left' }}
-                        title={`Medium: ${activitySummary.medium}`}
-                      />
-                      <div
-                        className="h-full bg-slate-400 dark:bg-slate-600"
-                        style={{ width: `${activityLowPct}%`, float: 'left' }}
-                        title={`Low: ${activitySummary.low}`}
-                      />
-                    </div>
-                  </div>
+                  Activity mix
+                </p>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
+                  <div
+                    className="h-full bg-brand-primary"
+                    style={{ width: `${activityHighPct}%`, float: 'left' }}
+                    title={`High: ${activitySummary.high}`}
+                  />
+                  <div
+                    className="h-full bg-brand-primary-hover"
+                    style={{ width: `${activityMediumPct}%`, float: 'left' }}
+                    title={`Medium: ${activitySummary.medium}`}
+                  />
+                  <div
+                    className="h-full bg-brand-accent"
+                    style={{ width: `${activityLowPct}%`, float: 'left' }}
+                    title={`Low: ${activitySummary.low}`}
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </FactoryOverviewStatCard>
+          </div>
 
           <div className="mb-5">
             <DueStatusCard

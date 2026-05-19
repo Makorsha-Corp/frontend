@@ -41,7 +41,7 @@ import AddProductDialog from '@/components/newcomponents/customui/AddProductDial
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
 import ActiveOrdersPanel from '@/components/newcomponents/customui/RunningOrdersPlaceholder';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const INVENTORY_TYPES: { value: InventoryType; label: string }[] = [
   { value: 'STORAGE', label: 'Storage' },
@@ -184,9 +184,8 @@ const StoragePage: React.FC = () => {
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Archive className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -214,9 +213,7 @@ const StoragePage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
         {/* Header */}
         <AppShellHeader>

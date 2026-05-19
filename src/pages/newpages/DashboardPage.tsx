@@ -20,7 +20,6 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardNavbar />
-
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         {/* Top Bar */}

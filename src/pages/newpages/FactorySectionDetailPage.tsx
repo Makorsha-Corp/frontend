@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useParams, Link } from 'react-router-dom';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ import {
   statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const FactorySectionDetailPage: React.FC = () => {
   const { id, sectionId } = useParams<{ id: string; sectionId: string }>();
@@ -103,20 +103,21 @@ const FactorySectionDetailPage: React.FC = () => {
 
   if (!factoryId || isNaN(factoryId) || !sectionIdNum || isNaN(sectionIdNum)) {
     return (
-      <div className="flex min-h-screen bg-background items-center justify-center">
-        <p className="text-destructive">
-          Invalid URL. <Link to="/factories" className="underline">Back to factories</Link>
-        </p>
+      <div className="flex min-h-screen bg-background">
+        <DashboardNavbar />
+        <div className="flex flex-1 min-w-0 items-center justify-center">
+          <p className="text-destructive">
+            Invalid URL. <Link to="/factories" className="underline">Back to factories</Link>
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">

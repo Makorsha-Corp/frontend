@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderLoweredSelectorClass,
   appShellHeaderIconTileClass,
@@ -67,7 +67,7 @@ import AddProjectComponentItemDialog from '@/components/newcomponents/customui/A
 import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
 import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
 import EditProjectComponentDialog from '@/components/newcomponents/customui/EditProjectComponentDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
@@ -255,9 +255,8 @@ const ProjectsPage: React.FC = () => {
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FolderKanban className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -285,7 +284,6 @@ const ProjectsPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>

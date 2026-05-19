@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ import {
   neutralMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 interface FactorySectionCardProps {
   section: FactorySection;
@@ -235,9 +235,7 @@ const FactoryDetailPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
         <AppShellHeader sticky>

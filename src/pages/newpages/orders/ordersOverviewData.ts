@@ -70,7 +70,7 @@ function parseBusinessDay(ymd: string | null | undefined, fallback: Date): Date 
   return isValid(d) ? startOfDay(d) : fallback;
 }
 
-function factoryFromPurchase(po: PurchaseOrder, maps: OrderResolutionMaps): number | null {
+export function factoryFromPurchase(po: PurchaseOrder, maps: OrderResolutionMaps): number | null {
   const { destination_type: dt, destination_id: id } = po;
   if (dt === 'storage') return id;
   if (dt === 'machine') return maps.machineIdToFactoryId.get(id) ?? null;
@@ -89,7 +89,7 @@ function factoryFromLocation(
   return null;
 }
 
-function factoryFromTransfer(t: TransferOrder, maps: OrderResolutionMaps): number | null {
+export function factoryFromTransfer(t: TransferOrder, maps: OrderResolutionMaps): number | null {
   const dest = factoryFromLocation(t.destination_location_type, t.destination_location_id, maps);
   if (dest != null) return dest;
   return factoryFromLocation(t.source_location_type, t.source_location_id, maps);

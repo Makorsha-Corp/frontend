@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useNavigate, Link } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -31,7 +31,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const SECTION_CONFIG: Record<string, { label: string; tagCode: string }> = {
   suppliers: { label: 'Suppliers', tagCode: 'supplier' },
@@ -111,9 +111,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between">

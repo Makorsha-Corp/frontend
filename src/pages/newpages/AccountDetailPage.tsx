@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useParams, Link } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -22,7 +22,7 @@ import { Users, Pencil, Loader2, FileText, CreditCard, ChevronLeft, ChevronRight
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import type { AccountInvoice } from '@/types/accountInvoice';
 import {
   Select,
@@ -228,9 +228,7 @@ const AccountDetailPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useNavigate } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -40,7 +40,7 @@ import {
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 const OPEN_INVOICE_STATUSES = new Set(['unpaid', 'partial', 'overdue']);
@@ -263,9 +263,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between">

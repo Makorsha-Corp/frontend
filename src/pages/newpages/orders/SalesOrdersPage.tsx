@@ -45,10 +45,8 @@ const SalesOrdersPage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">

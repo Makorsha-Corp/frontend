@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ import {
   statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const defaultMachineFilters: MachinesFiltersValue = {
   search: '',
@@ -373,9 +373,8 @@ const MachinesPage: React.FC = () => {
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Cog className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -403,10 +402,8 @@ const MachinesPage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
