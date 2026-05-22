@@ -3,10 +3,9 @@ import { Button } from '@/components/ui/button';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import PurchaseOrderListRow from '@/components/newcomponents/customui/orders/PurchaseOrderListRow';
 import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
-import { ShoppingCart, Plus, Loader2, X } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2 } from 'lucide-react';
 
 export interface PurchaseOrderNavigatorPanelProps {
-  onClose: () => void;
   filteredOrders: PurchaseOrder[];
   selectedOrderId: number | null;
   isLoading: boolean;
@@ -21,7 +20,6 @@ export interface PurchaseOrderNavigatorPanelProps {
 }
 
 const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = ({
-  onClose,
   filteredOrders,
   selectedOrderId,
   isLoading,
@@ -40,23 +38,13 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
       style={{ width: ORDER_LIST_WIDTH }}
     >
       {/* Header */}
-      <div className="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between">
+      <div className="shrink-0 border-b border-border px-4 py-3">
         <h2 className="text-base font-semibold text-card-foreground">
           Orders
           <span className="ml-2 font-normal text-muted-foreground">
             ({filteredOrders.length})
           </span>
         </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close navigator</span>
-        </Button>
       </div>
 
       {/* List */}

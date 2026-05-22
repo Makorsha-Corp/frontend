@@ -25,10 +25,10 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, PanelLeft } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2, Search, CalendarIcon } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
-import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
+import PurchaseOrderDetailPanelMockup from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanelMockup';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -50,7 +50,6 @@ const PurchaseOrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [navigatorOpen, setNavigatorOpen] = useState(false);
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -255,32 +254,6 @@ const PurchaseOrdersPage: React.FC = () => {
 
         {/* Synced filters — affect navigator list + overview/detail */}
         <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={navigatorOpen ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setNavigatorOpen((prev) => !prev)}
-            className={`shrink-0 max-w-[240px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-          >
-            <PanelLeft className="mr-2 h-4 w-4 shrink-0" />
-            {selectedOrder ? (
-              <span className="truncate text-left">
-                <span className="font-medium">{selectedOrder.po_number}</span>
-                <span className="text-muted-foreground font-normal">
-                  {' '}
-                  · {accountName(selectedOrder.account_id)}
-                </span>
-              </span>
-            ) : (
-              <span className="truncate">
-                Browse orders
-                <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
-              </span>
-            )}
-          </Button>
-
-          <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
-
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -379,35 +352,27 @@ const PurchaseOrdersPage: React.FC = () => {
           </Select>
         </div>
 
-        {/* Main content area: optional navigator (left) + content (right) */}
+        {/* Main content area: navigator (left) + content (right) */}
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
-          {/* Collapsible navigator panel */}
-          {navigatorOpen && (
-            <PurchaseOrderNavigatorPanel
-              onClose={() => setNavigatorOpen(false)}
-              filteredOrders={filteredOrders}
-              selectedOrderId={selectedOrderId}
-              isLoading={isLoading}
-              hasActiveFilters={hasActiveFilters}
-              onSelectOrder={(id) => setSelectedOrder(id)}
-              onAddOrder={() => setIsAddOpen(true)}
-              accountName={accountName}
-              statusLabel={statusLabel}
-              destinationLabel={destinationLabel}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-            />
-          )}
+          {/* Navigator panel */}
+          <PurchaseOrderNavigatorPanel
+            filteredOrders={filteredOrders}
+            selectedOrderId={selectedOrderId}
+            isLoading={isLoading}
+            hasActiveFilters={hasActiveFilters}
+            onSelectOrder={(id) => setSelectedOrder(id)}
+            onAddOrder={() => setIsAddOpen(true)}
+            accountName={accountName}
+            statusLabel={statusLabel}
+            destinationLabel={destinationLabel}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+          />
 
           {/* Content panel (overview or detail) */}
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
-              <PurchaseOrderDetailPanel
-                order={selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                onDelete={() => handleDelete(selectedOrder)}
-                onUpdated={() => setSelectedOrder(selectedOrder.id)}
-              />
+              <PurchaseOrderDetailPanelMockup />
             ) : (
               <PurchaseOrdersOverviewPanel
                 orders={filteredOrders}
@@ -416,9 +381,6 @@ const PurchaseOrdersPage: React.FC = () => {
                 mayTruncate={mayTruncate}
                 accountName={accountName}
                 statusLabel={statusLabel}
-                destinationLabel={destinationLabel}
-                formatCurrency={formatCurrency}
-                formatDate={formatDate}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
             )}
