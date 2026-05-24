@@ -98,13 +98,20 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Quantity <span className="text-destructive">*</span></Label>
-              <Input
-                type="number"
-                min="0"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                className="bg-background"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  className="flex-1 bg-background"
+                />
+                {product?.item_unit && (
+                  <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md border border-input h-10 flex items-center justify-center min-w-[3.5rem] select-none shadow-sm">
+                    {product.item_unit}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -132,14 +139,21 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
             </div>
             <div className="grid gap-2">
               <Label>Min Order Qty</Label>
-              <Input
-                type="number"
-                min="0"
-                value={minOrderQty}
-                onChange={(e) => setMinOrderQty(e.target.value)}
-                placeholder="Optional"
-                className="bg-background"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  value={minOrderQty}
+                  onChange={(e) => setMinOrderQty(e.target.value)}
+                  placeholder="Optional"
+                  className="flex-1 bg-background"
+                />
+                {product?.item_unit && (
+                  <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md border border-input h-10 flex items-center justify-center min-w-[3.5rem] select-none shadow-sm">
+                    {product.item_unit}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox

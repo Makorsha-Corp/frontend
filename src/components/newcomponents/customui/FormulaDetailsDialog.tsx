@@ -56,7 +56,7 @@ export interface FormulaDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formula: ProductionFormula;
-  items: { id: number; name: string }[];
+  items: { id: number; name: string; unit?: string }[];
   getItemName: (id: number) => string;
 }
 
@@ -83,6 +83,10 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     waste: true,
     byproduct: true,
   });
+
+  const selectedItem = useMemo(() => {
+    return items.find((i) => i.id.toString() === addItemId);
+  }, [items, addItemId]);
 
   useEffect(() => {
     if (open) {
@@ -301,7 +305,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
             <SelectContent>
               {items.map((i) => (
                 <SelectItem key={i.id} value={i.id.toString()}>
-                  {i.name}
+                  {i.name} {i.unit ? `(${i.unit})` : ''}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -324,14 +328,22 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
         </div>
         <div className="grid gap-2">
           <Label htmlFor="formula-add-qty">Quantity</Label>
-          <Input
-            id="formula-add-qty"
-            type="number"
-            min={1}
-            value={addQty}
-            onChange={(e) => setAddQty(e.target.value)}
-            placeholder="1"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              id="formula-add-qty"
+              type="number"
+              min={1}
+              value={addQty}
+              onChange={(e) => setAddQty(e.target.value)}
+              placeholder="1"
+              className="flex-1"
+            />
+            {selectedItem?.unit && (
+              <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md border border-input h-10 flex items-center justify-center min-w-[3.5rem] select-none shadow-sm">
+                {selectedItem.unit}
+              </span>
+            )}
+          </div>
         </div>
         <Button
           type="submit"

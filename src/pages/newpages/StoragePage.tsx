@@ -585,7 +585,10 @@ const StoragePage: React.FC = () => {
                                     <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="py-3">{prod.qty}</TableCell>
+                                <TableCell className="py-3">
+                                  {prod.qty}
+                                  {prod.item_unit ? <span className="ml-1 text-xs text-muted-foreground">{prod.item_unit}</span> : null}
+                                </TableCell>
                                 <TableCell className="py-3">{formatCurrency(prod.avg_cost)}</TableCell>
                                 <TableCell className="py-3">{formatCurrency(prod.selling_price)}</TableCell>
                                 <TableCell className="py-3">
