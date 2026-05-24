@@ -9,12 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Search, Loader2, X } from 'lucide-react';
+import { Search, Loader2, X, Plus } from 'lucide-react';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { Account } from '@/types/account';
 import { API_LIMITS } from '@/constants/apiLimits';
+import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 
 export interface AccountSelectorDialogProps {
   open: boolean;
@@ -41,6 +41,7 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
   const [tagSearch, setTagSearch] = useState('');
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [selectedTagCodes, setSelectedTagCodes] = useState<string[]>([]);
+  const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
 
   const { data: accounts = [], isLoading } = useGetAccountsQuery(
     {
@@ -116,8 +117,9 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[78vh] max-h-[78vh] w-[min(40rem,94vw)] max-w-none sm:max-w-none flex-col overflow-hidden p-5 sm:p-6">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[78vh] max-h-[78vh] w-[min(40rem,94vw)] max-w-none sm:max-w-none flex-col overflow-hidden p-5 sm:p-6">
         <DialogHeader className="shrink-0 text-left">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -125,8 +127,8 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
           <div className="shrink-0 space-y-3 rounded-lg border border-border bg-muted/10 p-3">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div className="relative">
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-5">
+              <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="account-selector-search"
@@ -136,7 +138,7 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
                   className="pl-9"
                 />
               </div>
-              <div className="relative">
+              <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={tagSearch}
@@ -145,6 +147,15 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
                   className="pl-9"
                 />
               </div>
+              <Button
+                type="button"
+                className="h-10 w-full lg:col-span-1 bg-brand-primary/90 hover:bg-brand-primary text-primary-foreground shadow-sm"
+                onClick={() => setIsCreateAccountOpen(true)}
+                title="Create"
+              >
+                Create
+                <Plus className="ml-2 h-4 w-4" />
+              </Button>
             </div>
             <div className="max-h-24 overflow-y-auto rounded-md border border-border bg-background p-2">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -262,8 +273,14 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
             </div>
           </div>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <AddAccountDialog
+        open={isCreateAccountOpen}
+        onOpenChange={setIsCreateAccountOpen}
+        defaultTagCode={filterTagCode}
+      />
+    </>
   );
 };
 

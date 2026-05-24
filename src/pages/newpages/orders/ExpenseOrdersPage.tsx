@@ -1,8 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   useGetExpenseOrdersQuery,
   useDeleteExpenseOrderMutation,
@@ -10,38 +21,91 @@ import {
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { Receipt, Plus, Loader2, Search } from 'lucide-react';
+import { Receipt, Plus, Loader2, Search, CalendarIcon, PanelLeft } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
-import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
-import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
+import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/ExpenseOrdersOverviewPanel';
+import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
+import {
+  EXPENSE_CATEGORIES,
+  expenseCategoryLabel,
+} from '@/components/newcomponents/customui/orders/expenseOrderConstants';
+import { API_LIMITS } from '@/constants/apiLimits';
+import {
+  filterExpenseOrders,
+  expenseOrderSummaryStats,
+  type InvoiceFilter,
+} from './expenseOrdersOverviewData';
+
+const EO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
 const ExpenseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [navigatorOpen, setNavigatorOpen] = useState(false);
 
-  const { data: orders = [], isLoading } = useGetExpenseOrdersQuery({ skip: 0, limit: 200 });
-  const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: 100 });
-  const { data: statuses = [] } = useGetStatusesQuery({ skip: 0, limit: 100 });
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+
+  const { data: orders = [], isLoading } = useGetExpenseOrdersQuery({
+    skip: 0,
+    limit: EO_LIST_LIMIT,
+  });
+  const { data: accounts = [] } = useGetAccountsQuery({
+    skip: 0,
+    limit: API_LIMITS.ACCOUNTS_LIST_MAX,
+  });
+  const { data: statuses = [] } = useGetStatusesQuery({
+    skip: 0,
+    limit: API_LIMITS.STRICT_100,
+  });
   const [deleteOrder] = useDeleteExpenseOrderMutation();
-  const statusLabel = (id: number) => statuses.find((s) => s.id === id)?.name ?? `#${id}`;
-  const accountName = (id: number | null) => (id ? accounts.find((a) => a.id === id)?.name ?? `#${id}` : '—');
-  const formatDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString() : '—');
 
-  const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return orders;
-    const q = searchQuery.toLowerCase();
-    return orders.filter(
-      (o) =>
-        o.expense_number?.toLowerCase().includes(q) ||
-        o.expense_category?.toLowerCase().includes(q)
-    );
-  }, [orders, searchQuery]);
+  const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
 
-  const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
+  const filterOpts = useMemo(
+    () => ({
+      from: dateRange.from,
+      to: dateRange.to,
+      statusId: statusFilter,
+      accountId: accountFilter,
+      categoryFilter,
+      invoice: invoiceFilter,
+      searchQuery,
+    }),
+    [
+      dateRange.from,
+      dateRange.to,
+      statusFilter,
+      accountFilter,
+      categoryFilter,
+      invoiceFilter,
+      searchQuery,
+    ]
+  );
+
+  const filteredOrders = useMemo(
+    () => filterExpenseOrders(orders, filterOpts, accounts),
+    [orders, filterOpts, accounts]
+  );
+
+  const overviewStats = useMemo(
+    () => expenseOrderSummaryStats(filteredOrders, statusMap),
+    [filteredOrders, statusMap]
+  );
+
+  const mayTruncate = orders.length >= EO_LIST_LIMIT;
+
+  const selectedOrder =
+    filteredOrders.find((o) => o.id === selectedOrderId) ??
+    orders.find((o) => o.id === selectedOrderId) ??
+    null;
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
@@ -69,7 +133,28 @@ const ExpenseOrdersPage: React.FC = () => {
   };
 
   const formatCurrency = (v: number | null | undefined) =>
-    v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
+    v != null
+      ? new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 2,
+        }).format(v)
+      : '—';
+
+  const accountName = (id: number | null) =>
+    id ? accounts.find((a) => a.id === id)?.name ?? `#${id}` : '—';
+  const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
+  const formatDate = (d: string | null | undefined) =>
+    d ? new Date(d).toLocaleDateString() : '—';
+
+  const hasActiveFilters =
+    dateRange.from != null ||
+    dateRange.to != null ||
+    statusFilter !== 'all' ||
+    accountFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    invoiceFilter !== 'all' ||
+    searchQuery.trim().length > 0;
 
   const handleDelete = async (o: ExpenseOrder) => {
     if (!window.confirm(`Delete expense order ${o.expense_number}?`)) return;
@@ -89,15 +174,17 @@ const ExpenseOrdersPage: React.FC = () => {
       <DashboardNavbar />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
                 <Receipt className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Expense Orders</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                Expense Orders
+              </h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="relative w-[220px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -105,71 +192,169 @@ const ExpenseOrdersPage: React.FC = () => {
                   placeholder="Search by # or category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background"
+                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
-              </div>
+                </div>
               <Button
                 type="button"
                 onClick={() => setIsAddOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary-hover h-9"
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Expense Order
               </Button>
             </div>
           </div>
+        </AppShellHeader>
+
+        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={navigatorOpen ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setNavigatorOpen((prev) => !prev)}
+            className={`shrink-0 max-w-[240px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+          >
+            <PanelLeft className="mr-2 h-4 w-4 shrink-0" />
+            {selectedOrder ? (
+              <span className="truncate text-left">
+                <span className="font-medium">{selectedOrder.expense_number}</span>
+                <span className="text-muted-foreground font-normal">
+                  {' '}
+                  · {expenseCategoryLabel(selectedOrder.expense_category)}
+                </span>
+              </span>
+            ) : (
+              <span className="truncate">
+                Browse orders
+                <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
+              </span>
+            )}
+          </Button>
+
+          <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+                  ) : (
+                    format(dateRange.from, 'MMM d')
+                  )
+                ) : (
+                  'All dates'
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {statuses.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={accountFilter} onValueChange={setAccountFilter}>
+            <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
+              <SelectValue placeholder="Account" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All accounts</SelectItem>
+              {accounts.map((a) => (
+                <SelectItem key={a.id} value={String(a.id)}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {EXPENSE_CATEGORIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={invoiceFilter} onValueChange={(v) => setInvoiceFilter(v as InvoiceFilter)}>
+            <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
+              <SelectValue placeholder="Invoice" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All invoices</SelectItem>
+              <SelectItem value="invoiced">Invoiced</SelectItem>
+              <SelectItem value="not_invoiced">Not invoiced</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="flex-1 min-h-0 flex overflow-hidden">
-          <div className="flex-shrink-0 border-r border-border flex flex-col min-h-0 bg-card" style={{ width: ORDER_LIST_WIDTH }}>
-            <div className="px-4 py-3 border-b border-border text-sm text-muted-foreground font-medium">
-              {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-                  <p className="text-sm text-muted-foreground">Loading orders...</p>
-                </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <Receipt className="h-12 w-12 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground text-center">
-                    {searchQuery ? 'No orders match your search.' : 'No expense orders yet.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {filteredOrders.map((o) => (
-                    <ExpenseOrderListRow
-                      key={o.id}
-                      order={o}
-                      isSelected={selectedOrderId === o.id}
-                      onClick={() => setSelectedOrder(o.id)}
-                      accountName={accountName(o.account_id)}
-                      statusLabel={statusLabel(o.current_status_id)}
-                      formatCurrency={formatCurrency}
-                      formatDate={formatDate}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
+          {navigatorOpen && (
+            <ExpenseOrderNavigatorPanel
+              onClose={() => setNavigatorOpen(false)}
+              filteredOrders={filteredOrders}
+              selectedOrderId={selectedOrderId}
+              isLoading={isLoading}
+              hasActiveFilters={hasActiveFilters}
+              onSelectOrder={(id) => setSelectedOrder(id)}
+              onAddOrder={() => setIsAddOpen(true)}
+              accountName={accountName}
+              statusLabel={statusLabel}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+            />
+          )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto bg-background">
+          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
               <ExpenseOrderDetailPanel
                 order={selectedOrder}
                 accounts={accounts}
                 onClose={() => setSelectedOrder(null)}
                 onDelete={() => handleDelete(selectedOrder)}
+                onUpdated={() => setSelectedOrder(selectedOrder.id)}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <Receipt className="h-16 w-16 mb-4 opacity-30" />
-                <p className="text-sm">Select an order to view details</p>
-              </div>
+              <ExpenseOrdersOverviewPanel
+                orders={filteredOrders}
+                stats={overviewStats}
+                isLoading={isLoading}
+                mayTruncate={mayTruncate}
+                accountName={accountName}
+                statusLabel={statusLabel}
+                formatCurrency={formatCurrency}
+                formatDate={formatDate}
+                onSelectOrder={(id) => setSelectedOrder(id)}
+              />
             )}
           </div>
         </div>
@@ -178,7 +363,10 @@ const ExpenseOrdersPage: React.FC = () => {
       <AddExpenseOrderDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onSuccess={(order) => setSelectedOrder(order.id)}
+        onSuccess={(order) => {
+          setSelectedOrder(order.id);
+          setIsAddOpen(false);
+        }}
       />
     </div>
   );

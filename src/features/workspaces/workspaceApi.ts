@@ -1,5 +1,7 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
+// Use explicit module-file paths: `@/types` resolves to the legacy
+// `src/types.ts`, not the `src/types/` folder we actually want.
 import type {
   WorkspaceListItem,
   WorkspaceDetails,
@@ -8,26 +10,11 @@ import type {
   WorkspaceMember,
   WorkspaceInvitation,
   SendInvitationRequest,
-} from '@/types';
+} from '@/types/workspace';
 
 export const workspaceApi = createApi({
   reducerPath: 'workspaceApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.token;
-      const workspace = (getState() as RootState).auth.workspace;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspace) {
-        headers.set('X-Workspace-ID', workspace.id.toString());
-      }
-
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Workspace', 'WorkspaceMember', 'WorkspaceInvitation'],
   endpoints: (builder) => ({
     // List workspaces

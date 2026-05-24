@@ -1,7 +1,8 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '@/app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import { productsApi } from '@/features/products/productsApi';
 import { inventoryApi } from '@/features/inventory/inventoryApi';
+import { ledgersApi } from '@/features/ledgers/ledgersApi';
 import type {
   ProductionLine, CreateProductionLineDTO, UpdateProductionLineDTO,
   ProductionFormula, CreateProductionFormulaDTO, UpdateProductionFormulaDTO,
@@ -34,22 +35,7 @@ export interface ListProductionBatchesParams {
 
 export const productionApi = createApi({
   reducerPath: 'productionApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'ProductionBatch', 'BatchItem'],
   endpoints: (builder) => ({
     // ─── Production Lines ────────────────────────────────────────
@@ -221,7 +207,8 @@ export const productionApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
-          dispatch(inventoryApi.util.invalidateTags(['Inventory', 'InventoryLedger']));
+          dispatch(inventoryApi.util.invalidateTags(['Inventory']));
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
         } catch {
           /* noop */
         }
@@ -238,7 +225,8 @@ export const productionApi = createApi({
         try {
           await queryFulfilled;
           dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
-          dispatch(inventoryApi.util.invalidateTags(['Inventory', 'InventoryLedger']));
+          dispatch(inventoryApi.util.invalidateTags(['Inventory']));
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
         } catch {
           /* noop */
         }

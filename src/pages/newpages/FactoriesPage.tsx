@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +29,141 @@ import FactoryDetailCard from '@/components/newcomponents/customui/FactoryDetail
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
 import DueStatusCard, { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
+import { cn } from '@/lib/utils';
+
+/** Matches DashboardPage stat cards — brand theme colors */
+type FactoryOverviewStatVariant =
+  | 'primary'
+  | 'primaryHover'
+  | 'accent'
+  | 'accentLight'
+  | 'outlined';
+
+const factoryOverviewStatStyles: Record<
+  FactoryOverviewStatVariant,
+  {
+    card: string;
+    title: string;
+    value: string;
+    icon: string;
+    foot: string;
+    badge: string;
+    badgeMuted: string;
+    sectionLabel: string;
+  }
+> = {
+  primary: {
+    card: 'bg-brand-primary text-white border-transparent shadow-sm',
+    title: 'text-white/80',
+    value: 'text-white',
+    icon: 'text-white/60',
+    foot: 'text-white/80',
+    badge: 'border-white/30 bg-white/15 text-white hover:bg-white/15',
+    badgeMuted: 'border-white/20 bg-white/10 text-white/90 hover:bg-white/10',
+    sectionLabel: 'text-white/75',
+  },
+  primaryHover: {
+    card: 'bg-brand-primary-hover text-white border-transparent shadow-sm',
+    title: 'text-white/80',
+    value: 'text-white',
+    icon: 'text-white/60',
+    foot: 'text-white/80',
+    badge: 'border-white/30 bg-white/15 text-white hover:bg-white/15',
+    badgeMuted: 'border-white/20 bg-white/10 text-white/90 hover:bg-white/10',
+    sectionLabel: 'text-white/75',
+  },
+  accent: {
+    card: 'bg-brand-accent text-card-foreground border-transparent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-card-foreground/70',
+    badge: 'border-card-foreground/15 bg-background/60 text-card-foreground hover:bg-background/60',
+    badgeMuted: 'border-card-foreground/10 bg-background/40 text-card-foreground/80 hover:bg-background/40',
+    sectionLabel: 'text-card-foreground/65',
+  },
+  accentLight: {
+    card: 'bg-brand-accent-light text-card-foreground border-transparent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-card-foreground/70',
+    badge: 'border-card-foreground/15 bg-background/50 text-card-foreground hover:bg-background/50',
+    badgeMuted: 'border-card-foreground/10 bg-background/35 text-card-foreground/80 hover:bg-background/35',
+    sectionLabel: 'text-card-foreground/65',
+  },
+  outlined: {
+    card: 'bg-card text-card-foreground border-2 border-brand-accent shadow-sm',
+    title: 'text-card-foreground/60',
+    value: 'text-card-foreground',
+    icon: 'text-card-foreground/60',
+    foot: 'text-muted-foreground',
+    badge: 'border-brand-accent/40 bg-brand-accent/10 text-card-foreground hover:bg-brand-accent/10',
+    badgeMuted: 'border-border bg-muted/50 text-muted-foreground hover:bg-muted/50',
+    sectionLabel: 'text-card-foreground/60',
+  },
+};
+
+interface FactoryOverviewStatCardProps {
+  title: string;
+  value: React.ReactNode;
+  icon: React.ReactNode;
+  variant: FactoryOverviewStatVariant;
+  footer?: string;
+  children?: React.ReactNode;
+  interactive?: boolean;
+  onClick?: () => void;
+  ariaLabel?: string;
+}
+
+const FactoryOverviewStatCard: React.FC<FactoryOverviewStatCardProps> = ({
+  title,
+  value,
+  icon,
+  variant,
+  footer,
+  children,
+  interactive,
+  onClick,
+  ariaLabel,
+}) => {
+  const s = factoryOverviewStatStyles[variant];
+  return (
+    <Card
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? ariaLabel : undefined}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        s.card,
+        interactive &&
+          'cursor-pointer transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+      )}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className={cn('text-sm font-medium', s.title)}>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className={cn('text-3xl font-bold tabular-nums', s.value)}>{value}</div>
+          <div className={cn('shrink-0', s.icon)}>{icon}</div>
+        </div>
+        {children}
+        {footer ? <p className={cn('text-xs', s.foot)}>{footer}</p> : null}
+      </CardContent>
+    </Card>
+  );
+};
 
 interface FactoryCardProps {
   factory: Factory;
@@ -187,6 +327,24 @@ const FactoriesPage: React.FC = () => {
     if (!factories || factories.length === 0) return 0;
     return totalSectionsCount / factories.length;
   }, [factories, totalSectionsCount]);
+  const visibleRatio = React.useMemo(() => {
+    if (!factories || factories.length === 0) return 0;
+    return (filteredFactories.length / factories.length) * 100;
+  }, [factories, filteredFactories.length]);
+  const sectionsForVisible = React.useMemo(
+    () =>
+      filteredFactories.reduce((sum, f) => {
+        return sum + (sectionsByFactory[f.id] ?? 0);
+      }, 0),
+    [filteredFactories, sectionsByFactory]
+  );
+  const visibleFactoryCount = filteredFactories.length;
+  const avgSectionsVisible = visibleFactoryCount > 0 ? sectionsForVisible / visibleFactoryCount : 0;
+  const deptsPerFactory = React.useMemo(() => {
+    if (!factories || factories.length === 0) return 0;
+    return departments.length / factories.length;
+  }, [departments.length, factories]);
+  const avgSectionsVsBaseline = avgSectionsPerFactory - 2;
 
   const activitySummary = React.useMemo(() => {
     if (!factories || factories.length === 0) {
@@ -287,34 +445,17 @@ const FactoriesPage: React.FC = () => {
 
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20">
+                <div className={appShellHeaderIconTileClass}>
                   <FactoryIcon className="h-5 w-5 text-brand-primary" />
                 </div>
-                <h1 className="min-w-0 truncate text-2xl font-bold text-card-foreground dark:text-foreground">
+                <h1 className={appShellHeaderTitleClass}>
                   Factories
                 </h1>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsDeptsDialogOpen(true)}
-                className="flex max-w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-muted/20 px-2.5 py-1.5 text-left shadow-sm transition-colors hover:border-brand-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:focus-visible:ring-offset-[hsl(var(--nav-background))]"
-                aria-label={`Manage departments, ${departments.length} total`}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-primary/10">
-                  <Users className="h-4 w-4 text-brand-primary" />
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <span className="block text-xs font-semibold text-foreground">Departments</span>
-                  <span className="block text-[11px] text-muted-foreground tabular-nums">
-                    {departments.length} {departments.length === 1 ? 'dept' : 'depts'}
-                  </span>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              </button>
             </div>
             <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
               <div className="relative w-[min(200px,40vw)] min-w-[140px] shrink-0">
@@ -324,88 +465,145 @@ const FactoriesPage: React.FC = () => {
                   placeholder="Search factories..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-10"
+                  className={`${appShellHeaderControlClass} pl-10`}
                 />
               </div>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className="shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Factory
-              </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         <div className="p-8 bg-background">
-          <Card className="mb-5 border-border bg-card shadow-sm">
-            <CardContent className="px-6 py-6">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/[0.06] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">Workspace factories</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{factories?.length ?? 0}</p>
-                </div>
-                <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Total sections</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{totalSectionsCount}</p>
-                </div>
-                <div className="rounded-lg border border-sky-500/25 bg-sky-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-400">Visible now</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">{filteredFactories.length}</p>
-                </div>
-                <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.07] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Avg sections / factory</p>
-                  <p className="mt-2 text-3xl font-semibold tabular-nums text-card-foreground">
-                    {avgSectionsPerFactory.toFixed(1)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-4 py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-400">High activity</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <p className="text-3xl font-semibold tabular-nums text-card-foreground">{activitySummary.high}</p>
-                    <Badge className="bg-violet-500/15 text-violet-700 hover:bg-violet-500/20 dark:text-violet-300">
-                      {activitySummary.medium} medium
-                    </Badge>
-                    <Badge variant="outline" className="border-violet-400/35 text-violet-700 dark:text-violet-300">
-                      {activitySummary.low} low
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300">
-                      {trendSeries.active} active
-                    </Badge>
-                    <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
-                      {trendSeries.dormant} dormant
-                    </Badge>
-                  </div>
-                  <div className="mt-4">
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-700/80 dark:text-violet-300/80">
-                      Activity mix
-                    </p>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{ width: `${activityHighPct}%`, float: 'left' }}
-                        title={`High: ${activitySummary.high}`}
-                      />
-                      <div
-                        className="h-full bg-amber-500"
-                        style={{ width: `${activityMediumPct}%`, float: 'left' }}
-                        title={`Medium: ${activitySummary.medium}`}
-                      />
-                      <div
-                        className="h-full bg-slate-400 dark:bg-slate-600"
-                        style={{ width: `${activityLowPct}%`, float: 'left' }}
-                        title={`Low: ${activitySummary.low}`}
-                      />
-                    </div>
-                  </div>
+          <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+            <FactoryOverviewStatCard
+              variant="primary"
+              title="Workspace factories"
+              value={factories?.length ?? 0}
+              icon={<FactoryIcon size={24} />}
+              footer={
+                selectedFactory
+                  ? `Current navbar scope: ${selectedFactory.name}`
+                  : 'Global scope (all factories)'
+              }
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.primary.badge}>
+                  {filteredFactories.length} visible
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.primary.badgeMuted}>
+                  {visibleRatio.toFixed(0)}% in view
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
+
+            <FactoryOverviewStatCard
+              variant="primaryHover"
+              title="Total sections"
+              value={totalSectionsCount}
+              icon={<Layers size={24} />}
+              footer={`Across ${visibleFactoryCount} visible ${visibleFactoryCount === 1 ? 'factory' : 'factories'}`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.primaryHover.badge}>
+                  {sectionsForVisible} in filtered view
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.primaryHover.badgeMuted}>
+                  {avgSectionsVisible.toFixed(1)} avg visible
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
+
+            <FactoryOverviewStatCard
+              variant="accent"
+              title="Departments"
+              value={departments.length}
+              icon={<Users size={24} />}
+              footer={departments.length === 1 ? 'dept configured' : 'depts configured'}
+              interactive
+              onClick={() => setIsDeptsDialogOpen(true)}
+              ariaLabel={`Manage departments, ${departments.length} total`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badge}>
+                  {deptsPerFactory.toFixed(1)} per factory
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badgeMuted}>
+                  Manage
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
+
+            <FactoryOverviewStatCard
+              variant="accentLight"
+              title="Avg sections / factory"
+              value={avgSectionsPerFactory.toFixed(1)}
+              icon={<ChevronRight size={24} />}
+              footer="Baseline target is 2.0 sections per factory"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badge}>
+                  {totalSectionsCount} / {factories?.length ?? 0}
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badgeMuted}>
+                  {avgSectionsVsBaseline >= 0 ? '+' : ''}
+                  {avgSectionsVsBaseline.toFixed(1)} vs baseline
+                </Badge>
+              </div>
+            </FactoryOverviewStatCard>
+
+            <FactoryOverviewStatCard
+              variant="outlined"
+              title="High activity"
+              value={
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>{activitySummary.high}</span>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                    {activitySummary.medium} medium
+                  </Badge>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                    {activitySummary.low} low
+                  </Badge>
+                </span>
+              }
+              icon={<Layers size={24} />}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                  {trendSeries.active} active
+                </Badge>
+                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                  {trendSeries.dormant} dormant
+                </Badge>
+              </div>
+              <div>
+                <p
+                  className={cn(
+                    'mb-1 text-[11px] font-semibold uppercase tracking-wider',
+                    factoryOverviewStatStyles.outlined.sectionLabel
+                  )}
+                >
+                  Activity mix
+                </p>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/50">
+                  <div
+                    className="h-full bg-brand-primary"
+                    style={{ width: `${activityHighPct}%`, float: 'left' }}
+                    title={`High: ${activitySummary.high}`}
+                  />
+                  <div
+                    className="h-full bg-brand-primary-hover"
+                    style={{ width: `${activityMediumPct}%`, float: 'left' }}
+                    title={`Medium: ${activitySummary.medium}`}
+                  />
+                  <div
+                    className="h-full bg-brand-accent"
+                    style={{ width: `${activityLowPct}%`, float: 'left' }}
+                    title={`Low: ${activitySummary.low}`}
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </FactoryOverviewStatCard>
+          </div>
 
           <div className="mb-5">
             <DueStatusCard
@@ -420,13 +618,22 @@ const FactoriesPage: React.FC = () => {
             <CardContent className="p-0">
               {/* Table/data header bar: count only (search lives in page header) */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="shrink-0 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {!isLoading && (
                     <span className="font-medium">
                       {filteredFactories.length}{' '}
                       {filteredFactories.length === 1 ? 'factory' : 'factories'}
                     </span>
                   )}
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setIsAddDialogOpen(true)}
+                    title="Add factory"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 

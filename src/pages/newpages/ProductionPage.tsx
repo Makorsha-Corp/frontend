@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAppSelector } from '@/app/hooks';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useAppSelector } from '@/app/hooks';
+import AppShellHeader, {
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderLoweredSelectorClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,13 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -43,6 +41,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import FormulaDetailsDialog from '@/components/newcomponents/customui/FormulaDetailsDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -74,7 +73,6 @@ import {
 import type {
   ProductionLine,
   ProductionFormula,
-  ProductionFormulaItem,
   ProductionBatch,
   ProductionBatchItem,
   ItemRole,
@@ -89,16 +87,11 @@ import {
   Play,
   Check,
   X,
-  Layers,
-  FileText,
-  Package,
-  LayoutDashboard,
-  Maximize2,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
@@ -113,9 +106,16 @@ const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
 
 const BATCH_ROLE_SECTION_TITLE: Record<ItemRole, string> = {
   input: 'Inputs',
-  output: 'Outputs',
+  output: 'Products',
   waste: 'Waste',
   byproduct: 'Byproducts',
+};
+
+const BATCH_ROLE_BADGE_LABEL: Record<ItemRole, string> = {
+  input: 'input',
+  output: 'products',
+  waste: 'waste',
+  byproduct: 'byproduct',
 };
 
 /** Backend Numeric/Decimal fields often arrive as strings in JSON */
@@ -133,8 +133,7 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
 
 
 const ProductionPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabFromUrl = searchParams.get('tab') === 'batches' ? 'batches' : 'overview';
+  const CARDS_PER_PAGE = 3;
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [lineId, setLineId] = useState<number | null>(null);
@@ -154,16 +153,25 @@ const ProductionPage: React.FC = () => {
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'batches'>(tabFromUrl);
+  const [linePage, setLinePage] = useState(1);
+  const [formulaPage, setFormulaPage] = useState(1);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
-  const navigate = useNavigate();
 
   // Dialog states
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
-  const [editingLine, setEditingLine] = useState<ProductionLine | null>(null);
-  const [isAddFormulaOpen, setIsAddFormulaOpen] = useState(false);
   const [editingFormula, setEditingFormula] = useState<ProductionFormula | null>(null);
+  const [isAddFormulaOpen, setIsAddFormulaOpen] = useState(false);
+  const [lineActionTarget, setLineActionTarget] = useState<ProductionLine | null>(null);
+  const [formulaActionTarget, setFormulaActionTarget] = useState<ProductionFormula | null>(null);
   const [selectedFormulaId, setSelectedFormulaId] = useState<number | null>(null);
+  const [isLineEditMode, setIsLineEditMode] = useState(false);
+  const [isFormulaEditMode, setIsFormulaEditMode] = useState(false);
+  const [lineDraftName, setLineDraftName] = useState('');
+  const [lineDraftDescription, setLineDraftDescription] = useState('');
+  const [formulaDraftCode, setFormulaDraftCode] = useState('');
+  const [formulaDraftName, setFormulaDraftName] = useState('');
+  const [formulaDraftDescription, setFormulaDraftDescription] = useState('');
+  const [formulaDraftDuration, setFormulaDraftDuration] = useState('');
   const [isAddBatchOpen, setIsAddBatchOpen] = useState(false);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
@@ -173,10 +181,6 @@ const ProductionPage: React.FC = () => {
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
   }, [globalFactory?.id]);
-
-  useEffect(() => {
-    setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -267,6 +271,38 @@ const ProductionPage: React.FC = () => {
         (f.description && f.description.toLowerCase().includes(q))
     );
   }, [formulas, searchQuery]);
+  const lineTotalPages = Math.max(1, Math.ceil(filteredLines.length / CARDS_PER_PAGE));
+  const formulaTotalPages = Math.max(1, Math.ceil(filteredFormulas.length / CARDS_PER_PAGE));
+  const linePageOptions = useMemo(
+    () => Array.from({ length: lineTotalPages }, (_, idx) => (idx + 1).toString()),
+    [lineTotalPages]
+  );
+  const formulaPageOptions = useMemo(
+    () => Array.from({ length: formulaTotalPages }, (_, idx) => (idx + 1).toString()),
+    [formulaTotalPages]
+  );
+  const pagedLines = useMemo(() => {
+    const start = (linePage - 1) * CARDS_PER_PAGE;
+    return filteredLines.slice(start, start + CARDS_PER_PAGE);
+  }, [filteredLines, linePage, CARDS_PER_PAGE]);
+  const pagedFormulas = useMemo(() => {
+    const start = (formulaPage - 1) * CARDS_PER_PAGE;
+    return filteredFormulas.slice(start, start + CARDS_PER_PAGE);
+  }, [filteredFormulas, formulaPage, CARDS_PER_PAGE]);
+  const selectedFormula = useMemo(
+    () => (selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) ?? null : null),
+    [selectedFormulaId, formulas]
+  );
+  useEffect(() => {
+    setLinePage(1);
+    setFormulaPage(1);
+  }, [factoryId, searchQuery]);
+  useEffect(() => {
+    setLinePage((prev) => Math.min(prev, lineTotalPages));
+  }, [lineTotalPages]);
+  useEffect(() => {
+    setFormulaPage((prev) => Math.min(prev, formulaTotalPages));
+  }, [formulaTotalPages]);
 
   const filteredBatches = useMemo(() => {
     const statusFiltered = batches.filter((b) =>
@@ -283,12 +319,6 @@ const ProductionPage: React.FC = () => {
 
   // Metrics for Overview
   const metrics = useMemo(() => {
-    const now = new Date();
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const batchesThisMonth = batches.filter(
-      (b) => new Date(b.batch_date) >= thisMonthStart
-    );
-    const activeBatches = batches.filter((b) => b.status === 'in_progress');
     const completedWithEfficiency = batches.filter(
       (b) => b.status === 'completed' && toFiniteNumber(b.efficiency_percentage) != null
     );
@@ -299,14 +329,18 @@ const ProductionPage: React.FC = () => {
             0
           ) / completedWithEfficiency.length
         : null;
+    const aboveTargetCount = completedWithEfficiency.filter(
+      (b) => (toFiniteNumber(b.efficiency_percentage) ?? 0) >= 100
+    ).length;
+    const belowTargetCount = completedWithEfficiency.filter(
+      (b) => (toFiniteNumber(b.efficiency_percentage) ?? 0) < 100
+    ).length;
     return {
-      totalLines: filteredLines.length,
-      totalFormulas: filteredFormulas.length,
-      activeBatches: activeBatches.length,
-      batchesThisMonth: batchesThisMonth.length,
       avgEfficiency,
+      aboveTargetCount,
+      belowTargetCount,
     };
-  }, [filteredLines, filteredFormulas, batches]);
+  }, [batches]);
 
   const handleFactoryChange = (value: string) => {
     const id = value ? parseInt(value, 10) : null;
@@ -317,22 +351,6 @@ const ProductionPage: React.FC = () => {
   const handleLineChange = (value: string) => {
     const id = value ? parseInt(value, 10) : null;
     setLineId(id);
-  };
-
-  // Keep tab selection URL-based so deep links/back-forward work.
-  const handleTabChange = (tab: string) => {
-    const nextTab: 'overview' | 'batches' = tab === 'batches' ? 'batches' : 'overview';
-    if (nextTab === 'overview') {
-      setLineId(null);
-      setSelectedBatchId(null);
-      setStartBatchId(null);
-    }
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (nextTab === 'overview') params.delete('tab');
-      else params.set('tab', nextTab);
-      return params;
-    });
   };
 
   const toggleBatchStatusFilter = (status: (typeof BATCH_STATUSES)[number]) => {
@@ -364,15 +382,110 @@ const ProductionPage: React.FC = () => {
     return map[status] ?? 'bg-muted text-muted-foreground';
   };
 
-  const selectedFormula =
-    selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) : undefined;
+  const handleDeactivateLine = async (line: ProductionLine) => {
+    if (!window.confirm(`Deactivate "${line.name}"?`)) return;
+    try {
+      await deleteLine(line.id).unwrap();
+      toast.success('Line deactivated');
+      setLineActionTarget(null);
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to deactivate');
+    }
+  };
+
+  const handleDeactivateFormula = async (formula: ProductionFormula) => {
+    if (!window.confirm(`Deactivate "${formula.name}"?`)) return;
+    try {
+      await deleteFormula(formula.id).unwrap();
+      toast.success('Formula deactivated');
+      setFormulaActionTarget(null);
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to deactivate');
+    }
+  };
+
+  const handleSaveLineFromPopup = async () => {
+    if (!lineActionTarget) return;
+    if (!lineDraftName.trim()) {
+      toast.error('Line name is required');
+      return;
+    }
+    try {
+      await updateLine({
+        id: lineActionTarget.id,
+        data: {
+          name: lineDraftName.trim(),
+          description: lineDraftDescription.trim() || undefined,
+        },
+      }).unwrap();
+      toast.success('Line updated');
+      setIsLineEditMode(false);
+      setLineActionTarget((prev) =>
+        prev ? { ...prev, name: lineDraftName.trim(), description: lineDraftDescription.trim() || null } : prev
+      );
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to update line');
+    }
+  };
+
+  const handleSaveFormulaFromPopup = async () => {
+    if (!formulaActionTarget) return;
+    if (!formulaDraftName.trim()) {
+      toast.error('Formula name is required');
+      return;
+    }
+    if (!formulaDraftCode.trim()) {
+      toast.error('Formula code is required');
+      return;
+    }
+    const duplicate = formulas.find(
+      (f) =>
+        f.id !== formulaActionTarget.id &&
+        (f.formula_code.toLowerCase() === formulaDraftCode.trim().toLowerCase() ||
+          f.name.toLowerCase() === formulaDraftName.trim().toLowerCase())
+    );
+    if (duplicate) {
+      toast.error('Formula code or name already exists');
+      return;
+    }
+    try {
+      await updateFormula({
+        id: formulaActionTarget.id,
+        data: {
+          name: formulaDraftName.trim(),
+          description: formulaDraftDescription.trim() || undefined,
+          estimated_duration_minutes:
+            formulaDraftDuration.trim() === '' ? undefined : parseInt(formulaDraftDuration, 10),
+        },
+      }).unwrap();
+      toast.success('Formula updated');
+      setIsFormulaEditMode(false);
+      setFormulaActionTarget((prev) =>
+        prev
+          ? {
+              ...prev,
+              formula_code: formulaDraftCode.trim(),
+              name: formulaDraftName.trim(),
+              description: formulaDraftDescription.trim() || null,
+              estimated_duration_minutes:
+                formulaDraftDuration.trim() === '' ? null : parseInt(formulaDraftDuration, 10),
+            }
+          : prev
+      );
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Failed to update formula');
+    }
+  };
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -400,20 +513,20 @@ const ProductionPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                <FlaskConical className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className={appShellHeaderLeftGroupClass}>
+                <div className={appShellHeaderIconTileClass}>
+                  <FlaskConical className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className={appShellHeaderTitleClass}>Production</h1>
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Production</h1>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
+              <div className="hidden h-6 w-px bg-border sm:block" />
               <Select value={factoryId?.toString() ?? 'all'} onValueChange={handleFactoryChange}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className={`w-[180px] ${appShellHeaderLoweredSelectorClass}`}>
                   <SelectValue placeholder="Factory" />
                 </SelectTrigger>
                 <SelectContent>
@@ -425,8 +538,9 @@ const ProductionPage: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {activeTab === 'batches' && (
-                <>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <>
                 <Select value={lineId?.toString() ?? 'all'} onValueChange={handleLineChange}>
                   <SelectTrigger className="w-[200px] h-9">
                     <SelectValue placeholder="Production line" />
@@ -477,16 +591,11 @@ const ProductionPage: React.FC = () => {
                     </div>
                   </PopoverContent>
                 </Popover>
-                </>
-              )}
+              </>
               <div className="relative w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder={
-                    activeTab === 'overview'
-                      ? 'Search lines & formulas...'
-                      : 'Search batches...'
-                  }
+                  placeholder="Search production..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-9"
@@ -494,77 +603,116 @@ const ProductionPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
-        <div className="p-6">
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="overview">
-                <LayoutDashboard className="h-4 w-4 mr-2" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="batches">
-                <Package className="h-4 w-4 mr-2" />
-                Batches ({filteredBatches.length})
-              </TabsTrigger>
-            </TabsList>
+        <div className="p-6 space-y-6">
+          {/* Top analytics: status + efficiency + activity */}
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+            <Card className="border-border xl:col-span-1">
+              <CardHeader>
+                <CardTitle className="text-base">Batches by Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BatchStatusPieChart batches={filteredBatches} />
+              </CardContent>
+            </Card>
 
-            <TabsContent value="overview" className="mt-0">
-              {/* Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-                <Card className="border-border">
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Production Lines</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{metrics.totalLines}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-border">
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Formulas</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{metrics.totalFormulas}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-border">
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Active Batches</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{metrics.activeBatches}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-border">
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Batches This Month</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">{metrics.batchesThisMonth}</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-border">
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Avg. Efficiency</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">
-                      {metrics.avgEfficiency != null
-                        ? `${metrics.avgEfficiency.toFixed(1)}%`
-                        : '—'}
+            <Card className="border-border xl:col-span-1">
+              <CardHeader>
+                <CardTitle className="text-base">Avg Efficiency</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Average</p>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
+                    {metrics.avgEfficiency != null ? `${metrics.avgEfficiency.toFixed(1)}%` : '—'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-md border border-emerald-500/25 bg-emerald-500/[0.08] p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                      Above target
                     </p>
-                  </CardContent>
-                </Card>
-              </div>
+                    <p className="mt-1 text-xl font-semibold text-card-foreground">{metrics.aboveTargetCount}</p>
+                  </div>
+                  <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                      Below target
+                    </p>
+                    <p className="mt-1 text-xl font-semibold text-card-foreground">{metrics.belowTargetCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Half-half: Production Lines | Formulas */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Production Lines */}
-              <Card className="border-border">
+            <Card className="border-border xl:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">Batch activity (last 12 months)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Filtered by factory, line & status above
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ContributionHeatmap items={filteredBatches.map((b) => ({ date: b.batch_date }))} itemLabel="batch" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Half-half: Production Lines | Formulas */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Production Lines */}
+              <Card className="border-border h-full">
                 <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
-                  </span>
-                  <Button
-                    size="sm"
-                    className="bg-brand-primary hover:bg-brand-primary-hover"
-                    onClick={() => setIsAddLineOpen(true)}
-                    disabled={!factoryId}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Line
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
+                    </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() => setIsAddLineOpen(true)}
+                      disabled={!factoryId}
+                      title="Add line"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setLinePage((p) => Math.max(1, p - 1))}
+                      disabled={linePage <= 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setLinePage((p) => Math.min(lineTotalPages, p + 1))}
+                      disabled={linePage >= lineTotalPages}
+                    >
+                      Next
+                    </Button>
+                    <Select value={linePage.toString()} onValueChange={(value) => setLinePage(parseInt(value, 10))}>
+                      <SelectTrigger className="h-8 w-[92px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {linePageOptions.map((page) => (
+                          <SelectItem key={page} value={page}>
+                            {page} / {lineTotalPages}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <CardContent className="p-0">
                   {linesError ? (
@@ -585,65 +733,28 @@ const ProductionPage: React.FC = () => {
                         : 'No production lines. Add one to get started.'}
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
-                      {filteredLines.map((line) => (
-                        <div
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                      {pagedLines.map((line) => (
+                        <button
                           key={line.id}
-                          className="flex items-center justify-between px-4 py-3 hover:bg-muted/50"
+                          type="button"
+                          onClick={() => setLineActionTarget(line)}
+                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
                         >
                           <div>
                             <div className="font-medium text-card-foreground">{line.name}</div>
                             {line.description && (
-                              <div className="text-sm text-muted-foreground truncate max-w-md">
+                              <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                                 {line.description}
                               </div>
                             )}
-                            <span className="text-xs text-muted-foreground">
-                              Factory #{line.factory_id}
-                              {line.machine_id && ` • Machine #${line.machine_id}`}
-                            </span>
+                            {line.machine_id && (
+                              <span className="mt-2 inline-block text-xs text-muted-foreground">
+                                Machine #{line.machine_id}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setEditingLine(line)}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit line</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={async () => {
-                                      if (!window.confirm(`Deactivate "${line.name}"?`)) return;
-                                      try {
-                                        await deleteLine(line.id).unwrap();
-                                        toast.success('Line deactivated');
-                                      } catch (e: unknown) {
-                                        const err = e as { data?: { detail?: string } };
-                                        toast.error(err?.data?.detail || 'Failed to deactivate');
-                                      }
-                                    }}
-                                    disabled={isDeletingLine}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Deactivate line</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -651,20 +762,61 @@ const ProductionPage: React.FC = () => {
               </Card>
 
                 {/* Formulas */}
-                <div>
-              <Card className="border-border">
+                <div className="h-full">
+              <Card className="border-border h-full">
                 <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {filteredFormulas.length} formulas
-                  </span>
-                  <Button
-                    size="sm"
-                    className="bg-brand-primary hover:bg-brand-primary-hover"
-                    onClick={() => setIsAddFormulaOpen(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Formula
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {filteredFormulas.length} formulas
+                    </span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8"
+                      onClick={() => setIsAddFormulaOpen(true)}
+                      title="Add formula"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setFormulaPage((p) => Math.max(1, p - 1))}
+                      disabled={formulaPage <= 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2"
+                      onClick={() => setFormulaPage((p) => Math.min(formulaTotalPages, p + 1))}
+                      disabled={formulaPage >= formulaTotalPages}
+                    >
+                      Next
+                    </Button>
+                    <Select
+                      value={formulaPage.toString()}
+                      onValueChange={(value) => setFormulaPage(parseInt(value, 10))}
+                    >
+                      <SelectTrigger className="h-8 w-[92px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formulaPageOptions.map((page) => (
+                          <SelectItem key={page} value={page}>
+                            {page} / {formulaTotalPages}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <CardContent className="p-0">
                   {formulasError ? (
@@ -683,121 +835,41 @@ const ProductionPage: React.FC = () => {
                       No formulas. Add one to define production recipes.
                     </div>
                   ) : (
-                    <div className="divide-y divide-border">
-                      {filteredFormulas.map((formula) => (
-                        <div
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                      {pagedFormulas.map((formula) => (
+                        <button
                           key={formula.id}
-                          className={`flex items-center justify-between px-4 py-3 hover:bg-muted/50 cursor-pointer ${
-                            selectedFormulaId === formula.id ? 'bg-brand-primary/10' : ''
-                          }`}
-                          onClick={() =>
-                            setSelectedFormulaId(selectedFormulaId === formula.id ? null : formula.id)
-                          }
+                          type="button"
+                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          onClick={() => setSelectedFormulaId(formula.id)}
                         >
                           <div>
                             <div className="font-medium text-card-foreground">
                               {formula.name} ({formula.formula_code})
                             </div>
                             {formula.description && (
-                              <div className="text-sm text-muted-foreground truncate max-w-md">
+                              <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                                 {formula.description}
                               </div>
                             )}
-                            <span className="text-xs text-muted-foreground">
-                              v{formula.version}
-                              {formula.estimated_duration_minutes != null &&
-                                ` • ~${formula.estimated_duration_minutes} min`}
-                            </span>
+                            {formula.estimated_duration_minutes != null && (
+                              <span className="mt-2 inline-block text-xs text-muted-foreground">
+                                ~{formula.estimated_duration_minutes} min
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setEditingFormula(formula)}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit formula</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={async () => {
-                                      if (!window.confirm(`Deactivate "${formula.name}"?`)) return;
-                                      try {
-                                        await deleteFormula(formula.id).unwrap();
-                                        toast.success('Formula deactivated');
-                                        setSelectedFormulaId(null);
-                                      } catch (e: unknown) {
-                                        const err = e as { data?: { detail?: string } };
-                                        toast.error(err?.data?.detail || 'Failed to deactivate');
-                                      }
-                                    }}
-                                    disabled={isDeletingFormula}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Deactivate formula</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
+            </div>
+          </div>
 
-              {selectedFormula && (
-                <FormulaDetailsDialog
-                  open
-                  onOpenChange={(o) => {
-                    if (!o) setSelectedFormulaId(null);
-                  }}
-                  formula={selectedFormula}
-                  items={items}
-                  getItemName={getItemName}
-                />
-              )}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="batches" className="mt-0">
-              {/* Batch charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="text-base">Batches by Status</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <BatchStatusPieChart batches={filteredBatches} />
-                  </CardContent>
-                </Card>
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="text-base">Batch activity (last 12 months)</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Filtered by factory, line & status above
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <ContributionHeatmap items={filteredBatches.map((b) => ({ date: b.batch_date }))} itemLabel="batch" />
-                  </CardContent>
-                </Card>
-              </div>
-
+          <div>
               <div className="grid grid-cols-1 xl:grid-cols-[minmax(280px,380px)_1fr] gap-6 items-start">
-                <Card className="border-border xl:sticky xl:top-24 self-start">
+                <Card className="border-border xl:sticky xl:top-24 self-start min-h-[360px]">
                   <div className="border-b border-border px-4 py-3 flex items-center justify-between">
                     <span className="text-sm text-muted-foreground font-medium">
                       {filteredBatches.length} batches
@@ -812,7 +884,7 @@ const ProductionPage: React.FC = () => {
                       Add Batch
                     </Button>
                   </div>
-                  <CardContent className="p-0 max-h-[min(52vh,420px)] overflow-y-auto">
+                  <CardContent className="p-0 min-h-[300px] max-h-[min(56vh,500px)] overflow-y-auto">
                     {batchesError ? (
                       <div className="py-8 px-4 text-center">
                         <p className="text-sm text-destructive font-medium">Failed to load batches</p>
@@ -825,7 +897,7 @@ const ProductionPage: React.FC = () => {
                         <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                       </div>
                     ) : filteredBatches.length === 0 ? (
-                      <div className="py-12 text-center text-muted-foreground text-sm">
+                      <div className="flex min-h-[240px] items-center justify-center px-4 text-center text-muted-foreground text-sm">
                         {linesForFactory.length === 0
                           ? 'Add production lines first'
                           : 'No batches. Create one to start production.'}
@@ -838,10 +910,10 @@ const ProductionPage: React.FC = () => {
                             batch={batch}
                             lines={linesForFactory}
                             formulas={formulas}
+                            getItemName={getItemName}
                             getStatusBadge={getStatusBadge}
                             isSelected={selectedBatchId === batch.id}
                             onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
-                            onStart={() => setStartBatchId(batch.id)}
                             onComplete={() => setCompletingBatch(batch)}
                             onCancel={() => setCancellingBatch(batch)}
                           />
@@ -873,38 +945,207 @@ const ProductionPage: React.FC = () => {
                     isDeletingBatch={isDeletingBatch}
                   />
                 ) : (
-                  <Card className="border-dashed border-border bg-muted/20">
-                    <CardContent className="py-16 text-center text-sm text-muted-foreground">
+                  <Card className="border-dashed border-border bg-muted/20 min-h-[360px]">
+                    <CardContent className="flex min-h-[300px] items-center justify-center py-16 text-center text-sm text-muted-foreground">
                       Select a batch, then use <span className="font-medium">Batch details</span> to open the full view
                       (summary on the left, lines on the right).
                     </CardContent>
                   </Card>
                 )}
+
               </div>
-            </TabsContent>
-          </Tabs>
+          </div>
         </div>
       </div>
 
+      <Dialog
+        open={!!lineActionTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLineActionTarget(null);
+            setIsLineEditMode(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{lineActionTarget?.name ?? 'Production line'}</DialogTitle>
+            <DialogDescription>
+              Manage this line from one place.
+            </DialogDescription>
+          </DialogHeader>
+          {isLineEditMode ? (
+            <div className="space-y-3">
+              <div className="grid gap-1.5">
+                <Label>Name</Label>
+                <Input value={lineDraftName} onChange={(e) => setLineDraftName(e.target.value)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Description</Label>
+                <Textarea
+                  value={lineDraftDescription}
+                  onChange={(e) => setLineDraftDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {lineActionTarget?.description ? (
+                <p className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  {lineActionTarget.description}
+                </p>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  No description added.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!lineActionTarget) return;
+                if (!isLineEditMode) {
+                  setLineDraftName(lineActionTarget.name);
+                  setLineDraftDescription(lineActionTarget.description ?? '');
+                  setIsLineEditMode(true);
+                } else {
+                  setIsLineEditMode(false);
+                }
+              }}
+            >
+              {isLineEditMode ? 'Cancel edit' : 'Edit'}
+            </Button>
+            {isLineEditMode ? (
+              <Button onClick={handleSaveLineFromPopup} disabled={isUpdatingLine}>
+                {isUpdatingLine ? 'Saving...' : 'Save'}
+              </Button>
+            ) : null}
+            <Button
+              variant="destructive"
+              onClick={() => lineActionTarget && handleDeactivateLine(lineActionTarget)}
+              disabled={isDeletingLine}
+            >
+              {isDeletingLine ? 'Deactivating...' : 'Deactivate line'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!formulaActionTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFormulaActionTarget(null);
+            setIsFormulaEditMode(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>
+              {formulaActionTarget ? `${formulaActionTarget.name} (${formulaActionTarget.formula_code})` : 'Formula'}
+            </DialogTitle>
+            <DialogDescription>
+              Manage this formula from one place.
+            </DialogDescription>
+          </DialogHeader>
+          {isFormulaEditMode ? (
+            <div className="space-y-3">
+              <div className="grid gap-1.5">
+                <Label>Formula code</Label>
+                <Input value={formulaDraftCode} disabled />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Name</Label>
+                <Input value={formulaDraftName} onChange={(e) => setFormulaDraftName(e.target.value)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Description</Label>
+                <Textarea
+                  value={formulaDraftDescription}
+                  onChange={(e) => setFormulaDraftDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Estimated duration (minutes)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formulaDraftDuration}
+                  onChange={(e) => setFormulaDraftDuration(e.target.value)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {formulaActionTarget?.description ? (
+                <p className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  {formulaActionTarget.description}
+                </p>
+              ) : (
+                <p className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                  No description added.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!formulaActionTarget) return;
+                if (!isFormulaEditMode) {
+                  setFormulaDraftCode(formulaActionTarget.formula_code);
+                  setFormulaDraftName(formulaActionTarget.name);
+                  setFormulaDraftDescription(formulaActionTarget.description ?? '');
+                  setFormulaDraftDuration(
+                    formulaActionTarget.estimated_duration_minutes?.toString() ?? ''
+                  );
+                  setIsFormulaEditMode(true);
+                } else {
+                  setIsFormulaEditMode(false);
+                }
+              }}
+            >
+              {isFormulaEditMode ? 'Cancel edit' : 'Edit'}
+            </Button>
+            {isFormulaEditMode ? (
+              <Button onClick={handleSaveFormulaFromPopup} disabled={isUpdatingFormula}>
+                {isUpdatingFormula ? 'Saving...' : 'Save'}
+              </Button>
+            ) : null}
+            <Button
+              variant="destructive"
+              onClick={() => formulaActionTarget && handleDeactivateFormula(formulaActionTarget)}
+              disabled={isDeletingFormula}
+            >
+              {isDeletingFormula ? 'Deactivating...' : 'Deactivate formula'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add/Edit Line Dialog */}
       <AddEditLineDialog
-        open={isAddLineOpen || !!editingLine}
+        open={isAddLineOpen}
         onOpenChange={(open) => {
           if (!open) {
             setIsAddLineOpen(false);
-            setEditingLine(null);
           }
         }}
         factories={factories}
         factoryId={factoryId}
-        line={editingLine}
+        line={null}
         createLine={createLine}
         updateLine={updateLine}
         isCreating={isCreatingLine}
         isUpdating={isUpdatingLine}
         onSuccess={() => {
           setIsAddLineOpen(false);
-          setEditingLine(null);
         }}
       />
 
@@ -928,6 +1169,23 @@ const ProductionPage: React.FC = () => {
           setEditingFormula(null);
         }}
       />
+
+      {selectedFormula && (
+        <FormulaDetailsDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelectedFormulaId(null);
+          }}
+          formula={selectedFormula}
+          items={items}
+          getItemName={getItemName}
+          onEditRequest={() => {
+            setEditingFormula(selectedFormula);
+            setIsAddFormulaOpen(false);
+            setSelectedFormulaId(null);
+          }}
+        />
+      )}
 
       {/* Add Batch Dialog */}
       <AddBatchDialog
@@ -1362,7 +1620,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   const [addItemId, setAddItemId] = useState('');
   const [addRole, setAddRole] = useState<ItemRole>('input');
   const [addExpected, setAddExpected] = useState('');
-  const [batchDetailsOpen, setBatchDetailsOpen] = useState(false);
+  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [isInlineEditing, setIsInlineEditing] = useState(false);
   const [editBatchDate, setEditBatchDate] = useState('');
   const [editShift, setEditShift] = useState('');
@@ -1382,13 +1640,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
 
   useEffect(() => {
-    if (!batchDetailsOpen) {
-      setAddItemId('');
-      setAddRole('input');
-      setAddExpected('');
-      setIsInlineEditing(false);
-    }
-  }, [batchDetailsOpen]);
+    setAddItemId('');
+    setAddRole('input');
+    setAddExpected('');
+    setIsInlineEditing(false);
+  }, [batchId]);
 
   useEffect(() => {
     if (!batch) return;
@@ -1590,21 +1846,9 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   }
 
   const efficiencyDisplay = formatOptionalPercent(batch.efficiency_percentage);
-  const metaLine = [
-    line?.name ?? `Line #${batch.production_line_id}`,
-    new Date(batch.batch_date).toLocaleDateString(),
-    formula ? formula.name : 'Simple mode',
-  ].join(' · ');
 
   const linesBlock = (
     <div className="flex min-h-0 flex-col">
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch lines</p>
-        {!loadingItems && (
-          <span className="text-xs tabular-nums text-muted-foreground">{batchItems.length} lines</span>
-        )}
-      </div>
-      <Separator className="mb-3 shrink-0" />
       {loadingItems ? (
         <div className="flex items-center justify-center py-10">
           <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
@@ -1648,7 +1892,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
                         BATCH_ROLE_BADGE[role]
                       )}
                     >
-                      {role}
+                      {BATCH_ROLE_BADGE_LABEL[role]}
                     </Badge>
                     <span className="truncate text-sm font-medium text-foreground">
                       {BATCH_ROLE_SECTION_TITLE[role]}
@@ -1716,7 +1960,18 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         <p className="text-xs text-muted-foreground">Appends a line to this batch. Saves immediately.</p>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="batch-add-item">Item</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="batch-add-item">Item</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAddItemDialogOpen(true)}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Create item
+          </Button>
+        </div>
         <Select value={addItemId} onValueChange={setAddItemId}>
           <SelectTrigger id="batch-add-item" className="w-full">
             <SelectValue placeholder="Select item" />
@@ -1739,7 +1994,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           <SelectContent>
             {ITEM_ROLES.map((r) => (
               <SelectItem key={r} value={r}>
-                {r}
+                {r === 'output' ? 'products' : r}
               </SelectItem>
             ))}
           </SelectContent>
@@ -1765,6 +2020,14 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         {isAddingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Add item
       </Button>
+      <AddItemDialog
+        open={isAddItemDialogOpen}
+        onOpenChange={setIsAddItemDialogOpen}
+        onSuccess={(item) => {
+          setAddItemId(item.id.toString());
+          toast.success('Item created and selected');
+        }}
+      />
     </form>
   );
 
@@ -1796,7 +2059,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           {batch.status === 'draft' && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-out">Expected output qty</Label>
+                <Label htmlFor="batch-edit-exp-out">Expected product qty</Label>
                 <Input id="batch-edit-exp-out" type="number" min={0} value={editExpectedOutput} onChange={(e) => setEditExpectedOutput(e.target.value)} placeholder="Optional" />
               </div>
               <div className="grid gap-1.5">
@@ -1808,7 +2071,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           {batch.status === 'in_progress' && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-out">Actual output qty</Label>
+                <Label htmlFor="batch-edit-act-out">Actual product qty</Label>
                 <Input id="batch-edit-act-out" type="number" min={0} value={editActualOutput} onChange={(e) => setEditActualOutput(e.target.value)} placeholder="Optional" />
               </div>
               <div className="grid gap-1.5">
@@ -1850,13 +2113,13 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </div>
             {batch.expected_output_quantity != null && (
               <div>
-                <dt className="text-xs text-muted-foreground">Expected output</dt>
+                <dt className="text-xs text-muted-foreground">Expected products</dt>
                 <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
               </div>
             )}
             {batch.actual_output_quantity != null && (
               <div>
-                <dt className="text-xs text-muted-foreground">Actual output</dt>
+                <dt className="text-xs text-muted-foreground">Actual products</dt>
                 <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
               </div>
             )}
@@ -1879,7 +2142,6 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   );
 
   const summaryDataBlock = renderSummaryDataBlock(isInlineEditing);
-  const summaryReadOnlyBlock = renderSummaryDataBlock(false);
 
   const workflowActionsBlock = (
     <div className="flex flex-wrap gap-2">
@@ -1893,12 +2155,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             <Play className="mr-1 h-4 w-4" />
             Start…
           </Button>
-          {batchDetailsOpen && (
-            <Button size="sm" variant="outline" onClick={() => setIsInlineEditing(true)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              Edit batch
-            </Button>
-          )}
+          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
+            <Pencil className="mr-1 h-4 w-4" />
+            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -1917,12 +2177,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       )}
         {batch.status === 'in_progress' && (
           <>
-            {batchDetailsOpen && (
-              <Button size="sm" variant="outline" onClick={() => setIsInlineEditing(true)}>
-                <Pencil className="mr-1 h-4 w-4" />
-                Edit batch
-              </Button>
-            )}
+          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
+            <Pencil className="mr-1 h-4 w-4" />
+            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
+          </Button>
             <Button
               size="sm"
               className="bg-brand-primary hover:bg-brand-primary-hover"
@@ -1943,7 +2201,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           </>
         )}
       {batch.status === 'completed' && (
-        <span className="text-xs text-muted-foreground">Outputs and waste auto-posted on completion.</span>
+        <span className="text-xs text-muted-foreground">Products and waste auto-posted on completion.</span>
       )}
     </div>
   );
@@ -1977,8 +2235,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
   return (
     <>
-      <Card className="border-border shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-4">
+      <Card className="border-border shadow-sm min-h-[420px]">
+        <CardContent className="flex h-full min-h-0 flex-col gap-4 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <p className="text-base font-semibold tracking-tight text-foreground">{batch.batch_number}</p>
@@ -1992,52 +2250,18 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
               </span>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-              <Button
-                type="button"
-                size="sm"
-                className="bg-brand-primary hover:bg-brand-primary-hover"
-                onClick={() => setBatchDetailsOpen(true)}
-              >
-                <Maximize2 className="mr-2 h-4 w-4" />
-                Batch details
-              </Button>
               <Button variant="outline" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Clear selection">
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          {summaryReadOnlyBlock}
-
-          {!loadingItems && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-mono font-medium text-foreground">{batchItems.length}</span> line
-              {batchItems.length !== 1 ? 's' : ''} — open <span className="font-medium">Batch details</span> to view or
-              edit.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={batchDetailsOpen} onOpenChange={setBatchDetailsOpen}>
-        <DialogContent className="flex max-h-[92vh] w-[min(64rem,96vw)] max-w-none flex-col gap-4 overflow-x-clip overflow-y-auto p-6 sm:max-w-none md:max-h-[min(82vh,800px)] md:overflow-hidden">
-          <DialogHeader className="shrink-0 space-y-1 text-left">
-            <DialogTitle className="text-foreground">{batch.batch_number}</DialogTitle>
-            <DialogDescription className="font-mono text-xs tabular-nums">{metaLine}</DialogDescription>
-          </DialogHeader>
-
           <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(460px,68%)_minmax(260px,32%)] md:gap-8">
             <div className="min-h-0 min-w-0 border-border md:border-r md:overflow-hidden">{leftDetailsAndLinesBlock}</div>
             <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)] md:overflow-hidden">{rightAddBlock}</div>
           </div>
-
-          <DialogFooter className="shrink-0 border-t border-border pt-4 sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setBatchDetailsOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </>
   );
 };
@@ -2194,10 +2418,10 @@ interface BatchRowProps {
   batch: ProductionBatch;
   lines: ProductionLine[];
   formulas: ProductionFormula[];
+  getItemName: (itemId: number) => string;
   getStatusBadge: (s: string) => string;
   isSelected?: boolean;
   onClick?: () => void;
-  onStart: () => void;
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -2206,10 +2430,10 @@ const BatchRow: React.FC<BatchRowProps> = ({
   batch,
   lines,
   formulas,
+  getItemName,
   getStatusBadge,
   isSelected,
   onClick,
-  onStart,
   onComplete,
   onCancel,
 }) => {
@@ -2217,6 +2441,26 @@ const BatchRow: React.FC<BatchRowProps> = ({
   const formula = batch.formula_id
     ? formulas.find((f) => f.id === batch.formula_id)
     : null;
+  const { data: formulaItems = [] } = useGetFormulaItemsQuery(
+    { formulaId: batch.formula_id ?? 0 },
+    { skip: !batch.formula_id }
+  );
+  const { data: batchRowItems = [] } = useGetBatchItemsQuery(
+    { batchId: batch.id },
+    { skip: !batch.id }
+  );
+  const returnProductNames = useMemo(() => {
+    const outputIds = new Set<number>();
+    for (const row of formulaItems) {
+      if (row.item_role === 'output') outputIds.add(row.item_id);
+    }
+    for (const row of batchRowItems) {
+      if (row.item_role === 'output') outputIds.add(row.item_id);
+    }
+    return Array.from(outputIds).map(getItemName).filter(Boolean);
+  }, [formulaItems, batchRowItems, getItemName]);
+  const returnProductsDisplay =
+    returnProductNames.length > 0 ? returnProductNames.join(', ') : 'No products yet';
 
   return (
     <div
@@ -2240,13 +2484,9 @@ const BatchRow: React.FC<BatchRowProps> = ({
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        {batch.status === 'draft' && (
-          <Button size="sm" variant="outline" onClick={onStart}>
-            <Play className="h-4 w-4 mr-1" />
-            Start
-          </Button>
-        )}
+      <div className="flex flex-col items-end gap-2 text-right" onClick={(e) => e.stopPropagation()}>
+        <div className="text-xs text-muted-foreground">{returnProductsDisplay}</div>
+        <div className="flex items-center gap-1">
         {batch.status === 'in_progress' && (
           <>
             <Button size="sm" variant="outline" onClick={onComplete}>
@@ -2259,6 +2499,7 @@ const BatchRow: React.FC<BatchRowProps> = ({
             </Button>
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -2333,7 +2574,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       expectedOutput.trim() !== '' &&
       (parsedExpectedOutput == null || Number.isNaN(parsedExpectedOutput) || parsedExpectedOutput < 1)
     ) {
-      toast.error('Enter a positive integer for target output, or leave blank for the formula default');
+      toast.error('Enter a positive integer for target products, or leave blank for the formula default');
       return;
     }
 
@@ -2443,7 +2684,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
             </div>
             <div className="grid gap-2">
               <Label>
-                {selectedFormulaId ? 'Target output qty (optional)' : 'Expected output qty (optional)'}
+                {selectedFormulaId ? 'Target product qty (optional)' : 'Expected product qty (optional)'}
               </Label>
               <Input
                 type="text"
@@ -2455,13 +2696,13 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                   selectedFormulaId
                     ? formulaDefaultOutput > 0
                       ? `Blank = default (${formulaDefaultOutput})`
-                      : 'Blank = formula base output'
+                      : 'Blank = formula base products'
                     : 'Optional'
                 }
               />
               {selectedFormulaId && formulaDefaultOutput > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Leave blank to use the formula&apos;s default output ({formulaDefaultOutput}) for scaling.
+                  Leave blank to use the formula&apos;s default products ({formulaDefaultOutput}) for scaling.
                 </p>
               )}
             </div>
@@ -2539,7 +2780,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           notes: notes.trim() || undefined,
         },
       }).unwrap();
-      toast.success('Batch completed — outputs and waste posted to inventory');
+      toast.success('Batch completed — products and waste posted to inventory');
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -2557,7 +2798,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           <DialogHeader>
             <DialogTitle>Complete Batch {batch.batch_number}</DialogTitle>
             <DialogDescription>
-              Enter actual output and duration. Variance will be calculated automatically.
+              Enter actual products and duration. Variance will be calculated automatically.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -2590,7 +2831,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
               />
             </div>
             <p className="text-xs text-muted-foreground rounded-lg border border-border/60 bg-muted/20 p-3">
-              Completing will automatically post output and byproduct quantities to finished goods and waste to the damaged ledger.
+              Completing will automatically post product and byproduct quantities to finished goods and waste to the damaged ledger.
             </p>
           </div>
           <DialogFooter>

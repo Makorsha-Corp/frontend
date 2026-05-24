@@ -35,7 +35,10 @@ export interface ResetPasswordRequest {
 // Auth response types
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
+  expires_in: number;
+  refresh_expires_in: number;
   user: User;
   messages?: import('./common').ActionMessage[];
   // NOTE: Workspace NOT included - user must select workspace after login via GET /workspaces
@@ -43,9 +46,31 @@ export interface LoginResponse {
 
 export interface RegisterResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
+  expires_in: number;
+  refresh_expires_in: number;
   user: User;
   workspace: import('./workspace').Workspace;
+  messages?: import('./common').ActionMessage[];
+}
+
+// Refresh / logout flow
+export interface RefreshTokenRequest {
+  refresh_token: string;
+}
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_expires_in: number;
+}
+
+export interface LogoutRequest {
+  refresh_token?: string | null;
+  all_devices?: boolean;
 }
 
 export interface ValidateInvitationResponse {

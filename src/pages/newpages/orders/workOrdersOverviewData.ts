@@ -1,0 +1,120 @@
+import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
+import type { WorkOrder, WorkOrderPriority, WorkOrderStatus, WorkType } from '@/types/workOrder';
+import {
+  isWorkOrderOpen,
+  priorityLabel,
+  workOrderStatusLabel,
+  workTypeLabel,
+} from './workOrderConstants';
+
+export type WorkOrderStatusFilter = 'all' | WorkOrderStatus;
+export type WorkTypeFilter = 'all' | WorkType;
+export type WorkOrderPriorityFilter = 'all' | WorkOrderPriority;
+
+export interface WorkOrderLabelContext {
+  factoryName: (id: number) => string;
+  machineName: (id: number | null) => string;
+}
+
+export interface WorkOrderFilters {
+  from?: Date;
+  to?: Date;
+  status: WorkOrderStatusFilter;
+  workType: WorkTypeFilter;
+  priority: WorkOrderPriorityFilter;
+  factoryId: string;
+  machineId: string;
+  searchQuery: string;
+}
+
+export interface WorkOrderSummaryStats {
+  totalCount: number;
+  openCount: number;
+  pendingApprovalCount: number;
+  totalCost: number;
+}
+
+function reportDateForWorkOrder(order: WorkOrder): Date {
+  if (order.start_date?.trim()) {
+    return startOfDay(parseISO(order.start_date));
+  }
+  return startOfDay(parseISO(order.created_at));
+}
+
+export function filterWorkOrders(
+  orders: WorkOrder[],
+  filters: WorkOrderFilters,
+  labelCtx: WorkOrderLabelContext
+): WorkOrder[] {
+  let rows = orders.filter((o) => !o.is_deleted);
+
+  if (filters.from && filters.to) {
+    const interval = { start: startOfDay(filters.from), end: endOfDay(filters.to) };
+    rows = rows.filter((o) => isWithinInterval(reportDateForWorkOrder(o), interval));
+  }
+
+  if (filters.status !== 'all') {
+    rows = rows.filter((o) => o.status === filters.status);
+  }
+
+  if (filters.workType !== 'all') {
+    rows = rows.filter((o) => o.work_type === filters.workType);
+  }
+
+  if (filters.priority !== 'all') {
+    rows = rows.filter((o) => o.priority === filters.priority);
+  }
+
+  if (filters.factoryId !== 'all') {
+    const fid = Number(filters.factoryId);
+    rows = rows.filter((o) => o.factory_id === fid);
+  }
+
+  if (filters.machineId !== 'all') {
+    const mid = Number(filters.machineId);
+    rows = rows.filter((o) => o.machine_id === mid);
+  }
+
+  const q = filters.searchQuery.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((o) => {
+      const factory = labelCtx.factoryName(o.factory_id).toLowerCase();
+      const machine = labelCtx.machineName(o.machine_id).toLowerCase();
+      return (
+        o.work_order_number?.toLowerCase().includes(q) ||
+        o.title?.toLowerCase().includes(q) ||
+        (o.assigned_to?.toLowerCase().includes(q) ?? false) ||
+        workOrderStatusLabel(o.status).toLowerCase().includes(q) ||
+        workTypeLabel(o.work_type).toLowerCase().includes(q) ||
+        priorityLabel(o.priority).toLowerCase().includes(q) ||
+        factory.includes(q) ||
+        machine.includes(q)
+      );
+    });
+  }
+
+  return rows;
+}
+
+export function workOrderSummaryStats(orders: WorkOrder[]): WorkOrderSummaryStats {
+  let openCount = 0;
+  let pendingApprovalCount = 0;
+  let totalCost = 0;
+
+  for (const o of orders) {
+    if (isWorkOrderOpen(o.status)) {
+      openCount += 1;
+    }
+    if (o.status === 'PENDING_APPROVAL') {
+      pendingApprovalCount += 1;
+    }
+    totalCost += Number(o.cost ?? 0);
+  }
+
+  return {
+    totalCount: orders.length,
+    openCount,
+    pendingApprovalCount,
+    totalCost,
+  };
+}

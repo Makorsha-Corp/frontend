@@ -1,6 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useNavigate, Link } from 'react-router-dom';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -26,7 +31,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const SECTION_CONFIG: Record<string, { label: string; tagCode: string }> = {
   suppliers: { label: 'Suppliers', tagCode: 'supplier' },
@@ -106,11 +111,9 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Breadcrumb>
@@ -127,27 +130,31 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="h-6 w-px bg-border" />
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className={appShellHeaderIconTileClass}>
                 <Users className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
+              <h1 className={appShellHeaderTitleClass}>
                 {config.label}
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                className={appShellHeaderControlClass}
+              >
                 Manage Accounts
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="bg-brand-primary hover:bg-brand-primary-hover shadow-sm"
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add {singularLabel}
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 bg-background">
           <Card className="shadow-sm bg-card border-border">

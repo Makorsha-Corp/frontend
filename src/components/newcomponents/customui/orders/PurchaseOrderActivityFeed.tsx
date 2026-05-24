@@ -1,0 +1,58 @@
+import React, { useMemo } from 'react';
+import { Plus, FileText } from 'lucide-react';
+import type { PurchaseOrder } from '@/types/purchaseOrder';
+import OrderActivityFeed, { type ActivityFeedItem } from './OrderActivityFeed';
+
+interface PurchaseOrderActivityFeedProps {
+  orders: PurchaseOrder[];
+  accountName: (id: number) => string;
+  statusLabel: (id: number) => string;
+  className?: string;
+}
+
+const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
+  orders,
+  accountName,
+  statusLabel,
+  className,
+}) => {
+  const activities = useMemo((): ActivityFeedItem[] => {
+    const items: ActivityFeedItem[] = [];
+
+    for (const order of orders) {
+      items.push({
+        id: `created-${order.id}`,
+        icon: <Plus className="h-4 w-4 text-green-600 dark:text-green-400" />,
+        timestamp: new Date(order.created_at),
+        description: `${order.po_number} created`,
+        subtext: accountName(order.account_id),
+      });
+
+      if (order.invoice_id != null) {
+        const invoiceTime = order.updated_at
+          ? new Date(order.updated_at)
+          : new Date(order.created_at);
+        items.push({
+          id: `invoiced-${order.id}`,
+          icon: <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
+          timestamp: invoiceTime,
+          description: `${order.po_number} invoice linked`,
+          subtext: statusLabel(order.current_status_id),
+        });
+      }
+    }
+
+    items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return items.slice(0, 10);
+  }, [orders, accountName, statusLabel]);
+
+  return (
+    <OrderActivityFeed
+      activities={activities}
+      emptyMessage="No recent purchase order activity"
+      className={className}
+    />
+  );
+};
+
+export default PurchaseOrderActivityFeed;

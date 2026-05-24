@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Link } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -12,7 +13,10 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderLoweredSelectorClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -281,20 +285,42 @@ const OrdersOverviewPage: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
+                  <LayoutDashboard className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Orders Overview
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
-                Orders Overview
-              </h1>
+              <div className="hidden h-6 w-px bg-border sm:block" />
+              <div className="flex min-w-0 items-end gap-2 flex-wrap">
+                <Select value={factoryFilter} onValueChange={setFactoryFilter}>
+                  <SelectTrigger className={`w-[130px] ${appShellHeaderLoweredSelectorClass}`}>
+                    <SelectValue placeholder="Factory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All factories</SelectItem>
+                    {factories.map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="min-w-[200px] justify-start h-9">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+                  >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dateRange.from ? (
                       dateRange.to ? (
@@ -316,21 +342,8 @@ const OrdersOverviewPage: React.FC = () => {
                   />
                 </PopoverContent>
               </Popover>
-              <Select value={factoryFilter} onValueChange={setFactoryFilter}>
-                <SelectTrigger className="w-[130px] h-9">
-                  <SelectValue placeholder="Factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All factories</SelectItem>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px] h-9">
+                <SelectTrigger className={`w-[160px] border-border bg-background ${appShellHeaderControlClass}`}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -344,7 +357,7 @@ const OrdersOverviewPage: React.FC = () => {
               </Select>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-6 space-y-6 overflow-y-auto">
           {loadError && (

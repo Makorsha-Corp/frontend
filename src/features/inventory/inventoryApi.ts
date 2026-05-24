@@ -1,33 +1,17 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '../../app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import type {
   Inventory,
   CreateInventoryRequest,
   UpdateInventoryRequest,
   ListInventoryParams,
-  InventoryLedgerEntry,
-  ListInventoryLedgerParams,
 } from '../../types/inventory';
+import { ledgersApi } from '../ledgers/ledgersApi';
 
 export const inventoryApi = createApi({
   reducerPath: 'inventoryApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
-  tagTypes: ['Inventory', 'InventoryLedger'],
+  baseQuery: baseQueryWithReauth,
+  tagTypes: ['Inventory'],
   endpoints: (builder) => ({
     getInventoryList: builder.query<Inventory[], ListInventoryParams>({
       query: ({ skip = 0, limit = 100, inventory_type, factory_id } = {}) => {
@@ -54,7 +38,15 @@ export const inventoryApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Inventory', 'InventoryLedger'],
+      invalidatesTags: ['Inventory'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          /* noop */
+        }
+      },
     }),
     updateInventory: builder.mutation<Inventory, { id: number; data: UpdateInventoryRequest }>({
       query: ({ id, data }) => ({
@@ -62,7 +54,15 @@ export const inventoryApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'Inventory', id }, 'Inventory', 'InventoryLedger'],
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Inventory', id }, 'Inventory'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          /* noop */
+        }
+      },
     }),
     deleteInventory: builder.mutation<void, number>({
       query: (id) => ({
@@ -70,24 +70,14 @@ export const inventoryApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['Inventory'],
-    }),
-    getInventoryLedger: builder.query<InventoryLedgerEntry[], ListInventoryLedgerParams>({
-      query: ({ skip = 0, limit = 100, inventory_type, factory_id, item_id } = {}) => {
-        const params = new URLSearchParams();
-        params.append('skip', skip.toString());
-        params.append('limit', limit.toString());
-        if (inventory_type) {
-          params.append('inventory_type', inventory_type);
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+        } catch {
+          /* noop */
         }
-        if (factory_id) {
-          params.append('factory_id', factory_id.toString());
-        }
-        if (item_id) {
-          params.append('item_id', item_id.toString());
-        }
-        return `inventory/ledger/?${params.toString()}`;
       },
-      providesTags: ['InventoryLedger'],
     }),
   }),
 });
@@ -98,5 +88,4 @@ export const {
   useCreateInventoryMutation,
   useUpdateInventoryMutation,
   useDeleteInventoryMutation,
-  useGetInventoryLedgerQuery,
 } = inventoryApi;

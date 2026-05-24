@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLoginMutation, useRegisterMutation } from '@/features/auth/authApi';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setCredentials } from '@/features/auth/authSlice';
@@ -145,8 +145,21 @@ const LOGIN_GRADIENT_PRESETS: {
 const Login2Page: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, workspace } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme } = useTheme();
+
+  // Refresh-token flow bails out here with ?expired=1 when /auth/refresh/
+  // fails (refresh token revoked, expired, or reuse-detected). Show a single
+  // toast and strip the query param so a hard reload doesn't re-show it.
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      toast.error('Your session expired. Please sign in again.');
+      const next = new URLSearchParams(searchParams);
+      next.delete('expired');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Toggle between login and register
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -239,11 +252,13 @@ const Login2Page: React.FC = () => {
         password: loginPassword,
       }).unwrap();
 
-      // Save credentials to Redux
+      // Save credentials to Redux (both tokens — refresh token enables
+      // transparent re-auth from baseQueryWithReauth when access expires).
       dispatch(
         setCredentials({
           user: response.user,
           token: response.access_token,
+          refreshToken: response.refresh_token,
         })
       );
 
@@ -289,11 +304,12 @@ const Login2Page: React.FC = () => {
         workspace_name: registerWorkspaceName,
       }).unwrap();
 
-      // Save credentials to Redux
+      // Save credentials to Redux (both tokens; see login handler comment).
       dispatch(
         setCredentials({
           user: response.user,
           token: response.access_token,
+          refreshToken: response.refresh_token,
           workspace: response.workspace,
         })
       );

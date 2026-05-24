@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, {
+  appShellHeaderLoweredSelectorClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -56,7 +67,7 @@ import AddProjectComponentItemDialog from '@/components/newcomponents/customui/A
 import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
 import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
 import EditProjectComponentDialog from '@/components/newcomponents/customui/EditProjectComponentDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
@@ -142,12 +153,21 @@ const ProjectsPage: React.FC = () => {
   const selectedComponent = components.find((c) => c.id === selectedComponentId);
 
   const handleFactoryChange = (value: string) => {
-    const id = value ? parseInt(value, 10) : null;
+    const id = value === 'all' ? null : parseInt(value, 10);
     setFactoryId(id);
     setSelectedProjectId(null);
     setSelectedProjectData(null);
     setSelectedComponentId(null);
   };
+  const selectedFactory = React.useMemo(
+    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
+    [factoryId, factories]
+  );
+  const factorySelectorLabel = React.useMemo(() => {
+    if (selectedFactory) return selectedFactory.name;
+    if (factories.length === 1) return factories[0].name;
+    return `All factories (${factories.length})`;
+  }, [selectedFactory, factories]);
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProjectId(project.id);
@@ -235,9 +255,8 @@ const ProjectsPage: React.FC = () => {
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
         <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FolderKanban className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -265,39 +284,61 @@ const ProjectsPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
                 <FolderKanban className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Projects</h1>
+              <h1 className={appShellHeaderTitleClass}>Projects</h1>
+              <div className="hidden h-6 w-px bg-border sm:block" />
+              <Breadcrumb className="min-w-0 self-end">
+                <BreadcrumbList className="text-card-foreground dark:text-foreground">
+                  <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" className={appShellHeaderLoweredSelectorClass}>
+                          <span className="truncate text-card-foreground dark:text-foreground">
+                            {factorySelectorLabel}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+                        align="start"
+                      >
+                        <DropdownMenuLabel>Factories</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          className={factoryId == null ? 'bg-accent/70' : ''}
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            handleFactoryChange('all');
+                          }}
+                        >
+                          All factories
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {factories.map((f) => (
+                          <DropdownMenuItem
+                            key={f.id}
+                            className={factoryId === f.id ? 'bg-accent/70' : ''}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              handleFactoryChange(f.id.toString());
+                            }}
+                          >
+                            {f.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                size="sm"
-                className="bg-brand-primary hover:bg-brand-primary-hover"
-                onClick={() => setIsAddProjectOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Project
-              </Button>
-              <Select value={factoryId?.toString() ?? 'all'} onValueChange={handleFactoryChange}>
-                <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="Factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All factories</SelectItem>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[140px] h-9">
                   <SelectValue placeholder="Status" />
@@ -322,7 +363,7 @@ const ProjectsPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-6 flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-120px)]">
           {/* Left panel - Navigator */}
@@ -331,8 +372,18 @@ const ProjectsPage: React.FC = () => {
               {/* Projects list */}
               <Card className="border-border flex-1 min-h-0 flex flex-col">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">Projects</CardTitle>
-                  <span className="text-sm text-muted-foreground">{filteredProjects.length} projects</span>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">Projects</CardTitle>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7"
+                      onClick={() => setIsAddProjectOpen(true)}
+                      title="Add project"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto p-0">
                   {loadingProjects ? (
@@ -387,16 +438,18 @@ const ProjectsPage: React.FC = () => {
               {selectedProjectId && (
                 <Card className="border-border flex-1 min-h-0 flex flex-col">
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                    <CardTitle className="text-base">Components</CardTitle>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7"
-                      onClick={() => setIsAddComponentOpen(true)}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base">Components</CardTitle>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        onClick={() => setIsAddComponentOpen(true)}
+                        title="Add component"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
                     {loadingComponents ? (

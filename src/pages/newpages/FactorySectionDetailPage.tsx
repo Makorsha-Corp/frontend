@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useParams, Link } from 'react-router-dom';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,7 @@ import {
   statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const FactorySectionDetailPage: React.FC = () => {
   const { id, sectionId } = useParams<{ id: string; sectionId: string }>();
@@ -102,22 +103,23 @@ const FactorySectionDetailPage: React.FC = () => {
 
   if (!factoryId || isNaN(factoryId) || !sectionIdNum || isNaN(sectionIdNum)) {
     return (
-      <div className="flex min-h-screen bg-background items-center justify-center">
-        <p className="text-destructive">
-          Invalid URL. <Link to="/factories" className="underline">Back to factories</Link>
-        </p>
+      <div className="flex min-h-screen bg-background">
+        <DashboardNavbar />
+        <div className="flex flex-1 min-w-0 items-center justify-center">
+          <p className="text-destructive">
+            Invalid URL. <Link to="/factories" className="underline">Back to factories</Link>
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex-shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
               <Breadcrumb>
@@ -157,7 +159,7 @@ const FactorySectionDetailPage: React.FC = () => {
                   placeholder="Search machines..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 bg-background pl-9"
+                  className={`${appShellHeaderControlClass} bg-background pl-9`}
                 />
               </div>
               {section && (
@@ -165,7 +167,7 @@ const FactorySectionDetailPage: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditDialogOpen(true)}
-                  className="h-9 shrink-0 border-border"
+                  className={`${appShellHeaderControlClass} shrink-0 border-border`}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit Section
@@ -173,14 +175,14 @@ const FactorySectionDetailPage: React.FC = () => {
               )}
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
-                className="h-9 shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover"
+                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Content */}
         {isLoadingFactory || isLoadingSection ? (

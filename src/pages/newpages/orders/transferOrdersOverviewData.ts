@@ -1,0 +1,124 @@
+import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
+import type { TransferOrder } from '@/types/transferOrder';
+import {
+  factoryFromTransfer,
+  isCompletedStatusLabel,
+  type OrderResolutionMaps,
+} from './ordersOverviewData';
+import {
+  transferLocationLabel,
+  transferRouteLabel,
+  transferRouteTypeLabel,
+  type TransferLocationLabelContext,
+  type TransferLocationTypeFilter,
+} from './transferOrderLocationLabels';
+
+export type { TransferLocationTypeFilter };
+
+export interface TransferOrderFilters {
+  from?: Date;
+  to?: Date;
+  statusId: string;
+  factoryId: string;
+  sourceType: TransferLocationTypeFilter;
+  destinationType: TransferLocationTypeFilter;
+  searchQuery: string;
+}
+
+export interface TransferOrderSummaryStats {
+  totalCount: number;
+  openCount: number;
+  completedCount: number;
+  machineInvolvedCount: number;
+}
+
+export function filterTransferOrders(
+  orders: TransferOrder[],
+  filters: TransferOrderFilters,
+  resolutionMaps: OrderResolutionMaps,
+  labelCtx: TransferLocationLabelContext
+): TransferOrder[] {
+  let rows = [...orders];
+
+  if (filters.from && filters.to) {
+    const interval = { start: startOfDay(filters.from), end: endOfDay(filters.to) };
+    rows = rows.filter((o) => {
+      const orderDate = parseISO(o.order_date);
+      return isWithinInterval(orderDate, interval);
+    });
+  }
+
+  if (filters.statusId !== 'all') {
+    const sid = Number(filters.statusId);
+    rows = rows.filter((o) => o.current_status_id === sid);
+  }
+
+  if (filters.factoryId !== 'all') {
+    const fid = Number(filters.factoryId);
+    rows = rows.filter((o) => factoryFromTransfer(o, resolutionMaps) === fid);
+  }
+
+  if (filters.sourceType !== 'all') {
+    rows = rows.filter((o) => o.source_location_type === filters.sourceType);
+  }
+
+  if (filters.destinationType !== 'all') {
+    rows = rows.filter((o) => o.destination_location_type === filters.destinationType);
+  }
+
+  const q = filters.searchQuery.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((o) => {
+      const route = transferRouteLabel(o, labelCtx).toLowerCase();
+      const types = transferRouteTypeLabel(o).toLowerCase();
+      return (
+        o.transfer_number?.toLowerCase().includes(q) ||
+        route.includes(q) ||
+        types.includes(q) ||
+        o.source_location_type.toLowerCase().includes(q) ||
+        o.destination_location_type.toLowerCase().includes(q) ||
+        transferLocationLabel(o.source_location_type, o.source_location_id, labelCtx)
+          .toLowerCase()
+          .includes(q) ||
+        transferLocationLabel(
+          o.destination_location_type,
+          o.destination_location_id,
+          labelCtx
+        )
+          .toLowerCase()
+          .includes(q)
+      );
+    });
+  }
+
+  return rows;
+}
+
+export function transferOrderSummaryStats(
+  orders: TransferOrder[],
+  statusById: Map<number, string>
+): TransferOrderSummaryStats {
+  let openCount = 0;
+  let completedCount = 0;
+  let machineInvolvedCount = 0;
+
+  for (const o of orders) {
+    const label = statusById.get(o.current_status_id) ?? '';
+    if (isCompletedStatusLabel(label)) {
+      completedCount += 1;
+    } else {
+      openCount += 1;
+    }
+
+    if (o.source_location_type === 'machine' || o.destination_location_type === 'machine') {
+      machineInvolvedCount += 1;
+    }
+  }
+
+  return {
+    totalCount: orders.length,
+    openCount,
+    completedCount,
+    machineInvolvedCount,
+  };
+}

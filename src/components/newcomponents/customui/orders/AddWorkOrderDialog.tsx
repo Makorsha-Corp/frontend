@@ -20,11 +20,14 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { WorkType, WorkOrderPriority } from '@/types/workOrder';
+import {
+  WORK_ORDER_PRIORITIES,
+  WORK_TYPES,
+  priorityLabel,
+  workTypeLabel,
+} from '@/pages/newpages/orders/workOrderConstants';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const WORK_TYPES: WorkType[] = ['MAINTENANCE', 'INSPECTION', 'INSTALLATION', 'REPAIR', 'CALIBRATION', 'OVERHAUL', 'FABRICATION', 'OTHER'];
-const PRIORITIES: WorkOrderPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 interface AddWorkOrderDialogProps {
   open: boolean;
@@ -126,7 +129,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
               <SelectContent>
                 {WORK_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {t}
+                    {workTypeLabel(t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -143,9 +146,9 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PRIORITIES.map((p) => (
+                {WORK_ORDER_PRIORITIES.map((p) => (
                   <SelectItem key={p} value={p}>
-                    {p}
+                    {priorityLabel(p)}
                   </SelectItem>
                 ))}
               </SelectContent>

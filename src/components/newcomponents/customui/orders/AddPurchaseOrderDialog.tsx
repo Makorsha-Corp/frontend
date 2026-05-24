@@ -26,6 +26,7 @@ import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSe
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
+import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -94,6 +96,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Ignore accidental submits while nested selector dialogs are open.
+    if (accountPickerOpen || machinePickerOpen) {
+      return;
+    }
     const aid = parseInt(accountId, 10);
     const did = parseInt(destinationId, 10);
     if (isNaN(aid) || !accountId) {
@@ -139,23 +145,34 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex items-center justify-between gap-2 shrink-0">
-        <Label className="text-base">Line items *</Label>
+        <Label className="text-base">Items *</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
       </div>
 
       <div className="space-y-2 shrink-0 rounded-lg border border-border bg-muted/20 p-3">
-        <Select value={itemId} onValueChange={setItemId}>
-          <SelectTrigger className="w-full bg-background">
-            <SelectValue placeholder="Select item" />
-          </SelectTrigger>
-          <SelectContent>
-            {itemsList.map((i) => (
-              <SelectItem key={i.id} value={i.id.toString()}>
-                {i.name} {i.unit && `(${i.unit})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Select value={itemId} onValueChange={setItemId}>
+              <SelectTrigger className="w-full bg-background">
+                <SelectValue placeholder="Select item" />
+              </SelectTrigger>
+              <SelectContent>
+                {itemsList.map((i) => (
+                  <SelectItem key={i.id} value={i.id.toString()}>
+                    {i.name} {i.unit && `(${i.unit})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="button"
+            className="h-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
+            onClick={() => setIsCreateItemOpen(true)}
+          >
+            Create item +
+          </Button>
+        </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid flex-1 min-w-[5rem] gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
@@ -337,8 +354,9 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-0 text-left">
           <DialogTitle>Add Purchase Order</DialogTitle>
         </DialogHeader>
@@ -362,8 +380,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <AddItemDialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen} />
+    </>
   );
 };
 

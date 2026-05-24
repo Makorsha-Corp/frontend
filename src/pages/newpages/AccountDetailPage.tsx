@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useParams, Link } from 'react-router-dom';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +22,7 @@ import { Users, Pencil, Loader2, FileText, CreditCard, ChevronLeft, ChevronRight
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import type { AccountInvoice } from '@/types/accountInvoice';
 import {
   Select,
@@ -223,11 +228,9 @@ const AccountDetailPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex-1 min-w-0">
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Breadcrumb>
@@ -240,28 +243,33 @@ const AccountDetailPage: React.FC = () => {
                 </BreadcrumbList>
               </Breadcrumb>
               <div className="h-6 w-px bg-border" />
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+              <div className={appShellHeaderIconTileClass}>
                 <Users className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">
+              <h1 className={appShellHeaderTitleClass}>
                 {account ? account.name : 'Account'}
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                className={appShellHeaderControlClass}
+              >
                 Manage Accounts
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setIsEditDialogOpen(true)}
                 disabled={!account}
+                className={appShellHeaderControlClass}
               >
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </Button>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="p-8 bg-background space-y-6">
           {isLoading ? (

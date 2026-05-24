@@ -1,6 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { useNavigate } from 'react-router-dom';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +40,7 @@ import {
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 const OPEN_INVOICE_STATUSES = new Set(['unpaid', 'partial', 'overdue']);
@@ -257,23 +263,25 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Toaster position="top-right" />
       <DashboardNavbar />
-
       <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
-        <div className="shrink-0 bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 z-10 shadow-sm">
+        <AppShellHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
                 <Users className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Accounts</h1>
+              <h1 className={appShellHeaderTitleClass}>Accounts</h1>
             </div>
-            <Button variant="outline" onClick={() => setIsManageAccountsOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsManageAccountsOpen(true)}
+              className={appShellHeaderControlClass}
+            >
               Manage Accounts
             </Button>
           </div>
-        </div>
+        </AppShellHeader>
 
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-8 gap-6 bg-background">
           <div className="flex flex-nowrap gap-2 overflow-x-auto shrink-0">
@@ -504,7 +512,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
             <Card className="shadow-sm bg-card border-border flex flex-1 min-h-0 flex-col overflow-hidden">
               <CardContent className="p-0 flex flex-1 min-h-0 flex-col overflow-hidden">
                 <div className="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {!isLoading && (
                       <span className="font-medium">
                         {displayedAccounts.length}{' '}
@@ -516,6 +524,15 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                           : ''}
                       </span>
                     )}
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7"
+                      onClick={() => setIsAddDialogOpen(true)}
+                      title="Add account"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative w-[200px] min-w-[140px]">
@@ -532,14 +549,6 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                         className="pl-10 h-9"
                       />
                     </div>
-                    <Button
-                      size="sm"
-                      className="bg-brand-primary hover:bg-brand-primary-hover"
-                      onClick={() => setIsAddDialogOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
                   </div>
                 </div>
 

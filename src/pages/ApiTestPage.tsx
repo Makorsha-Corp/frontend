@@ -27,7 +27,8 @@ import {
 import { useGetMachinesQuery, useCreateMachineMutation, useUpdateMachineMutation, useDeleteMachineMutation, useGetMachineEventsQuery, useCreateMachineEventMutation } from '@/features/machines/machinesApi';
 import { useGetMachineItemsQuery, useCreateMachineItemMutation, useUpdateMachineItemMutation, useDeleteMachineItemMutation } from '@/features/machineItems/machineItemsApi';
 import { useGetMachineMaintenanceLogsQuery, useCreateMachineMaintenanceLogMutation, useUpdateMachineMaintenanceLogMutation, useDeleteMachineMaintenanceLogMutation } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
-import { useGetInventoryListQuery, useCreateInventoryMutation, useUpdateInventoryMutation, useDeleteInventoryMutation, useGetInventoryLedgerQuery } from '@/features/inventory/inventoryApi';
+import { useGetInventoryListQuery, useCreateInventoryMutation, useUpdateInventoryMutation, useDeleteInventoryMutation } from '@/features/inventory/inventoryApi';
+import { useGetInventoryLedgerQuery } from '@/features/ledgers/ledgersApi';
 import { useGetProductsQuery, useCreateProductMutation, useUpdateProductMutation, useDeleteProductMutation, useGetProductLedgerQuery } from '@/features/products/productsApi';
 import { useGetWorkOrdersQuery, useCreateWorkOrderMutation, useUpdateWorkOrderMutation, useDeleteWorkOrderMutation, useGetWorkOrderItemsQuery, useAddWorkOrderItemMutation, useRemoveWorkOrderItemMutation } from '@/features/workOrders/workOrdersApi';
 import { useGetPurchaseOrdersQuery, useCreatePurchaseOrderMutation, useUpdatePurchaseOrderMutation, useDeletePurchaseOrderMutation, useGetPurchaseOrderItemsQuery, useAddPurchaseOrderItemMutation, useRemovePurchaseOrderItemMutation } from '@/features/purchaseOrders/purchaseOrdersApi';

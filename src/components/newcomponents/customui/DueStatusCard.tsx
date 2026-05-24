@@ -30,7 +30,7 @@ const DueStatusCard: React.FC<DueStatusCardProps> = ({
     <Card className={`flex h-full min-h-0 flex-col border-border bg-card shadow-sm ${className ?? ''}`}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-card-foreground">
-          <Wrench className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+          <Wrench className="h-4 w-4 shrink-0 text-brand-primary" aria-hidden />
           {title}
         </CardTitle>
       </CardHeader>

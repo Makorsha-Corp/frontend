@@ -120,10 +120,16 @@ export function locationFilterLabels(
   factories: Array<{ id: number; name: string; abbreviation: string }>,
   allSections: Array<{ id: number; name: string }>
 ) {
-  const factoryCount = effectiveFactoryIds(slice, allFactoryIds).length;
+  const effectiveFactorySelection = effectiveFactoryIds(slice, allFactoryIds);
+  const factoryCount = effectiveFactorySelection.length;
   let factoryDropdownLabel: string;
   if (slice.factory_ids.length === 0) {
-    factoryDropdownLabel = `All factories (${factoryCount})`;
+    if (factoryCount === 1) {
+      const onlyFactory = factories.find((x) => x.id === effectiveFactorySelection[0]);
+      factoryDropdownLabel = onlyFactory?.name ?? '1 factory';
+    } else {
+      factoryDropdownLabel = `All factories (${factoryCount})`;
+    }
   } else if (slice.factory_ids.length === 1) {
     const f = factories.find((x) => x.id === slice.factory_ids[0]);
     factoryDropdownLabel = f?.name ?? '1 factory';
@@ -134,7 +140,11 @@ export function locationFilterLabels(
   const visibleCount = visibleSections.length;
   let sectionDropdownLabel: string;
   if (slice.section_ids.length === 0) {
-    sectionDropdownLabel = `All sections (${visibleCount})`;
+    if (visibleCount === 1) {
+      sectionDropdownLabel = visibleSections[0]?.name ?? '1 section';
+    } else {
+      sectionDropdownLabel = `All sections (${visibleCount})`;
+    }
   } else if (slice.section_ids.length === 1) {
     const sid = slice.section_ids[0];
     const s =

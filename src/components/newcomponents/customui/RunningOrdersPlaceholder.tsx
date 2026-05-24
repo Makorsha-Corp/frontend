@@ -78,17 +78,17 @@ export const ActiveOrdersPanel: React.FC<ActiveOrdersPanelProps> = ({
             <p className="text-xs text-muted-foreground">No active orders.</p>
           </div>
         ) : (
-          <div className="flex min-h-[122px] flex-col rounded-lg border border-border overflow-hidden bg-card">
-            <ul className="min-h-0 flex-1 border-b border-border/40 max-h-[min(280px,45vh)] overflow-y-auto">
+          <div className="min-h-[122px]">
+            <ul className="min-h-0 max-h-[min(280px,45vh)] overflow-y-auto divide-y divide-border/40 rounded-md border border-border/60 bg-transparent">
               {data.map((row) => {
                 const kindShort = row.order_kind === 'purchase' ? 'PO' : 'TR';
                 const statusLabel = row.status_name ?? `#${row.current_status_id}`;
                 return (
-                  <li key={`${row.order_kind}-${row.id}`} className="border-b border-border/40 last:border-b-0">
+                  <li key={`${row.order_kind}-${row.id}`}>
                     <Link
                       to={orderHref(row)}
                       title={`${row.number} — ${statusLabel}`}
-                      className="flex items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted/30"
+                      className="flex items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-muted/20"
                     >
                       <span className="min-w-0 flex-1 truncate font-medium text-card-foreground">{row.number}</span>
                       <span className="min-w-0 truncate text-xs text-muted-foreground max-w-[45%]">

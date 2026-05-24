@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { RootState } from '../../app/store';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/app/baseQuery';
 import type {
   Product,
   CreateProductRequest,
@@ -11,22 +11,7 @@ import type {
 
 export const productsApi = createApi({
   reducerPath: 'productsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      const workspaceId = state.auth.workspace?.id;
-
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      if (workspaceId) {
-        headers.set('X-Workspace-ID', workspaceId.toString());
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Product', 'ProductLedger'],
   endpoints: (builder) => ({
     getProducts: builder.query<Product[], ListProductsParams>({
@@ -72,16 +57,23 @@ export const productsApi = createApi({
       invalidatesTags: ['Product'],
     }),
     getProductLedger: builder.query<ProductLedgerEntry[], ListProductLedgerParams>({
-      query: ({ skip = 0, limit = 100, factory_id, item_id } = {}) => {
+      query: ({
+        skip = 0,
+        limit = 100,
+        factory_id,
+        item_id,
+        start_date,
+        end_date,
+        transaction_type,
+      } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
-        if (factory_id) {
-          params.append('factory_id', factory_id.toString());
-        }
-        if (item_id) {
-          params.append('item_id', item_id.toString());
-        }
+        if (factory_id !== undefined) params.append('factory_id', factory_id.toString());
+        if (item_id !== undefined) params.append('item_id', item_id.toString());
+        if (start_date) params.append('start_date', start_date);
+        if (end_date) params.append('end_date', end_date);
+        if (transaction_type) params.append('transaction_type', transaction_type);
         return `products/ledger/?${params.toString()}`;
       },
       providesTags: ['ProductLedger'],

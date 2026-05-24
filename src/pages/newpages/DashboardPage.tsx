@@ -1,5 +1,6 @@
 import React from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, TrendingUp, DollarSign, Users as UsersIcon, Activity, Percent } from 'lucide-react';
 import { useAppSelector } from '@/app/hooks';
@@ -19,28 +20,27 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardNavbar />
-
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         {/* Top Bar */}
-        <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border dark:border-border px-8 py-4 sticky top-0 z-10">
+        <AppShellHeader sticky>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-card-foreground dark:text-foreground">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Dashboard</h1>
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground dark:text-gray-400" size={20} />
                 <input
                   type="text"
                   placeholder="Search transactions, customers, subscriptions..."
-                  className="pl-10 pr-4 py-2 w-96 border border-border rounded-lg bg-background dark:bg-background/50 text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-transparent"
+                  className={`w-96 rounded-lg border border-border bg-background pl-10 pr-4 text-foreground dark:bg-background/50 ${appShellHeaderControlClass} focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background`}
                 />
               </div>
-              <div className="w-10 h-10 bg-brand-primary rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-white font-semibold">
                 {user?.name?.charAt(0) || 'U'}
               </div>
             </div>
           </div>
-        </div>
+        </AppShellHeader>
 
         {/* Dashboard Content */}
         <div className="p-8 bg-background">

@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 export interface MachinesInlineLocationFiltersProps {
   which: 'factories' | 'sections';
   variant?: 'toolbar' | 'breadcrumb';
+  baseline?: 'default' | 'lowered';
   value: MachinesLocationFilterSlice;
   onChange: (next: MachinesLocationFilterSlice) => void;
   factories: Array<{ id: number; name: string; abbreviation: string }>;
@@ -36,6 +37,7 @@ export interface MachinesInlineLocationFiltersProps {
 const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps> = ({
   which,
   variant = 'toolbar',
+  baseline = 'default',
   value,
   onChange,
   factories,
@@ -58,8 +60,12 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   );
 
   const isBreadcrumb = variant === 'breadcrumb';
+  const breadcrumbBaseClass =
+    baseline === 'lowered'
+      ? 'h-7 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+      : 'h-8 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
   const triggerClassName = isBreadcrumb
-    ? 'h-8 max-w-[min(220px,40vw)] justify-start gap-0.5 border-none bg-transparent px-1 text-sm font-medium shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+    ? breadcrumbBaseClass
     : 'h-9 max-w-[min(200px,32vw)] justify-between gap-1 px-2.5 text-xs sm:text-sm focus-visible:ring-inset';
 
   if (which === 'factories') {
@@ -68,8 +74,8 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
-              <span className="truncate">{factoryDropdownLabel}</span>
-              <ChevronDown className={`${isBreadcrumb ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 opacity-70`} />
+              <span className="truncate text-card-foreground dark:text-foreground">{factoryDropdownLabel}</span>
+              {!isBreadcrumb ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : null}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -112,8 +118,8 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
-            <span className="truncate">{sectionDropdownLabel}</span>
-            <ChevronDown className={`${isBreadcrumb ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 opacity-70`} />
+            <span className="truncate text-card-foreground dark:text-foreground">{sectionDropdownLabel}</span>
+            {!isBreadcrumb ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : null}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
