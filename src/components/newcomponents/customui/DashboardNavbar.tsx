@@ -345,7 +345,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { user, factory } = useAppSelector((state) => state.auth);
+  const { user, factory, workspace } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme } = useTheme();
   const [factoryDialogOpen, setFactoryDialogOpen] = useState(false);
   const [factoriesExpanded, setFactoriesExpanded] = useState(() => {
@@ -451,7 +451,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const navItems: NavItem[] = [
     { name: 'Accounts', icon: <Users size={20} />, path: '/accounts' },
     { name: 'BusinessLens', icon: <BarChart3 size={20} />, path: '/businesslens' },
-    { name: 'Management', icon: <Settings size={20} />, path: '/management' },
+    ...(workspace?.role === 'owner'
+      ? [{ name: 'Management', icon: <Settings size={20} />, path: '/management' }]
+      : []),
   ];
 
   const isOrdersActive = ORDERS_SUB_PATHS.some(

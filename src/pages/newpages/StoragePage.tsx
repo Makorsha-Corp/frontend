@@ -486,107 +486,6 @@ const StoragePage: React.FC = () => {
               </CardContent>
             </Card>
 
-<<<<<<< HEAD
-                {selectedSection === 'products' && (
-                  <>
-                    {loadingProducts ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="h-12 w-12 animate-spin text-brand-primary mb-4" />
-                        <p className="text-muted-foreground">Loading products...</p>
-                      </div>
-                    ) : productsError ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <p className="text-destructive">Failed to load products.</p>
-                      </div>
-                    ) : !factoryId ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <Package className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground">Select a factory to view products.</p>
-                      </div>
-                    ) : filteredProducts.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <Package className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-muted-foreground mb-4">
-                          {searchQuery ? 'No products match your search.' : 'No products. Add one to get started.'}
-                        </p>
-                        {!searchQuery && (
-                          <Button
-                            onClick={() => setIsAddProductOpen(true)}
-                            className="bg-brand-primary hover:bg-brand-primary-hover"
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Product
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="border border-border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-brand-primary/5 dark:bg-brand-primary/10 border-b border-border">
-                              <TableHead className="w-[60px] py-3 text-xs font-semibold text-muted-foreground uppercase">ID</TableHead>
-                              <TableHead className="py-3 text-xs font-semibold text-muted-foreground uppercase">Item</TableHead>
-                              <TableHead className="w-[80px] py-3 text-xs font-semibold text-muted-foreground uppercase">Qty</TableHead>
-                              <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Avg. Cost</TableHead>
-                              <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Selling Price</TableHead>
-                              <TableHead className="w-[80px] py-3 text-xs font-semibold text-muted-foreground uppercase">For Sale</TableHead>
-                              <TableHead className="text-right w-[120px] py-3 text-xs font-semibold text-muted-foreground uppercase">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredProducts.map((prod) => (
-                              <TableRow
-                                key={prod.id}
-                                className="hover:bg-brand-primary/5 border-b border-border last:border-0"
-                              >
-                                <TableCell className="font-mono text-sm text-muted-foreground py-3">{prod.id}</TableCell>
-                                <TableCell className="font-medium text-card-foreground py-3">
-                                  {prod.item_name ?? `Item #${prod.item_id}`}
-                                  {prod.item_unit && (
-                                    <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  {prod.qty}
-                                  {prod.item_unit ? <span className="ml-1 text-xs text-muted-foreground">{prod.item_unit}</span> : null}
-                                </TableCell>
-                                <TableCell className="py-3">{formatCurrency(prod.avg_cost)}</TableCell>
-                                <TableCell className="py-3">{formatCurrency(prod.selling_price)}</TableCell>
-                                <TableCell className="py-3">
-                                  <span
-                                    className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                                      prod.is_available_for_sale ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'
-                                    }`}
-                                  >
-                                    {prod.is_available_for_sale ? 'Yes' : 'No'}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="py-3 text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
-                                      onClick={() => setEditingProduct(prod)}
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                      onClick={() => handleDeleteProduct(prod)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-=======
             <Card className="shadow-sm bg-card border-border">
               <CardContent className="p-4 min-h-[560px] flex flex-col">
                 <div className="mb-3 flex items-center justify-between">
@@ -629,7 +528,6 @@ const StoragePage: React.FC = () => {
                         <Plus className="mr-2 h-4 w-4" />
                         Add Product
                       </Button>
->>>>>>> 35816d5bf16f9394c8689644d9ebe333595f407d
                     )}
                   </div>
                 ) : (

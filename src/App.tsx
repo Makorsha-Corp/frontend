@@ -42,7 +42,10 @@ import PrivateRoute from "./components/customui/routing/PrivateRouting";
 // import DisabledPage from "./pages/DisabledPage";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
 import BusinessLensWizardPage from "./pages/newpages/BusinessLensWizardPage";
+import ManagementPage from "./pages/newpages/ManagementPage";
 import ApiTestPage from "./pages/ApiTestPage";
+import RequireAuth from "./components/newcomponents/customui/RequireAuth";
+import RequireWorkspace from "./components/newcomponents/customui/RequireWorkspace";
 // import AuditTestPage from "./pages/AuditTestPage";
 
 const App: React.FC = () => {
@@ -57,38 +60,47 @@ const App: React.FC = () => {
             }}
           >
           <Routes>
+            {/* Public */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/login2" element={<Login2Page />} />
-            <Route path="/workspace-selector" element={<WorkspaceSelectorPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/factories" element={<FactoriesPage />} />
-            <Route path="/factories/:id" element={<FactoryDetailPage />} />
-            <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
-            <Route path="/machines" element={<MachinesPage />} />
-            <Route path="/items" element={<ItemsPage />} />
-            <Route path="/accounts" element={<AccountsLandingPage />} />
-            <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />
-            <Route path="/accounts/payable" element={<AccountsLandingPage initialSection="payable" />} />
-            <Route path="/accounts/receivable" element={<AccountsLandingPage initialSection="receivable" />} />
-            <Route path="/accounts/utilities" element={<AccountsLandingPage initialSection="utilities" />} />
-            <Route path="/accounts/payroll" element={<AccountsLandingPage initialSection="payroll" />} />
-            <Route path="/accounts/suppliers" element={<Navigate to="/accounts/payable" replace />} />
-            <Route path="/accounts/vendors" element={<Navigate to="/accounts/payable" replace />} />
-            <Route path="/accounts/customers" element={<Navigate to="/accounts/receivable" replace />} />
-            <Route path="/accounts/:id" element={<AccountDetailPage />} />
-            <Route path="/project" element={<ProjectsPage />} />
-            <Route path="/production" element={<ProductionPage />} />
-            <Route path="/ledgers" element={<LedgersPage />} />
-            <Route path="/machine" element={<Navigate to="/factories" replace />} />
-            <Route path="/orders" element={<OrdersOverviewPage />} />
-            <Route path="/orders/purchase" element={<PurchaseOrdersPage />} />
-            <Route path="/orders/transfer" element={<TransferOrdersPage />} />
-            <Route path="/orders/expense" element={<ExpenseOrdersPage />} />
-            <Route path="/orders/sales" element={<SalesOrdersPage />} />
-            <Route path="/orders/work" element={<WorkOrdersPage />} />
-            <Route path="/management" element={<Navigate to="/dashboard" replace />} />
             <Route path="/" element={<Navigate to="/login2" replace />} />
             <Route path="/api-test" element={<ApiTestPage />} />
+
+            {/* Requires auth, no workspace needed */}
+            <Route element={<RequireAuth />}>
+              <Route path="/workspace-selector" element={<WorkspaceSelectorPage />} />
+            </Route>
+
+            {/* Requires auth + workspace */}
+            <Route element={<RequireWorkspace />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/factories" element={<FactoriesPage />} />
+              <Route path="/factories/:id" element={<FactoryDetailPage />} />
+              <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
+              <Route path="/machines" element={<MachinesPage />} />
+              <Route path="/items" element={<ItemsPage />} />
+              <Route path="/accounts" element={<AccountsLandingPage />} />
+              <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />
+              <Route path="/accounts/payable" element={<AccountsLandingPage initialSection="payable" />} />
+              <Route path="/accounts/receivable" element={<AccountsLandingPage initialSection="receivable" />} />
+              <Route path="/accounts/utilities" element={<AccountsLandingPage initialSection="utilities" />} />
+              <Route path="/accounts/payroll" element={<AccountsLandingPage initialSection="payroll" />} />
+              <Route path="/accounts/suppliers" element={<Navigate to="/accounts/payable" replace />} />
+              <Route path="/accounts/vendors" element={<Navigate to="/accounts/payable" replace />} />
+              <Route path="/accounts/customers" element={<Navigate to="/accounts/receivable" replace />} />
+              <Route path="/accounts/:id" element={<AccountDetailPage />} />
+              <Route path="/project" element={<ProjectsPage />} />
+              <Route path="/production" element={<ProductionPage />} />
+              <Route path="/ledgers" element={<LedgersPage />} />
+              <Route path="/machine" element={<Navigate to="/factories" replace />} />
+              <Route path="/orders" element={<OrdersOverviewPage />} />
+              <Route path="/orders/purchase" element={<PurchaseOrdersPage />} />
+              <Route path="/orders/transfer" element={<TransferOrdersPage />} />
+              <Route path="/orders/expense" element={<ExpenseOrdersPage />} />
+              <Route path="/orders/sales" element={<SalesOrdersPage />} />
+              <Route path="/orders/work" element={<WorkOrdersPage />} />
+              <Route path="/management" element={<ManagementPage />} />
+            </Route>
 
             {/* Legacy routes - commented out */}
             {/* <Route path="/audit-test" element={<AuditTestPage />} /> */}

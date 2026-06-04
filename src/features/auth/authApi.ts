@@ -80,9 +80,13 @@ export const authApi = createApi({
       invalidatesTags: ['Workspace'],
     }),
 
-    // Validate invitation token (public endpoint)
-    validateInvitation: builder.query<ValidateInvitationResponse, string>({
-      query: (token) => `auth/validate-invite/?token=${token}`,
+    // Validate invitation token (public POST endpoint)
+    validateInvitation: builder.mutation<ValidateInvitationResponse, { invitation_token: string }>({
+      query: (body) => ({
+        url: 'auth/validate-invitation/',
+        method: 'POST',
+        body,
+      }),
     }),
 
     // Forgot password
@@ -144,7 +148,7 @@ export const {
   useGetCurrentUserQuery,
   useGetWorkspacesQuery,
   useCreateWorkspaceMutation,
-  useValidateInvitationQuery,
+  useValidateInvitationMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useLogoutMutation,

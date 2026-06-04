@@ -3,8 +3,6 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  permission: string;
-  position: string;
   created_at?: string;
 }
 
@@ -18,7 +16,6 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
-  position?: string;
   workspace_name?: string;
   invitation_token?: string | null;
 }
@@ -51,7 +48,7 @@ export interface RegisterResponse {
   expires_in: number;
   refresh_expires_in: number;
   user: User;
-  workspace: import('./workspace').Workspace;
+  workspace: import('./workspace').Workspace | null;
   messages?: import('./common').ActionMessage[];
 }
 
@@ -73,14 +70,17 @@ export interface LogoutRequest {
   all_devices?: boolean;
 }
 
+export interface ValidateInvitationDetails {
+  workspace_id: number;
+  workspace_name: string | null;
+  email: string;
+  role: string;
+  position: string | null;
+  expires_at: string;
+}
+
 export interface ValidateInvitationResponse {
   valid: boolean;
-  email?: string;
-  workspace_name?: string;
-  workspace_id?: number;
-  role?: string;
-  invited_by_name?: string;
-  invited_at?: string;
-  expires_at?: string;
-  error?: string;
+  invitation: ValidateInvitationDetails;
+  messages?: import('./common').ActionMessage[];
 }

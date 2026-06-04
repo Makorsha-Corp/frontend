@@ -7,12 +7,13 @@ export interface Workspace {
 }
 
 export interface WorkspaceDetails extends Workspace {
+  slug: string;
   owner_user_id: number;
-  owner_name: string;
-  subscription_plan: SubscriptionPlan;
-  member_count: number;
+  subscription_plan_id: number;
+  subscription_status: string;
   trial_ends_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface WorkspaceListItem {
@@ -27,43 +28,55 @@ export interface WorkspaceListItem {
 export interface SubscriptionPlan {
   id: number;
   name: string;
-  max_members: number;
-  max_storage_mb: number;
+  max_members: number | null;
+  max_storage_mb: number | null;
   price_monthly: number;
 }
 
-// Workspace member types
+// Workspace member types — matches WorkspaceMemberWithUser backend response
 export interface WorkspaceMember {
+  id: number;
+  workspace_id: number;
   user_id: number;
-  name: string;
-  email: string;
-  role: 'owner' | 'finance' | 'ground-team-manager' | 'ground-team';
+  user_name: string | null;
+  user_email: string | null;
+  user_position: string | null;
+  role: string;
   status: 'active' | 'inactive';
-  joined_at: string;
+  joined_at: string | null;
 }
 
-// Workspace invitation types
+// Workspace invitation types — matches WorkspaceInvitationWithDetails backend response
 export interface WorkspaceInvitation {
   id: number;
-  email: string;
   workspace_id: number;
-  workspace_name?: string;
+  email: string;
   role: string;
-  invitation_token?: string;
-  invited_by: number;
-  invited_by_name?: string;
-  status: 'pending' | 'accepted' | 'cancelled';
+  position: string | null;
+  invited_by_user_id: number | null;
+  token: string;
+  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  invited_at: string;
   expires_at: string;
-  created_at: string;
+  accepted_at: string | null;
+  workspace_name: string | null;
+  invited_by_name: string | null;
 }
 
 export interface SendInvitationRequest {
   email: string;
-  role: 'finance' | 'ground-team-manager' | 'ground-team';
+  role: 'manager' | 'member' | 'viewer' | 'ground-team';
+  position?: string | null;
 }
 
 export interface AcceptInvitationRequest {
-  invitation_token: string;
+  token: string;
+  position?: string | null;
+}
+
+export interface UpdateMemberRoleRequest {
+  new_role: string;
+  position?: string | null;
 }
 
 // Workspace request types
@@ -72,10 +85,11 @@ export interface CreateWorkspaceRequest {
   slug: string;
   subscription_plan_id?: number | null;
   billing_email?: string | null;
+  owner_position?: string | null;
 }
 
 export interface UpdateWorkspaceRequest {
   name?: string;
   billing_email?: string | null;
-  settings?: any;
+  settings?: Record<string, unknown>;
 }

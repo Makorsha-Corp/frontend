@@ -15,21 +15,24 @@ interface AuthState {
 const AUTH_TOKEN_KEY = 'auth_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const WORKSPACE_ID_KEY = 'workspace_id';
+const WORKSPACE_DATA_KEY = 'workspace_data';
 const USER_DATA_KEY = 'user_data';
 const SELECTED_FACTORY_KEY = 'selected_factory';
 
 const loadWorkspaceFromStorage = (): Workspace | null => {
+  // Prefer the full workspace object (written by setWorkspace).
+  const workspaceJson = localStorage.getItem(WORKSPACE_DATA_KEY);
+  if (workspaceJson) {
+    try {
+      return JSON.parse(workspaceJson) as Workspace;
+    } catch {
+      // fall through to legacy id-only path
+    }
+  }
+  // Legacy fallback: only the id was stored — role/name will be empty.
   const workspaceId = localStorage.getItem(WORKSPACE_ID_KEY);
-
   if (workspaceId) {
-    // Minimal workspace object — only `id` is actually used downstream (the
-    // `X-Workspace-ID` header). Full details are re-fetched after bootstrap.
-    return {
-      id: parseInt(workspaceId),
-      name: '',
-      role: '',
-      status: 'active',
-    };
+    return { id: parseInt(workspaceId), name: '', role: '', status: 'active' };
   }
   return null;
 };
@@ -94,6 +97,7 @@ export const authSlice = createSlice({
       localStorage.setItem(USER_DATA_KEY, JSON.stringify(action.payload.user));
       if (action.payload.workspace) {
         localStorage.setItem(WORKSPACE_ID_KEY, action.payload.workspace.id.toString());
+        localStorage.setItem(WORKSPACE_DATA_KEY, JSON.stringify(action.payload.workspace));
       }
     },
     /**
@@ -114,7 +118,7 @@ export const authSlice = createSlice({
     setWorkspace: (state, action: PayloadAction<Workspace>) => {
       state.workspace = action.payload;
       localStorage.setItem(WORKSPACE_ID_KEY, action.payload.id.toString());
-      // Clear factory when workspace changes - factories are workspace-scoped
+      localStorage.setItem(WORKSPACE_DATA_KEY, JSON.stringify(action.payload));
       state.factory = null;
       localStorage.removeItem(SELECTED_FACTORY_KEY);
     },
@@ -136,6 +140,7 @@ export const authSlice = createSlice({
       localStorage.removeItem(AUTH_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(WORKSPACE_ID_KEY);
+      localStorage.removeItem(WORKSPACE_DATA_KEY);
       localStorage.removeItem(USER_DATA_KEY);
       localStorage.removeItem(SELECTED_FACTORY_KEY);
     },

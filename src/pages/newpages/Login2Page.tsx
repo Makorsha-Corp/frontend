@@ -172,7 +172,6 @@ const Login2Page: React.FC = () => {
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
-  const [registerWorkspaceName, setRegisterWorkspaceName] = useState('');
   const [registerPosition, setRegisterPosition] = useState('User');
 
   /** false = static linear gradient (original); true = radial follows cursor */
@@ -285,7 +284,7 @@ const Login2Page: React.FC = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!registerName || !registerEmail || !registerPassword || !registerWorkspaceName) {
+    if (!registerName || !registerEmail || !registerPassword) {
       toast.error('All fields are required');
       return;
     }
@@ -301,34 +300,18 @@ const Login2Page: React.FC = () => {
         email: registerEmail,
         password: registerPassword,
         position: registerPosition,
-        workspace_name: registerWorkspaceName,
       }).unwrap();
 
-      // Save credentials to Redux (both tokens; see login handler comment).
       dispatch(
         setCredentials({
           user: response.user,
           token: response.access_token,
           refreshToken: response.refresh_token,
-          workspace: response.workspace,
         })
       );
 
-      // Show success messages
-      if (response.messages && response.messages.length > 0) {
-        response.messages.forEach((msg: any) => {
-          if (msg.type === 'success') {
-            toast.success(msg.message);
-          }
-        });
-      } else {
-        toast.success('Registration successful!');
-      }
-
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
+      toast.success('Account created! Now set up your workspace.');
+      navigate('/workspace-selector');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(error?.data?.detail || 'Registration failed. Please try again.');
@@ -631,7 +614,7 @@ const Login2Page: React.FC = () => {
               <CardHeader className="space-y-1 px-8 pb-4 pt-6 sm:px-10">
                 <CardTitle className="text-2xl font-bold text-center text-card-foreground">Create Account</CardTitle>
                 <CardDescription className="text-center">
-                  Get started with your new workspace
+                  Create your account, then set up or join a workspace
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleRegister}>
@@ -683,22 +666,6 @@ const Login2Page: React.FC = () => {
                       onChange={(e) => setRegisterPosition(e.target.value)}
                       className="h-11"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-workspace">Company/Workspace Name</Label>
-                    <Input
-                      id="register-workspace"
-                      type="text"
-                      placeholder="Your Company Name"
-                      value={registerWorkspaceName}
-                      onChange={(e) => setRegisterWorkspaceName(e.target.value)}
-                      required
-                      className="h-11"
-                    />
-                    <p className="text-xs text-card-foreground/60 flex items-start gap-1">
-                      <span className="text-brand-primary font-semibold">✓</span>
-                      Creates your own workspace with full admin access
-                    </p>
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-4 px-8 pb-6 pt-0 sm:px-10">
