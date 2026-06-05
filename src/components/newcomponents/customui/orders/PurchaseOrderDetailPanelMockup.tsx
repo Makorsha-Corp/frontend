@@ -1106,6 +1106,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
             </div>
           </CardHeader>
           <CardContent>
+            <div className="max-h-80 overflow-y-auto pr-1">
             {events.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
                 <History className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
@@ -1150,6 +1151,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
                 })}
               </div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>
