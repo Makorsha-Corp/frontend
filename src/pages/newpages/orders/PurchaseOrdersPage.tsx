@@ -3,6 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,7 +30,7 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { ShoppingCart, Plus, Loader2, Search, CalendarIcon } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanelMockup from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanelMockup';
@@ -221,13 +226,42 @@ const PurchaseOrdersPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                <ShoppingCart className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
+                  aria-hidden
+                >
+                  <ShoppingCart className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Purchase Orders
+                </h1>
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                Purchase Orders
-              </h1>
+              {selectedOrder && (
+                <>
+                  <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+                  <Breadcrumb className="min-w-0 self-end">
+                    <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                      <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
+                        <span className="group inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
+                          <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                            {selectedOrder.po_number}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrder(null)}
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Close purchase order"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative w-[220px]">
@@ -372,7 +406,11 @@ const PurchaseOrdersPage: React.FC = () => {
           {/* Content panel (overview or detail) */}
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
-              <PurchaseOrderDetailPanelMockup />
+              <PurchaseOrderDetailPanelMockup
+                order={selectedOrder}
+                onClose={() => setSelectedOrder(null)}
+                onDelete={() => handleDelete(selectedOrder)}
+              />
             ) : (
               <PurchaseOrdersOverviewPanel
                 orders={filteredOrders}

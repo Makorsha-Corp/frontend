@@ -119,6 +119,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       account_id: aid,
       destination_type: destinationType,
       destination_id: did,
+      order_date: new Date().toISOString().slice(0, 10),
       description: description || undefined,
       order_note: orderNote || undefined,
       current_status_id: 1,

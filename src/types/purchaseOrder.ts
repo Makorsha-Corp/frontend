@@ -20,18 +20,77 @@ export interface PurchaseOrder {
   account_id: number;
   destination_type: string;
   destination_id: number;
+  order_date: string | null;
+  expected_delivery_date: string | null;
+  actual_delivery_date: string | null;
   subtotal: number;
   total_amount: number;
   current_status_id: number;
   order_workflow_id: number | null;
   invoice_id: number | null;
+  required_approvals: number | null;
   description: string | null;
   order_note: string | null;
   internal_note: string | null;
+  details_locked: boolean;
+  notes_locked: boolean;
+  items_locked: boolean;
   created_by: number;
   created_at: string;
   updated_by: number | null;
   updated_at: string | null;
+}
+
+export interface PurchaseOrderApprover {
+  id: number;
+  workspace_id: number;
+  purchase_order_id: number;
+  user_id: number;
+  user_name: string | null;
+  user_email: string | null;
+  user_position: string | null;
+  assigned_by: number | null;
+  assigned_at: string;
+  approved: boolean;
+  approved_at: string | null;
+}
+
+export interface ApprovalSummary {
+  approved_count: number;
+  required: number;
+  met: boolean;
+}
+
+export interface PurchaseOrderApproversList {
+  approvers: PurchaseOrderApprover[];
+  summary: ApprovalSummary;
+}
+
+export type PurchaseOrderEventType =
+  | 'created'
+  | 'received'
+  | 'all_received'
+  | 'approved'
+  | 'approval_withdrawn'
+  | 'details_locked'
+  | 'details_unlocked'
+  | 'notes_locked'
+  | 'notes_unlocked'
+  | 'items_locked'
+  | 'items_unlocked'
+  | 'invoice_created'
+  | 'details_updated'
+  | 'notes_updated';
+
+export interface PurchaseOrderEvent {
+  id: number;
+  workspace_id: number;
+  purchase_order_id: number;
+  event_type: PurchaseOrderEventType | string;
+  description: string;
+  performed_by: number | null;
+  user_name: string | null;
+  created_at: string;
 }
 
 export interface CreatePurchaseOrderItem {
@@ -45,6 +104,8 @@ export interface CreatePurchaseOrder {
   account_id: number;
   destination_type: string;
   destination_id: number;
+  order_date?: string | null;
+  expected_delivery_date?: string | null;
   description?: string | null;
   order_note?: string | null;
   internal_note?: string | null;
@@ -55,11 +116,19 @@ export interface CreatePurchaseOrder {
 
 export interface UpdatePurchaseOrder {
   account_id?: number | null;
+  destination_type?: string | null;
+  destination_id?: number | null;
+  order_date?: string | null;
+  expected_delivery_date?: string | null;
   current_status_id?: number | null;
   invoice_id?: number | null;
+  required_approvals?: number | null;
   description?: string | null;
   order_note?: string | null;
   internal_note?: string | null;
+  details_locked?: boolean;
+  notes_locked?: boolean;
+  items_locked?: boolean;
 }
 
 export interface UpdatePurchaseOrderItem {
