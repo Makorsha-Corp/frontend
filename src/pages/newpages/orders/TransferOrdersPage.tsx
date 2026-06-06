@@ -343,8 +343,12 @@ const TransferOrdersPage: React.FC = () => {
             value={destinationTypeFilter}
             onValueChange={(v) => setDestinationTypeFilter(v as TransferLocationTypeFilter)}
           >
-            <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Destination" />
+            <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
+              <SelectValue placeholder="All destinations">
+                {destinationTypeFilter === 'all'
+                  ? 'All destinations'
+                  : LOCATION_TYPE_OPTIONS.find((o) => o.value === destinationTypeFilter)?.label}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {LOCATION_TYPE_OPTIONS.map((opt) => (

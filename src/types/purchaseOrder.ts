@@ -17,7 +17,7 @@ export interface PurchaseOrder {
   id: number;
   workspace_id: number;
   po_number: string;
-  account_id: number;
+  account_id: number | null;
   destination_type: string;
   destination_id: number;
   order_date: string | null;
@@ -31,10 +31,10 @@ export interface PurchaseOrder {
   required_approvals: number | null;
   description: string | null;
   order_note: string | null;
-  internal_note: string | null;
-  details_locked: boolean;
-  notes_locked: boolean;
-  items_locked: boolean;
+  supplier_confirmed: boolean;
+  details_confirmed: boolean;
+  notes_confirmed: boolean;
+  items_confirmed: boolean;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -72,15 +72,43 @@ export type PurchaseOrderEventType =
   | 'all_received'
   | 'approved'
   | 'approval_withdrawn'
-  | 'details_locked'
-  | 'details_unlocked'
-  | 'notes_locked'
-  | 'notes_unlocked'
-  | 'items_locked'
-  | 'items_unlocked'
+  | 'supplier_confirmed'
+  | 'supplier_unconfirmed'
+  | 'details_confirmed'
+  | 'details_unconfirmed'
+  | 'notes_confirmed'
+  | 'notes_unconfirmed'
+  | 'items_confirmed'
+  | 'items_unconfirmed'
   | 'invoice_created'
+  | 'supplier_updated'
   | 'details_updated'
-  | 'notes_updated';
+  | 'notes_updated'
+  | 'item_added'
+  | 'item_removed'
+  | 'item_updated'
+  | 'approver_added'
+  | 'approver_removed'
+  | 'status_updated'
+  | 'approvals_threshold_updated';
+
+export interface PurchaseOrderEventChange {
+  field: string;
+  label: string;
+  from_value: string | null;
+  to_value: string | null;
+}
+
+export interface PurchaseOrderEventMetadata {
+  changes?: PurchaseOrderEventChange[];
+  item_id?: number;
+  item_name?: string;
+  line_number?: number;
+  quantity_ordered?: string;
+  unit_price?: string;
+  user_id?: number;
+  user_name?: string;
+}
 
 export interface PurchaseOrderEvent {
   id: number;
@@ -88,6 +116,7 @@ export interface PurchaseOrderEvent {
   purchase_order_id: number;
   event_type: PurchaseOrderEventType | string;
   description: string;
+  metadata?: PurchaseOrderEventMetadata | null;
   performed_by: number | null;
   user_name: string | null;
   created_at: string;
@@ -101,14 +130,13 @@ export interface CreatePurchaseOrderItem {
 }
 
 export interface CreatePurchaseOrder {
-  account_id: number;
+  account_id?: number | null;
   destination_type: string;
   destination_id: number;
   order_date?: string | null;
   expected_delivery_date?: string | null;
   description?: string | null;
   order_note?: string | null;
-  internal_note?: string | null;
   current_status_id?: number;
   order_workflow_id?: number | null;
   items?: CreatePurchaseOrderItem[];
@@ -125,10 +153,10 @@ export interface UpdatePurchaseOrder {
   required_approvals?: number | null;
   description?: string | null;
   order_note?: string | null;
-  internal_note?: string | null;
-  details_locked?: boolean;
-  notes_locked?: boolean;
-  items_locked?: boolean;
+  supplier_confirmed?: boolean;
+  details_confirmed?: boolean;
+  notes_confirmed?: boolean;
+  items_confirmed?: boolean;
 }
 
 export interface UpdatePurchaseOrderItem {

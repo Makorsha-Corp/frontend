@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import { Users, Pencil, Loader2, FileText, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { Users, Pencil, Loader2, FileText, ChevronLeft, ChevronRight, ChevronUp, X } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
@@ -37,6 +37,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 
 const AccountDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
@@ -224,8 +225,18 @@ const AccountDetailPage: React.FC = () => {
                   <Breadcrumb className="min-w-0 self-end">
                     <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
                       <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
-                        <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
-                          {account.name}
+                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
+                          <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                            {account.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/accounts')}
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Close account"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </span>
                       </BreadcrumbItem>
                     </BreadcrumbList>

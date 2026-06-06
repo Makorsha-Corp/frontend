@@ -53,7 +53,7 @@ import {
   X,
   ChevronDown,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeFromApi } from '@/utils/datetime';
 import {
   Popover,
   PopoverContent,
@@ -481,13 +481,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-  const formatRelative = (d: string) => {
-    try {
-      return formatDistanceToNow(new Date(d), { addSuffix: true });
-    } catch {
-      return formatDate(d);
-    }
-  };
+  const formatRelative = (d: string) => formatRelativeFromApi(d);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">

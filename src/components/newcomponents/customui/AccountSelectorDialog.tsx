@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, X, Plus } from 'lucide-react';
+import { Search, Loader2, X, Plus, ExternalLink } from 'lucide-react';
+import AccountViewDialog from '@/components/newcomponents/customui/accounts/AccountViewDialog';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { Account } from '@/types/account';
@@ -42,6 +43,7 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [selectedTagCodes, setSelectedTagCodes] = useState<string[]>([]);
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
+  const [accountViewOpen, setAccountViewOpen] = useState(false);
 
   const { data: accounts = [], isLoading } = useGetAccountsQuery(
     {
@@ -258,9 +260,18 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
                 </Button>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAccountViewOpen(true)}
+                disabled={!highlighted}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View account
               </Button>
               <Button
                 type="button"
@@ -279,6 +290,12 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
         open={isCreateAccountOpen}
         onOpenChange={setIsCreateAccountOpen}
         defaultTagCode={filterTagCode}
+      />
+      <AccountViewDialog
+        accountId={highlighted?.id ?? null}
+        open={accountViewOpen}
+        onOpenChange={setAccountViewOpen}
+        accountName={highlighted?.name ?? null}
       />
     </>
   );

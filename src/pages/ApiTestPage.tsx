@@ -652,7 +652,6 @@ const ApiTestPage: React.FC = () => {
   const [poDestId, setPoDestId] = useState('');
   const [poNote, setPoNote] = useState('');
   const [poDescription, setPoDescription] = useState('');
-  const [poInternalNote, setPoInternalNote] = useState('');
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
   const [poItemItemId, setPoItemItemId] = useState('');
   const [poItemQty, setPoItemQty] = useState('1');
@@ -8178,7 +8177,6 @@ const ApiTestPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
               <input value={poNote} onChange={(e) => setPoNote(e.target.value)} placeholder="Order Note" className="border rounded px-2 py-1 text-sm" />
-              <input value={poInternalNote} onChange={(e) => setPoInternalNote(e.target.value)} placeholder="Internal Note" className="border rounded px-2 py-1 text-sm" />
               <button
                 onClick={async () => {
                   try {
@@ -8188,11 +8186,10 @@ const ApiTestPage: React.FC = () => {
                       destination_id: parseInt(poDestId),
                       description: poDescription || undefined,
                       order_note: poNote || undefined,
-                      internal_note: poInternalNote || undefined,
                       current_status_id: 1,
                     }).unwrap();
                     toast.success('Purchase order created');
-                    setPoAccountId(''); setPoDestId(''); setPoNote(''); setPoDescription(''); setPoInternalNote('');
+                    setPoAccountId(''); setPoDestId(''); setPoNote(''); setPoDescription('');
                   } catch (err: any) { toast.error(err.data?.detail || 'Failed'); }
                 }}
                 className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
@@ -8220,7 +8217,6 @@ const ApiTestPage: React.FC = () => {
                     Dest: {po.destination_type}:{po.destination_id} | Account: {po.account_id} | Status: {po.current_status_id} | Subtotal: ${Number(po.subtotal).toFixed(2)}
                     {po.description && <> | Desc: {po.description}</>}
                     {po.order_note && <> | Note: {po.order_note}</>}
-                    {po.internal_note && <> | Internal: {po.internal_note}</>}
                     {po.order_workflow_id && <> | Workflow: {po.order_workflow_id}</>}
                     {po.invoice_id && <> | Invoice: {po.invoice_id}</>}
                     <br />Created: {new Date(po.created_at).toLocaleString()} by #{po.created_by}

@@ -1,5 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
+import type { AppDispatch } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
 import type {
   InvoicePayment,
   CreateInvoicePaymentRequest,
@@ -7,10 +9,19 @@ import type {
   ListInvoicePaymentsParams
 } from '@/types/invoicePayment';
 
+function invalidateInvoiceCache(dispatch: AppDispatch, invoiceId: number) {
+  dispatch(
+    accountInvoicesApi.util.invalidateTags([
+      { type: 'AccountInvoice', id: invoiceId },
+      'AccountInvoice',
+    ])
+  );
+}
+
 export const invoicePaymentsApi = createApi({
   reducerPath: 'invoicePaymentsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['InvoicePayment', 'AccountInvoice'],
+  tagTypes: ['InvoicePayment'],
   endpoints: (builder) => ({
     getInvoicePaymentsByInvoice: builder.query<InvoicePayment[], ListInvoicePaymentsParams>({
       query: ({ invoice_id, skip = 0, limit = 100 }) => {
@@ -37,8 +48,15 @@ export const invoicePaymentsApi = createApi({
       invalidatesTags: (result, error, { invoice_id }) => [
         { type: 'InvoicePayment', id: invoice_id },
         'InvoicePayment',
-        'AccountInvoice', // Invalidate invoices because payment_status changes
       ],
+      async onQueryStarted({ invoice_id }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateInvoiceCache(dispatch, invoice_id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     updateInvoicePayment: builder.mutation<InvoicePayment, { id: number; data: UpdateInvoicePaymentRequest }>({
       query: ({ id, data }) => ({
@@ -50,13 +68,29 @@ export const invoicePaymentsApi = createApi({
         { type: 'InvoicePayment', id },
         'InvoicePayment',
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          invalidateInvoiceCache(dispatch, data.invoice_id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     deleteInvoicePayment: builder.mutation<InvoicePayment, number>({
       query: (id) => ({
         url: `invoice-payments/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['InvoicePayment', 'AccountInvoice'], // Invalidate both
+      invalidatesTags: ['InvoicePayment'],
+      async onQueryStarted(_paymentId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          invalidateInvoiceCache(dispatch, data.invoice_id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
   }),
 });

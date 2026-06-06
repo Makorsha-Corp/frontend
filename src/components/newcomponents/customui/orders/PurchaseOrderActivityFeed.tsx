@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Plus, FileText } from 'lucide-react';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
+import { parseApiDateTime } from '@/utils/datetime';
 import OrderActivityFeed, { type ActivityFeedItem } from './OrderActivityFeed';
 
 interface PurchaseOrderActivityFeedProps {
@@ -23,15 +24,15 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
       items.push({
         id: `created-${order.id}`,
         icon: <Plus className="h-4 w-4 text-green-600 dark:text-green-400" />,
-        timestamp: new Date(order.created_at),
+        timestamp: parseApiDateTime(order.created_at) ?? new Date(0),
         description: `${order.po_number} created`,
         subtext: accountName(order.account_id),
       });
 
       if (order.invoice_id != null) {
         const invoiceTime = order.updated_at
-          ? new Date(order.updated_at)
-          : new Date(order.created_at);
+          ? (parseApiDateTime(order.updated_at) ?? new Date(0))
+          : (parseApiDateTime(order.created_at) ?? new Date(0));
         items.push({
           id: `invoiced-${order.id}`,
           icon: <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
