@@ -264,7 +264,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           onOpenChange={setAccountPickerOpen}
           title="Select supplier"
           description="Search and pick the supplier account for this purchase order."
-          filterTagCode="supplier"
           selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
           onSelect={(account) => {
             if (!account) return;

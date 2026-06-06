@@ -22,7 +22,6 @@ export interface AccountSelectorDialogProps {
   onOpenChange: (open: boolean) => void;
   onSelect: (account: Account | null) => void;
   selectedAccountId?: number;
-  filterTagCode?: string;
   title?: string;
   description?: string;
   allowClear?: boolean;
@@ -33,7 +32,6 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
   onOpenChange,
   onSelect,
   selectedAccountId,
-  filterTagCode,
   title = 'Select account',
   description = 'Search and choose an account.',
   allowClear = false,
@@ -92,8 +90,8 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
     setSearch('');
     setTagSearch('');
     setHighlightedId(selectedAccountId ?? null);
-    setSelectedTagCodes(filterTagCode ? [filterTagCode] : []);
-  }, [open, selectedAccountId, filterTagCode]);
+    setSelectedTagCodes([]);
+  }, [open, selectedAccountId]);
 
   useEffect(() => {
     if (!filteredAccounts.some((a) => a.id === highlightedId)) {
@@ -289,7 +287,6 @@ const AccountSelectorDialog: React.FC<AccountSelectorDialogProps> = ({
       <AddAccountDialog
         open={isCreateAccountOpen}
         onOpenChange={setIsCreateAccountOpen}
-        defaultTagCode={filterTagCode}
       />
       <AccountViewDialog
         accountId={highlighted?.id ?? null}

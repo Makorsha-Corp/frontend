@@ -117,113 +117,15 @@ const ItemsPage: React.FC = () => {
                 Items Catalog
               </h1>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative w-[220px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search items..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setIsTagsDialogOpen(true)}
-                className={appShellHeaderControlClass}
-              >
-                <Tags className="mr-2 h-4 w-4" />
-                Manage Tags
-              </Button>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
-            </div>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Item
+            </Button>
           </div>
         </AppShellHeader>
-
-        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground shrink-0">
-            <span className="font-medium text-foreground">{filteredItems.length}</span>
-            {filteredItems.length === 1 ? ' item' : ' items'}
-          </span>
-
-          <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
-
-          <Select
-            value={filterUnit || 'all'}
-            onValueChange={(value) => setFilterUnit(value === 'all' ? '' : value)}
-          >
-            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Unit" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All units</SelectItem>
-              {uniqueUnits.map((unit) => (
-                <SelectItem key={unit} value={unit}>
-                  {unit}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {tags.length > 0 && (
-            <Select
-              value={filterTagId || 'all'}
-              onValueChange={(value) => setFilterTagId(value === 'all' ? '' : value)}
-            >
-              <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
-                {filterTagId ? (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{
-                        backgroundColor:
-                          tags.find((t) => t.id.toString() === filterTagId)?.color || '#9067c6',
-                      }}
-                    />
-                    <span className="truncate">
-                      {tags.find((t) => t.id.toString() === filterTagId)?.name}
-                    </span>
-                  </div>
-                ) : (
-                  <SelectValue placeholder="Tag" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All tags</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: tag.color || '#9067c6' }}
-                      />
-                      <span>{tag.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-9 text-muted-foreground hover:text-destructive"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Clear filters
-            </Button>
-          )}
-        </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
           <ItemsOverviewPanel
@@ -234,6 +136,91 @@ const ItemsPage: React.FC = () => {
             onView={handleView}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            headerActions={
+              <>
+                <Select
+                  value={filterUnit || 'all'}
+                  onValueChange={(value) => setFilterUnit(value === 'all' ? '' : value)}
+                >
+                  <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+                    <SelectValue placeholder="Unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All units</SelectItem>
+                    {uniqueUnits.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tags.length > 0 && (
+                  <Select
+                    value={filterTagId || 'all'}
+                    onValueChange={(value) => setFilterTagId(value === 'all' ? '' : value)}
+                  >
+                    <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
+                      {filterTagId ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full shrink-0"
+                            style={{
+                              backgroundColor:
+                                tags.find((t) => t.id.toString() === filterTagId)?.color ||
+                                '#9067c6',
+                            }}
+                          />
+                          <span className="truncate">
+                            {tags.find((t) => t.id.toString() === filterTagId)?.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="Tag" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All tags</SelectItem>
+                      {tags.map((tag) => (
+                        <SelectItem key={tag.id} value={tag.id.toString()}>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: tag.color || '#9067c6' }}
+                            />
+                            <span>{tag.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <div className="relative w-[220px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 bg-background"
+                  />
+                </div>
+                <Button variant="outline" onClick={() => setIsTagsDialogOpen(true)} className="h-9">
+                  <Tags className="mr-2 h-4 w-4" />
+                  Manage Tags
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="h-9 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear filters
+                  </Button>
+                )}
+              </>
+            }
             emptyAction={
               !hasActiveFilters ? (
                 <Button

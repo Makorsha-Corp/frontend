@@ -22,6 +22,7 @@ interface ItemsOverviewPanelProps {
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   emptyAction?: React.ReactNode;
+  headerActions?: React.ReactNode;
 }
 
 const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
@@ -33,6 +34,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
   onEdit,
   onDelete,
   emptyAction,
+  headerActions,
 }) => {
   const itemColumns = useMemo(
     (): OrdersOverviewTableColumn<Item>[] => [
@@ -172,7 +174,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
 
       <OrdersOverviewTable
         title="Items catalog"
-        subtitle="Click a row to view details"
+        headerActions={headerActions}
         columns={itemColumns}
         rows={items}
         onRowClick={onView}

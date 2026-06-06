@@ -237,7 +237,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           onOpenChange={setAccountPickerOpen}
           title="Select customer"
           description="Search and pick the customer account for this sales order."
-          filterTagCode="client"
           selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
           onSelect={(account) => {
             if (!account) return;

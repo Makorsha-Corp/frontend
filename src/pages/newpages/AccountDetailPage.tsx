@@ -284,25 +284,23 @@ const AccountDetailPage: React.FC = () => {
                       detailsOpen && 'border-b border-border'
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-lg font-semibold text-card-foreground">Details</CardTitle>
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground"
-                          aria-label={detailsOpen ? 'Collapse details' : 'Expand details'}
-                        >
-                          <ChevronUp
-                            className={cn(
-                              'h-4 w-4 transition-transform duration-200',
-                              !detailsOpen && 'rotate-180'
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </div>
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-expanded={detailsOpen}
+                        aria-label={detailsOpen ? 'Collapse details' : 'Expand details'}
+                      >
+                        <span className="text-lg font-semibold text-card-foreground">Details</span>
+                        <ChevronUp
+                          strokeWidth={2.5}
+                          className={cn(
+                            'h-4 w-4 shrink-0 text-brand-primary transition-transform duration-200',
+                            !detailsOpen && 'rotate-180'
+                          )}
+                        />
+                      </button>
+                    </CollapsibleTrigger>
                   </CardHeader>
                   <CollapsibleContent>
                     <CardContent className="grid gap-6 py-4 px-4 xl:grid-cols-3 xl:gap-0">

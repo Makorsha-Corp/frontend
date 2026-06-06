@@ -273,13 +273,22 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
               </div>
               <h1 className={appShellHeaderTitleClass}>Accounts</h1>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setIsManageAccountsOpen(true)}
-              className={appShellHeaderControlClass}
-            >
-              Manage Accounts
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                className={appShellHeaderControlClass}
+              >
+                Manage Accounts
+              </Button>
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add {singularLabel}
+              </Button>
+            </div>
           </div>
         </AppShellHeader>
 
@@ -524,15 +533,6 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                           : ''}
                       </span>
                     )}
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => setIsAddDialogOpen(true)}
-                      title="Add account"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative w-[200px] min-w-[140px]">

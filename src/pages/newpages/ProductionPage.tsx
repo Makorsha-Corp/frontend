@@ -133,7 +133,7 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
 
 
 const ProductionPage: React.FC = () => {
-  const CARDS_PER_PAGE = 3;
+  const CARDS_PER_PAGE = 9;
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [lineId, setLineId] = useState<number | null>(null);
@@ -661,8 +661,8 @@ const ProductionPage: React.FC = () => {
           {/* Half-half: Production Lines | Formulas */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Production Lines */}
-              <Card className="border-border h-full">
-                <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+              <Card className="border-border h-full flex flex-col min-h-0 overflow-hidden">
+                <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground font-medium">
                       {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
@@ -714,7 +714,7 @@ const ProductionPage: React.FC = () => {
                     </Select>
                   </div>
                 </div>
-                <CardContent className="p-0">
+                <CardContent className="p-0 flex-1 min-h-0 max-h-[min(48vh,520px)] overflow-y-auto">
                   {linesError ? (
                     <div className="py-8 px-4 text-center">
                       <p className="text-sm text-destructive font-medium">Failed to load production lines</p>
@@ -733,27 +733,18 @@ const ProductionPage: React.FC = () => {
                         : 'No production lines. Add one to get started.'}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 p-3">
                       {pagedLines.map((line) => (
                         <button
                           key={line.id}
                           type="button"
                           onClick={() => setLineActionTarget(line)}
-                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          title={line.name}
+                          className="flex items-center rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted/40"
                         >
-                          <div>
-                            <div className="font-medium text-card-foreground">{line.name}</div>
-                            {line.description && (
-                              <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                                {line.description}
-                              </div>
-                            )}
-                            {line.machine_id && (
-                              <span className="mt-2 inline-block text-xs text-muted-foreground">
-                                Machine #{line.machine_id}
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-sm font-medium text-card-foreground truncate">
+                            {line.name}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -763,8 +754,8 @@ const ProductionPage: React.FC = () => {
 
                 {/* Formulas */}
                 <div className="h-full">
-              <Card className="border-border h-full">
-                <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+              <Card className="border-border h-full flex flex-col min-h-0 overflow-hidden">
+                <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground font-medium">
                       {filteredFormulas.length} formulas
@@ -818,7 +809,7 @@ const ProductionPage: React.FC = () => {
                     </Select>
                   </div>
                 </div>
-                <CardContent className="p-0">
+                <CardContent className="p-0 flex-1 min-h-0 max-h-[min(48vh,520px)] overflow-y-auto">
                   {formulasError ? (
                     <div className="py-8 px-4 text-center">
                       <p className="text-sm text-destructive font-medium">Failed to load formulas</p>
@@ -835,29 +826,21 @@ const ProductionPage: React.FC = () => {
                       No formulas. Add one to define production recipes.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 p-3">
                       {pagedFormulas.map((formula) => (
                         <button
                           key={formula.id}
                           type="button"
-                          className="flex min-h-[118px] flex-col justify-start rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted/40"
+                          title={`${formula.name} (${formula.formula_code})`}
+                          className="flex flex-col justify-center rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted/40 min-w-0"
                           onClick={() => setSelectedFormulaId(formula.id)}
                         >
-                          <div>
-                            <div className="font-medium text-card-foreground">
-                              {formula.name} ({formula.formula_code})
-                            </div>
-                            {formula.description && (
-                              <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                                {formula.description}
-                              </div>
-                            )}
-                            {formula.estimated_duration_minutes != null && (
-                              <span className="mt-2 inline-block text-xs text-muted-foreground">
-                                ~{formula.estimated_duration_minutes} min
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-sm font-medium text-card-foreground truncate">
+                            {formula.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {formula.formula_code}
+                          </span>
                         </button>
                       ))}
                     </div>

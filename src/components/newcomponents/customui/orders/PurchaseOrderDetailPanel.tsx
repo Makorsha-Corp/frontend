@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/popover';
 import PurchaseOrderMilestoneTracker from './PurchaseOrderMilestoneTracker';
 import PoSectionConfirmButton from './PoSectionConfirmButton';
+import PoInvoicePaymentSection from './PoInvoicePaymentSection';
 import PoEventLogRow from './PoEventLogRow';
 import {
   canConfirmPurchaseOrderSection,
@@ -173,6 +174,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     'supplier' | 'details' | 'notes' | 'items' | null
   >(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [approvalsOpen, setApprovalsOpen] = useState(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
@@ -304,6 +306,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     }),
     [effectiveOrderFields, items]
   );
+
+  const scrollToPoSection = (section: PoSectionConfirmKey) => {
+    const id =
+      section === 'supplier'
+        ? 'po-section-supplier'
+        : section === 'details'
+          ? 'po-section-details'
+          : 'po-section-items';
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const changedFields = useMemo<UpdatePurchaseOrder>(() => {
     const payload: UpdatePurchaseOrder = {};
@@ -538,7 +550,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             <PurchaseOrderMilestoneTracker order={order} items={items} />
           </div>
           <div className="flex items-center gap-4 shrink-0 ml-auto">
-            <Popover>
+            <Popover open={approvalsOpen} onOpenChange={setApprovalsOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <ShieldCheck
@@ -733,8 +745,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] gap-6 lg:min-h-[min(36rem,42vh)] lg:items-stretch">
           {/* Supplier — mobile first */}
           <Card
+            id="po-section-supplier"
             className={cn(
-              'order-1 lg:order-none lg:col-start-3 lg:row-start-1',
+              'order-1 lg:order-none lg:col-start-3 lg:row-start-1 scroll-mt-6',
               supplierDisabled && confirmedSectionCardClass
             )}
           >
@@ -786,7 +799,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   onOpenChange={setAccountPickerOpen}
                   title="Select supplier"
                   description="Search and pick the supplier account for this purchase order."
-                  filterTagCode="supplier"
                   selectedAccountId={draft.account_id ?? undefined}
                   onSelect={(account) => {
                     if (!account) return;
@@ -799,8 +811,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
           {/* Order Details — spans left column on desktop */}
           <Card
+            id="po-section-details"
             className={cn(
-              'order-2 lg:order-none lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 flex flex-col min-h-0 h-full',
+              'order-2 lg:order-none lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 flex flex-col min-h-0 h-full scroll-mt-6',
               coreDetailsDisabled && confirmedSectionCardClass
             )}
           >
@@ -1001,7 +1014,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         </div>
 
         {/* Order Items (WIRED) */}
-        <Card className={itemsSectionConfirmed ? confirmedSectionCardClass : undefined}>
+        <Card
+          id="po-section-items"
+          className={cn('scroll-mt-6', itemsSectionConfirmed && confirmedSectionCardClass)}
+        >
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <CardTitle
@@ -1135,90 +1151,50 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-4 rounded-lg border border-dashed border-border bg-muted/30 space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-card-foreground">
-                      {order.invoice_id ? 'Invoice linked' : 'No invoice created yet'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {order.invoice_id
-                        ? `Invoice #${order.invoice_id} — supplier, order details, and items are now confirmed`
-                        : !confirmationsStatus.allConfirmed
-                          ? 'Confirm all sections first'
-                          : invoiceReadiness.ok
-                            ? 'Create an invoice to track payment'
-                            : invoiceReadiness.reason}
-                    </p>
-                  </div>
-                </div>
-                {order.invoice_id ? (
-                  <button
-                    type="button"
-                    onClick={() => setInvoiceDialogOpen(true)}
-                    className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label={`View linked invoice #${order.invoice_id}`}
-                  >
-                    <Badge className="bg-green-600 hover:bg-green-700 text-white border-transparent cursor-pointer">
-                      Linked #{order.invoice_id}
-                    </Badge>
-                  </button>
-                ) : (
-                  <Button
-                    size="sm"
-                    disabled={!invoiceReadiness.ok || isCreatingInvoice}
-                    onClick={handleCreateInvoice}
-                    className="shrink-0 bg-brand-primary hover:bg-brand-primary-hover"
-                  >
-                    {isCreatingInvoice ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Create Invoice'
-                    )}
-                  </Button>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-                <span className="text-xs text-muted-foreground mr-1">Sections</span>
-                {(
-                  [
-                    { section: 'supplier' as const, label: 'Supplier', confirmed: supplierConfirmed },
-                    { section: 'details' as const, label: 'Order details', confirmed: detailsConfirmed },
-                    { section: 'items' as const, label: 'Items', confirmed: itemsConfirmed },
-                  ] as const
-                ).map(({ section, label, confirmed }) => (
-                  <div
-                    key={section}
-                    className={cn(
-                      'inline-flex items-center gap-0.5 rounded-md border bg-background pl-2.5 pr-0.5 py-0.5',
-                      confirmed
-                        ? 'border-green-600/25 dark:border-green-500/30'
-                        : 'border-border'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'text-xs',
-                        confirmed
-                          ? 'text-green-700 dark:text-green-300 font-medium'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      {label}
-                    </span>
-                    <PoSectionConfirmButton
-                      confirmed={confirmed}
-                      variant="display"
-                      label={label}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <PoInvoicePaymentSection
+              invoiceId={order.invoice_id ?? null}
+              confirmationsStatus={confirmationsStatus}
+              sections={[
+                {
+                  section: 'supplier',
+                  label: 'Supplier',
+                  confirmed: supplierConfirmed,
+                  readinessHint: sectionConfirmReadiness.supplier.ok
+                    ? undefined
+                    : sectionConfirmReadiness.supplier.reason,
+                },
+                {
+                  section: 'details',
+                  label: 'Order details',
+                  confirmed: detailsConfirmed,
+                  readinessHint: sectionConfirmReadiness.details.ok
+                    ? undefined
+                    : sectionConfirmReadiness.details.reason,
+                },
+                {
+                  section: 'items',
+                  label: 'Items',
+                  confirmed: itemsConfirmed,
+                  readinessHint: sectionConfirmReadiness.items.ok
+                    ? undefined
+                    : sectionConfirmReadiness.items.reason,
+                },
+              ]}
+              approvalSummary={approvalSummary}
+              headerApprovers={headerApprovers}
+              myApproval={myApproval}
+              isApproving={isApproving}
+              isUnapproving={isUnapproving}
+              onToggleMyApproval={handleToggleMyApproval}
+              onManageApprovals={() => setApprovalsOpen(true)}
+              invoiceReadiness={invoiceReadiness}
+              isCreatingInvoice={isCreatingInvoice}
+              onCreateInvoice={handleCreateInvoice}
+              onViewInvoice={() => setInvoiceDialogOpen(true)}
+              onScrollToSection={scrollToPoSection}
+              initialsOf={initialsOf}
+              avatarColor={avatarColor}
+            />
           </CardContent>
         </Card>
 

@@ -6,7 +6,7 @@ import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySe
 import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { Factory } from '@/types/factory';
-import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronRight, Layers, Users } from 'lucide-react';
+import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronRight, Layers, Users, Settings } from 'lucide-react';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import DepartmentsManageDialog from '@/components/newcomponents/customui/DepartmentsManageDialog';
@@ -112,6 +112,7 @@ interface FactoryOverviewStatCardProps {
   footer?: string;
   children?: React.ReactNode;
   interactive?: boolean;
+  pinActionToBottom?: boolean;
   onClick?: () => void;
   ariaLabel?: string;
 }
@@ -124,6 +125,7 @@ const FactoryOverviewStatCard: React.FC<FactoryOverviewStatCardProps> = ({
   footer,
   children,
   interactive,
+  pinActionToBottom,
   onClick,
   ariaLabel,
 }) => {
@@ -146,21 +148,27 @@ const FactoryOverviewStatCard: React.FC<FactoryOverviewStatCardProps> = ({
       }
       className={cn(
         s.card,
+        'flex h-full min-h-0 flex-col',
         interactive &&
           'cursor-pointer transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
       )}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="shrink-0 pb-3">
         <CardTitle className={cn('text-sm font-medium', s.title)}>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className={cn('min-h-0 flex-1 space-y-3', pinActionToBottom && 'pb-2')}>
         <div className="flex items-center justify-between gap-2">
           <div className={cn('text-3xl font-bold tabular-nums', s.value)}>{value}</div>
           <div className={cn('shrink-0', s.icon)}>{icon}</div>
         </div>
-        {children}
+        {!pinActionToBottom ? children : null}
         {footer ? <p className={cn('text-xs', s.foot)}>{footer}</p> : null}
       </CardContent>
+      {pinActionToBottom && children ? (
+        <CardFooter className="mt-auto w-full shrink-0 flex-col items-stretch pb-6 pt-0">
+          {children}
+        </CardFooter>
+      ) : null}
     </Card>
   );
 };
@@ -340,10 +348,6 @@ const FactoriesPage: React.FC = () => {
   );
   const visibleFactoryCount = filteredFactories.length;
   const avgSectionsVisible = visibleFactoryCount > 0 ? sectionsForVisible / visibleFactoryCount : 0;
-  const deptsPerFactory = React.useMemo(() => {
-    if (!factories || factories.length === 0) return 0;
-    return departments.length / factories.length;
-  }, [departments.length, factories]);
   const avgSectionsVsBaseline = avgSectionsPerFactory - 2;
 
   const activitySummary = React.useMemo(() => {
@@ -447,34 +451,25 @@ const FactoriesPage: React.FC = () => {
         {/* Top Bar */}
         <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className={appShellHeaderIconTileClass}>
-                  <FactoryIcon className="h-5 w-5 text-brand-primary" />
-                </div>
-                <h1 className={appShellHeaderTitleClass}>
-                  Factories
-                </h1>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className={appShellHeaderIconTileClass}>
+                <FactoryIcon className="h-5 w-5 text-brand-primary" />
               </div>
+              <h1 className={appShellHeaderTitleClass}>Factories</h1>
             </div>
-            <div className="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
-              <div className="relative w-[min(200px,40vw)] min-w-[140px] shrink-0">
-                <Search className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search factories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`${appShellHeaderControlClass} pl-10`}
-                />
-              </div>
-            </div>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Factory
+            </Button>
           </div>
         </AppShellHeader>
 
         {/* Content */}
         <div className="p-8 bg-background">
-          <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+          <div className="mb-8 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-5">
             <FactoryOverviewStatCard
               variant="primary"
               title="Workspace factories"
@@ -518,18 +513,20 @@ const FactoriesPage: React.FC = () => {
               title="Departments"
               value={departments.length}
               icon={<Users size={24} />}
-              footer={departments.length === 1 ? 'dept configured' : 'depts configured'}
               interactive
+              pinActionToBottom
               onClick={() => setIsDeptsDialogOpen(true)}
               ariaLabel={`Manage departments, ${departments.length} total`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badge}>
-                  {deptsPerFactory.toFixed(1)} per factory
-                </Badge>
-                <Badge variant="outline" className={factoryOverviewStatStyles.accent.badgeMuted}>
-                  Manage
-                </Badge>
+              <div
+                className={cn(
+                  appShellHeaderControlClass,
+                  'flex w-full items-center justify-center rounded-md border border-card-foreground/25',
+                  'bg-background/75 text-sm font-medium text-card-foreground shadow-sm'
+                )}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Manage
               </div>
             </FactoryOverviewStatCard>
 
@@ -616,24 +613,24 @@ const FactoriesPage: React.FC = () => {
 
           <Card className="shadow-sm bg-card border-border">
             <CardContent className="p-0">
-              {/* Table/data header bar: count only (search lives in page header) */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground">
                   {!isLoading && (
                     <span className="font-medium">
                       {filteredFactories.length}{' '}
                       {filteredFactories.length === 1 ? 'factory' : 'factories'}
                     </span>
                   )}
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7"
-                    onClick={() => setIsAddDialogOpen(true)}
-                    title="Add factory"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                </div>
+                <div className="relative w-[min(220px,40vw)] min-w-[160px] shrink-0">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search factories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 bg-background pl-9"
+                  />
                 </div>
               </div>
 
