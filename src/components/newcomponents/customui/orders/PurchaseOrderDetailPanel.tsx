@@ -1223,8 +1223,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         </Card>
 
         {/* Event Log (WIRED) */}
-        <Card>
-          <CardHeader className="pb-4">
+        <Card className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden">
+          <CardHeader className="pb-4 shrink-0">
             <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-base flex items-center gap-2">
                 <History className="h-4 w-4 text-muted-foreground" />
@@ -1253,7 +1253,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 min-h-0 overflow-y-auto pt-0">
             {events.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
                 <History className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
