@@ -35,6 +35,7 @@ export interface PurchaseOrder {
   details_confirmed: boolean;
   notes_confirmed: boolean;
   items_confirmed: boolean;
+  invoice_confirmed: boolean;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -80,7 +81,10 @@ export type PurchaseOrderEventType =
   | 'notes_unconfirmed'
   | 'items_confirmed'
   | 'items_unconfirmed'
+  | 'invoice_confirmed'
+  | 'invoice_unconfirmed'
   | 'invoice_created'
+  | 'approvals_reset'
   | 'supplier_updated'
   | 'details_updated'
   | 'notes_updated'

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Account } from '@/types/account';
 import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Check, Loader2, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
@@ -58,6 +58,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
+  const [addHintOpen, setAddHintOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -74,20 +75,45 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setUnitPrice('');
     setMachineDisplayLine('');
     setMachinePickerOpen(false);
+    setAddHintOpen(false);
   };
 
-  const handleAddItem = () => {
+  const canAddLineItem = (() => {
+    if (!itemId.trim() || !qty.trim() || !unitPrice.trim()) return false;
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
-    if (isNaN(iid) || isNaN(q) || q <= 0 || isNaN(p) || p < 0) {
-      toast.error('Enter valid item, quantity, and unit price');
+    return !isNaN(iid) && !isNaN(q) && q > 0 && !isNaN(p) && p >= 0;
+  })();
+
+  useEffect(() => {
+    if (canAddLineItem) setAddHintOpen(false);
+  }, [canAddLineItem]);
+
+  useEffect(() => {
+    if (!addHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-add-item-hint-root]')) {
+        setAddHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [addHintOpen]);
+
+  const handleAddItemClick = () => {
+    if (!canAddLineItem) {
+      setAddHintOpen(true);
       return;
     }
+    const iid = parseInt(itemId, 10);
+    const q = parseFloat(qty);
+    const p = parseFloat(unitPrice);
     setItems((prev) => [...prev, { item_id: iid, quantity_ordered: q, unit_price: p }]);
     setItemId('');
     setQty('');
     setUnitPrice('');
+    setAddHintOpen(false);
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -122,7 +148,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       order_date: new Date().toISOString().slice(0, 10),
       description: description || undefined,
       order_note: orderNote || undefined,
-      current_status_id: 1,
       items: items.map((i) => ({
         item_id: i.item_id,
         quantity_ordered: i.quantity_ordered,
@@ -202,9 +227,31 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
               className="bg-background"
             />
           </div>
-          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={handleAddItem}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="relative shrink-0" data-add-item-hint-root>
+            {addHintOpen && !canAddLineItem ? (
+              <div
+                role="tooltip"
+                className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+              >
+                Select item, qty and unit price to add
+              </div>
+            ) : null}
+            <Button
+              type="button"
+              size="icon"
+              className={
+                canAddLineItem
+                  ? 'h-10 w-10 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
+                  : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed'
+              }
+              onClick={handleAddItemClick}
+              aria-label="Add line item"
+              aria-expanded={addHintOpen && !canAddLineItem}
+              aria-disabled={!canAddLineItem}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

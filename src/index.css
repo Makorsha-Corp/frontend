@@ -194,3 +194,27 @@
 *::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary-hover));
 }
+
+@keyframes po-flash-highlight-3 {
+  0%,
+  16.66%,
+  33.33%,
+  50%,
+  66.66%,
+  83.33%,
+  100% {
+    box-shadow: none;
+    filter: none;
+  }
+
+  8.33%,
+  41.66%,
+  75% {
+    box-shadow: 0 0 0 2px rgb(251 191 36), 0 4px 14px rgb(251 191 36 / 0.35);
+    filter: brightness(1.12);
+  }
+}
+
+.po-flash-highlight-3 {
+  animation: po-flash-highlight-3 1.8s ease-in-out;
+}

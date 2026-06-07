@@ -81,7 +81,7 @@ export const purchaseOrdersApi = createApi({
       PurchaseOrder,
       {
         poId: number;
-        section: 'supplier' | 'details' | 'notes' | 'items';
+        section: 'supplier' | 'details' | 'notes' | 'items' | 'invoice';
         confirmed: boolean;
       }
     >({
@@ -94,6 +94,7 @@ export const purchaseOrdersApi = createApi({
         { type: 'PurchaseOrder', id: poId },
         'PurchaseOrder',
         { type: 'PurchaseOrderEvents', id: poId },
+        { type: 'PurchaseOrderApprovers', id: poId },
       ],
       async onQueryStarted({ poId, section, confirmed }, { dispatch, queryFulfilled }) {
         const fieldMap = {
@@ -101,6 +102,7 @@ export const purchaseOrdersApi = createApi({
           details: 'details_confirmed',
           notes: 'notes_confirmed',
           items: 'items_confirmed',
+          invoice: 'invoice_confirmed',
         } as const;
         const field = fieldMap[section];
         const patchById = dispatch(

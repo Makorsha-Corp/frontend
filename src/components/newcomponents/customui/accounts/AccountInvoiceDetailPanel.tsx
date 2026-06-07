@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { InvoiceConfirmDialog, InvoiceVoidDialog } from './InvoiceLifecycleDialogs';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
 import {
   useGetAccountInvoiceByIdQuery,
@@ -115,8 +106,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
-  const [voidNote, setVoidNote] = useState('');
-  const [voidAcknowledged, setVoidAcknowledged] = useState(false);
 
   const [confirmInvoice, { isLoading: isConfirming }] = useConfirmAccountInvoiceMutation();
   const [voidInvoice, { isLoading: isVoiding }] = useVoidAccountInvoiceMutation();
@@ -132,15 +121,11 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
     }
   };
 
-  const handleVoid = async () => {
-    if (!voidNote.trim()) { toast.error('A void reason is required'); return; }
-    if (!voidAcknowledged) { toast.error('Please confirm you understand the consequences'); return; }
+  const handleVoid = async (voidNote: string) => {
     try {
-      await voidInvoice({ id: invoiceId, void_note: voidNote.trim() }).unwrap();
+      await voidInvoice({ id: invoiceId, void_note: voidNote }).unwrap();
       toast.success('Invoice voided successfully.');
       setVoidOpen(false);
-      setVoidNote('');
-      setVoidAcknowledged(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to void invoice');
@@ -332,103 +317,20 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       )}
 
-      {/* ── Confirm dialog ── */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="w-[min(28rem,94vw)] max-w-none">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              Confirm Invoice
-            </DialogTitle>
-            <DialogDescription className="space-y-2 pt-1 text-left">
-              <span className="block">
-                Confirming this invoice will lock it from further edits and allow payments to be recorded against it.
-              </span>
-              <span className="block text-muted-foreground">
-                If you need to make changes after confirming, you will need to void all active payments first — the invoice will automatically return to draft for editing.
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={isConfirming}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleConfirm}
-              disabled={isConfirming}
-            >
-              {isConfirming ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Confirming...</> : 'Confirm Invoice'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InvoiceConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleConfirm}
+        isConfirming={isConfirming}
+      />
 
-      {/* ── Void dialog ── */}
-      <Dialog open={voidOpen} onOpenChange={(o) => { setVoidOpen(o); if (!o) { setVoidNote(''); setVoidAcknowledged(false); } }}>
-        <DialogContent className="w-[min(32rem,94vw)] max-w-none">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Void Invoice
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
-              <p className="font-semibold">This action is permanent and cannot be undone.</p>
-              {activePaymentCount > 0 ? (
-                <p>
-                  Voiding this invoice will also void{' '}
-                  <strong>{activePaymentCount} active payment{activePaymentCount !== 1 ? 's' : ''}</strong>{' '}
-                  and zero out the entire balance.
-                </p>
-              ) : (
-                <p>The invoice balance will be zeroed out.</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="void-note">
-                Reason for voiding <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="void-note"
-                placeholder="Describe why this invoice is being voided..."
-                value={voidNote}
-                onChange={(e) => setVoidNote(e.target.value)}
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-
-            <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={voidAcknowledged}
-                onChange={(e) => setVoidAcknowledged(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-border accent-destructive cursor-pointer"
-              />
-              <span className="text-sm text-muted-foreground group-hover:text-card-foreground transition-colors">
-                I understand that this invoice and all its active payments will be permanently voided and this action cannot be reversed.
-              </span>
-            </label>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setVoidOpen(false); setVoidNote(''); setVoidAcknowledged(false); }} disabled={isVoiding}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleVoid}
-              disabled={isVoiding || !voidNote.trim() || !voidAcknowledged}
-            >
-              {isVoiding ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Voiding...</> : 'Void Invoice'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InvoiceVoidDialog
+        open={voidOpen}
+        onOpenChange={setVoidOpen}
+        onVoid={handleVoid}
+        isVoiding={isVoiding}
+        activePaymentCount={activePaymentCount}
+      />
     </div>
   );
 };

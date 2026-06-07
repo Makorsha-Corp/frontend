@@ -30,8 +30,10 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X, ListTree } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
@@ -49,6 +51,12 @@ import {
 } from './purchaseOrdersOverviewData';
 
 const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
+const PO_SECTION_NAV_STORAGE_KEY = 'po-detail-section-nav-enabled';
+
+function readPoSectionNavEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  return localStorage.getItem(PO_SECTION_NAV_STORAGE_KEY) !== 'false';
+}
 
 const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
   all: 'All destinations',
@@ -69,6 +77,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const [factoryFilter, setFactoryFilter] = useState<string>('all');
   const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+  const [showPoSectionNav, setShowPoSectionNav] = useState(readPoSectionNavEnabled);
 
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,
@@ -251,14 +260,14 @@ const PurchaseOrdersPage: React.FC = () => {
                   <Breadcrumb className="min-w-0 self-end">
                     <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
                       <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
-                        <span className="group inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
+                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
                           <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
                             {selectedOrder.po_number}
                           </span>
                           <button
                             type="button"
                             onClick={() => setSelectedOrder(null)}
-                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label="Close purchase order"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -393,6 +402,26 @@ const PurchaseOrdersPage: React.FC = () => {
               <SelectItem value="not_invoiced">Not invoiced</SelectItem>
             </SelectContent>
           </Select>
+
+          {selectedOrder && (
+            <div className="ml-auto flex items-center gap-2 pl-2">
+              <ListTree className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+              <Label
+                htmlFor="po-section-nav-toggle"
+                className="text-sm font-normal text-muted-foreground cursor-pointer whitespace-nowrap"
+              >
+                Section nav
+              </Label>
+              <Switch
+                id="po-section-nav-toggle"
+                checked={showPoSectionNav}
+                onCheckedChange={(checked) => {
+                  setShowPoSectionNav(checked);
+                  localStorage.setItem(PO_SECTION_NAV_STORAGE_KEY, String(checked));
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Main content area: navigator (left) + content (right) */}
@@ -404,6 +433,7 @@ const PurchaseOrdersPage: React.FC = () => {
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
             onSelectOrder={(id) => setSelectedOrder(id)}
+            onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
             accountName={accountName}
             statusLabel={statusLabel}
@@ -418,7 +448,7 @@ const PurchaseOrdersPage: React.FC = () => {
               <PurchaseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
-                onDelete={() => handleDelete(selectedOrder)}
+                showSectionNav={showPoSectionNav}
               />
             ) : (
               <PurchaseOrdersOverviewPanel

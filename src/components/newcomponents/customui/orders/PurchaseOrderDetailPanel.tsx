@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  Trash2,
   Building2,
   Package,
   Truck,
@@ -43,27 +42,39 @@ import {
   MessageSquare,
   Send,
   ShieldCheck,
-  UserPlus,
+  Wrench,
   Check,
   X,
-  ChevronDown,
 } from 'lucide-react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import PurchaseOrderMilestoneTracker from './PurchaseOrderMilestoneTracker';
 import PoSectionConfirmButton from './PoSectionConfirmButton';
-import PoInvoicePaymentSection from './PoInvoicePaymentSection';
+import PoLinkedInvoiceCard from './PoLinkedInvoiceCard';
+import PoInvoiceWorkflowChecklist from './PoInvoiceWorkflowChecklist';
+import PoSectionNavRail from './PoSectionNavRail';
+import ManagePoApprovalsDialog from './ManagePoApprovalsDialog';
+import PoApproveOrderButton from './PoApproveOrderButton';
 import PoEventLogRow from './PoEventLogRow';
 import {
   canConfirmPurchaseOrderSection,
-  canCreatePurchaseOrderInvoice,
+  canConfirmPoInvoice,
   getPurchaseOrderConfirmationsStatus,
+  getPurchaseOrderApprovalSectionsStatus,
+  isPoFinanciallyLocked,
+  derivePurchaseOrderMilestones,
+  approvalsMilestoneState,
+  type PoLinkedInvoiceStatus,
   type PoSectionConfirmKey,
 } from './purchaseOrderMilestones';
+import { usePoSectionScrollSpy } from '@/hooks/usePoSectionScrollSpy';
 import AccountInvoiceDialog from '@/components/newcomponents/customui/accounts/AccountInvoiceDialog';
+import {
+  InvoiceConfirmDialog,
+  InvoiceVoidDialog,
+} from '@/components/newcomponents/customui/accounts/InvoiceLifecycleDialogs';
+import {
+  useGetAccountInvoiceByIdQuery,
+  useConfirmAccountInvoiceMutation,
+  useVoidAccountInvoiceMutation,
+} from '@/features/accountInvoices/accountInvoicesApi';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
@@ -113,8 +124,8 @@ const avatarColor = (userId: number): string => AVATAR_COLORS[userId % AVATAR_CO
 interface PurchaseOrderDetailPanelProps {
   order: PurchaseOrder;
   onClose: () => void;
-  onDelete: () => void;
   onUpdated?: () => void;
+  showSectionNav?: boolean;
 }
 
 /** Editable draft of the fields wired in this pass. */
@@ -131,6 +142,14 @@ interface PoDraft {
 const confirmedSectionCardClass = 'border-muted-foreground/15 bg-muted/20';
 const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
 
+const PO_SECTION_SCROLL_ORDER = [
+  'po-section-details',
+  'po-section-approvals',
+  'po-section-supplier',
+  'po-section-items',
+  'po-section-invoice',
+] as const;
+
 const CONFIRM_EVENT_TYPES = new Set([
   'supplier_confirmed',
   'supplier_unconfirmed',
@@ -140,13 +159,19 @@ const CONFIRM_EVENT_TYPES = new Set([
   'notes_unconfirmed',
   'items_confirmed',
   'items_unconfirmed',
+  'invoice_confirmed',
+  'invoice_unconfirmed',
 ]);
 
-const SECTION_CONFIRM_LABELS: Record<'supplier' | 'details' | 'notes' | 'items', string> = {
+const SECTION_CONFIRM_LABELS: Record<
+  'supplier' | 'details' | 'notes' | 'items' | 'invoice',
+  string
+> = {
   supplier: 'Supplier',
   details: 'Order details',
   notes: 'Order notes',
   items: 'Order items',
+  invoice: 'Draft invoice',
 };
 
 const draftFromOrder = (o: PurchaseOrder): PoDraft => ({
@@ -161,23 +186,43 @@ const draftFromOrder = (o: PurchaseOrder): PoDraft => ({
 
 const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   order: orderFromList,
-  onDelete,
   onUpdated,
+  showSectionNav = true,
 }) => {
   const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
 
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
   const [setSectionConfirm] = useSetPurchaseOrderSectionConfirmMutation();
-  const [createInvoice, { isLoading: isCreatingInvoice }] = useCreateInvoiceFromPurchaseOrderMutation();
+  const [ensureDraftInvoice, { isLoading: isEnsuringDraft }] =
+    useCreateInvoiceFromPurchaseOrderMutation();
+  const [confirmInvoice, { isLoading: isConfirmingInvoice }] = useConfirmAccountInvoiceMutation();
+  const [voidInvoice, { isLoading: isVoidingInvoice }] = useVoidAccountInvoiceMutation();
+
+  const { data: linkedInvoice } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
+    skip: order.invoice_id == null,
+  });
+  const linkedInvoiceStatus: PoLinkedInvoiceStatus = linkedInvoice?.invoice_status ?? null;
   const [confirmingSection, setConfirmingSection] = useState<
-    'supplier' | 'details' | 'notes' | 'items' | null
+    'supplier' | 'details' | 'notes' | 'items' | 'invoice' | null
   >(null);
+  const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
+  const [pendingUnconfirmSection, setPendingUnconfirmSection] =
+    useState<PoSectionConfirmKey | null>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [approvalsOpen, setApprovalsOpen] = useState(false);
+  const [confirmInvoiceOpen, setConfirmInvoiceOpen] = useState(false);
+  const [voidInvoiceOpen, setVoidInvoiceOpen] = useState(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
+  const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
+  const [finalizeButtonFlashing, setFinalizeButtonFlashing] = useState(false);
+  const [approvalsCardFlashing, setApprovalsCardFlashing] = useState(false);
+  const [confirmButtonFlashing, setConfirmButtonFlashing] = useState<PoSectionConfirmKey | null>(
+    null
+  );
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [forcedNavSection, setForcedNavSection] = useState<string | null>(null);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -244,6 +289,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         await unapproveOrder(order.id).unwrap();
         toast.success('Approval withdrawn');
       } else {
+        const approvalSections = getPurchaseOrderApprovalSectionsStatus(order);
+        if (!approvalSections.allConfirmed) {
+          toast.error(approvalSections.reason ?? 'Confirm all sections before approving');
+          return;
+        }
         await approveOrder(order.id).unwrap();
         toast.success('Approved');
       }
@@ -273,20 +323,19 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const patch = (changes: Partial<PoDraft>) => setDraft((d) => ({ ...d, ...changes }));
 
   // Build a payload of only the fields that differ from the saved order.
-  const invoiceLocked = order.invoice_id != null;
+  const invoiceLocked = isPoFinanciallyLocked(linkedInvoiceStatus);
   const supplierConfirmed = order.supplier_confirmed ?? false;
   const detailsConfirmed = order.details_confirmed ?? false;
   const itemsConfirmed = order.items_confirmed ?? false;
+  const invoiceConfirmed = order.invoice_confirmed ?? false;
   const supplierDisabled = invoiceLocked || supplierConfirmed;
   const coreDetailsDisabled = invoiceLocked || detailsConfirmed;
   const itemsSectionConfirmed = itemsConfirmed || invoiceLocked;
 
-  const invoiceReadiness = canCreatePurchaseOrderInvoice(
-    order,
-    items,
-    approvalSummary.met
-  );
+  const confirmReadiness = canConfirmPoInvoice(order, approvalSummary.met, linkedInvoiceStatus);
+  const hasSupplier = order.account_id != null;
   const confirmationsStatus = getPurchaseOrderConfirmationsStatus(order);
+  const approvalSectionsStatus = getPurchaseOrderApprovalSectionsStatus(order);
 
   const effectiveOrderFields = useMemo(
     () => ({
@@ -303,19 +352,64 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       supplier: canConfirmPurchaseOrderSection('supplier', effectiveOrderFields, items),
       details: canConfirmPurchaseOrderSection('details', effectiveOrderFields, items),
       items: canConfirmPurchaseOrderSection('items', effectiveOrderFields, items),
+      invoice: canConfirmPurchaseOrderSection(
+        'invoice',
+        order,
+        items,
+        linkedInvoiceStatus,
+        order.invoice_id
+      ),
     }),
-    [effectiveOrderFields, items]
+    [effectiveOrderFields, items, order, linkedInvoiceStatus]
   );
 
   const scrollToPoSection = (section: PoSectionConfirmKey) => {
-    const id =
+    const cardId =
       section === 'supplier'
         ? 'po-section-supplier'
         : section === 'details'
           ? 'po-section-details'
-          : 'po-section-items';
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          : section === 'invoice'
+            ? 'po-section-invoice'
+            : 'po-section-items';
+    const confirmEl = document.getElementById(`po-confirm-${section}`);
+    (confirmEl ?? document.getElementById(cardId))?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    setConfirmButtonFlashing(null);
+    requestAnimationFrame(() => setConfirmButtonFlashing(section));
   };
+
+  const triggerFlash = (setFlashing: React.Dispatch<React.SetStateAction<boolean>>) => {
+    setFlashing(false);
+    requestAnimationFrame(() => setFlashing(true));
+  };
+
+  const scrollToFinalizeInvoice = () => {
+    document
+      .getElementById('po-finalize-invoice-btn')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    triggerFlash(setFinalizeButtonFlashing);
+  };
+
+  const scrollToManageApprovalsCard = () => {
+    document
+      .getElementById('po-section-approvals')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    triggerFlash(setApprovalsCardFlashing);
+  };
+
+  const handleTargetFlashEnd = (
+    event: React.AnimationEvent<HTMLElement>,
+    setFlashing: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
+    if (event.animationName === 'po-flash-highlight-3') {
+      setFlashing(false);
+    }
+  };
+
+  const openManageApprovals = () => setManageApprovalsOpen(true);
 
   const changedFields = useMemo<UpdatePurchaseOrder>(() => {
     const payload: UpdatePurchaseOrder = {};
@@ -343,15 +437,39 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     return payload;
   }, [draft, order, supplierDisabled, coreDetailsDisabled]);
 
-  const handleCreateInvoice = async () => {
-    if (!invoiceReadiness.ok) return;
+  useEffect(() => {
+    if (!hasSupplier || order.invoice_id != null || invoiceLocked) return;
+    void ensureDraftInvoice(order.id)
+      .unwrap()
+      .then(() => onUpdated?.())
+      .catch(() => {
+        /* silent backfill for legacy POs */
+      });
+  }, [order.id, order.invoice_id, hasSupplier, invoiceLocked, ensureDraftInvoice, onUpdated]);
+
+  const handleConfirmInvoice = async () => {
+    if (!order.invoice_id || !confirmReadiness.ok) return;
     try {
-      await createInvoice(order.id).unwrap();
-      toast.success('Invoice created');
+      await confirmInvoice(order.invoice_id).unwrap();
+      toast.success('Invoice confirmed — order is now locked');
+      setConfirmInvoiceOpen(false);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create invoice');
+      toast.error(e?.data?.detail || 'Failed to confirm invoice');
+    }
+  };
+
+  const handleVoidInvoice = async (voidNote: string) => {
+    if (!order.invoice_id) return;
+    try {
+      await voidInvoice({ id: order.invoice_id, void_note: voidNote }).unwrap();
+      toast.success('Invoice voided — order approvals cleared and order is editable again');
+      setVoidInvoiceOpen(false);
+      onUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to void invoice');
     }
   };
 
@@ -359,6 +477,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     supplier: ['account_id'],
     details: ['destination_type', 'destination_id', 'order_date', 'description'],
     items: [],
+    invoice: [],
   };
 
   const sectionHasUnsavedChanges = (section: PoSectionConfirmKey): boolean =>
@@ -366,10 +485,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   const requestSectionConfirmToggle = (
     section: PoSectionConfirmKey,
-    confirmed: boolean
+    currentlyConfirmed: boolean
   ) => {
-    if (!confirmed) {
-      if (sectionHasUnsavedChanges(section)) {
+    if (!currentlyConfirmed) {
+      if (section !== 'invoice' && sectionHasUnsavedChanges(section)) {
         toast.error('Save changes before confirming this section');
         return;
       }
@@ -377,12 +496,27 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         toast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
         return;
       }
+      void handleToggleSectionConfirm(section, true);
+      return;
     }
-    void handleToggleSectionConfirm(section, !confirmed);
+    setPendingUnconfirmSection(section);
+    setUnconfirmWarningOpen(true);
+  };
+
+  const handleConfirmSectionUnconfirm = () => {
+    if (!pendingUnconfirmSection) return;
+    const section = pendingUnconfirmSection;
+    setUnconfirmWarningOpen(false);
+    setPendingUnconfirmSection(null);
+    void handleToggleSectionConfirm(section, false);
+  };
+
+  const requestInvoiceSectionConfirmToggle = () => {
+    requestSectionConfirmToggle('invoice', invoiceConfirmed);
   };
 
   const handleToggleSectionConfirm = async (
-    section: 'supplier' | 'details' | 'notes' | 'items',
+    section: 'supplier' | 'details' | 'notes' | 'items' | 'invoice',
     nextConfirmed: boolean
   ) => {
     setConfirmingSection(section);
@@ -541,283 +675,96 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+  const observedNavSection = usePoSectionScrollSpy(scrollContainerRef, PO_SECTION_SCROLL_ORDER);
+  const activeNavSection = forcedNavSection ?? observedNavSection;
+
+  useEffect(() => {
+    if (!forcedNavSection) return;
+    const timer = window.setTimeout(() => setForcedNavSection(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [forcedNavSection]);
+
+  const poNavSections = useMemo(() => {
+    const milestones = derivePurchaseOrderMilestones(order, items, linkedInvoiceStatus);
+    const navigateTo = (elementId: string, action: () => void) => {
+      setForcedNavSection(elementId);
+      action();
+    };
+
+    return [
+      {
+        id: 'po-section-details',
+        label: 'Order details',
+        icon: FileText,
+        state: milestones.details,
+        onClick: () => navigateTo('po-section-details', () => scrollToPoSection('details')),
+      },
+      {
+        id: 'po-section-approvals',
+        label: 'Approvals',
+        icon: ShieldCheck,
+        state: approvalsMilestoneState(approvalSummary),
+        onClick: () => navigateTo('po-section-approvals', scrollToManageApprovalsCard),
+      },
+      {
+        id: 'po-section-supplier',
+        label: 'Supplier',
+        icon: Building2,
+        state: milestones.supplier,
+        onClick: () => navigateTo('po-section-supplier', () => scrollToPoSection('supplier')),
+      },
+      {
+        id: 'po-section-items',
+        label: 'Items',
+        icon: Package,
+        state: milestones.items,
+        onClick: () => navigateTo('po-section-items', () => scrollToPoSection('items')),
+      },
+      {
+        id: 'po-section-invoice',
+        label: 'Invoice',
+        icon: FileText,
+        state: milestones.invoice,
+        onClick: () => navigateTo('po-section-invoice', () => scrollToPoSection('invoice')),
+      },
+    ];
+  }, [
+    order,
+    items,
+    linkedInvoiceStatus,
+    approvalSummary,
+    scrollToPoSection,
+    scrollToManageApprovalsCard,
+  ]);
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
-      {/* Detail toolbar — title lives in AppShellHeader breadcrumb */}
-      <div className="shrink-0 border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center justify-between gap-4 flex-nowrap">
-          <div className="min-w-0 flex-1 pr-2">
-            <PurchaseOrderMilestoneTracker order={order} items={items} />
+      <div className="flex flex-1 min-h-0">
+        {showSectionNav ? (
+          <div className="hidden lg:flex w-16 shrink-0 self-stretch items-center justify-center min-h-0">
+            <PoSectionNavRail
+              className="h-1/2 max-h-[50vh] min-h-[240px]"
+              sections={poNavSections}
+              activeSectionId={activeNavSection}
+            />
           </div>
-          <div className="flex items-center gap-4 shrink-0 ml-auto">
-            <Popover open={approvalsOpen} onOpenChange={setApprovalsOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <ShieldCheck
-                    className={`h-4 w-4 ${
-                      approvalSummary.met ? 'text-green-600' : 'text-muted-foreground'
-                    }`}
-                  />
-                  {approvers.length > 0 && (
-                    <div className="flex -space-x-2">
-                      {headerApprovers.map((a) => (
-                        <div
-                          key={a.id}
-                          className={`relative h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold ring-2 ring-card ${avatarColor(a.user_id)} ${
-                            a.approved ? '' : 'opacity-50'
-                          }`}
-                          title={`${a.user_name ?? `User #${a.user_id}`}${a.approved ? ' (approved)' : ' (pending)'}`}
-                        >
-                          {initialsOf(a.user_name)}
-                          {a.approved && (
-                            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card flex items-center justify-center">
-                              <Check className="h-1.5 w-1.5 text-white" />
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {approvalSummary.approved_count} of {approvalSummary.required} approved
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 p-4 space-y-4">
-                {/* Title + summary + required */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
-                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                      Approvals
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={`font-normal ${
-                        approvalSummary.met
-                          ? 'text-green-600 border-green-600/30'
-                          : 'text-amber-600 border-amber-600/30'
-                      }`}
-                    >
-                      {approvalSummary.approved_count} / {approvalSummary.required} approved
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                      Required
-                    </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={approvers.length || undefined}
-                      placeholder="All"
-                      value={draft.required_approvals}
-                      onChange={(e) => patch({ required_approvals: e.target.value })}
-                      className="w-20 h-8"
-                    />
-                  </div>
-                </div>
-
-                {/* Approver list */}
-                {approvers.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-5 text-center">
-                    <ShieldCheck className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
-                    <p className="text-sm font-medium text-muted-foreground">No approvers assigned</p>
-                    <p className="text-xs text-muted-foreground">Add members below to require their approval</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {approvers.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-border px-2.5 py-2"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className={`h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0 ${
-                              a.approved ? avatarColor(a.user_id) : 'bg-muted-foreground/40'
-                            }`}
-                          >
-                            {initialsOf(a.user_name)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-card-foreground truncate">
-                              {a.user_name ?? `User #${a.user_id}`}
-                              {a.user_id === currentUserId && (
-                                <span className="text-muted-foreground font-normal"> (you)</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {a.user_position || a.user_email || ''}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {a.approved ? (
-                            <Badge variant="outline" className="text-green-600 border-green-600/30 gap-1">
-                              <Check className="h-3 w-3" />
-                              Approved
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground gap-1">
-                              <Clock className="h-3 w-3" />
-                              Pending
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleRemoveApprover(a.user_id)}
-                            title="Remove approver"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add approver */}
-                {assignableMembers.length > 0 && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-border">
-                    <UserPlus className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Select value="" onValueChange={(v) => handleAddApprover(Number(v))}>
-                      <SelectTrigger className="h-9 flex-1">
-                        <SelectValue placeholder="Add approver..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {assignableMembers.map((m) => (
-                          <SelectItem key={m.user_id} value={String(m.user_id)}>
-                            {m.user_name ?? `User #${m.user_id}`}
-                            {m.user_position ? ` · ${m.user_position}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* My approval action */}
-                {myApproval && (
-                  <Button
-                    size="sm"
-                    variant={myApproval.approved ? 'outline' : 'default'}
-                    onClick={handleToggleMyApproval}
-                    disabled={isApproving || isUnapproving}
-                    className={`w-full ${
-                      myApproval.approved ? '' : 'bg-brand-primary hover:bg-brand-primary-hover'
-                    }`}
-                  >
-                    {isApproving || isUnapproving ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : myApproval.approved ? (
-                      <X className="h-4 w-4 mr-1" />
-                    ) : (
-                      <Check className="h-4 w-4 mr-1" />
-                    )}
-                    {myApproval.approved ? 'Withdraw approval' : 'Approve'}
-                  </Button>
-                )}
-              </PopoverContent>
-            </Popover>
-
-            <div className="h-6 w-px bg-border" />
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onDelete}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Scrollable Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
-        {/* Top grid: Order Details 2/3 + Supplier / Comments 1/3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] gap-6 lg:min-h-[min(36rem,42vh)] lg:items-stretch">
-          {/* Supplier — mobile first */}
-          <Card
-            id="po-section-supplier"
-            className={cn(
-              'order-1 lg:order-none lg:col-start-3 lg:row-start-1 scroll-mt-6',
-              supplierDisabled && confirmedSectionCardClass
-            )}
-          >
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  Supplier
-                  {invoiceLocked && (
-                    <Badge variant="outline" className="ml-1 font-normal text-green-600 border-green-600/30">
-                      Confirmed
-                    </Badge>
-                  )}
-                  {!invoiceLocked && supplierConfirmed && (
-                    <Badge variant="outline" className="ml-1 font-normal text-green-600 border-green-600/30">
-                      Confirmed
-                    </Badge>
-                  )}
-                </CardTitle>
-                {invoiceLocked ? (
-                  <PoSectionConfirmButton confirmed label="supplier" variant="system" />
-                ) : (
-                  <PoSectionConfirmButton
-                    confirmed={supplierConfirmed}
-                    onToggle={() => requestSectionConfirmToggle('supplier', supplierConfirmed)}
-                    isLoading={confirmingSection === 'supplier'}
-                    label="supplier"
-                  />
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className={supplierDisabled ? confirmedSectionContentClass : undefined}>
-                <AccountSelectSummaryButton
-                  onClick={() => {
-                    if (!supplierDisabled) setAccountPickerOpen(true);
-                  }}
-                  ariaLabel={
-                    draft.account_id != null
-                      ? `Change supplier. Current account ID ${draft.account_id}`
-                      : 'Select supplier'
-                  }
-                  selectedLine={accounts.find((a) => a.id === draft.account_id)?.name ?? null}
-                  staleNumericId={draft.account_id != null ? String(draft.account_id) : null}
-                  className={cn('mt-0', supplierDisabled && 'pointer-events-none')}
-                />
-                <AccountSelectorDialog
-                  open={accountPickerOpen}
-                  onOpenChange={setAccountPickerOpen}
-                  title="Select supplier"
-                  description="Search and pick the supplier account for this purchase order."
-                  selectedAccountId={draft.account_id ?? undefined}
-                  onSelect={(account) => {
-                    if (!account) return;
-                    patch({ account_id: account.id });
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Order Details — spans left column on desktop */}
+        ) : null}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6"
+        >
+        {/* Top grid: Order Details + Supplier (2/3) | Manage Approvals (1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_auto] gap-4 lg:items-stretch">
+          {/* Order Details — top left */}
           <Card
             id="po-section-details"
             className={cn(
-              'order-2 lg:order-none lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1 flex flex-col min-h-0 h-full scroll-mt-6',
+              'order-1 lg:col-span-2 lg:row-start-1 flex flex-col scroll-mt-6',
               coreDetailsDisabled && confirmedSectionCardClass
             )}
           >
-            <CardHeader className="pb-4 shrink-0">
+            <CardHeader className="p-4 pb-2 shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
@@ -837,22 +784,25 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   <PoSectionConfirmButton confirmed label="order details" variant="system" />
                 ) : (
                   <PoSectionConfirmButton
+                    id="po-confirm-details"
                     confirmed={detailsConfirmed}
                     onToggle={() => requestSectionConfirmToggle('details', detailsConfirmed)}
                     isLoading={confirmingSection === 'details'}
                     label="order details"
+                    flashing={confirmButtonFlashing === 'details'}
+                    onFlashEnd={() => setConfirmButtonFlashing(null)}
                   />
                 )}
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-0 space-y-4">
+            <CardContent className="p-4 pt-0 space-y-3">
               <div
                 className={cn(
-                  'space-y-4',
+                  'space-y-3',
                   coreDetailsDisabled && confirmedSectionContentClass
                 )}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Destination Type</Label>
                     <Select
@@ -927,7 +877,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
                     <Input
@@ -974,40 +924,187 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     placeholder="Add a description for this order..."
                     value={draft.description}
                     onChange={(e) => patch({ description: e.target.value })}
-                    className="min-h-[80px] resize-none"
+                    className="min-h-[56px] resize-none"
                     disabled={coreDetailsDisabled}
                   />
-                </div>
-              </div>
-              <div className="shrink-0 pt-2 border-t border-border">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>Created: {formatDate(order.created_at)}</span>
-                  <span>•</span>
-                  <span>Last updated: {formatDate(order.updated_at ?? order.created_at)}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Comments — placeholder */}
-          <Card className="order-3 lg:order-none lg:col-start-3 lg:row-start-2 flex flex-col min-h-0 h-full">
-            <CardHeader className="pb-4 shrink-0">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                Comments
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 flex flex-col gap-4">
-              <div className="flex-1 min-h-0 rounded-lg border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 px-4 py-6 text-center">
-                <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
-                <p className="text-sm font-medium text-muted-foreground">No comments yet</p>
-                <p className="text-xs text-muted-foreground">Comment thread coming soon</p>
+          {/* Manage Approvals — right column */}
+          <Card
+            id="po-section-approvals"
+            className={cn(
+              'order-3 lg:col-start-3 lg:row-start-1 lg:row-span-2 flex flex-col min-h-0 h-full scroll-mt-6',
+              approvalsCardFlashing && 'po-flash-highlight-3'
+            )}
+            onAnimationEnd={(event) => handleTargetFlashEnd(event, setApprovalsCardFlashing)}
+          >
+            <CardHeader className="p-4 pb-4 shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                  Manage approvals
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'font-normal shrink-0',
+                    approvalSummary.met
+                      ? 'text-green-600 border-green-600/30'
+                      : 'text-amber-600 border-amber-600/30'
+                  )}
+                >
+                  {approvalSummary.approved_count} / {approvalSummary.required}
+                </Badge>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Input placeholder="Write a comment..." disabled className="flex-1" />
-                <Button size="icon" disabled className="shrink-0">
-                  <Send className="h-4 w-4" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0 flex-1 min-h-0 flex flex-col gap-3">
+              {approvers.length === 0 ? (
+                <div className="flex-1 min-h-0 flex items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-4 py-5 text-center">
+                  <div>
+                    <ShieldCheck className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
+                    <p className="text-sm font-medium text-muted-foreground">No approvers assigned</p>
+                    <p className="text-xs text-muted-foreground">Use Manage to add approvers</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-0.5">
+                  {approvers.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border px-2.5 py-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={cn(
+                            'h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0',
+                            a.approved ? avatarColor(a.user_id) : 'bg-muted-foreground/40'
+                          )}
+                        >
+                          {initialsOf(a.user_name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-card-foreground truncate">
+                            {a.user_name ?? `User #${a.user_id}`}
+                            {a.user_id === currentUserId && (
+                              <span className="text-muted-foreground font-normal"> (you)</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {a.user_position || a.user_email || ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {a.approved ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600/30 gap-1">
+                            <Check className="h-3 w-3" />
+                            Approved
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground gap-1">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="shrink-0 flex gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={openManageApprovals}
+                >
+                  <Wrench className="h-4 w-4 mr-1" />
+                  Manage
                 </Button>
+                {myApproval && (
+                  <PoApproveOrderButton
+                    className="flex-1"
+                    approved={myApproval.approved}
+                    blocked={!approvalSectionsStatus.allConfirmed}
+                    blockedStatus={approvalSectionsStatus}
+                    isBusy={isApproving || isUnapproving}
+                    onToggle={handleToggleMyApproval}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Supplier — beneath order details */}
+          <Card
+            id="po-section-supplier"
+            className={cn(
+              'order-2 lg:col-span-2 lg:row-start-2 scroll-mt-6',
+              supplierDisabled && confirmedSectionCardClass
+            )}
+          >
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  Supplier
+                  {invoiceLocked && (
+                    <Badge variant="outline" className="ml-1 font-normal text-green-600 border-green-600/30">
+                      Confirmed
+                    </Badge>
+                  )}
+                  {!invoiceLocked && supplierConfirmed && (
+                    <Badge variant="outline" className="ml-1 font-normal text-green-600 border-green-600/30">
+                      Confirmed
+                    </Badge>
+                  )}
+                </CardTitle>
+                {invoiceLocked ? (
+                  <PoSectionConfirmButton confirmed label="supplier" variant="system" />
+                ) : (
+                  <PoSectionConfirmButton
+                    id="po-confirm-supplier"
+                    confirmed={supplierConfirmed}
+                    onToggle={() => requestSectionConfirmToggle('supplier', supplierConfirmed)}
+                    isLoading={confirmingSection === 'supplier'}
+                    label="supplier"
+                    flashing={confirmButtonFlashing === 'supplier'}
+                    onFlashEnd={() => setConfirmButtonFlashing(null)}
+                  />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className={supplierDisabled ? confirmedSectionContentClass : undefined}>
+                <AccountSelectSummaryButton
+                  onClick={() => {
+                    if (!supplierDisabled) setAccountPickerOpen(true);
+                  }}
+                  ariaLabel={
+                    draft.account_id != null
+                      ? `Change supplier. Current account ID ${draft.account_id}`
+                      : 'Select supplier'
+                  }
+                  selectedLine={accounts.find((a) => a.id === draft.account_id)?.name ?? null}
+                  staleNumericId={draft.account_id != null ? String(draft.account_id) : null}
+                  className={cn('mt-0', supplierDisabled && 'pointer-events-none')}
+                />
+                <AccountSelectorDialog
+                  open={accountPickerOpen}
+                  onOpenChange={setAccountPickerOpen}
+                  title="Select supplier"
+                  description="Search and pick the supplier account for this purchase order."
+                  selectedAccountId={draft.account_id ?? undefined}
+                  onSelect={(account) => {
+                    if (!account) return;
+                    patch({ account_id: account.id });
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1061,10 +1158,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   <PoSectionConfirmButton confirmed label="order items" variant="system" />
                 ) : (
                   <PoSectionConfirmButton
+                    id="po-confirm-items"
                     confirmed={itemsConfirmed}
                     onToggle={() => requestSectionConfirmToggle('items', itemsConfirmed)}
                     isLoading={confirmingSection === 'items'}
                     label="order items"
+                    flashing={confirmButtonFlashing === 'items'}
+                    onFlashEnd={() => setConfirmButtonFlashing(null)}
                   />
                 )}
               </div>
@@ -1142,91 +1242,129 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           </CardContent>
         </Card>
 
-        {/* Invoice & Payment */}
+        <PoLinkedInvoiceCard
+          invoiceId={order.invoice_id ?? null}
+          invoice={linkedInvoice}
+          invoiceStatus={linkedInvoiceStatus}
+          invoiceConfirmed={invoiceConfirmed}
+          invoiceLocked={invoiceLocked}
+          hasSupplier={hasSupplier}
+          isSyncingDraft={isEnsuringDraft}
+          accountName={accounts.find((a) => a.id === order.account_id)?.name ?? null}
+          accountId={order.account_id ?? null}
+          linkedOrderNumber={order.po_number}
+          invoiceSectionReadiness={sectionConfirmReadiness.invoice}
+          confirmReadiness={confirmReadiness}
+          isConfirming={isConfirmingInvoice}
+          isVoiding={isVoidingInvoice}
+          isConfirmingInvoiceSection={confirmingSection === 'invoice'}
+          onToggleInvoiceConfirm={requestInvoiceSectionConfirmToggle}
+          onConfirmInvoice={() => setConfirmInvoiceOpen(true)}
+          onVoidInvoice={() => setVoidInvoiceOpen(true)}
+          onOpenFullView={() => setInvoiceDialogOpen(true)}
+          finalizeFlashing={finalizeButtonFlashing}
+          onFinalizeFlashEnd={() => setFinalizeButtonFlashing(false)}
+          invoiceConfirmFlashing={confirmButtonFlashing === 'invoice'}
+          onInvoiceConfirmFlashEnd={() => setConfirmButtonFlashing(null)}
+        />
+
+        <PoInvoiceWorkflowChecklist
+          invoiceId={order.invoice_id ?? null}
+          invoiceStatus={linkedInvoiceStatus}
+          invoiceConfirmed={invoiceConfirmed}
+          hasSupplier={hasSupplier}
+          confirmationsStatus={confirmationsStatus}
+          approvalSectionsStatus={approvalSectionsStatus}
+          sections={[
+            {
+              section: 'supplier',
+              label: 'Supplier',
+              confirmed: supplierConfirmed,
+              readinessHint: sectionConfirmReadiness.supplier.ok
+                ? undefined
+                : sectionConfirmReadiness.supplier.reason,
+            },
+            {
+              section: 'details',
+              label: 'Order details',
+              confirmed: detailsConfirmed,
+              readinessHint: sectionConfirmReadiness.details.ok
+                ? undefined
+                : sectionConfirmReadiness.details.reason,
+            },
+            {
+              section: 'items',
+              label: 'Items',
+              confirmed: itemsConfirmed,
+              readinessHint: sectionConfirmReadiness.items.ok
+                ? undefined
+                : sectionConfirmReadiness.items.reason,
+            },
+          ]}
+          approvalSummary={approvalSummary}
+          onScrollToSection={scrollToPoSection}
+          onScrollToFinalize={scrollToFinalizeInvoice}
+          onScrollToManageApprovals={scrollToManageApprovalsCard}
+        />
+
+        {/* Comments — placeholder */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-4 shrink-0">
             <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Invoice & Payment
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              Comments
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <PoInvoicePaymentSection
-              invoiceId={order.invoice_id ?? null}
-              confirmationsStatus={confirmationsStatus}
-              sections={[
-                {
-                  section: 'supplier',
-                  label: 'Supplier',
-                  confirmed: supplierConfirmed,
-                  readinessHint: sectionConfirmReadiness.supplier.ok
-                    ? undefined
-                    : sectionConfirmReadiness.supplier.reason,
-                },
-                {
-                  section: 'details',
-                  label: 'Order details',
-                  confirmed: detailsConfirmed,
-                  readinessHint: sectionConfirmReadiness.details.ok
-                    ? undefined
-                    : sectionConfirmReadiness.details.reason,
-                },
-                {
-                  section: 'items',
-                  label: 'Items',
-                  confirmed: itemsConfirmed,
-                  readinessHint: sectionConfirmReadiness.items.ok
-                    ? undefined
-                    : sectionConfirmReadiness.items.reason,
-                },
-              ]}
-              approvalSummary={approvalSummary}
-              headerApprovers={headerApprovers}
-              myApproval={myApproval}
-              isApproving={isApproving}
-              isUnapproving={isUnapproving}
-              onToggleMyApproval={handleToggleMyApproval}
-              onManageApprovals={() => setApprovalsOpen(true)}
-              invoiceReadiness={invoiceReadiness}
-              isCreatingInvoice={isCreatingInvoice}
-              onCreateInvoice={handleCreateInvoice}
-              onViewInvoice={() => setInvoiceDialogOpen(true)}
-              onScrollToSection={scrollToPoSection}
-              initialsOf={initialsOf}
-              avatarColor={avatarColor}
-            />
+          <CardContent className="flex flex-col gap-4 pt-0">
+            <div className="rounded-lg border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
+              <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-muted-foreground">No comments yet</p>
+              <p className="text-xs text-muted-foreground">Comment thread coming soon</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input placeholder="Write a comment..." disabled className="flex-1" />
+              <Button size="icon" disabled className="shrink-0">
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         {/* Event Log (WIRED) */}
         <Card className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden">
-          <CardHeader className="pb-4 shrink-0">
-            <div className="flex items-center gap-3 flex-wrap">
-              <CardTitle className="text-base flex items-center gap-2">
-                <History className="h-4 w-4 text-muted-foreground" />
-                Event Log
-                <Badge variant="outline" className="ml-1 font-normal">{filteredEvents.length}</Badge>
-              </CardTitle>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  'h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground',
-                  showConfirmEvents &&
-                    'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                )}
-                onClick={() => setShowConfirmEvents((v) => !v)}
-                aria-pressed={showConfirmEvents}
-                aria-label={showConfirmEvents ? 'Hide confirm events' : 'Show confirm events'}
-              >
-                {showConfirmEvents ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <CircleDashed className="h-3.5 w-3.5" />
-                )}
-                Show confirms
-              </Button>
+          <CardHeader className="p-4 pb-3 shrink-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div className="flex items-center gap-3 flex-wrap min-w-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  Event Log
+                  <Badge variant="outline" className="ml-1 font-normal">{filteredEvents.length}</Badge>
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground',
+                    showConfirmEvents &&
+                      'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                  )}
+                  onClick={() => setShowConfirmEvents((v) => !v)}
+                  aria-pressed={showConfirmEvents}
+                  aria-label={showConfirmEvents ? 'Hide confirm events' : 'Show confirm events'}
+                >
+                  {showConfirmEvents ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <CircleDashed className="h-3.5 w-3.5" />
+                  )}
+                  Show confirms
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground shrink-0">
+                Created {formatDate(order.created_at)} · Updated{' '}
+                {formatDate(order.updated_at ?? order.created_at)}
+              </p>
             </div>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 overflow-y-auto pt-0">
@@ -1254,6 +1392,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Page-wide Save bar */}
@@ -1280,10 +1419,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
       {/* Manage receiving dialog */}
       <Dialog open={receivingOpen} onOpenChange={(o) => { if (!o) closeReceiving(); }}>
-        <DialogContent
-          className="w-[min(42rem,94vw)] max-w-none"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
+        <DialogContent className="w-[min(42rem,94vw)] max-w-none">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-muted-foreground" />
@@ -1452,6 +1588,71 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           showOrderSummary={false}
         />
       ) : null}
+
+      {order.invoice_id ? (
+        <>
+          <InvoiceConfirmDialog
+            open={confirmInvoiceOpen}
+            onOpenChange={setConfirmInvoiceOpen}
+            onConfirm={handleConfirmInvoice}
+            isConfirming={isConfirmingInvoice}
+            extraDescription="Confirming will lock this purchase order and post the payable to the supplier account."
+          />
+          <InvoiceVoidDialog
+            open={voidInvoiceOpen}
+            onOpenChange={setVoidInvoiceOpen}
+            onVoid={handleVoidInvoice}
+            isVoiding={isVoidingInvoice}
+            extraWarning="The linked purchase order will become editable again and all order approvals will be cleared."
+          />
+        </>
+      ) : null}
+
+      <ManagePoApprovalsDialog
+        open={manageApprovalsOpen}
+        onOpenChange={setManageApprovalsOpen}
+        approvers={approvers}
+        assignableMembers={assignableMembers}
+        requiredApprovals={draft.required_approvals}
+        onRequiredApprovalsChange={(value) => patch({ required_approvals: value })}
+        onAddApprover={handleAddApprover}
+        onRemoveApprover={handleRemoveApprover}
+        initialsOf={initialsOf}
+        avatarColor={avatarColor}
+      />
+
+      <Dialog
+        open={unconfirmWarningOpen}
+        onOpenChange={(open) => {
+          setUnconfirmWarningOpen(open);
+          if (!open) setPendingUnconfirmSection(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unconfirm section?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            All current order approvals will be withdrawn. Approvers must approve the order again
+            after sections are re-confirmed.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setUnconfirmWarningOpen(false);
+                setPendingUnconfirmSection(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleConfirmSectionUnconfirm}>
+              Unconfirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -5,12 +5,14 @@ import type { PurchaseOrder, PurchaseOrderItem } from '@/types/purchaseOrder';
 import {
   PO_MILESTONES,
   derivePurchaseOrderMilestones,
+  type PoLinkedInvoiceStatus,
   type PoMilestoneState,
 } from './purchaseOrderMilestones';
 
 export interface PurchaseOrderMilestoneTrackerProps {
   order: PurchaseOrder;
   items: PurchaseOrderItem[];
+  invoiceStatus?: PoLinkedInvoiceStatus;
   className?: string;
 }
 
@@ -54,9 +56,10 @@ function MilestoneCircle({ state, label }: { state: PoMilestoneState; label: str
 const PurchaseOrderMilestoneTracker: React.FC<PurchaseOrderMilestoneTrackerProps> = ({
   order,
   items,
+  invoiceStatus = null,
   className,
 }) => {
-  const states = derivePurchaseOrderMilestones(order, items);
+  const states = derivePurchaseOrderMilestones(order, items, invoiceStatus);
 
   return (
     <div className={cn('flex w-full min-w-[11rem] items-center', className)}>

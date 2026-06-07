@@ -13,7 +13,7 @@ export function SectionConfirmIcon({
   return (
     <span
       className={cn(
-        'inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] border transition-colors',
         confirmed
           ? 'border-green-600 bg-green-600 text-white shadow-sm dark:border-green-500 dark:bg-green-600'
           : 'border-border bg-muted/60 text-muted-foreground/40',
@@ -21,7 +21,7 @@ export function SectionConfirmIcon({
       )}
       aria-hidden
     >
-      <Check className="h-3 w-3" strokeWidth={2.5} />
+      <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
     </span>
   );
 }
@@ -33,6 +33,9 @@ interface PoSectionConfirmButtonProps {
   label: string;
   className?: string;
   variant?: 'manual' | 'system' | 'display';
+  id?: string;
+  flashing?: boolean;
+  onFlashEnd?: () => void;
 }
 
 const PoSectionConfirmButton: React.FC<PoSectionConfirmButtonProps> = ({
@@ -42,11 +45,14 @@ const PoSectionConfirmButton: React.FC<PoSectionConfirmButtonProps> = ({
   label,
   className,
   variant = 'manual',
+  id,
+  flashing = false,
+  onFlashEnd,
 }) => {
   if (variant === 'system') {
     return (
       <span
-        className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center', className)}
+        className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center', className)}
         title="Confirmed after invoice created"
         aria-label={`${label} confirmed after invoice created`}
       >
@@ -58,7 +64,7 @@ const PoSectionConfirmButton: React.FC<PoSectionConfirmButtonProps> = ({
   if (variant === 'display') {
     return (
       <span
-        className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center', className)}
+        className={cn('inline-flex h-10 w-10 shrink-0 items-center justify-center', className)}
         aria-label={confirmed ? `${label} confirmed` : `${label} not confirmed`}
       >
         <SectionConfirmIcon confirmed={confirmed} />
@@ -68,18 +74,28 @@ const PoSectionConfirmButton: React.FC<PoSectionConfirmButtonProps> = ({
 
   return (
     <Button
+      id={id}
       type="button"
       variant="ghost"
       size="icon"
-      className={cn('group h-7 w-7 shrink-0 hover:bg-transparent', className)}
+      className={cn(
+        'group h-10 w-10 shrink-0 rounded-md hover:bg-transparent',
+        flashing && 'po-flash-highlight-3',
+        className
+      )}
       onClick={onToggle}
       disabled={isLoading || !onToggle}
       title={confirmed ? `Unconfirm ${label}` : `Confirm ${label}`}
       aria-label={confirmed ? `Unconfirm ${label}` : `Confirm ${label}`}
       aria-pressed={confirmed}
+      onAnimationEnd={(event) => {
+        if (flashing && event.animationName === 'po-flash-highlight-3') {
+          onFlashEnd?.();
+        }
+      }}
     >
       {isLoading ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       ) : (
         <SectionConfirmIcon
           confirmed={confirmed}

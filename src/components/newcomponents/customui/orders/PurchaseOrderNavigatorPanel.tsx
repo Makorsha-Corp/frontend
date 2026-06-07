@@ -11,6 +11,7 @@ export interface PurchaseOrderNavigatorPanelProps {
   isLoading: boolean;
   hasActiveFilters: boolean;
   onSelectOrder: (id: number) => void;
+  onDeleteOrder?: (order: PurchaseOrder) => void;
   onAddOrder: () => void;
   accountName: (id: number) => string;
   statusLabel: (id: number) => string;
@@ -25,6 +26,7 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
   isLoading,
   hasActiveFilters,
   onSelectOrder,
+  onDeleteOrder,
   onAddOrder,
   accountName,
   statusLabel,
@@ -81,6 +83,11 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
                 order={o}
                 isSelected={selectedOrderId === o.id}
                 onClick={() => onSelectOrder(o.id)}
+                onDelete={
+                  selectedOrderId === o.id && onDeleteOrder
+                    ? () => onDeleteOrder(o)
+                    : undefined
+                }
                 accountName={accountName(o.account_id)}
                 statusLabel={statusLabel(o.current_status_id)}
                 destinationLabel={destinationLabel(o)}

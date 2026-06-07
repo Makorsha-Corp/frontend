@@ -1,8 +1,11 @@
-import type { PurchaseOrder, PurchaseOrderItem } from '@/types/purchaseOrder';
+import type { ApprovalSummary, PurchaseOrder, PurchaseOrderItem } from '@/types/purchaseOrder';
+import type { AccountInvoice } from '@/types/accountInvoice';
 
 export type PoMilestoneId = 'details' | 'supplier' | 'items' | 'invoice' | 'received';
 
 export type PoMilestoneState = 'pending' | 'partial' | 'complete';
+
+export type PoLinkedInvoiceStatus = AccountInvoice['invoice_status'] | null;
 
 export interface PoMilestoneConfig {
   id: PoMilestoneId;
@@ -34,6 +37,10 @@ export function isPurchaseOrderItemsComplete(items: PurchaseOrderItem[]): boolea
   return items.length > 0;
 }
 
+export function isPoFinanciallyLocked(invoiceStatus: PoLinkedInvoiceStatus): boolean {
+  return invoiceStatus === 'confirmed';
+}
+
 export interface PoConfirmationsStatus {
   allConfirmed: boolean;
   title: string;
@@ -42,15 +49,6 @@ export interface PoConfirmationsStatus {
 }
 
 export function getPurchaseOrderConfirmationsStatus(order: PurchaseOrder): PoConfirmationsStatus {
-  if (order.invoice_id != null) {
-    return {
-      allConfirmed: true,
-      title: 'All sections confirmed',
-      reason: 'Supplier, order details, and items locked after invoice was created',
-      pendingLabels: [],
-    };
-  }
-
   const pendingLabels: string[] = [];
   if (!order.supplier_confirmed) pendingLabels.push('Supplier');
   if (!order.details_confirmed) pendingLabels.push('Order details');
@@ -73,7 +71,28 @@ export function getPurchaseOrderConfirmationsStatus(order: PurchaseOrder): PoCon
   };
 }
 
-export type PoSectionConfirmKey = 'supplier' | 'details' | 'items';
+export function getPurchaseOrderApprovalSectionsStatus(order: PurchaseOrder): PoConfirmationsStatus {
+  const base = getPurchaseOrderConfirmationsStatus(order);
+  if (!base.allConfirmed) {
+    return base;
+  }
+  if (!order.invoice_confirmed) {
+    return {
+      allConfirmed: false,
+      title: 'Draft invoice not confirmed',
+      reason: 'Confirm the draft invoice in the Linked Invoice card',
+      pendingLabels: ['Draft invoice'],
+    };
+  }
+  return {
+    allConfirmed: true,
+    title: 'All sections confirmed',
+    reason: 'Supplier, order details, items, and draft invoice are confirmed',
+    pendingLabels: [],
+  };
+}
+
+export type PoSectionConfirmKey = 'supplier' | 'details' | 'items' | 'invoice';
 
 export interface PoEffectiveOrderFields {
   account_id: number | null;
@@ -85,8 +104,20 @@ export interface PoEffectiveOrderFields {
 export function canConfirmPurchaseOrderSection(
   section: PoSectionConfirmKey,
   order: PoEffectiveOrderFields,
-  items: PurchaseOrderItem[]
+  items: PurchaseOrderItem[],
+  invoiceStatus: PoLinkedInvoiceStatus = null,
+  invoiceId: number | null = null
 ): { ok: boolean; reason?: string } {
+  if (section === 'invoice') {
+    if (invoiceId == null || invoiceStatus !== 'draft') {
+      return { ok: false, reason: 'Assign a supplier — draft invoice syncs from the order' };
+    }
+    const po = order as PurchaseOrder;
+    if (!po.supplier_confirmed || !po.details_confirmed || !po.items_confirmed) {
+      return { ok: false, reason: 'Confirm supplier, order details, and items first' };
+    }
+    return { ok: true };
+  }
   if (section === 'supplier') {
     if (order.account_id == null) {
       return { ok: false, reason: 'Select a supplier first' };
@@ -108,20 +139,16 @@ export function canConfirmPurchaseOrderSection(
   return { ok: true };
 }
 
-export function canCreatePurchaseOrderInvoice(
+export function canCreateDraftPoInvoice(
   order: PurchaseOrder,
-  items: PurchaseOrderItem[],
-  approvalMet: boolean
+  items: PurchaseOrderItem[]
 ): { ok: boolean; reason?: string } {
   if (order.invoice_id != null) {
-    return { ok: false, reason: 'Invoice already created' };
+    return { ok: false, reason: 'Draft invoice already exists' };
   }
   const confirmations = getPurchaseOrderConfirmationsStatus(order);
   if (!confirmations.allConfirmed) {
     return { ok: false, reason: 'Confirm all sections first' };
-  }
-  if (!approvalMet) {
-    return { ok: false, reason: 'Approvals required before creating an invoice' };
   }
   if (!isPurchaseOrderSupplierComplete(order)) {
     return {
@@ -141,8 +168,43 @@ export function canCreatePurchaseOrderInvoice(
   return { ok: true };
 }
 
-function invoiceComplete(order: PurchaseOrder): boolean {
-  return order.invoice_id != null;
+export function canConfirmPoInvoice(
+  order: PurchaseOrder,
+  approvalMet: boolean,
+  invoiceStatus: PoLinkedInvoiceStatus
+): { ok: boolean; reason?: string } {
+  if (order.invoice_id == null) {
+    return { ok: false, reason: 'Draft invoice has not synced yet — assign a supplier and save' };
+  }
+  if (invoiceStatus !== 'draft') {
+    return { ok: false, reason: 'Only draft invoices can be confirmed' };
+  }
+  if (!order.invoice_confirmed) {
+    return { ok: false, reason: 'Confirm the draft invoice section first' };
+  }
+  if (!approvalMet) {
+    return { ok: false, reason: 'Approvals required before confirming invoice' };
+  }
+  return { ok: true };
+}
+
+/** @deprecated Use canCreateDraftPoInvoice — kept for gradual migration */
+export function canCreatePurchaseOrderInvoice(
+  order: PurchaseOrder,
+  items: PurchaseOrderItem[],
+  _approvalMet: boolean
+): { ok: boolean; reason?: string } {
+  return canCreateDraftPoInvoice(order, items);
+}
+
+function invoiceMilestoneState(
+  order: PurchaseOrder,
+  invoiceStatus: PoLinkedInvoiceStatus
+): PoMilestoneState {
+  if (order.invoice_id == null) return 'pending';
+  if (invoiceStatus === 'confirmed') return 'complete';
+  if (invoiceStatus === 'draft') return 'partial';
+  return 'pending';
 }
 
 function receivedState(items: PurchaseOrderItem[]): PoMilestoneState {
@@ -162,13 +224,20 @@ function confirmedMilestoneState(confirmed: boolean): PoMilestoneState {
 
 export function derivePurchaseOrderMilestones(
   order: PurchaseOrder,
-  items: PurchaseOrderItem[]
+  items: PurchaseOrderItem[],
+  invoiceStatus: PoLinkedInvoiceStatus = null
 ): Record<PoMilestoneId, PoMilestoneState> {
   return {
     details: confirmedMilestoneState(order.details_confirmed ?? false),
     supplier: confirmedMilestoneState(order.supplier_confirmed ?? false),
     items: confirmedMilestoneState(order.items_confirmed ?? false),
-    invoice: invoiceComplete(order) ? 'complete' : 'pending',
+    invoice: invoiceMilestoneState(order, invoiceStatus),
     received: receivedState(items),
   };
+}
+
+export function approvalsMilestoneState(summary: ApprovalSummary): PoMilestoneState {
+  if (summary.met) return 'complete';
+  if (summary.approved_count > 0) return 'partial';
+  return 'pending';
 }

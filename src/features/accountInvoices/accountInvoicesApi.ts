@@ -88,7 +88,7 @@ export const accountInvoicesApi = createApi({
         method: 'DELETE',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: ['AccountInvoice'],
+      invalidatesTags: ['AccountInvoice', 'PurchaseOrder', 'PurchaseOrderItem', 'ActiveOrders'],
     }),
     getInvoiceStatusHistory: builder.query<InvoiceStatusEntry[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/status-history/`,
@@ -100,7 +100,13 @@ export const accountInvoicesApi = createApi({
         method: 'POST',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (result, error, id) => [{ type: 'AccountInvoice', id }, 'AccountInvoice'],
+      invalidatesTags: (result, error, id) => [
+        { type: 'AccountInvoice', id },
+        'AccountInvoice',
+        'PurchaseOrder',
+        'PurchaseOrderItem',
+        'ActiveOrders',
+      ],
     }),
     voidAccountInvoice: builder.mutation<AccountInvoice, { id: number; void_note: string }>({
       query: ({ id, void_note }) => ({
@@ -109,7 +115,13 @@ export const accountInvoicesApi = createApi({
         body: { void_note },
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (result, error, { id }) => [{ type: 'AccountInvoice', id }, 'AccountInvoice'],
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'AccountInvoice', id },
+        'AccountInvoice',
+        'PurchaseOrder',
+        'PurchaseOrderItem',
+        'ActiveOrders',
+      ],
     }),
   }),
 });
