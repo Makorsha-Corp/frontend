@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,10 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { Plus, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 
 export type MachineItemDraft = {
@@ -47,6 +53,7 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
   const [reqQty, setReqQty] = useState('');
   const [defectiveQty, setDefectiveQty] = useState('');
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [addHintOpen, setAddHintOpen] = useState(false);
 
   const { data: itemsList = [], refetch: refetchItems } = useGetItemsQuery(
     { skip: 0, limit: API_LIMITS.STRICT_100 },
@@ -62,18 +69,46 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
     setIsAddItemOpen(false);
   };
 
-  const handleAddLine = () => {
+  const canAddLineItem = (() => {
+    if (!itemId.trim() || qty.trim() === '') return false;
     const iid = parseInt(itemId, 10);
     const q = parseInt(qty, 10);
-    if (isNaN(iid) || isNaN(q) || q < 0) {
+    if (isNaN(iid) || isNaN(q) || q < 0 || usedItemIds.has(iid)) return false;
+    if (reqQty.trim() !== '') {
+      const req = parseInt(reqQty, 10);
+      if (isNaN(req) || req < 0) return false;
+    }
+    if (defectiveQty.trim() !== '') {
+      const def = parseInt(defectiveQty, 10);
+      if (isNaN(def) || def < 0) return false;
+    }
+    return true;
+  })();
+
+  useEffect(() => {
+    if (canAddLineItem) setAddHintOpen(false);
+  }, [canAddLineItem]);
+
+  useEffect(() => {
+    if (!addHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-add-item-hint-root]')) {
+        setAddHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [addHintOpen]);
+
+  const handleAddLineClick = () => {
+    if (!canAddLineItem) {
+      setAddHintOpen(true);
       return;
     }
-    if (usedItemIds.has(iid)) return;
-
+    const iid = parseInt(itemId, 10);
+    const q = parseInt(qty, 10);
     const req = reqQty.trim() === '' ? null : parseInt(reqQty, 10);
     const def = defectiveQty.trim() === '' ? null : parseInt(defectiveQty, 10);
-    if (reqQty.trim() !== '' && (isNaN(req!) || req! < 0)) return;
-    if (defectiveQty.trim() !== '' && (isNaN(def!) || def! < 0)) return;
 
     onLinesChange((prev) => [
       ...prev,
@@ -89,6 +124,7 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
     setQty('');
     setReqQty('');
     setDefectiveQty('');
+    setAddHintOpen(false);
   };
 
   const updateLine = (key: string, patch: Partial<Pick<MachineItemDraft, 'qty' | 'req_qty' | 'defective_qty'>>) => {
@@ -120,76 +156,124 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
           {hint?.trim() ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
         </div>
 
-        <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-          <div className="flex gap-2">
-            <Select
-              value={itemId || '__none__'}
-              onValueChange={(v) => setItemId(v === '__none__' ? '' : v)}
-            >
-              <SelectTrigger className="min-w-0 flex-1 bg-background">
-                <SelectValue placeholder="Select item" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select item</SelectItem>
-                {availableItems.map((i) => (
-                  <SelectItem key={i.id} value={i.id.toString()}>
-                    {i.name}
-                    {i.unit ? ` (${i.unit})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => setIsAddItemOpen(true)} title="Create new item">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="grid gap-1">
-              <Label className="text-xs text-muted-foreground">
-                Qty *{addFormUnit ? ` (${addFormUnit})` : ''}
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                placeholder="0"
-                className="bg-background"
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs text-muted-foreground">Req qty</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={reqQty}
-                onChange={(e) => setReqQty(e.target.value)}
-                placeholder="—"
-                className="bg-background"
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label className="text-xs text-muted-foreground">Defective</Label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={defectiveQty}
-                onChange={(e) => setDefectiveQty(e.target.value)}
-                placeholder="—"
-                className="bg-background"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button type="button" variant="outline" className="w-full" onClick={handleAddLine} disabled={!itemId || qty === ''}>
-                <Plus className="mr-1 h-4 w-4" />
-                Add line
+        <TooltipProvider delayDuration={150}>
+          <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <Select
+                  value={itemId || '__none__'}
+                  onValueChange={(v) => setItemId(v === '__none__' ? '' : v)}
+                >
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Select item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Select item</SelectItem>
+                    {availableItems.map((i) => (
+                      <SelectItem key={i.id} value={i.id.toString()}>
+                        {i.name}
+                        {i.unit ? ` (${i.unit})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                - or -
+              </span>
+              <Button
+                type="button"
+                className="h-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
+                onClick={() => setIsAddItemOpen(true)}
+              >
+                Create item +
               </Button>
             </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="grid min-w-[5rem] flex-1 gap-1">
+                <Label className="text-xs text-muted-foreground">
+                  Qty *{addFormUnit ? ` (${addFormUnit})` : ''}
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  placeholder="0"
+                  className="bg-background"
+                />
+              </div>
+              <div className="grid min-w-[5.5rem] flex-1 gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Label className="w-fit cursor-help text-xs text-muted-foreground underline decoration-dotted underline-offset-2">
+                      Required
+                    </Label>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[14rem]">
+                    Optional minimum quantity to keep on this machine.
+                  </TooltipContent>
+                </Tooltip>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={reqQty}
+                  onChange={(e) => setReqQty(e.target.value)}
+                  placeholder="—"
+                  className="bg-background"
+                />
+              </div>
+              <div className="grid min-w-[5.5rem] flex-1 gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Label className="w-fit cursor-help text-xs text-muted-foreground underline decoration-dotted underline-offset-2">
+                      Defective
+                    </Label>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[14rem]">
+                    Optional count of defective units tracked separately from on-hand qty.
+                  </TooltipContent>
+                </Tooltip>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={defectiveQty}
+                  onChange={(e) => setDefectiveQty(e.target.value)}
+                  placeholder="—"
+                  className="bg-background"
+                />
+              </div>
+              <div className="relative shrink-0" data-add-item-hint-root>
+                {addHintOpen && !canAddLineItem ? (
+                  <div
+                    role="tooltip"
+                    className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                  >
+                    Select item and qty
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  size="icon"
+                  className={
+                    canAddLineItem
+                      ? 'h-10 w-10 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
+                      : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed'
+                  }
+                  onClick={handleAddLineClick}
+                  aria-label="Add line item"
+                  aria-expanded={addHintOpen && !canAddLineItem}
+                  aria-disabled={!canAddLineItem}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
+        </TooltipProvider>
 
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background">
           {lines.length === 0 ? (
