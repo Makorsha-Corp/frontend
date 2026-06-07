@@ -43,6 +43,9 @@ const AccountDetailPage: React.FC = () => {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'all' | 'payable' | 'receivable'>('all');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid' | 'overdue'>('all');
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState('');
   const [invoicePage, setInvoicePage] = useState(0);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const accountId = id ? parseInt(id, 10) : null;
@@ -52,25 +55,31 @@ const AccountDetailPage: React.FC = () => {
   const pageSize = API_LIMITS.ACCOUNT_INVOICE_PAGE_SIZE;
 
   const invoiceListParams = useMemo(() => {
-    const base = {
+    const params: Record<string, unknown> = {
       account_id: accountId!,
       skip: invoicePage * pageSize,
       limit: pageSize,
-    } as const;
-    if (invoiceTypeFilter === 'all') return { ...base };
-    return { ...base, invoice_type: invoiceTypeFilter };
-  }, [accountId, invoicePage, pageSize, invoiceTypeFilter]);
+    };
+    if (invoiceTypeFilter !== 'all') params.invoice_type = invoiceTypeFilter;
+    if (invoiceStatusFilter !== 'all') params.payment_status = invoiceStatusFilter;
+    if (invoiceDateFrom) params.invoice_date_from = invoiceDateFrom;
+    if (invoiceDateTo) params.invoice_date_to = invoiceDateTo;
+    return params;
+  }, [accountId, invoicePage, pageSize, invoiceTypeFilter, invoiceStatusFilter, invoiceDateFrom, invoiceDateTo]);
 
   /** Up to backend max: used for summary totals and approximate invoice count (not for the list rows). */
   const invoiceTotalsParams = useMemo(() => {
-    const base = {
+    const params: Record<string, unknown> = {
       account_id: accountId!,
       skip: 0,
       limit: API_LIMITS.FLEXIBLE_1000,
-    } as const;
-    if (invoiceTypeFilter === 'all') return { ...base };
-    return { ...base, invoice_type: invoiceTypeFilter };
-  }, [accountId, invoiceTypeFilter]);
+    };
+    if (invoiceTypeFilter !== 'all') params.invoice_type = invoiceTypeFilter;
+    if (invoiceStatusFilter !== 'all') params.payment_status = invoiceStatusFilter;
+    if (invoiceDateFrom) params.invoice_date_from = invoiceDateFrom;
+    if (invoiceDateTo) params.invoice_date_to = invoiceDateTo;
+    return params;
+  }, [accountId, invoiceTypeFilter, invoiceStatusFilter, invoiceDateFrom, invoiceDateTo]);
 
   const { data: invoices = [], isLoading: invoiceListLoading } = useGetAccountInvoicesQuery(invoiceListParams, {
     skip: !accountId || isNaN(accountId),
@@ -179,7 +188,7 @@ const AccountDetailPage: React.FC = () => {
 
   useEffect(() => {
     setInvoicePage(0);
-  }, [invoiceTypeFilter, accountId]);
+  }, [invoiceTypeFilter, invoiceStatusFilter, invoiceDateFrom, invoiceDateTo, accountId]);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-US', {
@@ -419,30 +428,69 @@ const AccountDetailPage: React.FC = () => {
                               </p>
                             ) : null}
                           </div>
-                          <div className="border-b border-border px-3 py-3">
+                          <div className="border-b border-border px-3 py-3 space-y-2">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                               <Input
                                 value={invoiceSearch}
                                 onChange={(e) => setInvoiceSearch(e.target.value)}
-                                placeholder="Search invoice number, status, type..."
+                                placeholder="Search invoice number, notes..."
                                 className="h-9 flex-1 min-w-0"
                               />
                               <Select
                                 value={invoiceTypeFilter}
                                 onValueChange={(v) => setInvoiceTypeFilter(v as 'all' | 'payable' | 'receivable')}
                               >
-                                <SelectTrigger
-                                  className="h-9 w-full sm:w-[200px] shrink-0 sm:ml-auto"
-                                  aria-label="Invoice type"
-                                >
-                                  <SelectValue placeholder="Invoice type" />
+                                <SelectTrigger className="h-9 w-full sm:w-[170px] shrink-0" aria-label="Invoice type">
+                                  <SelectValue placeholder="Type" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="all">All (payable & receivable)</SelectItem>
+                                  <SelectItem value="all">All types</SelectItem>
                                   <SelectItem value="payable">Payable only</SelectItem>
                                   <SelectItem value="receivable">Receivable only</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <Select
+                                value={invoiceStatusFilter}
+                                onValueChange={(v) => setInvoiceStatusFilter(v as typeof invoiceStatusFilter)}
+                              >
+                                <SelectTrigger className="h-9 w-full sm:w-[150px] shrink-0" aria-label="Payment status">
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All statuses</SelectItem>
+                                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                                  <SelectItem value="partial">Partial</SelectItem>
+                                  <SelectItem value="paid">Paid</SelectItem>
+                                  <SelectItem value="overdue">Overdue</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                              <span className="text-xs text-muted-foreground shrink-0">Invoice date</span>
+                              <Input
+                                type="date"
+                                value={invoiceDateFrom}
+                                onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                                className="h-8 flex-1 min-w-0 text-xs"
+                                aria-label="Invoice date from"
+                              />
+                              <span className="text-xs text-muted-foreground shrink-0">to</span>
+                              <Input
+                                type="date"
+                                value={invoiceDateTo}
+                                onChange={(e) => setInvoiceDateTo(e.target.value)}
+                                className="h-8 flex-1 min-w-0 text-xs"
+                                aria-label="Invoice date to"
+                              />
+                              {(invoiceDateFrom || invoiceDateTo) && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setInvoiceDateFrom(''); setInvoiceDateTo(''); }}
+                                  className="text-xs text-muted-foreground hover:text-destructive shrink-0 transition-colors"
+                                >
+                                  Clear
+                                </button>
+                              )}
                             </div>
                           </div>
                           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">

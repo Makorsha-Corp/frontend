@@ -16,6 +16,12 @@ export interface InvoicePayment {
   // Notes
   notes: string | null;
 
+  // Void
+  is_voided: boolean;
+  voided_at: string | null;
+  voided_by: number | null;
+  void_note: string | null;
+
   // Audit
   created_at: string;
   created_by: number | null;

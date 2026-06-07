@@ -6,6 +6,7 @@ export interface AccountInvoiceApiResponse {
   account_id: number;
   order_id: number | null;
   invoice_type: 'payable' | 'receivable';
+  invoice_status: 'draft' | 'confirmed' | 'voided';
   invoice_amount: DecimalString;
   paid_amount: DecimalString;
   outstanding_amount: DecimalString;
@@ -18,6 +19,7 @@ export interface AccountInvoiceApiResponse {
   payment_locked_reason: string | null;
   description: string | null;
   notes: string | null;
+  void_note: string | null;
   created_at: string;
   created_by: number | null;
   updated_at: string | null;
@@ -46,8 +48,14 @@ export interface AccountInvoice {
   invoice_date: string;
   due_date: string | null;
 
-  // Status
+  // Lifecycle
+  invoice_status: 'draft' | 'confirmed' | 'voided';
+
+  // Status (only meaningful when invoice_status === 'confirmed')
   payment_status: 'unpaid' | 'partial' | 'paid' | 'overdue';
+
+  // Void note (set permanently when invoice is voided)
+  void_note: string | null;
 
   // Admin Controls
   allow_payments: boolean;
@@ -95,10 +103,28 @@ export interface UpdateAccountInvoiceRequest {
   payment_locked_reason?: string;
 }
 
+export interface InvoiceStatusEntry {
+  id: number;
+  invoice_id: number;
+  from_status: string;
+  to_status: string;
+  changed_at: string;
+  changed_by: number | null;
+  changed_by_name: string | null;
+}
+
 export interface ListAccountInvoicesParams {
   skip?: number;
   limit?: number;
   account_id?: number;
   invoice_type?: 'payable' | 'receivable';
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
+  invoice_number_search?: string;
+  account_name_search?: string;
+  invoice_date_from?: string;
+  invoice_date_to?: string;
+  due_date_from?: string;
+  due_date_to?: string;
+  amount_min?: number;
+  amount_max?: number;
 }

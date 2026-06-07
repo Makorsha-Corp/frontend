@@ -13,6 +13,7 @@ import { useUpdateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { Account, UpdateAccountRequest } from '@/types/account';
 import toast from 'react-hot-toast';
+import { Switch } from '@/components/ui/switch';
 import { Loader2, Search, X } from 'lucide-react';
 
 interface EditAccountDialogProps {
@@ -37,6 +38,8 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
   const [postalCode, setPostalCode] = useState('');
   const [paymentPreferences, setPaymentPreferences] = useState('');
   const [bankDetails, setBankDetails] = useState('');
+  const [allowInvoices, setAllowInvoices] = useState(true);
+  const [isActive, setIsActive] = useState(true);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [tagSearch, setTagSearch] = useState('');
 
@@ -90,6 +93,8 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
       setPostalCode(account.postal_code || '');
       setPaymentPreferences(account.payment_preferences || '');
       setBankDetails(account.bank_details || '');
+      setAllowInvoices(account.allow_invoices ?? true);
+      setIsActive(account.is_active ?? true);
       setSelectedTagIds((account.account_tags || []).map((tag) => tag.id));
       setTagSearch('');
     }
@@ -116,6 +121,8 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
       postal_code: postalCode.trim() || null,
       payment_preferences: paymentPreferences.trim() || null,
       bank_details: bankDetails.trim() || null,
+      allow_invoices: allowInvoices,
+      is_active: isActive,
       tag_ids: selectedTagIds,
     };
 
@@ -143,6 +150,8 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
       setPostalCode(account.postal_code || '');
       setPaymentPreferences(account.payment_preferences || '');
       setBankDetails(account.bank_details || '');
+      setAllowInvoices(account.allow_invoices ?? true);
+      setIsActive(account.is_active ?? true);
       setSelectedTagIds((account.account_tags || []).map((tag) => tag.id));
       setTagSearch('');
     }
@@ -234,6 +243,31 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
                 <div className="grid gap-2 md:col-span-2">
                   <Label htmlFor="edit-bank-details">Bank Details</Label>
                   <Input id="edit-bank-details" value={bankDetails} onChange={(e) => setBankDetails(e.target.value)} className="bg-background" />
+                </div>
+
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium leading-none">Allow Invoices</p>
+                      <p className="text-xs text-muted-foreground mt-1">Enable or disable invoice creation for this account</p>
+                    </div>
+                    <Switch
+                      id="edit-allow-invoices"
+                      checked={allowInvoices}
+                      onCheckedChange={setAllowInvoices}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium leading-none">Active</p>
+                      <p className="text-xs text-muted-foreground mt-1">Inactive accounts cannot have new invoices created</p>
+                    </div>
+                    <Switch
+                      id="edit-is-active"
+                      checked={isActive}
+                      onCheckedChange={setIsActive}
+                    />
+                  </div>
                 </div>
               </div>
 

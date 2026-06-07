@@ -39,6 +39,7 @@ export interface AccountApiResponse {
   payment_preferences: string | null;
   bank_details: string | null;
   allow_invoices: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -94,6 +95,7 @@ export interface UpdateAccountRequest {
   bank_details?: string | null;
 
   allow_invoices?: boolean;
+  is_active?: boolean;
   tag_ids?: number[];
 }
 
