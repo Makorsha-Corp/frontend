@@ -77,30 +77,35 @@ export const purchaseOrdersApi = createApi({
         }
       },
     }),
-    setPurchaseOrderSectionLock: builder.mutation<
+    setPurchaseOrderSectionConfirm: builder.mutation<
       PurchaseOrder,
-      { poId: number; section: 'details' | 'notes' | 'items'; locked: boolean }
+      {
+        poId: number;
+        section: 'supplier' | 'details' | 'notes' | 'items';
+        confirmed: boolean;
+      }
     >({
-      query: ({ poId, section, locked }) => ({
-        url: `purchase-orders/${poId}/section-lock/`,
+      query: ({ poId, section, confirmed }) => ({
+        url: `purchase-orders/${poId}/section-confirm/`,
         method: 'PATCH',
-        body: { section, locked },
+        body: { section, confirmed },
       }),
       invalidatesTags: (_r, _e, { poId }) => [
         { type: 'PurchaseOrder', id: poId },
         'PurchaseOrder',
         { type: 'PurchaseOrderEvents', id: poId },
       ],
-      async onQueryStarted({ poId, section, locked }, { dispatch, queryFulfilled }) {
-        const field =
-          section === 'details'
-            ? 'details_locked'
-            : section === 'notes'
-              ? 'notes_locked'
-              : 'items_locked';
+      async onQueryStarted({ poId, section, confirmed }, { dispatch, queryFulfilled }) {
+        const fieldMap = {
+          supplier: 'supplier_confirmed',
+          details: 'details_confirmed',
+          notes: 'notes_confirmed',
+          items: 'items_confirmed',
+        } as const;
+        const field = fieldMap[section];
         const patchById = dispatch(
           purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', poId, (draft) => {
-            draft[field] = locked;
+            draft[field] = confirmed;
           })
         );
         try {
@@ -201,7 +206,7 @@ export const {
   useGetPurchaseOrderByIdQuery,
   useCreatePurchaseOrderMutation,
   useUpdatePurchaseOrderMutation,
-  useSetPurchaseOrderSectionLockMutation,
+  useSetPurchaseOrderSectionConfirmMutation,
   useDeletePurchaseOrderMutation,
   useCreateInvoiceFromPurchaseOrderMutation,
   useGetPurchaseOrderItemsQuery,

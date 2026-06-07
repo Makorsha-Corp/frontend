@@ -33,11 +33,18 @@ function labelClasses(state: PoMilestoneState): string {
   );
 }
 
+const CONFIRM_MILESTONE_LABELS = new Set(['Order details', 'Supplier', 'Items']);
+
 function MilestoneCircle({ state, label }: { state: PoMilestoneState; label: string }) {
+  const title =
+    state === 'complete' && CONFIRM_MILESTONE_LABELS.has(label)
+      ? `${label} confirmed`
+      : `${label}: ${state}`;
+
   return (
     <div
       className={cn('flex shrink-0 items-center justify-center rounded-full', circleClasses(state))}
-      title={`${label}: ${state}`}
+      title={title}
     >
       {state === 'complete' && <Check className="h-3.5 w-3.5" strokeWidth={2.5} />}
     </div>

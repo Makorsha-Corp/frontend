@@ -30,6 +30,8 @@ export interface OrdersOverviewTableProps<T extends { id: number | string }> {
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
   className?: string;
+  headerActions?: React.ReactNode;
+  titleAddon?: React.ReactNode;
 }
 
 function alignClass(align?: OrdersTableColumnAlign): string {
@@ -47,13 +49,29 @@ function OrdersOverviewTable<T extends { id: number | string }>({
   emptyMessage = 'No orders match these filters.',
   emptyIcon,
   className,
+  headerActions,
+  titleAddon,
 }: OrdersOverviewTableProps<T>) {
+  const hasToolbar = Boolean(headerActions || titleAddon);
+
   return (
     <Card className={cn('border-border', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-      </CardHeader>
+      {hasToolbar ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <CardTitle className="text-base font-semibold leading-none">{title}</CardTitle>
+            {titleAddon}
+          </div>
+          {headerActions ? (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">{headerActions}</div>
+          ) : null}
+        </div>
+      ) : (
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">{title}</CardTitle>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </CardHeader>
+      )}
       <CardContent className="p-0 pb-4">
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-muted-foreground">

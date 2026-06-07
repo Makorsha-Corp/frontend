@@ -100,10 +100,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     if (accountPickerOpen || machinePickerOpen) {
       return;
     }
-    const aid = parseInt(accountId, 10);
     const did = parseInt(destinationId, 10);
-    if (isNaN(aid) || !accountId) {
-      toast.error('Select a supplier');
+    const aid = accountId ? parseInt(accountId, 10) : null;
+    if (accountId && (aid == null || isNaN(aid))) {
+      toast.error('Invalid supplier selection');
       return;
     }
     if (isNaN(did) || !destinationId) {
@@ -116,7 +116,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     }
 
     const orderData: CreatePurchaseOrder = {
-      account_id: aid,
+      ...(aid != null ? { account_id: aid } : {}),
       destination_type: destinationType,
       destination_id: did,
       order_date: new Date().toISOString().slice(0, 10),
@@ -166,6 +166,9 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
+          <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            - or -
+          </span>
           <Button
             type="button"
             className="h-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
@@ -245,7 +248,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const orderFieldsBlock = (
     <div className="grid gap-4 min-w-0">
       <div>
-        <Label>Supplier *</Label>
+        <Label>Supplier</Label>
         <AccountSelectSummaryButton
           onClick={() => setAccountPickerOpen(true)}
           ariaLabel={
@@ -261,7 +264,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           onOpenChange={setAccountPickerOpen}
           title="Select supplier"
           description="Search and pick the supplier account for this purchase order."
-          filterTagCode="supplier"
           selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
           onSelect={(account) => {
             if (!account) return;

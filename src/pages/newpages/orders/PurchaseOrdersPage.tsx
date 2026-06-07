@@ -33,7 +33,7 @@ import type { PurchaseOrder } from '@/types/purchaseOrder';
 import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
-import PurchaseOrderDetailPanelMockup from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanelMockup';
+import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -49,6 +49,13 @@ import {
 } from './purchaseOrdersOverviewData';
 
 const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
+
+const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
+  all: 'All destinations',
+  storage: 'Storage',
+  machine: 'Machine',
+  project: 'Project',
+};
 
 const PurchaseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -363,8 +370,10 @@ const PurchaseOrdersPage: React.FC = () => {
             value={destinationFilter}
             onValueChange={(v) => setDestinationFilter(v as DestinationTypeFilter)}
           >
-            <SelectTrigger className={`w-[130px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Destination" />
+            <SelectTrigger className={`w-[150px] h-9 border-border bg-background text-sm`}>
+              <SelectValue placeholder="All destinations">
+                {DESTINATION_FILTER_LABELS[destinationFilter]}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All destinations</SelectItem>
@@ -406,7 +415,7 @@ const PurchaseOrdersPage: React.FC = () => {
           {/* Content panel (overview or detail) */}
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
-              <PurchaseOrderDetailPanelMockup
+              <PurchaseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
                 onDelete={() => handleDelete(selectedOrder)}
