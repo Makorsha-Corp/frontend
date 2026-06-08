@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Check,
   X,
+  XCircle,
   CircleDashed,
   Building2,
   FileText,
@@ -48,6 +49,31 @@ export const PO_EVENT_VISUALS: Record<string, PoEventVisual> = {
     icon: FileText,
     wrap: 'bg-green-100 dark:bg-green-900/30',
     color: 'text-green-600 dark:text-green-400',
+  },
+  invoice_confirmed: {
+    icon: CheckCircle2,
+    wrap: 'bg-green-100 dark:bg-green-900/30',
+    color: 'text-green-600 dark:text-green-400',
+  },
+  invoice_voided: {
+    icon: XCircle,
+    wrap: 'bg-red-100 dark:bg-red-900/30',
+    color: 'text-red-600 dark:text-red-400',
+  },
+  invoice_draft_created: {
+    icon: FileText,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
+  },
+  invoice_draft_deleted: {
+    icon: XCircle,
+    wrap: 'bg-muted',
+    color: 'text-muted-foreground',
+  },
+  approvals_reset: {
+    icon: ShieldCheck,
+    wrap: 'bg-amber-100 dark:bg-amber-900/30',
+    color: 'text-amber-600 dark:text-amber-400',
   },
   details_updated: {
     icon: Edit3,

@@ -69,7 +69,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const [factoryFilter, setFactoryFilter] = useState<string>('all');
   const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
-  const [filtersBarOpen, setFiltersBarOpen] = useState(true);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(false);
 
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,

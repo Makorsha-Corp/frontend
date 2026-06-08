@@ -40,10 +40,9 @@ import {
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
+import { isOpenInvoiceBalance } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
-
-const OPEN_INVOICE_STATUSES = new Set(['unpaid', 'partial', 'overdue']);
 
 const SECTION_CONFIG = [
   { path: 'aggregated', label: 'Aggregated', icon: PieChart, kind: 'all' as const, tagCode: null },
@@ -120,7 +119,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const receivableOpenAccountIds = useMemo(() => {
     const ids = new Set<number>();
     for (const inv of receivableInvoices) {
-      if (OPEN_INVOICE_STATUSES.has(inv.payment_status)) {
+      if (isOpenInvoiceBalance(inv)) {
         ids.add(inv.account_id);
       }
     }
@@ -130,7 +129,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const payableOpenAccountIds = useMemo(() => {
     const ids = new Set<number>();
     for (const inv of payableInvoices) {
-      if (OPEN_INVOICE_STATUSES.has(inv.payment_status)) {
+      if (isOpenInvoiceBalance(inv)) {
         ids.add(inv.account_id);
       }
     }
@@ -176,34 +175,39 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const scopedToTable = useMemo(() => {
     const inView = (accountId: number) => displayedAccountIds.has(accountId);
     const openPayableInv = payableInvoices.filter(
-      (inv) => OPEN_INVOICE_STATUSES.has(inv.payment_status) && inView(inv.account_id)
+      (inv) => isOpenInvoiceBalance(inv) && inView(inv.account_id)
     );
     const openRecvInv = receivableInvoices.filter(
-      (inv) => OPEN_INVOICE_STATUSES.has(inv.payment_status) && inView(inv.account_id)
+      (inv) => isOpenInvoiceBalance(inv) && inView(inv.account_id)
     );
-    const lineOutstanding = (inv: (typeof payableInvoices)[number]) =>
-      inv.outstanding_amount ?? inv.invoice_amount - inv.paid_amount;
+    const lineOutstanding = (inv: (typeof payableInvoices)[number]) => inv.outstanding_amount;
     return {
       payableOutstanding: openPayableInv.reduce((s, inv) => s + lineOutstanding(inv), 0),
       receivableOutstanding: openRecvInv.reduce((s, inv) => s + lineOutstanding(inv), 0),
       openPayableInvoiceCount: openPayableInv.length,
       openReceivableInvoiceCount: openRecvInv.length,
       overduePayableCount: payableInvoices.filter(
-        (inv) => inv.payment_status === 'overdue' && inView(inv.account_id)
+        (inv) =>
+          inv.invoice_status !== 'voided' &&
+          inv.payment_status === 'overdue' &&
+          inView(inv.account_id)
       ).length,
       overdueReceivableCount: receivableInvoices.filter(
-        (inv) => inv.payment_status === 'overdue' && inView(inv.account_id)
+        (inv) =>
+          inv.invoice_status !== 'voided' &&
+          inv.payment_status === 'overdue' &&
+          inView(inv.account_id)
       ).length,
     };
   }, [displayedAccountIds, payableInvoices, receivableInvoices]);
 
   const overview = useMemo(() => {
     const payableOutstanding = payableInvoices
-      .filter((inv) => OPEN_INVOICE_STATUSES.has(inv.payment_status))
-      .reduce((sum, inv) => sum + (inv.outstanding_amount ?? inv.invoice_amount - inv.paid_amount), 0);
+      .filter((inv) => isOpenInvoiceBalance(inv))
+      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
     const receivableOutstanding = receivableInvoices
-      .filter((inv) => OPEN_INVOICE_STATUSES.has(inv.payment_status))
-      .reduce((sum, inv) => sum + (inv.outstanding_amount ?? inv.invoice_amount - inv.paid_amount), 0);
+      .filter((inv) => isOpenInvoiceBalance(inv))
+      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
     const aggregateNet = receivableOutstanding - payableOutstanding;
     return {
       payableOutstanding,

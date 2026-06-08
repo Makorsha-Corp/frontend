@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
+import { aggregateAccountInvoiceTotals } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 export interface AccountInvoiceTotals {
@@ -17,14 +18,7 @@ export function useAccountInvoiceTotals(accountId: number | null | undefined, en
   );
 
   const totals = useMemo<AccountInvoiceTotals>(() => {
-    const base = invoices.reduce(
-      (acc, inv) => ({
-        invoiced: acc.invoiced + inv.invoice_amount,
-        paid: acc.paid + inv.paid_amount,
-        outstanding: acc.outstanding + inv.outstanding_amount,
-      }),
-      { invoiced: 0, paid: 0, outstanding: 0 }
-    );
+    const base = aggregateAccountInvoiceTotals(invoices);
     return {
       ...base,
       invoiceCount: invoices.length,

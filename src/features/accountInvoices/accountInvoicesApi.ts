@@ -107,6 +107,7 @@ export const accountInvoicesApi = createApi({
         'AccountInvoice',
         'PurchaseOrder',
         'PurchaseOrderItem',
+        'PurchaseOrderEvents',
         'ActiveOrders',
       ],
     }),
