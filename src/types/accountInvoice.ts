@@ -6,7 +6,7 @@ export interface AccountInvoiceApiResponse {
   account_id: number;
   order_id: number | null;
   invoice_type: 'payable' | 'receivable';
-  invoice_status: 'draft' | 'confirmed' | 'voided';
+  invoice_status: 'draft' | 'confirmed' | 'locked' | 'voided';
   invoice_amount: DecimalString;
   paid_amount: DecimalString;
   outstanding_amount: DecimalString;
@@ -49,9 +49,9 @@ export interface AccountInvoice {
   due_date: string | null;
 
   // Lifecycle
-  invoice_status: 'draft' | 'confirmed' | 'voided';
+  invoice_status: 'draft' | 'confirmed' | 'locked' | 'voided';
 
-  // Status (only meaningful when invoice_status === 'confirmed')
+  // Status (meaningful when invoice is finalized: confirmed or locked)
   payment_status: 'unpaid' | 'partial' | 'paid' | 'overdue';
 
   // Void note (set permanently when invoice is voided)
@@ -119,6 +119,7 @@ export interface ListAccountInvoicesParams {
   account_id?: number;
   invoice_type?: 'payable' | 'receivable';
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
+  invoice_status?: 'draft' | 'confirmed' | 'locked' | 'voided';
   invoice_number_search?: string;
   account_name_search?: string;
   invoice_date_from?: string;

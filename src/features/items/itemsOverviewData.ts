@@ -3,7 +3,7 @@ import type { Item } from '@/types/item';
 export interface ItemFilters {
   searchQuery: string;
   unitFilter: string;
-  tagFilter: string;
+  tagFilterIds: number[];
 }
 
 export function filterItems(items: Item[], filters: ItemFilters): Item[] {
@@ -13,9 +13,9 @@ export function filterItems(items: Item[], filters: ItemFilters): Item[] {
     rows = rows.filter((i) => i.unit === filters.unitFilter);
   }
 
-  if (filters.tagFilter) {
-    const tagId = Number(filters.tagFilter);
-    rows = rows.filter((i) => i.tags?.some((t) => t.id === tagId));
+  if (filters.tagFilterIds.length > 0) {
+    const tagIds = new Set(filters.tagFilterIds);
+    rows = rows.filter((i) => i.tags?.some((t) => tagIds.has(t.id)));
   }
 
   const q = filters.searchQuery.trim().toLowerCase();

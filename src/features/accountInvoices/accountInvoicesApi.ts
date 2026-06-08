@@ -31,6 +31,7 @@ export const accountInvoicesApi = createApi({
         account_id,
         invoice_type,
         payment_status,
+        invoice_status,
         invoice_number_search,
         account_name_search,
         invoice_date_from,
@@ -46,6 +47,7 @@ export const accountInvoicesApi = createApi({
         if (account_id) params.append('account_id', account_id.toString());
         if (invoice_type) params.append('invoice_type', invoice_type);
         if (payment_status) params.append('payment_status', payment_status);
+        if (invoice_status) params.append('invoice_status', invoice_status);
         if (invoice_number_search) params.append('invoice_number_search', invoice_number_search);
         if (account_name_search) params.append('account_name_search', account_name_search);
         if (invoice_date_from) params.append('invoice_date_from', invoice_date_from);
@@ -120,6 +122,7 @@ export const accountInvoicesApi = createApi({
         'AccountInvoice',
         'PurchaseOrder',
         'PurchaseOrderItem',
+        'PurchaseOrderEvents',
         'ActiveOrders',
       ],
     }),

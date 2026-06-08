@@ -328,7 +328,7 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
     >
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-1 text-left">
-          <DialogTitle className="text-brand-secondary">Edit Machine</DialogTitle>
+          <DialogTitle className="text-brand-heading">Edit Machine</DialogTitle>
           <DialogDescription>
             Update details on the left; manage catalog lines on the right. Running state is changed via events in the detail view.
           </DialogDescription>

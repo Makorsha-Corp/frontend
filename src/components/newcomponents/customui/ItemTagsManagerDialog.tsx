@@ -172,24 +172,36 @@ const ItemTagsManagerDialog: React.FC<ItemTagsManagerDialogProps> = ({ open, onO
                   className="mt-1"
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="button" onClick={handleSave} disabled={isBusy || !name.trim()} className="bg-brand-primary hover:bg-brand-primary-hover">
-                  {editingTag ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                  {editingTag ? 'Update Tag' : 'Create Tag'}
-                </Button>
-                {editingTag ? (
-                  <Button type="button" variant="outline" onClick={resetForm} disabled={isBusy}>
-                    Cancel Edit
-                  </Button>
-                ) : null}
-              </div>
             </div>
           </div>
         </div>
 
         <DialogFooter>
+          {editingTag ? (
+            <Button type="button" variant="outline" onClick={resetForm} disabled={isBusy}>
+              Cancel Edit
+            </Button>
+          ) : null}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
             Close
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isBusy || !name.trim()}
+            className="bg-brand-primary hover:bg-brand-primary-hover"
+          >
+            {editingTag ? (
+              <>
+                <Pencil className="h-4 w-4 mr-2" />
+                Update Tag
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Tag
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

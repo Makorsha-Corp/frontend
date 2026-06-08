@@ -222,7 +222,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     >
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-1 text-left">
-          <DialogTitle className="text-brand-secondary">Add New Machine</DialogTitle>
+          <DialogTitle className="text-brand-heading">Add New Machine</DialogTitle>
           <DialogDescription>
             Choose a section, then add machine details. Optional catalog lines on the right are saved after the machine is created.
           </DialogDescription>

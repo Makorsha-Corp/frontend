@@ -53,6 +53,8 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const [showVoided, setShowVoided] = useState(false);
 
   const isConfirmed = invoice.invoice_status === 'confirmed';
+  const isLocked = invoice.invoice_status === 'locked';
+  const isFinalized = isConfirmed || isLocked;
   const isDraft = invoice.invoice_status === 'draft';
   const isVoided = invoice.invoice_status === 'voided';
 
@@ -113,9 +115,9 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
     }
   };
 
-  const canAddPayment = isConfirmed && invoice.allow_payments;
+  const canAddPayment = isFinalized && invoice.allow_payments;
   const addPaymentDisabledReason = isDraft
-    ? 'Invoice must be confirmed before payments can be recorded'
+    ? 'Invoice must be finalized before payments can be recorded'
     : isVoided
       ? 'Voided invoices cannot receive payments'
       : !invoice.allow_payments
@@ -179,7 +181,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
                     <p className="text-xs text-muted-foreground">{p.notes}</p>
                   )}
                 </div>
-                {isConfirmed && (
+                {isFinalized && (
                   <button
                     type="button"
                     onClick={() => openVoidDialog(p)}

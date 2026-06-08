@@ -79,7 +79,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       <DialogContent className="w-[min(56rem,94vw)] max-w-none max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-none">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="text-brand-secondary">Add New Item</DialogTitle>
+            <DialogTitle className="text-brand-heading">Add New Item</DialogTitle>
             <DialogDescription>
               Create a new item in your catalog. Fill in the details below.
             </DialogDescription>

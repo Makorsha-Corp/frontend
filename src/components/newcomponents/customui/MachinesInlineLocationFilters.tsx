@@ -67,6 +67,9 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   const triggerClassName = isBreadcrumb
     ? breadcrumbBaseClass
     : 'h-9 max-w-[min(200px,32vw)] justify-between gap-1 px-2.5 text-xs sm:text-sm focus-visible:ring-inset';
+  const chevronClassName = isBreadcrumb
+    ? 'h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
+    : 'h-4 w-4 shrink-0 opacity-70';
 
   if (which === 'factories') {
     return (
@@ -75,7 +78,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
           <DropdownMenuTrigger asChild>
             <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
               <span className="truncate text-card-foreground dark:text-foreground">{factoryDropdownLabel}</span>
-              {!isBreadcrumb ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : null}
+              <ChevronDown className={chevronClassName} aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -119,7 +122,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
         <DropdownMenuTrigger asChild>
           <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
             <span className="truncate text-card-foreground dark:text-foreground">{sectionDropdownLabel}</span>
-            {!isBreadcrumb ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : null}
+            <ChevronDown className={chevronClassName} aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

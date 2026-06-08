@@ -15,6 +15,9 @@ import { formatInvLabel } from './invoiceDisplayUtils';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
+import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
+import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
+import InvoiceLockedBadge from '@/components/newcomponents/customui/accounts/InvoiceLockedBadge';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +49,10 @@ const STATUS_CONFIG = {
 } as const;
 
 function InvoiceStatusBadge({ status }: { status: string }) {
+  if (status === 'locked') {
+    return <InvoiceLockedBadge />;
+  }
+
   const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
   const Icon = config.icon;
   return (
@@ -61,12 +68,14 @@ function InvoiceStatusBadge({ status }: { status: string }) {
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
   confirmed: 'Confirmed',
+  locked: 'Locked',
   voided: 'Voided',
 };
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-muted-foreground/40',
   confirmed: 'bg-green-500',
+  locked: 'bg-amber-500',
   voided: 'bg-red-500',
 };
 
@@ -88,9 +97,9 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
 
-  const { orderNumber: fetchedOrderNumber, isLoading: isOrderLoading } = useLinkedOrderForInvoice(
+  const { orderNumber: fetchedOrderNumber, poItems, isLoading: isOrderLoading } = useLinkedOrderForInvoice(
     invoiceId,
-    { skip: linkedOrderNumberProp !== undefined }
+    { skipExpenseLookup: linkedOrderNumberProp !== undefined }
   );
   const linkedOrderNumber =
     linkedOrderNumberProp !== undefined ? linkedOrderNumberProp : fetchedOrderNumber;
@@ -122,6 +131,12 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   };
 
   const handleVoid = async (voidNote: string) => {
+    const readiness = canVoidPoInvoice(invoice?.invoice_status ?? null, poItems);
+    if (!readiness.ok) {
+      toast.error(readiness.reason ?? 'This invoice cannot be voided');
+      setVoidOpen(false);
+      return;
+    }
     try {
       await voidInvoice({ id: invoiceId, void_note: voidNote }).unwrap();
       toast.success('Invoice voided successfully.');
@@ -149,7 +164,10 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
   const isDraft = invoice.invoice_status === 'draft';
   const isConfirmed = invoice.invoice_status === 'confirmed';
+  const isLocked = invoice.invoice_status === 'locked';
+  const isFinalized = isConfirmed || isLocked;
   const isVoided = invoice.invoice_status === 'voided';
+  const voidReadiness = canVoidPoInvoice(invoice.invoice_status, poItems);
 
   return (
     <div className="space-y-4">
@@ -175,7 +193,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
             />
           ) : null}
           <InvoiceStatusBadge status={invoice.invoice_status} />
-          {isConfirmed && (
+          {isFinalized && (
             <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
               {invoice.payment_status}
             </span>
@@ -277,18 +295,30 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       ) : null}
 
-      {/* ── Void action (confirmed only) ── */}
-      {isConfirmed && (
+      {/* ── Void action ── */}
+      {isFinalized && (
         <div className="flex justify-end pt-1">
-          <Button
+          <BlockedActionButton
             variant="outline"
             size="sm"
             className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setVoidOpen(true)}
+            blocked={!voidReadiness.ok}
+            blockedHint={
+              !voidReadiness.ok
+                ? {
+                    title: 'Cannot void anymore',
+                    reason:
+                      voidReadiness.reason ??
+                      'Receiving has started — this invoice can no longer be voided',
+                  }
+                : undefined
+            }
+            isBusy={isVoiding}
+            onAction={() => setVoidOpen(true)}
           >
             <XCircle className="mr-1.5 h-4 w-4" />
             Void Invoice
-          </Button>
+          </BlockedActionButton>
         </div>
       )}
 

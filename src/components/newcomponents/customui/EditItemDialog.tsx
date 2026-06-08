@@ -91,7 +91,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
       <DialogContent className="w-[min(56rem,94vw)] max-w-none max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-none">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-brand-secondary">Edit Item</DialogTitle>
+            <DialogTitle className="text-brand-heading">Edit Item</DialogTitle>
             <DialogDescription>Update the item details below.</DialogDescription>
           </DialogHeader>
 

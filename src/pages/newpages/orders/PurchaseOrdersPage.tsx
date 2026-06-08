@@ -30,10 +30,8 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X, ListTree } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
@@ -51,12 +49,6 @@ import {
 } from './purchaseOrdersOverviewData';
 
 const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
-const PO_SECTION_NAV_STORAGE_KEY = 'po-detail-section-nav-enabled';
-
-function readPoSectionNavEnabled(): boolean {
-  if (typeof window === 'undefined') return true;
-  return localStorage.getItem(PO_SECTION_NAV_STORAGE_KEY) !== 'false';
-}
 
 const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
   all: 'All destinations',
@@ -77,7 +69,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const [factoryFilter, setFactoryFilter] = useState<string>('all');
   const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
-  const [showPoSectionNav, setShowPoSectionNav] = useState(readPoSectionNavEnabled);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(true);
 
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,
@@ -222,6 +214,34 @@ const PurchaseOrdersPage: React.FC = () => {
     invoiceFilter !== 'all' ||
     searchQuery.trim().length > 0;
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (dateRange.from != null || dateRange.to != null) count += 1;
+    if (statusFilter !== 'all') count += 1;
+    if (accountFilter !== 'all') count += 1;
+    if (factoryFilter !== 'all') count += 1;
+    if (destinationFilter !== 'all') count += 1;
+    if (invoiceFilter !== 'all') count += 1;
+    return count;
+  }, [
+    dateRange.from,
+    dateRange.to,
+    statusFilter,
+    accountFilter,
+    factoryFilter,
+    destinationFilter,
+    invoiceFilter,
+  ]);
+
+  const clearFilters = () => {
+    setDateRange({});
+    setStatusFilter('all');
+    setAccountFilter('all');
+    setFactoryFilter('all');
+    setDestinationFilter('all');
+    setInvoiceFilter('all');
+  };
+
   const handleDelete = async (o: PurchaseOrder) => {
     if (!window.confirm(`Delete purchase order ${o.po_number}?`)) return;
     try {
@@ -303,7 +323,11 @@ const PurchaseOrdersPage: React.FC = () => {
         </AppShellHeader>
 
         {/* Synced filters — affect navigator list + overview/detail */}
-        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
+        {filtersBarOpen ? (
+        <div
+          id="po-filters-bar"
+          className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
+        >
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -403,26 +427,22 @@ const PurchaseOrdersPage: React.FC = () => {
             </SelectContent>
           </Select>
 
-          {selectedOrder && (
-            <div className="ml-auto flex items-center gap-2 pl-2">
-              <ListTree className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-              <Label
-                htmlFor="po-section-nav-toggle"
-                className="text-sm font-normal text-muted-foreground cursor-pointer whitespace-nowrap"
-              >
-                Section nav
-              </Label>
-              <Switch
-                id="po-section-nav-toggle"
-                checked={showPoSectionNav}
-                onCheckedChange={(checked) => {
-                  setShowPoSectionNav(checked);
-                  localStorage.setItem(PO_SECTION_NAV_STORAGE_KEY, String(checked));
-                }}
-              />
-            </div>
-          )}
+          {activeFilterCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="ml-auto h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={clearFilters}
+              aria-label="Clear filters"
+              title="Clear filters"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
+
         </div>
+        ) : null}
 
         {/* Main content area: navigator (left) + content (right) */}
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
@@ -432,6 +452,9 @@ const PurchaseOrdersPage: React.FC = () => {
             selectedOrderId={selectedOrderId}
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            filtersOpen={filtersBarOpen}
+            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
@@ -448,7 +471,6 @@ const PurchaseOrdersPage: React.FC = () => {
               <PurchaseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
-                showSectionNav={showPoSectionNav}
               />
             ) : (
               <PurchaseOrdersOverviewPanel

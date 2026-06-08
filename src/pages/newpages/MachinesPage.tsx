@@ -71,6 +71,27 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
     .map((v) => parseInt(v, 10))
     .filter((n) => Number.isFinite(n));
 
+  // Legacy scope params (factoryId/sectionId) — used by deep links and factory drill-down.
+  const resolvedFactoryIds =
+    factory_ids.length > 0
+      ? factory_ids
+      : (() => {
+          const factoryId = params.get('factoryId');
+          if (!factoryId) return [];
+          const id = parseInt(factoryId, 10);
+          return Number.isFinite(id) ? [id] : [];
+        })();
+
+  const resolvedSectionIds =
+    section_ids.length > 0
+      ? section_ids
+      : (() => {
+          const sectionId = params.get('sectionId');
+          if (!sectionId) return [];
+          const id = parseInt(sectionId, 10);
+          return Number.isFinite(id) ? [id] : [];
+        })();
+
   return {
     search,
     running_status: running_status === 'running' || running_status === 'not_running' ? running_status : 'all',
@@ -92,8 +113,8 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
         : 'all',
     sort_by: sort_by === 'created_at' || sort_by === 'maintenance_date' ? sort_by : 'name',
     sort_dir: sort_dir === 'desc' ? 'desc' : 'asc',
-    factory_ids,
-    section_ids,
+    factory_ids: resolvedFactoryIds,
+    section_ids: resolvedSectionIds,
   };
 };
 
@@ -168,9 +189,12 @@ const MachinesPage: React.FC = () => {
     return next;
   };
 
-  // Keep page scope aligned with global factory context changes.
+  // Deep links (factoryId/sectionId in URL) scope this page only — never touch global factory.
+  // Without URL scope, default the machines URL to the navbar factory selection.
   useEffect(() => {
-    if (selectedGlobalFactory?.id && selectedFactoryId !== selectedGlobalFactory.id) {
+    if (factoryIdParam) return;
+
+    if (selectedGlobalFactory?.id) {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set('factoryId', String(selectedGlobalFactory.id));
@@ -179,7 +203,7 @@ const MachinesPage: React.FC = () => {
         return next;
       }, { replace: true });
     }
-  }, [selectedGlobalFactory?.id, selectedFactoryId, setSearchParams]);
+  }, [factoryIdParam, selectedGlobalFactory?.id, setSearchParams]);
 
   const { data: section, isLoading: isLoadingSection } = useGetFactorySectionByIdQuery(sectionIdNum!, {
     skip: !sectionIdNum || isNaN(sectionIdNum),

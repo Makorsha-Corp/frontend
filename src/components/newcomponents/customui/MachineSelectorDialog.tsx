@@ -203,7 +203,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(520px,78dvh)] w-full max-w-xl flex-col gap-0 overflow-hidden p-5 sm:p-6">
         <DialogHeader className="shrink-0 space-y-1 pb-4 text-left">
-          <DialogTitle className="text-brand-secondary">{title}</DialogTitle>
+          <DialogTitle className="text-brand-heading">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 

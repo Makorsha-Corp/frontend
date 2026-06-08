@@ -29,6 +29,7 @@ import {
   Pause,
   Wrench,
   ClipboardList,
+  ExternalLink,
 } from 'lucide-react';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import AddFactorySectionDialog from '@/components/newcomponents/customui/AddFactorySectionDialog';
@@ -434,6 +435,18 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                   <Layers className="h-5 w-5 text-brand-primary" />
                   <h3 className="text-lg font-semibold">{activeSection?.name}</h3>
                   <span className="text-sm text-muted-foreground tabular-nums px-2 py-0.5 bg-muted rounded-md">{activeSectionMachines.length} machines</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto h-8 shrink-0 border-border"
+                    onClick={() => {
+                      onClose();
+                      navigate(`/machines?factoryId=${factoryId}&sectionId=${activeSectionId}`);
+                    }}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Visit in Machine Page
+                  </Button>
                 </div>
                 
                 {activeSectionMachines.length === 0 ? (
@@ -452,7 +465,12 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                           <MachineListCardWithLatest
                             machine={m}
                             selected={false}
-                            onSelect={() => navigate(`/machines?sectionId=${activeSectionId}&machineId=${m.id}`)}
+                            onSelect={() => {
+                              onClose();
+                              navigate(
+                                `/machines?factoryId=${factoryId}&sectionId=${activeSectionId}&machineId=${m.id}`
+                              );
+                            }}
                           />
                         </div>
                       ))}

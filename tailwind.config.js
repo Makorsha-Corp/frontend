@@ -54,6 +54,7 @@ module.exports = {
   			'brand-primary': 'hsl(var(--primary))',
   			'brand-primary-hover': 'hsl(var(--primary-hover))',
   			'brand-secondary': 'hsl(var(--secondary))',
+  			'brand-heading': 'hsl(var(--brand-heading))',
   			'brand-accent': 'hsl(var(--accent))',
   			'brand-accent-light': 'hsl(var(--accent-light))'
   		},

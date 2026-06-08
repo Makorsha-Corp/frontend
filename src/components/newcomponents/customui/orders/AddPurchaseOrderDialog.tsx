@@ -59,6 +59,9 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+
+  const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim() || unitPrice.trim());
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
@@ -76,6 +79,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setMachineDisplayLine('');
     setMachinePickerOpen(false);
     setAddHintOpen(false);
+    setUnaddedHintOpen(false);
   };
 
   const canAddLineItem = (() => {
@@ -89,6 +93,21 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   useEffect(() => {
     if (canAddLineItem) setAddHintOpen(false);
   }, [canAddLineItem]);
+
+  useEffect(() => {
+    if (!hasUnaddedItemDraft) setUnaddedHintOpen(false);
+  }, [hasUnaddedItemDraft]);
+
+  useEffect(() => {
+    if (!unaddedHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-unadded-hint-root]')) {
+        setUnaddedHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [unaddedHintOpen]);
 
   useEffect(() => {
     if (!addHintOpen) return;
@@ -136,8 +155,18 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       toast.error('Select a destination');
       return;
     }
+    if (hasUnaddedItemDraft) {
+      if (!unaddedHintOpen) {
+        setUnaddedHintOpen(true);
+        return;
+      }
+      setItemId('');
+      setQty('');
+      setUnitPrice('');
+      setUnaddedHintOpen(false);
+    }
     if (items.length === 0) {
-      toast.error('Add at least one item');
+      toast.error('Add at least one order item');
       return;
     }
 
@@ -257,7 +286,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background divide-y">
         {items.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No line items yet</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No order items yet</p>
         ) : (
           items.map((it, idx) => {
             const item = itemsList.find((i) => i.id === it.item_id);
@@ -424,10 +453,20 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
-            </Button>
+            <div className="relative" data-unadded-hint-root>
+              {unaddedHintOpen ? (
+                <div
+                  role="tooltip"
+                  className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                >
+                  You have unadded order items — click ✓ to add them, or click Create again to continue without them
+                </div>
+              ) : null}
+              <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create
+              </Button>
+            </div>
           </div>
         </form>
         </DialogContent>

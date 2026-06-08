@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { API_LIMITS } from '@/constants/apiLimits';
+import type { ListAccountInvoicesParams } from '@/types/accountInvoice';
 
 const AccountDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +45,9 @@ const AccountDetailPage: React.FC = () => {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'all' | 'payable' | 'receivable'>('all');
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid' | 'overdue'>('all');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<
+    'all' | 'unpaid' | 'partial' | 'paid' | 'overdue' | 'voided'
+  >('all');
   const [invoiceDateFrom, setInvoiceDateFrom] = useState('');
   const [invoiceDateTo, setInvoiceDateTo] = useState('');
   const [invoicePage, setInvoicePage] = useState(0);
@@ -55,28 +58,32 @@ const AccountDetailPage: React.FC = () => {
   });
   const pageSize = API_LIMITS.ACCOUNT_INVOICE_PAGE_SIZE;
 
-  const invoiceListParams = useMemo(() => {
-    const params: Record<string, unknown> = {
+  const invoiceListParams = useMemo((): ListAccountInvoicesParams => {
+    const params: ListAccountInvoicesParams = {
       account_id: accountId!,
       skip: invoicePage * pageSize,
       limit: pageSize,
     };
     if (invoiceTypeFilter !== 'all') params.invoice_type = invoiceTypeFilter;
-    if (invoiceStatusFilter !== 'all') params.payment_status = invoiceStatusFilter;
+    if (invoiceStatusFilter !== 'all' && invoiceStatusFilter !== 'voided') {
+      params.payment_status = invoiceStatusFilter;
+    }
     if (invoiceDateFrom) params.invoice_date_from = invoiceDateFrom;
     if (invoiceDateTo) params.invoice_date_to = invoiceDateTo;
     return params;
   }, [accountId, invoicePage, pageSize, invoiceTypeFilter, invoiceStatusFilter, invoiceDateFrom, invoiceDateTo]);
 
-  /** Up to backend max: used for summary totals and approximate invoice count (not for the list rows). */
-  const invoiceTotalsParams = useMemo(() => {
-    const params: Record<string, unknown> = {
+  /** Up to backend max: used for summary totals and voided list (client-filtered by status). */
+  const invoiceTotalsParams = useMemo((): ListAccountInvoicesParams => {
+    const params: ListAccountInvoicesParams = {
       account_id: accountId!,
       skip: 0,
       limit: API_LIMITS.FLEXIBLE_1000,
     };
     if (invoiceTypeFilter !== 'all') params.invoice_type = invoiceTypeFilter;
-    if (invoiceStatusFilter !== 'all') params.payment_status = invoiceStatusFilter;
+    if (invoiceStatusFilter !== 'all' && invoiceStatusFilter !== 'voided') {
+      params.payment_status = invoiceStatusFilter;
+    }
     if (invoiceDateFrom) params.invoice_date_from = invoiceDateFrom;
     if (invoiceDateTo) params.invoice_date_to = invoiceDateTo;
     return params;
@@ -115,15 +122,29 @@ const AccountDetailPage: React.FC = () => {
   );
 
   const invoicesPanelReady = !invoiceListLoading && !invoiceTotalsLoading;
+
+  const statusScopedInvoices = useMemo(() => {
+    if (invoiceStatusFilter === 'voided') {
+      return invoicesForTotals.filter((inv) => inv.invoice_status === 'voided');
+    }
+    if (invoiceStatusFilter !== 'all') {
+      return invoices.filter(
+        (inv) => inv.invoice_status !== 'voided' && inv.payment_status === invoiceStatusFilter
+      );
+    }
+    return invoices;
+  }, [invoiceStatusFilter, invoices, invoicesForTotals]);
+
   const filteredInvoices = useMemo(() => {
     const q = invoiceSearch.trim().toLowerCase();
-    if (!q) return invoices;
-    return invoices.filter((inv) => {
+    if (!q) return statusScopedInvoices;
+    return statusScopedInvoices.filter((inv) => {
       const haystack = [
         inv.invoice_number,
         inv.vendor_invoice_number,
         inv.invoice_type,
         inv.payment_status,
+        inv.invoice_status,
         inv.notes,
         String(inv.id),
         invoiceOrderNumberMap.get(inv.id),
@@ -133,7 +154,7 @@ const AccountDetailPage: React.FC = () => {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [invoices, invoiceSearch, invoiceOrderNumberMap]);
+  }, [statusScopedInvoices, invoiceSearch, invoiceOrderNumberMap]);
 
   const selectedInvoiceFromList = useMemo(
     () =>
@@ -155,12 +176,29 @@ const AccountDetailPage: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!filteredInvoices.length || selectedInvoiceId != null) return;
-    setSelectedInvoiceId(filteredInvoices[0].id);
+    if (!filteredInvoices.length) {
+      if (selectedInvoiceId != null) setSelectedInvoiceId(null);
+      return;
+    }
+    if (selectedInvoiceId == null || !filteredInvoices.some((inv) => inv.id === selectedInvoiceId)) {
+      setSelectedInvoiceId(filteredInvoices[0].id);
+    }
   }, [filteredInvoices, selectedInvoiceId]);
 
+  const totalsScopeInvoices = useMemo(() => {
+    if (invoiceStatusFilter === 'voided') {
+      return invoicesForTotals.filter((inv) => inv.invoice_status === 'voided');
+    }
+    if (invoiceStatusFilter !== 'all') {
+      return invoicesForTotals.filter(
+        (inv) => inv.invoice_status !== 'voided' && inv.payment_status === invoiceStatusFilter
+      );
+    }
+    return invoicesForTotals;
+  }, [invoicesForTotals, invoiceStatusFilter]);
+
   const invoiceTotals = useMemo(() => {
-    return invoicesForTotals.reduce(
+    return totalsScopeInvoices.reduce(
       (acc, inv) => ({
         invoiced: acc.invoiced + inv.invoice_amount,
         paid: acc.paid + inv.paid_amount,
@@ -168,22 +206,25 @@ const AccountDetailPage: React.FC = () => {
       }),
       { invoiced: 0, paid: 0, outstanding: 0 }
     );
-  }, [invoicesForTotals]);
+  }, [totalsScopeInvoices]);
 
   const invoiceCountLabel = useMemo(() => {
-    const n = invoicesForTotals.length;
-    if (n >= API_LIMITS.FLEXIBLE_1000) return `${API_LIMITS.FLEXIBLE_1000}+`;
+    const n = totalsScopeInvoices.length;
+    if (invoicesForTotals.length >= API_LIMITS.FLEXIBLE_1000) return `${API_LIMITS.FLEXIBLE_1000}+`;
     return String(n);
-  }, [invoicesForTotals.length]);
+  }, [totalsScopeInvoices.length, invoicesForTotals.length]);
 
   const totalsCapped = invoicesForTotals.length >= API_LIMITS.FLEXIBLE_1000;
 
-  const canInvoicePrev = invoicePage > 0;
-  const canInvoiceNext = invoices.length === pageSize;
+  const useInvoicePagination = invoiceStatusFilter !== 'voided';
+  const canInvoicePrev = useInvoicePagination && invoicePage > 0;
+  const canInvoiceNext = useInvoicePagination && invoices.length === pageSize;
 
   /** When capped at FLEXIBLE_1000, true total pages are unknown — omit "of N". */
   const invoiceTotalPagesKnown =
-    invoicesForTotals.length > 0 && invoicesForTotals.length < API_LIMITS.FLEXIBLE_1000
+    useInvoicePagination &&
+    invoicesForTotals.length > 0 &&
+    invoicesForTotals.length < API_LIMITS.FLEXIBLE_1000
       ? Math.max(1, Math.ceil(invoicesForTotals.length / pageSize))
       : null;
 
@@ -403,8 +444,6 @@ const AccountDetailPage: React.FC = () => {
                     <div className="flex items-center justify-center py-12 px-4">
                       <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                     </div>
-                  ) : invoicesForTotals.length === 0 ? (
-                    <p className="text-muted-foreground text-sm px-4 py-3">No invoices for this account yet.</p>
                   ) : (
                     <div className="p-4">
                       <div className="grid gap-4 xl:grid-cols-12 min-h-[420px]">
@@ -462,7 +501,7 @@ const AccountDetailPage: React.FC = () => {
                                 value={invoiceStatusFilter}
                                 onValueChange={(v) => setInvoiceStatusFilter(v as typeof invoiceStatusFilter)}
                               >
-                                <SelectTrigger className="h-9 w-full sm:w-[150px] shrink-0" aria-label="Payment status">
+                                <SelectTrigger className="h-9 w-full sm:w-[150px] shrink-0" aria-label="Status">
                                   <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -471,6 +510,7 @@ const AccountDetailPage: React.FC = () => {
                                   <SelectItem value="partial">Partial</SelectItem>
                                   <SelectItem value="paid">Paid</SelectItem>
                                   <SelectItem value="overdue">Overdue</SelectItem>
+                                  <SelectItem value="voided">Voided</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -504,7 +544,15 @@ const AccountDetailPage: React.FC = () => {
                           </div>
                           <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
                             {filteredInvoices.length === 0 ? (
-                              <p className="text-sm text-muted-foreground p-2">No matching invoices.</p>
+                              <p className="text-sm text-muted-foreground p-2">
+                                {invoiceSearch.trim()
+                                  ? 'No matching invoices.'
+                                  : invoiceStatusFilter === 'voided'
+                                    ? 'No voided invoices.'
+                                    : statusScopedInvoices.length === 0 && invoices.length === 0
+                                      ? 'No invoices for this account yet.'
+                                      : 'No matching invoices.'}
+                              </p>
                             ) : (
                               filteredInvoices.map((inv) => {
                                 const isSelected = selectedInvoiceId === inv.id;
@@ -531,9 +579,16 @@ const AccountDetailPage: React.FC = () => {
                                           </p>
                                         ) : null}
                                       </div>
-                                      <span className="inline-flex shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
-                                        {inv.payment_status}
-                                      </span>
+                                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                                        {inv.invoice_status === 'voided' ? (
+                                          <span className="inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] capitalize text-red-700 dark:text-red-300">
+                                            Void
+                                          </span>
+                                        ) : null}
+                                        <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
+                                          {inv.payment_status}
+                                        </span>
+                                      </div>
                                     </div>
                                     <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                                       <span className="capitalize">{inv.invoice_type}</span>
@@ -545,34 +600,43 @@ const AccountDetailPage: React.FC = () => {
                             )}
                           </div>
                           <div className="shrink-0 border-t border-border px-3 py-2 flex items-center justify-between gap-2 bg-muted/20">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-2"
-                              disabled={!canInvoicePrev}
-                              onClick={() => setInvoicePage((p) => Math.max(0, p - 1))}
-                              aria-label="Previous invoice page"
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <span className="text-xs text-muted-foreground tabular-nums text-center flex-1 min-w-0">
-                              {invoiceTotalPagesKnown != null && invoiceTotalPagesKnown > 1
-                                ? `Page ${invoicePage + 1} of ${invoiceTotalPagesKnown}`
-                                : `Page ${invoicePage + 1}`}
-                              {totalsCapped && canInvoiceNext ? ' · more may exist' : ''}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-2"
-                              disabled={!canInvoiceNext}
-                              onClick={() => setInvoicePage((p) => p + 1)}
-                              aria-label="Next invoice page"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
+                            {useInvoicePagination ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-2"
+                                  disabled={!canInvoicePrev}
+                                  onClick={() => setInvoicePage((p) => Math.max(0, p - 1))}
+                                  aria-label="Previous invoice page"
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <span className="text-xs text-muted-foreground tabular-nums text-center flex-1 min-w-0">
+                                  {invoiceTotalPagesKnown != null && invoiceTotalPagesKnown > 1
+                                    ? `Page ${invoicePage + 1} of ${invoiceTotalPagesKnown}`
+                                    : `Page ${invoicePage + 1}`}
+                                  {totalsCapped && canInvoiceNext ? ' · more may exist' : ''}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-2"
+                                  disabled={!canInvoiceNext}
+                                  onClick={() => setInvoicePage((p) => p + 1)}
+                                  aria-label="Next invoice page"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground px-1">
+                                Showing all voided invoices
+                                {totalsCapped ? ` (first ${API_LIMITS.FLEXIBLE_1000})` : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
 

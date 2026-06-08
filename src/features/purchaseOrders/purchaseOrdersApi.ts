@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
 import type {
   PurchaseOrder,
   PurchaseOrderItem,
@@ -134,6 +135,14 @@ export const purchaseOrdersApi = createApi({
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     // Items
     getPurchaseOrderItems: builder.query<PurchaseOrderItem[], number>({
@@ -155,6 +164,14 @@ export const purchaseOrdersApi = createApi({
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id: poId },
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     removePurchaseOrderItem: builder.mutation<void, number>({
       query: (itemId) => ({ url: `purchase-orders/items/${itemId}/`, method: 'DELETE' }),

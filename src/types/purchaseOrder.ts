@@ -84,6 +84,8 @@ export type PurchaseOrderEventType =
   | 'invoice_confirmed'
   | 'invoice_unconfirmed'
   | 'invoice_created'
+  | 'invoice_voided'
+  | 'invoice_draft_created'
   | 'approvals_reset'
   | 'supplier_updated'
   | 'details_updated'
@@ -112,6 +114,7 @@ export interface PurchaseOrderEventMetadata {
   unit_price?: string;
   user_id?: number;
   user_name?: string;
+  invoice_id?: number;
 }
 
 export interface PurchaseOrderEvent {

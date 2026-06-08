@@ -44,6 +44,8 @@
     --secondary: 250 27% 17%; /* Midnight Violet */
     --accent: 276 9% 79%; /* Pale Slate */
     --accent-light: 30 58% 93%; /* Linen */
+    /* Dialog/section headings: brand purple in light, readable foreground in dark */
+    --brand-heading: 250 27% 17%;
 
     /* Pastel palette — HEX (primary) + HSL aliases + gradients */
     --bright-lavender: #a491d3ff;
@@ -102,6 +104,7 @@
     --primary-foreground: 0 0% 100%; /* White text on purple */
     --secondary: 250 27% 17%; /* Midnight Violet */
     --secondary-foreground: 220 13% 95%;
+    --brand-heading: 220 13% 95%; /* Match foreground on dark surfaces */
     --muted: 250 20% 28%; /* Slightly lighter for contrast on dark cards */
     --muted-foreground: 220 13% 70%; /* Lighter for better readability */
     --accent: 276 9% 79%; /* Keep Pale Slate in dark mode (don't change) */
@@ -195,26 +198,44 @@
   background: hsl(var(--primary-hover));
 }
 
-@keyframes po-flash-highlight-3 {
-  0%,
-  16.66%,
-  33.33%,
-  50%,
-  66.66%,
-  83.33%,
-  100% {
-    box-shadow: none;
-    filter: none;
-  }
-
-  8.33%,
-  41.66%,
-  75% {
-    box-shadow: 0 0 0 2px rgb(251 191 36), 0 4px 14px rgb(251 191 36 / 0.35);
-    filter: brightness(1.12);
-  }
+.po-scroll-target-highlight {
+  box-shadow:
+    0 0 0 3px hsl(var(--primary) / 0.5),
+    0 0 28px 6px hsl(var(--primary) / 0.35);
+  transition: box-shadow 0.25s ease-out;
 }
 
-.po-flash-highlight-3 {
-  animation: po-flash-highlight-3 1.8s ease-in-out;
+.dark .po-scroll-target-highlight {
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 0.45),
+    0 0 28px 6px rgb(255 255 255 / 0.28);
+}
+
+/* Soft status pills — outline Badge + muted fill; pair with variant="outline" */
+.status-badge {
+  font-weight: 400 !important;
+}
+
+.status-badge.status-badge--confirmed {
+  color: rgb(21 128 61) !important;
+  border-color: rgb(22 163 74 / 0.3) !important;
+  background-color: rgb(240 253 244) !important;
+}
+
+.dark .status-badge.status-badge--confirmed {
+  color: rgb(134 239 172) !important;
+  border-color: rgb(22 101 52 / 0.45) !important;
+  background-color: rgb(5 46 22 / 0.4) !important;
+}
+
+.status-badge.status-badge--unconfirmed {
+  color: rgb(180 83 9) !important;
+  border-color: rgb(217 119 6 / 0.3) !important;
+  background-color: rgb(255 251 235) !important;
+}
+
+.dark .status-badge.status-badge--unconfirmed {
+  color: rgb(252 211 77) !important;
+  border-color: rgb(180 83 9 / 0.4) !important;
+  background-color: rgb(69 26 3 / 0.35) !important;
 }
