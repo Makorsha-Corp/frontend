@@ -8,6 +8,7 @@ import type {
   UpdatePurchaseOrder,
   CreatePurchaseOrderItem,
   UpdatePurchaseOrderItem,
+  PurchaseOrderItemSyncRequest,
   ListPurchaseOrdersParams,
   ActiveOrderRow,
   ActiveOrdersScope,
@@ -177,6 +178,31 @@ export const purchaseOrdersApi = createApi({
       query: (itemId) => ({ url: `purchase-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: ['PurchaseOrderItem', 'PurchaseOrder', 'ActiveOrders'],
     }),
+    syncPurchaseOrderItems: builder.mutation<
+      PurchaseOrder,
+      { poId: number; data: PurchaseOrderItemSyncRequest }
+    >({
+      query: ({ poId, data }) => ({
+        url: `purchase-orders/${poId}/items/sync/`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (_r, _e, { poId }) => [
+        { type: 'PurchaseOrderItem', id: poId },
+        { type: 'PurchaseOrder', id: poId },
+        'PurchaseOrder',
+        'ActiveOrders',
+        { type: 'PurchaseOrderEvents', id: poId },
+      ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+        } catch {
+          /* mutation failed */
+        }
+      },
+    }),
     // Approvers
     getPurchaseOrderApprovers: builder.query<PurchaseOrderApproversList, number>({
       query: (poId) => `purchase-orders/${poId}/approvers/`,
@@ -232,6 +258,7 @@ export const {
   useAddPurchaseOrderItemMutation,
   useUpdatePurchaseOrderItemMutation,
   useRemovePurchaseOrderItemMutation,
+  useSyncPurchaseOrderItemsMutation,
   useGetPurchaseOrderApproversQuery,
   useAddPurchaseOrderApproverMutation,
   useRemovePurchaseOrderApproverMutation,

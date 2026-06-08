@@ -155,18 +155,21 @@ const AccountDetailPage: React.FC = () => {
     [filteredInvoices, selectedInvoiceId]
   );
 
-  useEffect(() => {
+  const urlInvoiceId = useMemo(() => {
     const param = searchParams.get('invoiceId');
-    if (param) {
-      const parsed = parseInt(param, 10);
-      if (!isNaN(parsed)) {
-        setSelectedInvoiceId(parsed);
-        return;
-      }
-    }
+    if (!param) return null;
+    const parsed = parseInt(param, 10);
+    return Number.isNaN(parsed) ? null : parsed;
   }, [searchParams]);
 
   useEffect(() => {
+    if (urlInvoiceId != null) {
+      setSelectedInvoiceId(urlInvoiceId);
+    }
+  }, [urlInvoiceId]);
+
+  useEffect(() => {
+    if (urlInvoiceId != null) return;
     if (!filteredInvoices.length) {
       if (selectedInvoiceId != null) setSelectedInvoiceId(null);
       return;
@@ -174,7 +177,7 @@ const AccountDetailPage: React.FC = () => {
     if (selectedInvoiceId == null || !filteredInvoices.some((inv) => inv.id === selectedInvoiceId)) {
       setSelectedInvoiceId(filteredInvoices[0].id);
     }
-  }, [filteredInvoices, selectedInvoiceId]);
+  }, [filteredInvoices, selectedInvoiceId, urlInvoiceId]);
 
   const invoiceTotals = useMemo(
     () => aggregateAccountInvoiceTotals(invoicesForTotals),

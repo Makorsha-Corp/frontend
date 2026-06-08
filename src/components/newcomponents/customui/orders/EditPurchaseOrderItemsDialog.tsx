@@ -28,6 +28,7 @@ import { useGetItemsQuery } from '@/features/items/itemsApi';
 import {
   useAddPurchaseOrderItemMutation,
   useRemovePurchaseOrderItemMutation,
+  useSyncPurchaseOrderItemsMutation,
   useUpdatePurchaseOrderItemMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type { PurchaseOrderItem } from '@/types/purchaseOrder';
@@ -65,6 +66,10 @@ export interface EditPurchaseOrderItemsDialogProps {
 
 function newLineKey() {
   return `n-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function numEq(a: number | string, b: number | string): boolean {
+  return Math.abs(Number(a) - Number(b)) < 1e-9;
 }
 
 function linesFromItems(items: PurchaseOrderItem[]): ExistingLineDraft[] {
@@ -106,9 +111,10 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   const [addItem] = useAddPurchaseOrderItemMutation();
   const [updateItem] = useUpdatePurchaseOrderItemMutation();
   const [removeItem] = useRemovePurchaseOrderItemMutation();
+  const [syncItems] = useSyncPurchaseOrderItemsMutation();
 
   useEffect(() => {
-    if (open) {
+    if (open && !isSaving) {
       setExistingLines(linesFromItems(items));
       setPendingNewLines([]);
       setItemId('');
@@ -117,7 +123,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
       setAddHintOpen(false);
       setUnaddedHintOpen(false);
     }
-  }, [open, items]);
+  }, [open, items, isSaving]);
 
   useEffect(() => {
     if (!hasUnaddedItemDraft) setUnaddedHintOpen(false);
@@ -212,9 +218,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
         toast.error(`Invalid unit price for ${line.item_name ?? 'item'}`);
         return false;
       }
-      if (ordered < line.quantity_received) {
+      const orig = originalById.get(line.id);
+      const minOrdered = Math.max(
+        line.quantity_received,
+        Number(orig?.quantity_received ?? 0)
+      );
+      if (ordered < minOrdered) {
         toast.error(
-          `${line.item_name ?? 'Item'}: ordered qty cannot be less than received (${line.quantity_received})`
+          `${line.item_name ?? 'Item'}: ordered qty cannot be less than received (${minOrdered})`
         );
         return false;
       }
@@ -229,8 +240,8 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
       const orig = originalById.get(line.id);
       if (!orig) continue;
       if (
-        String(orig.quantity_ordered) !== line.quantity_ordered ||
-        String(orig.unit_price) !== line.unit_price
+        !numEq(orig.quantity_ordered, line.quantity_ordered) ||
+        !numEq(orig.unit_price, line.unit_price)
       ) {
         return true;
       }
@@ -257,36 +268,69 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
 
     setIsSaving(true);
     try {
-      for (const line of existingLines) {
-        if (line.removed) {
-          await removeItem(line.id).unwrap();
-          continue;
+      const removeIds = existingLines.filter((l) => l.removed).map((l) => l.id);
+      const updates = existingLines
+        .filter((l) => !l.removed)
+        .flatMap((line) => {
+          const orig = originalById.get(line.id);
+          if (!orig) return [];
+          if (
+            numEq(orig.quantity_ordered, line.quantity_ordered) &&
+            numEq(orig.unit_price, line.unit_price)
+          ) {
+            return [];
+          }
+          return [{
+            id: line.id,
+            quantity_ordered: parseFloat(line.quantity_ordered),
+            unit_price: parseFloat(line.unit_price),
+          }];
+        });
+      const additions = pendingNewLines.map((line) => ({
+        item_id: line.item_id,
+        quantity_ordered: line.quantity_ordered,
+        unit_price: line.unit_price,
+      }));
+
+      try {
+        await syncItems({
+          poId,
+          data: { remove_ids: removeIds, updates, additions },
+        }).unwrap();
+      } catch (syncErr: unknown) {
+        const se = syncErr as { status?: number };
+        if (se?.status !== 404) throw syncErr;
+
+        for (const line of existingLines) {
+          if (line.removed) {
+            await removeItem(line.id).unwrap();
+            continue;
+          }
+          const orig = originalById.get(line.id);
+          if (!orig) continue;
+          const ordered = parseFloat(line.quantity_ordered);
+          const price = parseFloat(line.unit_price);
+          if (
+            !numEq(orig.quantity_ordered, line.quantity_ordered) ||
+            !numEq(orig.unit_price, line.unit_price)
+          ) {
+            await updateItem({
+              itemId: line.id,
+              poId,
+              data: { quantity_ordered: ordered, unit_price: price },
+            }).unwrap();
+          }
         }
-        const orig = originalById.get(line.id);
-        if (!orig) continue;
-        const ordered = parseFloat(line.quantity_ordered);
-        const price = parseFloat(line.unit_price);
-        if (
-          String(orig.quantity_ordered) !== line.quantity_ordered ||
-          String(orig.unit_price) !== line.unit_price
-        ) {
-          await updateItem({
-            itemId: line.id,
+        for (const line of pendingNewLines) {
+          await addItem({
             poId,
-            data: { quantity_ordered: ordered, unit_price: price },
+            data: {
+              item_id: line.item_id,
+              quantity_ordered: line.quantity_ordered,
+              unit_price: line.unit_price,
+            },
           }).unwrap();
         }
-      }
-
-      for (const line of pendingNewLines) {
-        await addItem({
-          poId,
-          data: {
-            item_id: line.item_id,
-            quantity_ordered: line.quantity_ordered,
-            unit_price: line.unit_price,
-          },
-        }).unwrap();
       }
 
       toast.success('Order items updated');

@@ -15,6 +15,7 @@ import { formatInvLabel } from './invoiceDisplayUtils';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
+import InvoiceLinkedOrderItemsSummary from './InvoiceLinkedOrderItemsSummary';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
 import InvoiceLockedBadge from '@/components/newcomponents/customui/accounts/InvoiceLockedBadge';
@@ -97,10 +98,8 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
 
-  const { orderNumber: fetchedOrderNumber, poItems, isLoading: isOrderLoading } = useLinkedOrderForInvoice(
-    invoiceId,
-    { skipExpenseLookup: linkedOrderNumberProp !== undefined }
-  );
+  const { orderNumber: fetchedOrderNumber, poItems, expenseItems, isLoading: isOrderLoading } =
+    useLinkedOrderForInvoice(invoiceId, { skipExpenseLookup: linkedOrderNumberProp !== undefined });
   const linkedOrderNumber =
     linkedOrderNumberProp !== undefined ? linkedOrderNumberProp : fetchedOrderNumber;
 
@@ -259,6 +258,12 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
           </div>
         </div>
       </div>
+
+      <InvoiceLinkedOrderItemsSummary
+        poItems={poItems}
+        expenseItems={expenseItems}
+        isLoading={isOrderLoading}
+      />
 
       {/* ── Details grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">

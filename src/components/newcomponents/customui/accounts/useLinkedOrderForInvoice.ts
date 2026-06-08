@@ -2,7 +2,7 @@ import {
   useGetPurchaseOrdersQuery,
   useGetPurchaseOrderItemsQuery,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
-import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
+import { useGetExpenseOrdersQuery, useGetExpenseOrderItemsQuery } from '@/features/expenseOrders/expenseOrdersApi';
 
 export function useLinkedOrderForInvoice(
   invoiceId: number | null | undefined,
@@ -22,19 +22,29 @@ export function useLinkedOrderForInvoice(
 
   const linkedPurchaseOrder = purchaseOrders[0] ?? null;
   const linkedPoId = linkedPurchaseOrder?.id ?? null;
+  const linkedExpenseOrder = expenseOrders[0] ?? null;
+  const linkedEoId = linkedExpenseOrder?.id ?? null;
 
   const { data: poItems = [], isLoading: isPoItemsLoading } = useGetPurchaseOrderItemsQuery(
     linkedPoId!,
     { skip: skip || linkedPoId == null }
   );
 
+  const { data: expenseItems = [], isLoading: isEoItemsLoading } = useGetExpenseOrderItemsQuery(
+    linkedEoId!,
+    { skip: skip || linkedEoId == null || linkedPoId != null }
+  );
+
   const orderNumber =
-    linkedPurchaseOrder?.po_number ?? expenseOrders[0]?.expense_number ?? null;
+    linkedPurchaseOrder?.po_number ?? linkedExpenseOrder?.expense_number ?? null;
 
   return {
     orderNumber,
     linkedPoId,
+    linkedEoId,
     poItems: linkedPoId != null ? poItems : [],
-    isLoading: !skip && (isPurchaseLoading || isExpenseLoading || isPoItemsLoading),
+    expenseItems: linkedPoId == null && linkedEoId != null ? expenseItems : [],
+    isLoading:
+      !skip && (isPurchaseLoading || isExpenseLoading || isPoItemsLoading || isEoItemsLoading),
   };
 }

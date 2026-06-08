@@ -38,6 +38,7 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   const kind = getMachineVisualKind(machine, latestEvent);
   const label = getMachineStatusLabel(machine, latestEvent);
   const expand = onExpandDetails ?? onSelect;
+  const showExpandButton = onExpandDetails != null;
 
   return (
     <Card
@@ -72,20 +73,22 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
               </div>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-brand-primary"
-            aria-label="Open full details"
-            title="Full details"
-            onClick={(e) => {
-              e.stopPropagation();
-              expand();
-            }}
-          >
-            <Maximize2 className="h-4 w-4" strokeWidth={2} />
-          </Button>
+          {showExpandButton ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-brand-primary"
+              aria-label="Open full details"
+              title="Full details"
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpandDetails!();
+              }}
+            >
+              <Maximize2 className="h-4 w-4" strokeWidth={2} />
+            </Button>
+          ) : null}
         </div>
         <p className="mt-2 truncate pl-[3.25rem] text-xs text-muted-foreground">
           {[machine.model_number, machine.manufacturer].filter(Boolean).join(' · ') || '\u00A0'}

@@ -173,6 +173,18 @@ export interface UpdatePurchaseOrderItem {
   notes?: string | null;
 }
 
+export interface PurchaseOrderItemSyncUpdate {
+  id: number;
+  quantity_ordered: number;
+  unit_price: number;
+}
+
+export interface PurchaseOrderItemSyncRequest {
+  remove_ids: number[];
+  updates: PurchaseOrderItemSyncUpdate[];
+  additions: CreatePurchaseOrderItem[];
+}
+
 export interface ListPurchaseOrdersParams {
   skip?: number;
   limit?: number;

@@ -23,6 +23,7 @@ import { canVoidPoInvoice } from './purchaseOrderMilestones';
 import type { PurchaseOrderItem } from '@/types/purchaseOrder';
 import PoVoidedInvoicesDialog from './PoVoidedInvoicesDialog';
 import { getVoidedInvoicesFromPoEvents } from './poVoidedInvoiceUtils';
+import { formatInvLabel } from '@/components/newcomponents/customui/accounts/invoiceDisplayUtils';
 
 export interface PoLinkedInvoiceCardProps {
   invoiceId: number | null;
@@ -79,6 +80,12 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   const voidReadiness = canVoidPoInvoice(invoiceStatus, poItems);
   const navigate = useNavigate();
   const accountId = accountIdProp ?? invoice?.account_id ?? null;
+  const linkedInvoiceLabel =
+    invoiceId != null
+      ? invoice
+        ? formatInvLabel(invoice)
+        : `Inv #${invoiceId}`
+      : null;
 
   const handleViewInAccounts = () => {
     if (!accountId || invoiceId == null) return;
@@ -114,9 +121,14 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
     <Card id="po-section-invoice" className="scroll-mt-6">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            Linked Invoice
+          <CardTitle className="text-base flex items-center gap-2 min-w-0">
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">
+              Linked Invoice
+              {linkedInvoiceLabel ? (
+                <span className="font-normal text-muted-foreground"> · {linkedInvoiceLabel}</span>
+              ) : null}
+            </span>
           </CardTitle>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {isConfirmed && (
