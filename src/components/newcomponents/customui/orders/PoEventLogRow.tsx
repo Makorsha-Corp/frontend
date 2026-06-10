@@ -27,13 +27,6 @@ const PoEventLogRow: React.FC<PoEventLogRowProps> = ({ event, isLast }) => {
   const changes = event.metadata?.changes ?? [];
   const hasChanges = changes.length > 0;
 
-  const changeLabel = (label: string) => {
-    if (event.event_type === 'received' && event.metadata?.item_name) {
-      return `${event.metadata.item_name} received`;
-    }
-    return label;
-  };
-
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
@@ -78,7 +71,7 @@ const PoEventLogRow: React.FC<PoEventLogRowProps> = ({ event, isLast }) => {
               <ul className="mt-2 space-y-1.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
                 {changes.map((change) => (
                   <li key={`${change.field}-${change.label}`} className="text-xs text-muted-foreground">
-                    <span className="font-medium text-card-foreground">{changeLabel(change.label)}:</span>{' '}
+                    <span className="font-medium text-card-foreground">{change.label}:</span>{' '}
                     <span>{displayValue(change.from_value)}</span>
                     <span className="mx-1 text-muted-foreground/70">→</span>
                     <span className="text-card-foreground">{displayValue(change.to_value)}</span>

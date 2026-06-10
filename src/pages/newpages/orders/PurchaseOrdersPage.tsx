@@ -185,7 +185,8 @@ const PurchaseOrdersPage: React.FC = () => {
         }).format(v)
       : '—';
 
-  const accountName = (id: number) => accounts.find((a) => a.id === id)?.name ?? `#${id}`;
+  const accountName = (id: number | null) =>
+    id == null ? 'No supplier' : accounts.find((a) => a.id === id)?.name ?? `Account #${id}`;
   const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
   const destinationLabel = (order: PurchaseOrder) => {
     if (order.destination_type === 'storage') {

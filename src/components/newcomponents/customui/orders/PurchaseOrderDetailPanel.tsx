@@ -463,8 +463,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     void ensureDraftInvoice(order.id)
       .unwrap()
       .then(() => onUpdated?.())
-      .catch(() => {
-        /* silent backfill for legacy POs */
+      .catch((err: unknown) => {
+        const detail = (err as { data?: { detail?: unknown } })?.data?.detail;
+        const message =
+          typeof detail === 'string'
+            ? detail
+            : 'Could not create a draft invoice for this order. Item edits may fail until this is resolved.';
+        toast.error(message);
       });
   }, [order.id, order.invoice_id, hasSupplier, invoiceLocked, ensureDraftInvoice, onUpdated]);
 

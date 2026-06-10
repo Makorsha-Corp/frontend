@@ -337,8 +337,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
       onSaved?.();
       onOpenChange(false);
     } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save order items');
+      const detail = (err as { data?: { detail?: unknown } })?.data?.detail;
+      const message =
+        typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((d) => (typeof d === 'object' && d && 'msg' in d ? String(d.msg) : String(d))).join('; ')
+            : undefined;
+      toast.error(message || 'Failed to save order items');
     } finally {
       setIsSaving(false);
     }
@@ -556,13 +562,19 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() =>
+                                onClick={() => {
+                                  if (line.quantity_received > 0) {
+                                    toast.error(
+                                      `Cannot remove ${line.item_name ?? 'this item'} — receiving has already been recorded`
+                                    );
+                                    return;
+                                  }
                                   setExistingLines((prev) =>
                                     prev.map((l) =>
                                       l.id === line.id ? { ...l, removed: true } : l
                                     )
-                                  )
-                                }
+                                  );
+                                }}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
