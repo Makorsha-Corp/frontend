@@ -93,6 +93,7 @@ import {
   useUnapprovePurchaseOrderMutation,
   useGetPurchaseOrderEventsQuery,
   useCreateInvoiceFromPurchaseOrderMutation,
+  useMarkPurchaseOrderCompleteMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -101,7 +102,6 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 
 const AVATAR_COLORS = [
   'bg-brand-primary',
@@ -183,19 +183,12 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
 
-  const { data: statuses = [] } = useGetStatusesQuery({
-    skip: 0,
-    limit: API_LIMITS.STRICT_100,
-  });
-  const stageLabel = useMemo(
-    () => statuses.find((s) => s.id === order.current_status_id)?.name ?? '—',
-    [statuses, order.current_status_id]
-  );
-
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
   const [setSectionConfirm] = useSetPurchaseOrderSectionConfirmMutation();
   const [ensureDraftInvoice, { isLoading: isEnsuringDraft }] =
     useCreateInvoiceFromPurchaseOrderMutation();
+  const [markOrderComplete, { isLoading: isMarkingOrderComplete }] =
+    useMarkPurchaseOrderCompleteMutation();
   const [confirmInvoice, { isLoading: isConfirmingInvoice }] = useConfirmAccountInvoiceMutation();
   const [voidInvoice, { isLoading: isVoidingInvoice }] = useVoidAccountInvoiceMutation();
 
@@ -226,6 +219,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   >(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollHighlightGenerationRef = useRef(0);
+  const ensureDraftInvoiceRef = useRef(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -470,16 +464,26 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   useEffect(() => {
     if (!hasSupplier || order.invoice_id != null || invoiceLocked) return;
+    if (ensureDraftInvoiceRef.current) return;
+    ensureDraftInvoiceRef.current = true;
     void ensureDraftInvoice(order.id)
       .unwrap()
       .then(() => onUpdated?.())
       .catch((err: unknown) => {
+        const status = (err as { status?: number })?.status;
+        if (status === 409) {
+          onUpdated?.();
+          return;
+        }
         const detail = (err as { data?: { detail?: unknown } })?.data?.detail;
         const message =
           typeof detail === 'string'
             ? detail
             : 'Could not create a draft invoice for this order. Item edits may fail until this is resolved.';
         toast.error(message);
+      })
+      .finally(() => {
+        ensureDraftInvoiceRef.current = false;
       });
   }, [order.id, order.invoice_id, hasSupplier, invoiceLocked, ensureDraftInvoice, onUpdated]);
 
@@ -493,6 +497,28 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to confirm invoice');
+    }
+  };
+
+  const storageFactoryName =
+    order.destination_type === 'storage'
+      ? factories.find((f) => f.id === order.destination_id)?.name
+      : undefined;
+
+  const handleMarkOrderComplete = async () => {
+    try {
+      await markOrderComplete(order.id).unwrap();
+      toast.success(
+        order.destination_type === 'storage'
+          ? storageFactoryName
+            ? `Purchase order complete — items added to ${storageFactoryName} storage`
+            : 'Purchase order complete — items added to factory storage'
+          : 'Purchase order marked complete'
+      );
+      onUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to mark order complete');
     }
   };
 
@@ -723,15 +749,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6"
         >
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            {order.po_number}
-          </h2>
-          <Badge variant="outline" className="shrink-0 text-xs font-medium">
-            {stageLabel}
-          </Badge>
-        </div>
-
         <PoApprovalsTopBar
           approvers={approvers}
           approvalSummary={approvalSummary}
@@ -1019,6 +1036,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             ]}
             approvalSummary={approvalSummary}
             items={items}
+            orderCompleted={
+              order.order_completed || order.current_status_name === 'Complete'
+            }
+            onMarkOrderComplete={handleMarkOrderComplete}
+            isMarkingOrderComplete={isMarkingOrderComplete}
+            destinationType={order.destination_type}
+            storageFactoryName={storageFactoryName}
             onScrollToSection={scrollToPoSection}
             onScrollToFinalize={scrollToFinalizeInvoice}
             onScrollToManageApprovals={scrollToManageApprovalsCard}

@@ -99,7 +99,6 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
         />
         <PurchaseOrderPendingActions
           orders={orders}
-          statusLabel={statusLabel}
           onSelectOrder={onSelectOrder}
         />
       </div>

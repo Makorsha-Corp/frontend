@@ -3,6 +3,8 @@ import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -55,6 +57,7 @@ const StoragePage: React.FC = () => {
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showZeroQty, setShowZeroQty] = useState(false);
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingInventory, setEditingInventory] = useState<Inventory | null>(null);
@@ -88,14 +91,16 @@ const StoragePage: React.FC = () => {
   const [deleteProduct] = useDeleteProductMutation();
 
   const filteredInventory = useMemo(() => {
-    if (!searchQuery.trim()) return inventoryList;
-    const q = searchQuery.toLowerCase();
-    return inventoryList.filter(
-      (inv) =>
+    const q = searchQuery.trim().toLowerCase();
+    return inventoryList.filter((inv) => {
+      if (!showZeroQty && (inv.qty ?? 0) <= 0) return false;
+      if (!q) return true;
+      return (
         (inv.item_name ?? '').toLowerCase().includes(q) ||
         (inv.item_unit ?? '').toLowerCase().includes(q)
-    );
-  }, [inventoryList, searchQuery]);
+      );
+    });
+  }, [inventoryList, searchQuery, showZeroQty]);
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return productsList;
@@ -159,14 +164,19 @@ const StoragePage: React.FC = () => {
     return `All factories (${factories.length})`;
   }, [selectedFactory, factories]);
 
-  const handleDeleteInventory = async (inv: Inventory) => {
-    if (!window.confirm(`Deactivate "${inv.item_name ?? `Item #${inv.item_id}`}" from inventory?`)) return;
+  const handleClearInventoryStock = async (inv: Inventory) => {
+    if (
+      !window.confirm(
+        `Clear stock for "${inv.item_name ?? `Item #${inv.item_id}`}"? Quantity will be set to 0. Movement history is kept in the ledger.`
+      )
+    )
+      return;
     try {
       await deleteInventory(inv.id).unwrap();
-      toast.success('Inventory record deactivated');
+      toast.success('Stock cleared');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate');
+      toast.error(e?.data?.detail || 'Failed to clear stock');
     }
   };
 
@@ -387,20 +397,37 @@ const StoragePage: React.FC = () => {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Tabs
-                    value={inventoryTypeFilter}
-                    onValueChange={(v) => setInventoryTypeFilter(v as InventoryType | 'all')}
-                    className="w-auto"
-                  >
-                    <TabsList className="h-8">
-                      <TabsTrigger value="all" className="px-2.5 text-xs">All</TabsTrigger>
-                      {INVENTORY_TYPES.map((t) => (
-                        <TabsTrigger key={t.value} value={t.value} className="px-2.5 text-xs">
-                          {t.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </Tabs>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5" title="Show empty inventory rows">
+                      <Switch
+                        id="storage-show-zero-qty"
+                        checked={showZeroQty}
+                        onCheckedChange={setShowZeroQty}
+                        className="scale-90"
+                        aria-label="Show empty inventory rows"
+                      />
+                      <Label
+                        htmlFor="storage-show-zero-qty"
+                        className="cursor-pointer text-xs font-normal text-muted-foreground whitespace-nowrap"
+                      >
+                        Empty
+                      </Label>
+                    </div>
+                    <Tabs
+                      value={inventoryTypeFilter}
+                      onValueChange={(v) => setInventoryTypeFilter(v as InventoryType | 'all')}
+                      className="w-auto"
+                    >
+                      <TabsList className="h-8">
+                        <TabsTrigger value="all" className="px-2.5 text-xs">All</TabsTrigger>
+                        {INVENTORY_TYPES.map((t) => (
+                          <TabsTrigger key={t.value} value={t.value} className="px-2.5 text-xs">
+                            {t.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  </div>
                 </div>
                 {loadingInventory ? (
                   <div className="flex flex-1 flex-col items-center justify-center py-16">
@@ -420,9 +447,13 @@ const StoragePage: React.FC = () => {
                   <div className="flex flex-1 flex-col items-center justify-center py-16">
                     <Archive className="h-10 w-10 text-muted-foreground mb-3" />
                     <p className="text-muted-foreground mb-4">
-                      {searchQuery ? 'No inventory rows match your search.' : 'No inventory records yet.'}
+                      {searchQuery
+                        ? 'No inventory rows match your search.'
+                        : showZeroQty
+                          ? 'No inventory records yet.'
+                          : 'No items in stock. Turn on Empty to see cleared rows.'}
                     </p>
-                    {!searchQuery && (
+                    {!searchQuery && showZeroQty && (
                       <Button onClick={() => setIsAddInventoryOpen(true)} className="bg-brand-primary hover:bg-brand-primary-hover">
                         <Plus className="mr-2 h-4 w-4" />
                         Add to Inventory
@@ -467,14 +498,18 @@ const StoragePage: React.FC = () => {
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDeleteInventory(inv)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {(inv.qty ?? 0) > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleClearInventoryStock(inv)}
+                                    title="Set quantity to 0"
+                                    aria-label="Set quantity to 0"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>

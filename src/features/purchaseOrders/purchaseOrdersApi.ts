@@ -136,14 +136,26 @@ export const purchaseOrdersApi = createApi({
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
       ],
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
         try {
-          await queryFulfilled;
+          const { data: updated } = await queryFulfilled;
+          dispatch(
+            purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => updated)
+          );
           dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
         } catch {
           /* mutation failed */
         }
       },
+    }),
+    markPurchaseOrderComplete: builder.mutation<PurchaseOrder, number>({
+      query: (id) => ({ url: `purchase-orders/${id}/complete/`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'PurchaseOrder', id },
+        'PurchaseOrder',
+        'ActiveOrders',
+        { type: 'PurchaseOrderEvents', id },
+      ],
     }),
     // Items
     getPurchaseOrderItems: builder.query<PurchaseOrderItem[], number>({
@@ -254,6 +266,7 @@ export const {
   useSetPurchaseOrderSectionConfirmMutation,
   useDeletePurchaseOrderMutation,
   useCreateInvoiceFromPurchaseOrderMutation,
+  useMarkPurchaseOrderCompleteMutation,
   useGetPurchaseOrderItemsQuery,
   useAddPurchaseOrderItemMutation,
   useUpdatePurchaseOrderItemMutation,

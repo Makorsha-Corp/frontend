@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -43,11 +45,11 @@ import {
 } from './ordersOverviewData';
 import {
   filterPurchaseOrders,
+  isPurchaseOrderComplete,
   purchaseOrderSummaryStats,
   type DestinationTypeFilter,
   type InvoiceFilter,
 } from './purchaseOrdersOverviewData';
-
 const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
 const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
@@ -69,8 +71,8 @@ const PurchaseOrdersPage: React.FC = () => {
   const [factoryFilter, setFactoryFilter] = useState<string>('all');
   const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+  const [showCompleteOrders, setShowCompleteOrders] = useState(false);
   const [filtersBarOpen, setFiltersBarOpen] = useState(false);
-
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,
     limit: PO_LIST_LIMIT,
@@ -121,6 +123,7 @@ const PurchaseOrdersPage: React.FC = () => {
       destinationType: destinationFilter,
       invoice: invoiceFilter,
       searchQuery,
+      showCompleteOrders,
     }),
     [
       dateRange.from,
@@ -131,6 +134,7 @@ const PurchaseOrdersPage: React.FC = () => {
       destinationFilter,
       invoiceFilter,
       searchQuery,
+      showCompleteOrders,
     ]
   );
 
@@ -146,10 +150,19 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const mayTruncate = orders.length >= PO_LIST_LIMIT;
 
-  const selectedOrder =
-    filteredOrders.find((o) => o.id === selectedOrderId) ??
-    orders.find((o) => o.id === selectedOrderId) ??
-    null;
+  const selectedOrder = useMemo(() => {
+    const inFiltered = filteredOrders.find((o) => o.id === selectedOrderId);
+    if (inFiltered) return inFiltered;
+    if (showCompleteOrders) {
+      return orders.find((o) => o.id === selectedOrderId) ?? null;
+    }
+    return null;
+  }, [filteredOrders, orders, selectedOrderId, showCompleteOrders]);
+
+  const hasHiddenCompleteOrders = useMemo(
+    () => !showCompleteOrders && orders.some(isPurchaseOrderComplete),
+    [showCompleteOrders, orders]
+  );
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
@@ -428,19 +441,35 @@ const PurchaseOrdersPage: React.FC = () => {
             </SelectContent>
           </Select>
 
-          {activeFilterCount > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="ml-auto h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={clearFilters}
-              aria-label="Clear filters"
-              title="Clear filters"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="po-show-complete-filters"
+                checked={showCompleteOrders}
+                onCheckedChange={setShowCompleteOrders}
+                aria-label="Show complete orders"
+              />
+              <Label
+                htmlFor="po-show-complete-filters"
+                className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
+              >
+                Show complete orders
+              </Label>
+            </div>
+            {activeFilterCount > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={clearFilters}
+                aria-label="Clear filters"
+                title="Clear filters"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
 
         </div>
         ) : null}
@@ -456,11 +485,13 @@ const PurchaseOrdersPage: React.FC = () => {
             activeFilterCount={activeFilterCount}
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={setShowCompleteOrders}
+            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
             accountName={accountName}
-            statusLabel={statusLabel}
             destinationLabel={destinationLabel}
             formatCurrency={formatCurrency}
             formatDate={formatDate}

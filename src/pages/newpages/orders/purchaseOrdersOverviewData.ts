@@ -19,6 +19,16 @@ export interface PurchaseOrderFilters {
   destinationType: DestinationTypeFilter;
   invoice: InvoiceFilter;
   searchQuery: string;
+  showCompleteOrders: boolean;
+}
+
+/** Manually closed PO (Complete stage) or legacy completed-style status names. */
+export function isPurchaseOrderComplete(order: PurchaseOrder): boolean {
+  if (order.order_completed) return true;
+  const name = order.current_status_name?.trim();
+  if (name === 'Complete') return true;
+  if (name) return isCompletedStatusLabel(name);
+  return false;
 }
 
 export interface PurchaseOrderSummaryStats {
@@ -68,6 +78,10 @@ export function filterPurchaseOrders(
     rows = rows.filter((o) => o.invoice_id != null);
   } else if (filters.invoice === 'not_invoiced') {
     rows = rows.filter((o) => o.invoice_id == null);
+  }
+
+  if (!filters.showCompleteOrders) {
+    rows = rows.filter((o) => !isPurchaseOrderComplete(o));
   }
 
   const q = filters.searchQuery.trim().toLowerCase();

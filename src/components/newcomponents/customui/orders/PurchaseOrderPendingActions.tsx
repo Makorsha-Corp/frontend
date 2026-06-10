@@ -5,31 +5,26 @@ import OrderPendingActions, { type PendingActionSection } from './OrderPendingAc
 
 interface PurchaseOrderPendingActionsProps {
   orders: PurchaseOrder[];
-  statusLabel: (id: number) => string;
   onSelectOrder: (id: number) => void;
   className?: string;
 }
 
-const stageIs = (order: PurchaseOrder, stage: string, statusLabel: (id: number) => string) =>
-  statusLabel(order.current_status_id) === stage;
+const stageIs = (order: PurchaseOrder, stage: string) => order.current_status_name === stage;
 
 const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = ({
   orders,
-  statusLabel,
   onSelectOrder,
   className,
 }) => {
   const sections = useMemo((): PendingActionSection[] => {
-    const planningOrders = orders.filter((o) => stageIs(o, 'Planning', statusLabel));
-
-    const awaitingApproval = planningOrders;
+    const planningOrders = orders.filter((o) => stageIs(o, 'Planning'));
 
     const missingInvoices = planningOrders.filter(
       (o) => o.account_id != null && o.invoice_id == null
     );
 
     const oldestDraft = orders
-      .filter((o) => stageIs(o, 'Draft', statusLabel))
+      .filter((o) => stageIs(o, 'Draft'))
       .sort(
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -41,11 +36,11 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
         id: 'awaiting',
         title: 'In Planning',
         icon: <Clock className="h-4 w-4" />,
-        count: awaitingApproval.length,
-        items: awaitingApproval.slice(0, 3).map((o) => ({
+        count: planningOrders.length,
+        items: planningOrders.slice(0, 3).map((o) => ({
           id: o.id,
           label: o.po_number,
-          sublabel: statusLabel(o.current_status_id),
+          sublabel: o.current_status_name ?? '—',
         })),
         colorClass: 'text-amber-600 dark:text-amber-400',
         bgClass: 'bg-amber-100 dark:bg-amber-900/30',
@@ -58,7 +53,7 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
         items: missingInvoices.slice(0, 3).map((o) => ({
           id: o.id,
           label: o.po_number,
-          sublabel: statusLabel(o.current_status_id),
+          sublabel: o.current_status_name ?? '—',
         })),
         colorClass: 'text-orange-600 dark:text-orange-400',
         bgClass: 'bg-orange-100 dark:bg-orange-900/30',
@@ -71,13 +66,13 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
         items: oldestDraft.map((o) => ({
           id: o.id,
           label: o.po_number,
-          sublabel: statusLabel(o.current_status_id),
+          sublabel: o.current_status_name ?? '—',
         })),
         colorClass: 'text-red-600 dark:text-red-400',
         bgClass: 'bg-red-100 dark:bg-red-900/30',
       },
     ];
-  }, [orders, statusLabel]);
+  }, [orders]);
 
   return (
     <OrderPendingActions

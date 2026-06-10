@@ -240,3 +240,18 @@ export function approvalsMilestoneState(summary: ApprovalSummary): PoMilestoneSt
   if (summary.approved_count > 0) return 'partial';
   return 'pending';
 }
+
+export function poStageBadgeClassName(stageName: string | null | undefined): string {
+  switch (stageName) {
+    case 'Draft':
+      return 'border-transparent bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
+    case 'Planning':
+      return 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+    case 'Receiving':
+      return 'border-transparent bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+    case 'Complete':
+      return 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+    default:
+      return 'border-transparent bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-50';
+  }
+}

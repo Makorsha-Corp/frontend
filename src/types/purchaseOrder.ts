@@ -26,6 +26,7 @@ export interface PurchaseOrder {
   subtotal: number;
   total_amount: number;
   current_status_id: number;
+  current_status_name: string | null;
   order_workflow_id: number | null;
   invoice_id: number | null;
   required_approvals: number | null;
@@ -36,6 +37,7 @@ export interface PurchaseOrder {
   notes_confirmed: boolean;
   items_confirmed: boolean;
   invoice_confirmed: boolean;
+  order_completed?: boolean;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -96,6 +98,8 @@ export type PurchaseOrderEventType =
   | 'approver_added'
   | 'approver_removed'
   | 'status_updated'
+  | 'order_completed'
+  | 'inventory_posted'
   | 'approvals_threshold_updated';
 
 export interface PurchaseOrderEventChange {

@@ -1,8 +1,9 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, ClipboardList } from 'lucide-react';
+import { Check, ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
 import { SectionConfirmIcon } from './PoSectionConfirmButton';
 import type { ApprovalSummary, PurchaseOrderItem } from '@/types/purchaseOrder';
 import type { PoConfirmationsStatus, PoLinkedInvoiceStatus } from './purchaseOrderMilestones';
@@ -13,7 +14,7 @@ type StepVisualState = 'complete' | 'active' | 'pending';
 
 export type PoInvoiceScrollSection = PoSectionConfirmKey;
 
-type ChecklistPhase = 'sections' | 'approval' | 'finalize' | 'receiving' | 'done';
+type ChecklistPhase = 'sections' | 'approval' | 'finalize' | 'receiving' | 'complete' | 'done';
 
 interface SectionRow {
   section: PoInvoiceScrollSection;
@@ -30,6 +31,11 @@ export interface PoInvoiceWorkflowChecklistProps {
   sections: SectionRow[];
   approvalSummary: ApprovalSummary;
   items: PurchaseOrderItem[];
+  orderCompleted: boolean;
+  onMarkOrderComplete?: () => void;
+  isMarkingOrderComplete?: boolean;
+  destinationType?: string;
+  storageFactoryName?: string | null;
   onScrollToSection: (section: PoInvoiceScrollSection) => void;
   onScrollToFinalize?: () => void;
   onScrollToManageApprovals?: () => void;
@@ -178,12 +184,14 @@ function getChecklistPhase(
   sectionsComplete: boolean,
   approvalComplete: boolean,
   isFinalized: boolean,
-  receivingComplete: boolean
+  receivingComplete: boolean,
+  orderCompleted: boolean
 ): ChecklistPhase {
   if (!sectionsComplete) return 'sections';
   if (!approvalComplete && !isFinalized) return 'approval';
   if (!isFinalized) return 'finalize';
   if (!receivingComplete) return 'receiving';
+  if (!orderCompleted) return 'complete';
   return 'done';
 }
 
@@ -195,6 +203,11 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   sections,
   approvalSummary,
   items,
+  orderCompleted,
+  onMarkOrderComplete,
+  isMarkingOrderComplete = false,
+  destinationType,
+  storageFactoryName,
   onScrollToSection,
   onScrollToFinalize,
   onScrollToManageApprovals,
@@ -210,7 +223,8 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
     sectionsComplete,
     approvalComplete,
     isFinalized,
-    receivingComplete
+    receivingComplete,
+    orderCompleted
   );
 
   const confirmedCount = sections.filter((s) => s.confirmed).length;
@@ -221,10 +235,18 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   const receivingRatio =
     items.length > 0 ? `${totalReceived}/${totalOrdered}` : `0/0`;
 
+  const completeStepDescription =
+    destinationType === 'storage'
+      ? storageFactoryName
+        ? `All items are received. Confirm to close this order and add items to ${storageFactoryName} storage.`
+        : 'All items are received. Confirm to close this order and add items to factory storage.'
+      : 'All items are received. Confirm to close this order and move it to Complete.';
+
   const renderCompletedSections = phase !== 'sections';
-  const renderCompletedApproval = ['finalize', 'receiving', 'done'].includes(phase);
-  const renderCompletedFinalize = ['receiving', 'done'].includes(phase);
-  const renderCompletedReceiving = phase === 'done';
+  const renderCompletedApproval = ['finalize', 'receiving', 'complete', 'done'].includes(phase);
+  const renderCompletedFinalize = ['receiving', 'complete', 'done'].includes(phase);
+  const renderCompletedReceiving = ['complete', 'done'].includes(phase);
+  const renderCompletedMarkOrder = phase === 'done';
 
   const approvalDescription = !hasSupplier
     ? 'Assign a supplier so the draft invoice can sync'
@@ -279,8 +301,11 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
             <CompletedStepRow
               title="Received items"
               badge={ratioBadge(receivingRatio, 'green')}
-              isLast
             />
+          )}
+
+          {renderCompletedMarkOrder && (
+            <CompletedStepRow title="Mark order complete" isLast />
           )}
 
           {phase === 'sections' && (
@@ -369,6 +394,45 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
                 )}
               />
             </ChecklistStep>
+          )}
+
+          {phase === 'complete' && (
+            <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
+              <ChecklistStepHeader
+                state="active"
+                title="Mark order complete"
+                description={completeStepDescription}
+              />
+              <div className="ml-10">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-brand-primary hover:bg-brand-primary-hover"
+                  disabled={!onMarkOrderComplete || isMarkingOrderComplete}
+                  onClick={onMarkOrderComplete}
+                >
+                  {isMarkingOrderComplete ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Marking complete…
+                    </>
+                  ) : (
+                    'Mark order complete'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {phase === 'done' && (
+            <div className="border-t border-border/60 bg-green-50/80 px-4 py-3 dark:bg-green-950/30">
+              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                Order is complete!
+              </p>
+              <p className="mt-0.5 text-xs text-green-700/90 dark:text-green-400/90">
+                All sections confirmed, invoice finalized, items received, and order closed.
+              </p>
+            </div>
           )}
         </div>
       </CardContent>

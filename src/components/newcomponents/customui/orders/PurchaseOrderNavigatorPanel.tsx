@@ -1,5 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import PurchaseOrderListRow from '@/components/newcomponents/customui/orders/PurchaseOrderListRow';
 import { ORDER_LIST_WIDTH, ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
@@ -14,11 +16,13 @@ export interface PurchaseOrderNavigatorPanelProps {
   activeFilterCount: number;
   filtersOpen: boolean;
   onToggleFilters: () => void;
+  showCompleteOrders: boolean;
+  onShowCompleteOrdersChange: (value: boolean) => void;
+  hasHiddenCompleteOrders?: boolean;
   onSelectOrder: (id: number) => void;
   onDeleteOrder?: (order: PurchaseOrder) => void;
   onAddOrder: () => void;
   accountName: (id: number) => string;
-  statusLabel: (id: number) => string;
   destinationLabel: (order: PurchaseOrder) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
@@ -32,11 +36,13 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
   activeFilterCount,
   filtersOpen,
   onToggleFilters,
+  showCompleteOrders,
+  onShowCompleteOrdersChange,
+  hasHiddenCompleteOrders = false,
   onSelectOrder,
   onDeleteOrder,
   onAddOrder,
   accountName,
-  statusLabel,
   destinationLabel,
   formatCurrency,
   formatDate,
@@ -48,12 +54,32 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
     >
       {/* Header */}
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
-        <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
-          Orders
-          <span className="ml-2 font-normal text-muted-foreground">
-            ({filteredOrders.length})
-          </span>
-        </h2>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
+            Orders
+            <span className="ml-2 font-normal text-muted-foreground">
+              ({filteredOrders.length})
+            </span>
+          </h2>
+          <div
+            className="ml-4 flex shrink-0 items-center gap-1.5"
+            title="Show complete orders"
+          >
+            <Switch
+              id="po-show-complete-nav"
+              checked={showCompleteOrders}
+              onCheckedChange={onShowCompleteOrdersChange}
+              className="scale-90"
+              aria-label="Show complete orders"
+            />
+            <Label
+              htmlFor="po-show-complete-nav"
+              className="cursor-pointer text-xs font-normal text-muted-foreground whitespace-nowrap"
+            >
+              Complete
+            </Label>
+          </div>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -86,7 +112,9 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
             <p className="text-sm text-muted-foreground text-center">
               {hasActiveFilters
                 ? 'No orders match your filters.'
-                : 'No purchase orders yet.'}
+                : hasHiddenCompleteOrders
+                  ? 'No open orders. Turn on Complete to see finished purchase orders.'
+                  : 'No purchase orders yet.'}
             </p>
             {!hasActiveFilters && (
               <Button
@@ -113,7 +141,6 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
                     : undefined
                 }
                 accountName={accountName(o.account_id)}
-                statusLabel={statusLabel(o.current_status_id)}
                 destinationLabel={destinationLabel(o)}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}

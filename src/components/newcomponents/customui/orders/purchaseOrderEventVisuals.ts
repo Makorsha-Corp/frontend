@@ -115,6 +115,16 @@ export const PO_EVENT_VISUALS: Record<string, PoEventVisual> = {
     wrap: 'bg-sky-100 dark:bg-sky-900/30',
     color: 'text-sky-600 dark:text-sky-400',
   },
+  order_completed: {
+    icon: CheckCircle2,
+    wrap: 'bg-green-100 dark:bg-green-900/30',
+    color: 'text-green-600 dark:text-green-400',
+  },
+  inventory_posted: {
+    icon: PackagePlus,
+    wrap: 'bg-emerald-100 dark:bg-emerald-900/30',
+    color: 'text-emerald-600 dark:text-emerald-400',
+  },
   approvals_threshold_updated: {
     icon: ShieldCheck,
     wrap: 'bg-amber-100 dark:bg-amber-900/30',
