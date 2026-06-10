@@ -10,6 +10,9 @@ interface PurchaseOrderPendingActionsProps {
   className?: string;
 }
 
+const stageIs = (order: PurchaseOrder, stage: string, statusLabel: (id: number) => string) =>
+  statusLabel(order.current_status_id) === stage;
+
 const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = ({
   orders,
   statusLabel,
@@ -17,16 +20,16 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
   className,
 }) => {
   const sections = useMemo((): PendingActionSection[] => {
-    const awaitingApproval = orders.filter(
-      (o) => o.current_status_id >= 1 && o.current_status_id <= 3
+    const planningOrders = orders.filter((o) => stageIs(o, 'Planning', statusLabel));
+
+    const awaitingApproval = planningOrders;
+
+    const missingInvoices = planningOrders.filter(
+      (o) => o.account_id != null && o.invoice_id == null
     );
 
-    const missingInvoices = orders.filter(
-      (o) => o.current_status_id >= 4 && o.invoice_id == null
-    );
-
-    const oldestPending = orders
-      .filter((o) => o.current_status_id === 1)
+    const oldestDraft = orders
+      .filter((o) => stageIs(o, 'Draft', statusLabel))
       .sort(
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -36,7 +39,7 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
     return [
       {
         id: 'awaiting',
-        title: 'Awaiting Approval',
+        title: 'In Planning',
         icon: <Clock className="h-4 w-4" />,
         count: awaitingApproval.length,
         items: awaitingApproval.slice(0, 3).map((o) => ({
@@ -61,11 +64,11 @@ const PurchaseOrderPendingActions: React.FC<PurchaseOrderPendingActionsProps> = 
         bgClass: 'bg-orange-100 dark:bg-orange-900/30',
       },
       {
-        id: 'oldest-pending',
-        title: 'Oldest Pending',
+        id: 'oldest-draft',
+        title: 'Oldest Draft',
         icon: <AlertCircle className="h-4 w-4" />,
-        count: oldestPending.length,
-        items: oldestPending.map((o) => ({
+        count: oldestDraft.length,
+        items: oldestDraft.map((o) => ({
           id: o.id,
           label: o.po_number,
           sublabel: statusLabel(o.current_status_id),

@@ -101,6 +101,7 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import { API_LIMITS } from '@/constants/apiLimits';
+import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 
 const AVATAR_COLORS = [
   'bg-brand-primary',
@@ -181,6 +182,15 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 }) => {
   const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
+
+  const { data: statuses = [] } = useGetStatusesQuery({
+    skip: 0,
+    limit: API_LIMITS.STRICT_100,
+  });
+  const stageLabel = useMemo(
+    () => statuses.find((s) => s.id === order.current_status_id)?.name ?? '—',
+    [statuses, order.current_status_id]
+  );
 
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
   const [setSectionConfirm] = useSetPurchaseOrderSectionConfirmMutation();
@@ -713,6 +723,15 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6"
         >
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            {order.po_number}
+          </h2>
+          <Badge variant="outline" className="shrink-0 text-xs font-medium">
+            {stageLabel}
+          </Badge>
+        </div>
+
         <PoApprovalsTopBar
           approvers={approvers}
           approvalSummary={approvalSummary}
