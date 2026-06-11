@@ -17,6 +17,7 @@ import { projectsApi } from '@/features/projects/projectsApi';
 import { projectComponentsApi } from '@/features/projectComponents/projectComponentsApi';
 import { projectComponentItemsApi } from '@/features/projectComponentItems/projectComponentItemsApi';
 import { projectComponentTasksApi } from '@/features/projectComponentTasks/projectComponentTasksApi';
+import { projectComponentNotesApi } from '@/features/projectComponentNotes/projectComponentNotesApi';
 import { miscellaneousProjectCostsApi } from '@/features/miscellaneousProjectCosts/miscellaneousProjectCostsApi';
 import { ledgersApi } from '@/features/ledgers/ledgersApi';
 import { salesOrdersApi } from '@/features/salesOrders/salesOrdersApi';
@@ -53,6 +54,7 @@ export const store = configureStore({
     [projectComponentsApi.reducerPath]: projectComponentsApi.reducer,
     [projectComponentItemsApi.reducerPath]: projectComponentItemsApi.reducer,
     [projectComponentTasksApi.reducerPath]: projectComponentTasksApi.reducer,
+    [projectComponentNotesApi.reducerPath]: projectComponentNotesApi.reducer,
     [miscellaneousProjectCostsApi.reducerPath]: miscellaneousProjectCostsApi.reducer,
     [ledgersApi.reducerPath]: ledgersApi.reducer,
     [salesOrdersApi.reducerPath]: salesOrdersApi.reducer,
@@ -88,6 +90,7 @@ export const store = configureStore({
       projectComponentsApi.middleware,
       projectComponentItemsApi.middleware,
       projectComponentTasksApi.middleware,
+      projectComponentNotesApi.middleware,
       miscellaneousProjectCostsApi.middleware,
       ledgersApi.middleware,
       salesOrdersApi.middleware,

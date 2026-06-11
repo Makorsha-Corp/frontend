@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
+import { useCreateProjectComponentNoteMutation } from '@/features/projectComponentNotes/projectComponentNotesApi';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -33,21 +34,31 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  const [createTask, { isLoading }] = useCreateProjectComponentTaskMutation();
+  const [createTask, { isLoading: isCreatingTask }] = useCreateProjectComponentTaskMutation();
+  const [createNote, { isLoading: isCreatingNote }] = useCreateProjectComponentNoteMutation();
+  const isLoading = isCreatingTask || isCreatingNote;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Task name is required');
+      toast.error(isNote ? 'Note title is required' : 'Task name is required');
       return;
     }
     try {
-      await createTask({
-        project_component_id: projectComponentId,
-        name: name.trim(),
-        description: description.trim() || name.trim(),
-        is_note: isNote,
-      }).unwrap();
+      if (isNote) {
+        await createNote({
+          project_component_id: projectComponentId,
+          name: name.trim(),
+          description: description.trim() || name.trim(),
+        }).unwrap();
+      } else {
+        await createTask({
+          project_component_id: projectComponentId,
+          name: name.trim(),
+          description: description.trim() || name.trim(),
+          is_note: false,
+        }).unwrap();
+      }
       toast.success(isNote ? 'Note created' : 'Task created');
       setName('');
       setDescription('');
@@ -55,7 +66,7 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
       onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create task');
+      toast.error(e?.data?.detail || (isNote ? 'Failed to create note' : 'Failed to create task'));
     }
   };
 

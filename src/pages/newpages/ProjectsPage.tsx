@@ -33,13 +33,19 @@ import {
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetProjectsQuery, useDeleteProjectMutation } from '@/features/projects/projectsApi';
 import { useGetProjectComponentsQuery, useDeleteProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
-import { useGetProjectComponentTasksQuery, useCreateProjectComponentTaskMutation, useUpdateProjectComponentTaskMutation, useDeleteProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
+import { useGetProjectComponentTasksQuery, useUpdateProjectComponentTaskMutation, useDeleteProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
+import {
+  useGetProjectComponentNotesQuery,
+  useDeleteProjectComponentNoteMutation,
+} from '@/features/projectComponentNotes/projectComponentNotesApi';
 import { useGetProjectComponentItemsQuery } from '@/features/projectComponentItems/projectComponentItemsApi';
 import { useGetMiscellaneousProjectCostsQuery } from '@/features/miscellaneousProjectCosts/miscellaneousProjectCostsApi';
 import { useGetProjectComponentTotalCostQuery } from '@/features/ledgers/ledgersApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
+import type { ProjectComponentNote } from '@/types/projectComponentNote';
+import type { ProjectComponentTask } from '@/types/projectComponentTask';
 import type { ProjectStatus } from '@/types/project';
 import {
   FolderKanban,
@@ -63,6 +69,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AddProjectDialog from '@/components/newcomponents/customui/AddProjectDialog';
 import AddProjectComponentDialog from '@/components/newcomponents/customui/AddProjectComponentDialog';
 import AddProjectComponentTaskDialog from '@/components/newcomponents/customui/AddProjectComponentTaskDialog';
+import ProjectComponentNoteDialog from '@/components/newcomponents/customui/ProjectComponentNoteDialog';
 import AddProjectComponentItemDialog from '@/components/newcomponents/customui/AddProjectComponentItemDialog';
 import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
 import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
@@ -92,6 +99,8 @@ const ProjectsPage: React.FC = () => {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditComponentOpen, setIsEditComponentOpen] = useState(false);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<ProjectComponentNote | null>(null);
+  const [isNoteViewOpen, setIsNoteViewOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
   const navigate = useNavigate();
@@ -111,8 +120,17 @@ const ProjectsPage: React.FC = () => {
     { skip: !selectedProjectId }
   );
   const components = Array.isArray(componentsData) ? componentsData : [];
-  const { data: tasks = [] } = useGetProjectComponentTasksQuery(
+  const { data: componentNotes = [] } = useGetProjectComponentNotesQuery(
     { skip: 0, limit: 100, project_component_id: selectedComponentId ?? undefined },
+    { skip: !selectedComponentId }
+  );
+  const { data: tasks = [] } = useGetProjectComponentTasksQuery(
+    {
+      skip: 0,
+      limit: 100,
+      project_component_id: selectedComponentId ?? undefined,
+      is_note: false,
+    },
     { skip: !selectedComponentId }
   );
   const { data: componentItems = [] } = useGetProjectComponentItemsQuery(
@@ -136,6 +154,8 @@ const ProjectsPage: React.FC = () => {
   const [deleteProject, { isLoading: isDeletingProject }] = useDeleteProjectMutation();
   const [deleteComponent, { isLoading: isDeletingComponent }] = useDeleteProjectComponentMutation();
   const [updateTask] = useUpdateProjectComponentTaskMutation();
+  const [deleteTask] = useDeleteProjectComponentTaskMutation();
+  const [deleteNote] = useDeleteProjectComponentNoteMutation();
 
   const selectedProject =
     selectedProjectData ?? projects.find((p) => p.id === selectedProjectId) ?? null;
@@ -221,6 +241,37 @@ const ProjectsPage: React.FC = () => {
       toast.success(isCompleted ? 'Task marked incomplete' : 'Task completed');
     } catch {
       toast.error('Failed to update task');
+    }
+  };
+
+  const handleOpenNote = (note: ProjectComponentNote) => {
+    setSelectedNote(note);
+    setIsNoteViewOpen(true);
+  };
+
+  const handleDeleteNote = async (note: ProjectComponentNote) => {
+    if (!window.confirm(`Delete note "${note.name}"?`)) return;
+    try {
+      await deleteNote({ id: note.id, project_component_id: note.project_component_id }).unwrap();
+      toast.success('Note deleted');
+      if (selectedNote?.id === note.id) {
+        setIsNoteViewOpen(false);
+        setSelectedNote(null);
+      }
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to delete note');
+    }
+  };
+
+  const handleDeleteTask = async (task: ProjectComponentTask) => {
+    if (!window.confirm(`Delete task "${task.name}"?`)) return;
+    try {
+      await deleteTask(task.id).unwrap();
+      toast.success('Task deleted');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to delete task');
     }
   };
 
@@ -768,11 +819,11 @@ const ProjectsPage: React.FC = () => {
                           <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
                             <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
                               <FileText className="h-4 w-4 mr-2" />
-                              Notes ({tasks.filter((t) => t.is_note).length})
+                              Notes ({componentNotes.length})
                             </TabsTrigger>
                             <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
                               <ListTodo className="h-4 w-4 mr-2" />
-                              Tasks ({tasks.filter((t) => !t.is_note).length})
+                              Tasks ({tasks.length})
                             </TabsTrigger>
                             <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
                               <Paperclip className="h-4 w-4 mr-2" />
@@ -783,7 +834,7 @@ const ProjectsPage: React.FC = () => {
                       </div>
 
                       <TabsContent value="notes" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        {tasks.filter((t) => t.is_note).length === 0 ? (
+                        {componentNotes.length === 0 ? (
                           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
                             <p className="text-sm text-muted-foreground">No notes yet.</p>
                             <Button
@@ -808,20 +859,39 @@ const ProjectsPage: React.FC = () => {
                                 Add Note
                               </Button>
                             </div>
-                            {tasks
-                              .filter((t) => t.is_note)
-                              .map((task) => (
-                                <div key={task.id} className="p-3 rounded-lg border border-border bg-muted/30 text-sm">
-                                  <p className="font-medium text-card-foreground">{task.name}</p>
-                                  {task.description && <p className="mt-1 text-muted-foreground">{task.description}</p>}
-                                </div>
-                              ))}
+                            {componentNotes.map((note) => (
+                              <div
+                                key={note.id}
+                                className="flex items-start gap-2 p-3 rounded-lg border border-border bg-muted/30 text-sm group"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenNote(note)}
+                                  className="flex-1 min-w-0 text-left rounded-sm hover:opacity-80 transition-opacity"
+                                >
+                                  <p className="font-medium text-card-foreground truncate">{note.name}</p>
+                                  {note.description && note.description !== note.name && (
+                                    <p className="mt-1 text-muted-foreground line-clamp-2">{note.description}</p>
+                                  )}
+                                </button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeleteNote(note)}
+                                  title="Delete note"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </TabsContent>
 
                       <TabsContent value="tasks" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        {tasks.filter((t) => !t.is_note).length === 0 ? (
+                        {tasks.length === 0 ? (
                           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
                             <p className="text-sm text-muted-foreground">No tasks yet.</p>
                             <Button
@@ -846,18 +916,41 @@ const ProjectsPage: React.FC = () => {
                                 Add Task
                               </Button>
                             </div>
-                            {tasks
-                              .filter((t) => !t.is_note)
-                              .map((task) => (
-                                <div key={task.id} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
-                                  <button type="button" onClick={() => handleToggleTask(task.id, task.is_completed)} className="shrink-0">
-                                    {task.is_completed ? <Check className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                                  </button>
-                                  <span className={`flex-1 text-sm truncate ${task.is_completed ? 'line-through text-muted-foreground' : 'text-card-foreground'}`}>
-                                    {task.name}
-                                  </span>
-                                </div>
-                              ))}
+                            {tasks.map((task) => (
+                              <div
+                                key={task.id}
+                                className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 group"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleTask(task.id, task.is_completed)}
+                                  className="shrink-0"
+                                >
+                                  {task.is_completed ? (
+                                    <Check className="h-4 w-4 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <span
+                                  className={`flex-1 text-sm truncate ${
+                                    task.is_completed ? 'line-through text-muted-foreground' : 'text-card-foreground'
+                                  }`}
+                                >
+                                  {task.name}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeleteTask(task)}
+                                  title="Delete task"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </TabsContent>
@@ -943,6 +1036,14 @@ const ProjectsPage: React.FC = () => {
           isNote
         />
       )}
+      <ProjectComponentNoteDialog
+        open={isNoteViewOpen}
+        onOpenChange={(open) => {
+          setIsNoteViewOpen(open);
+          if (!open) setSelectedNote(null);
+        }}
+        note={selectedNote}
+      />
       {selectedComponentId && (
         <AddProjectComponentItemDialog
           open={isAddItemOpen}

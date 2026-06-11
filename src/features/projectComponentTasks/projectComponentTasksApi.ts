@@ -6,6 +6,7 @@ export interface ListProjectComponentTasksParams {
   skip?: number;
   limit?: number;
   project_component_id?: number;
+  is_note?: boolean;
 }
 
 export const projectComponentTasksApi = createApi({
@@ -14,16 +15,33 @@ export const projectComponentTasksApi = createApi({
   tagTypes: ['ProjectComponentTask'],
   endpoints: (builder) => ({
     getProjectComponentTasks: builder.query<ProjectComponentTask[], ListProjectComponentTasksParams>({
-      query: ({ skip = 0, limit = 100, project_component_id } = {}) => {
+      query: ({ skip = 0, limit = 100, project_component_id, is_note } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
-        if (project_component_id) {
+        if (project_component_id != null) {
           params.append('project_component_id', project_component_id.toString());
+        }
+        if (is_note != null) {
+          params.append('is_note', String(is_note));
         }
         return `project-component-tasks/?${params.toString()}`;
       },
-      providesTags: ['ProjectComponentTask'],
+      providesTags: (result, _error, arg) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'ProjectComponentTask' as const, id })),
+              {
+                type: 'ProjectComponentTask',
+                id: `LIST-${arg.project_component_id ?? 'all'}-${arg.is_note ?? 'all'}`,
+              },
+            ]
+          : [
+              {
+                type: 'ProjectComponentTask',
+                id: `LIST-${arg.project_component_id ?? 'all'}-${arg.is_note ?? 'all'}`,
+              },
+            ],
     }),
     getProjectComponentTaskById: builder.query<ProjectComponentTask, number>({
       query: (id) => `project-component-tasks/${id}/`,
@@ -35,7 +53,17 @@ export const projectComponentTasksApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['ProjectComponentTask'],
+      invalidatesTags: (_result, _error, arg) => [
+        {
+          type: 'ProjectComponentTask',
+          id: `LIST-${arg.project_component_id}-all`,
+        },
+        {
+          type: 'ProjectComponentTask',
+          id: `LIST-${arg.project_component_id}-false`,
+        },
+        'ProjectComponentTask',
+      ],
     }),
     updateProjectComponentTask: builder.mutation<ProjectComponentTask, { id: number; data: UpdateProjectComponentTaskDTO }>({
       query: ({ id, data }) => ({
