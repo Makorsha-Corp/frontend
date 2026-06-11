@@ -9,6 +9,7 @@ import AppShellHeader, {
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,16 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useGetProjectsQuery, useDeleteProjectMutation } from '@/features/projects/projectsApi';
+import {
+  useGetProjectsQuery,
+  useDeleteProjectMutation,
+  useGetProjectMembersQuery,
+  useGetProjectEventsQuery,
+  useAddProjectMemberMutation,
+  useRemoveProjectMemberMutation,
+  useSetProjectVisibilityMutation,
+} from '@/features/projects/projectsApi';
+import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useGetProjectComponentsQuery, useDeleteProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
 import { useGetProjectComponentTasksQuery, useUpdateProjectComponentTaskMutation, useDeleteProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
 import {
@@ -46,6 +56,7 @@ import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
 import type { ProjectComponentTask } from '@/types/projectComponentTask';
+import type { ProjectVisibility } from '@/types/project';
 import type { ProjectStatus } from '@/types/project';
 import {
   FolderKanban,
@@ -64,12 +75,16 @@ import {
   FileText,
   Paperclip,
   Flag,
+  History,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AddProjectDialog from '@/components/newcomponents/customui/AddProjectDialog';
 import AddProjectComponentDialog from '@/components/newcomponents/customui/AddProjectComponentDialog';
 import AddProjectComponentTaskDialog from '@/components/newcomponents/customui/AddProjectComponentTaskDialog';
 import ProjectComponentNoteDialog from '@/components/newcomponents/customui/ProjectComponentNoteDialog';
+import ProjectMembersTopBar from '@/components/newcomponents/customui/projects/ProjectMembersTopBar';
+import ManageProjectMembersDialog from '@/components/newcomponents/customui/projects/ManageProjectMembersDialog';
+import ProjectEventLogRow from '@/components/newcomponents/customui/projects/ProjectEventLogRow';
 import AddProjectComponentItemDialog from '@/components/newcomponents/customui/AddProjectComponentItemDialog';
 import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
 import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
@@ -79,7 +94,7 @@ import toast from 'react-hot-toast';
 const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
 const ProjectsPage: React.FC = () => {
-  const { factory: globalFactory } = useAppSelector((state) => state.auth);
+  const { factory: globalFactory, user, workspace } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
   // Sync with global factory when it changes (e.g. user selects or clears in navbar)
   useEffect(() => {
@@ -101,6 +116,7 @@ const ProjectsPage: React.FC = () => {
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<ProjectComponentNote | null>(null);
   const [isNoteViewOpen, setIsNoteViewOpen] = useState(false);
+  const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
   const navigate = useNavigate();
@@ -150,8 +166,22 @@ const ProjectsPage: React.FC = () => {
     { skip: !selectedComponentId }
   );
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: false });
+  const { data: projectMembersData } = useGetProjectMembersQuery(selectedProjectId ?? 0, {
+    skip: !selectedProjectId,
+  });
+  const { data: projectEvents = [] } = useGetProjectEventsQuery(selectedProjectId ?? 0, {
+    skip: !selectedProjectId,
+  });
+  const { data: workspaceMembers = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
+    skip: !workspace?.id,
+  });
+
+  const projectMembers = projectMembersData?.members ?? [];
 
   const [deleteProject, { isLoading: isDeletingProject }] = useDeleteProjectMutation();
+  const [addProjectMember] = useAddProjectMemberMutation();
+  const [removeProjectMember] = useRemoveProjectMemberMutation();
+  const [setProjectVisibility] = useSetProjectVisibilityMutation();
   const [deleteComponent, { isLoading: isDeletingComponent }] = useDeleteProjectComponentMutation();
   const [updateTask] = useUpdateProjectComponentTaskMutation();
   const [deleteTask] = useDeleteProjectComponentTaskMutation();
@@ -261,6 +291,54 @@ const ProjectsPage: React.FC = () => {
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to delete note');
+    }
+  };
+
+  const assignableMembers = React.useMemo(() => {
+    const memberIds = new Set(projectMembers.map((m) => m.user_id));
+    return workspaceMembers.filter(
+      (m) => m.status === 'active' && !memberIds.has(m.user_id)
+    );
+  }, [workspaceMembers, projectMembers]);
+
+  const handleAddProjectMember = async (memberUserId: number) => {
+    if (!selectedProjectId) return;
+    try {
+      await addProjectMember({ projectId: selectedProjectId, user_id: memberUserId }).unwrap();
+      toast.success('Member added');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveProjectMember = async (memberUserId: number) => {
+    if (!selectedProjectId) return;
+    try {
+      await removeProjectMember({ projectId: selectedProjectId, userId: memberUserId }).unwrap();
+      toast.success('Member removed');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to remove member');
+    }
+  };
+
+  const handleVisibilityChange = async (visibility: ProjectVisibility) => {
+    if (!selectedProjectId) return;
+    try {
+      const updated = await setProjectVisibility({
+        projectId: selectedProjectId,
+        visibility,
+      }).unwrap();
+      setSelectedProjectData(updated);
+      toast.success(
+        visibility === 'invited_only'
+          ? 'Project visible to invited members only'
+          : 'Project visible to everyone in workspace'
+      );
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to update visibility');
     }
   };
 
@@ -544,8 +622,14 @@ const ProjectsPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Choose a project to view its details and components</p>
                   </CardContent>
                 ) : selectedProject ? (
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4 mb-4">
+                  <div className="p-6 flex flex-col gap-4 h-full min-h-0">
+                    <ProjectMembersTopBar
+                      members={projectMembers}
+                      visibility={selectedProject.visibility ?? 'workspace'}
+                      currentUserId={user?.id ?? null}
+                      onManage={() => setIsManageMembersOpen(true)}
+                    />
+                    <div className="flex items-start justify-between gap-4">
                       <div>
                         <h2 className="text-xl font-semibold text-card-foreground">{selectedProject.name}</h2>
                         <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${getStatusBadge(selectedProject.status ?? 'PLANNING')}`}>
@@ -589,6 +673,35 @@ const ProjectsPage: React.FC = () => {
                         <span>Select a component from the list to view tasks, items, and costs</span>
                       </div>
                     </div>
+                    <Card className="border-border flex flex-col max-h-[min(32rem,50vh)] overflow-hidden mt-2">
+                      <CardHeader className="p-4 pb-3 shrink-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <History className="h-4 w-4 text-muted-foreground" />
+                          Event Log
+                          <Badge variant="outline" className="ml-1 font-normal">
+                            {projectEvents.length}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex-1 min-h-0 overflow-y-auto pt-0">
+                        {projectEvents.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+                            <History className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
+                            <p className="text-sm font-medium text-muted-foreground">No activity yet</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {projectEvents.map((event, idx) => (
+                              <ProjectEventLogRow
+                                key={event.id}
+                                event={event}
+                                isLast={idx === projectEvents.length - 1}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 ) : (
                   <CardContent className="py-16 flex flex-col items-center justify-center min-h-[280px]">
@@ -1056,6 +1169,19 @@ const ProjectsPage: React.FC = () => {
           open={isAddMiscCostOpen}
           onOpenChange={setIsAddMiscCostOpen}
           projectComponentId={selectedComponentId}
+        />
+      )}
+      {selectedProject && (
+        <ManageProjectMembersDialog
+          open={isManageMembersOpen}
+          onOpenChange={setIsManageMembersOpen}
+          members={projectMembers}
+          visibility={selectedProject.visibility ?? 'workspace'}
+          assignableMembers={assignableMembers}
+          createdByUserId={selectedProject.created_by}
+          onVisibilityChange={handleVisibilityChange}
+          onAddMember={handleAddProjectMember}
+          onRemoveMember={handleRemoveProjectMember}
         />
       )}
     </div>

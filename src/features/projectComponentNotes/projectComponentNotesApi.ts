@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { invalidateProjectEventsOnFulfilled } from '@/features/projects/invalidateProjectEvents';
 import type {
   ProjectComponentNote,
   CreateProjectComponentNoteDTO,
@@ -45,6 +46,9 @@ export const projectComponentNotesApi = createApi({
         { type: 'ProjectComponentNote', id: `LIST-${arg.project_component_id}` },
         'ProjectComponentNote',
       ],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     updateProjectComponentNote: builder.mutation<
       ProjectComponentNote,
@@ -59,6 +63,9 @@ export const projectComponentNotesApi = createApi({
         { type: 'ProjectComponentNote', id },
         { type: 'ProjectComponentNote', id: `LIST-${project_component_id}` },
       ],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     deleteProjectComponentNote: builder.mutation<void, { id: number; project_component_id: number }>({
       query: ({ id }) => ({
@@ -69,6 +76,9 @@ export const projectComponentNotesApi = createApi({
         { type: 'ProjectComponentNote', id },
         { type: 'ProjectComponentNote', id: `LIST-${project_component_id}` },
       ],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
   }),
 });

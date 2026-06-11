@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { invalidateProjectEventsOnFulfilled } from '@/features/projects/invalidateProjectEvents';
 import type { MiscellaneousProjectCost, CreateMiscellaneousProjectCostDTO, UpdateMiscellaneousProjectCostDTO } from '@/types/miscellaneousProjectCost';
 
 export interface ListMiscellaneousProjectCostsParams {
@@ -40,6 +41,9 @@ export const miscellaneousProjectCostsApi = createApi({
         body,
       }),
       invalidatesTags: ['MiscellaneousProjectCost'],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     updateMiscellaneousProjectCost: builder.mutation<MiscellaneousProjectCost, { id: number; data: UpdateMiscellaneousProjectCostDTO }>({
       query: ({ id, data }) => ({
@@ -48,6 +52,9 @@ export const miscellaneousProjectCostsApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'MiscellaneousProjectCost', id }, 'MiscellaneousProjectCost'],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     deleteMiscellaneousProjectCost: builder.mutation<void, number>({
       query: (id) => ({
@@ -55,6 +62,9 @@ export const miscellaneousProjectCostsApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['MiscellaneousProjectCost'],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
   }),
 });

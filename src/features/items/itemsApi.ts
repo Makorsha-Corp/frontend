@@ -46,7 +46,7 @@ export const itemsApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: [{ type: 'Item', id: 'LIST' }],
+      invalidatesTags: [{ type: 'Item', id: 'LIST' }, 'ItemTag'],
     }),
 
     // Update existing item
@@ -59,6 +59,7 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
+        'ItemTag',
       ],
     }),
 
@@ -71,6 +72,7 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
+        'ItemTag',
       ],
     }),
   }),

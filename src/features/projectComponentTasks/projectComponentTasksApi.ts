@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { invalidateProjectEventsOnFulfilled } from '@/features/projects/invalidateProjectEvents';
 import type { ProjectComponentTask, CreateProjectComponentTaskDTO, UpdateProjectComponentTaskDTO } from '@/types/projectComponentTask';
 
 export interface ListProjectComponentTasksParams {
@@ -64,6 +65,9 @@ export const projectComponentTasksApi = createApi({
         },
         'ProjectComponentTask',
       ],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     updateProjectComponentTask: builder.mutation<ProjectComponentTask, { id: number; data: UpdateProjectComponentTaskDTO }>({
       query: ({ id, data }) => ({
@@ -72,6 +76,9 @@ export const projectComponentTasksApi = createApi({
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'ProjectComponentTask', id }, 'ProjectComponentTask'],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
     deleteProjectComponentTask: builder.mutation<void, number>({
       query: (id) => ({
@@ -79,6 +86,9 @@ export const projectComponentTasksApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['ProjectComponentTask'],
+      async onQueryStarted(arg, api) {
+        await invalidateProjectEventsOnFulfilled(arg, api);
+      },
     }),
   }),
 });
