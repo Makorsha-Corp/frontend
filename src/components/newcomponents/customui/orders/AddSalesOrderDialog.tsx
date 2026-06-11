@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -153,10 +154,9 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
-            <Input
-              type="number"
-              min="0.01"
-              step="0.01"
+            <StepNumberInput
+              min={0.01}
+              step={0.01}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="0"
@@ -165,10 +165,9 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           </div>
           <div className="grid min-w-[5.5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Unit price</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
+            <StepNumberInput
+              min={0}
+              step={0.01}
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
               placeholder="0.00"

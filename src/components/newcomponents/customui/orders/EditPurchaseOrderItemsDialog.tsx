@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -402,10 +403,9 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
               <div className="flex flex-wrap items-end gap-2">
                 <div className="grid min-w-[5rem] flex-1 gap-1">
                   <Label className="text-xs text-muted-foreground">Qty *</Label>
-                  <Input
-                    type="number"
-                    min="0.01"
-                    step="1"
+                  <StepNumberInput
+                    min={0.01}
+                    step={0.01}
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="0"
@@ -414,10 +414,9 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                 </div>
                 <div className="grid min-w-[5.5rem] flex-1 gap-1">
                   <Label className="text-xs text-muted-foreground">Unit price</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
+                  <StepNumberInput
+                    min={0}
+                    step={0.01}
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(e.target.value)}
                     placeholder="0.00"
@@ -523,10 +522,9 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                               ) : null}
                             </TableCell>
                             <TableCell className="py-2">
-                              <Input
-                                type="number"
+                              <StepNumberInput
                                 min={line.quantity_received}
-                                step="1"
+                                step={0.01}
                                 value={line.quantity_ordered}
                                 onChange={(e) =>
                                   setExistingLines((prev) =>
@@ -541,10 +539,9 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                               />
                             </TableCell>
                             <TableCell className="py-2">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="1"
+                              <StepNumberInput
+                                min={0}
+                                step={0.01}
                                 value={line.unit_price}
                                 onChange={(e) =>
                                   setExistingLines((prev) =>

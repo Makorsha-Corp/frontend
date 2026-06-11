@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -178,10 +179,9 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[4.5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
-            <Input
-              type="number"
-              min="0.01"
-              step="0.01"
+            <StepNumberInput
+              min={0.01}
+              step={0.01}
               value={lineQty}
               onChange={(e) => setLineQty(e.target.value)}
               className="bg-background"
@@ -205,10 +205,9 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           </div>
           <div className="grid min-w-[5.5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Unit price</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
+            <StepNumberInput
+              min={0}
+              step={0.01}
               value={linePrice}
               onChange={(e) => setLinePrice(e.target.value)}
               placeholder="0.00"
