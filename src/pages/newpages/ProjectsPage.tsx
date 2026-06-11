@@ -189,18 +189,6 @@ const ProjectsPage: React.FC = () => {
     setIsAddMiscCostOpen(true);
   };
 
-  const handleRightGroupAdd = () => {
-    if (rightGroupTab === 'notes') {
-      setIsAddNoteOpen(true);
-      return;
-    }
-    if (rightGroupTab === 'tasks') {
-      setIsAddTaskOpen(true);
-      return;
-    }
-    toast('Documents add flow coming soon', { icon: 'ℹ️' });
-  };
-
   const handleDeleteProject = async (project: Project) => {
     if (!window.confirm(`Deactivate project "${project.name}"?`)) return;
     try {
@@ -792,22 +780,34 @@ const ProjectsPage: React.FC = () => {
                             </TabsTrigger>
                           </TabsList>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={handleRightGroupAdd}
-                          aria-label="Add to notes tasks and documents"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
                       </div>
 
                       <TabsContent value="notes" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
                         {tasks.filter((t) => t.is_note).length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No notes yet.</p>
+                          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                            <p className="text-sm text-muted-foreground">No notes yet.</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsAddNoteOpen(true)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Note
+                            </Button>
+                          </div>
                         ) : (
                           <div className="space-y-2">
+                            <div className="flex justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => setIsAddNoteOpen(true)}
+                              >
+                                <Plus className="mr-2 h-3.5 w-3.5" />
+                                Add Note
+                              </Button>
+                            </div>
                             {tasks
                               .filter((t) => t.is_note)
                               .map((task) => (
@@ -822,9 +822,30 @@ const ProjectsPage: React.FC = () => {
 
                       <TabsContent value="tasks" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
                         {tasks.filter((t) => !t.is_note).length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No tasks yet.</p>
+                          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                            <p className="text-sm text-muted-foreground">No tasks yet.</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsAddTaskOpen(true)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Task
+                            </Button>
+                          </div>
                         ) : (
                           <div className="space-y-1">
+                            <div className="flex justify-end mb-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => setIsAddTaskOpen(true)}
+                              >
+                                <Plus className="mr-2 h-3.5 w-3.5" />
+                                Add Task
+                              </Button>
+                            </div>
                             {tasks
                               .filter((t) => !t.is_note)
                               .map((task) => (
@@ -842,11 +863,19 @@ const ProjectsPage: React.FC = () => {
                       </TabsContent>
 
                       <TabsContent value="documents" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        <div className="h-full min-h-[140px] rounded-lg border border-dashed border-border bg-muted/20 flex items-center justify-center">
-                          <div className="text-center text-sm text-muted-foreground">
-                            <Flag className="h-5 w-5 mx-auto mb-2" />
-                            <p>Attachments and documents support coming soon.</p>
-                          </div>
+                        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                          <Flag className="h-5 w-5 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Attachments and documents support coming soon.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toast('Documents add flow coming soon', { icon: 'ℹ️' })}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Document
+                          </Button>
                         </div>
                       </TabsContent>
                     </Tabs>
