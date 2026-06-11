@@ -169,8 +169,8 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
           <div className="grid min-w-[5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <StepNumberInput
-              min={0.01}
-              step={0.01}
+              min={1}
+              step={1}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="0"

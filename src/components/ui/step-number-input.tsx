@@ -53,7 +53,7 @@ export interface StepNumberInputProps extends Omit<InputProps, 'type' | 'step' |
 }
 
 const StepNumberInput = React.forwardRef<HTMLInputElement, StepNumberInputProps>(
-  ({ step = 0.01, min, max, className, onChange, onKeyDown, onWheel, disabled, ...props }, ref) => {
+  ({ step = 1, min, max, className, onChange, onKeyDown, onWheel, disabled, ...props }, ref) => {
     const inputRef = React.useRef<HTMLInputElement | null>(null);
 
     const setRefs = React.useCallback(

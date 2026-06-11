@@ -236,8 +236,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           <div className="grid flex-1 min-w-[5rem] gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
             <StepNumberInput
-              min={0.01}
-              step={0.01}
+              min={1}
+              step={1}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               placeholder="0"
@@ -248,7 +248,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             <Label className="text-xs text-muted-foreground">Unit price</Label>
             <StepNumberInput
               min={0}
-              step={0.01}
+              step={1}
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
               placeholder="0.00"

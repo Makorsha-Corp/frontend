@@ -180,8 +180,8 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           <div className="grid min-w-[4.5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
             <StepNumberInput
-              min={0.01}
-              step={0.01}
+              min={1}
+              step={1}
               value={lineQty}
               onChange={(e) => setLineQty(e.target.value)}
               className="bg-background"
@@ -207,7 +207,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
             <Label className="text-xs text-muted-foreground">Unit price</Label>
             <StepNumberInput
               min={0}
-              step={0.01}
+              step={1}
               value={linePrice}
               onChange={(e) => setLinePrice(e.target.value)}
               placeholder="0.00"

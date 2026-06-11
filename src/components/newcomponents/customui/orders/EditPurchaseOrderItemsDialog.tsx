@@ -404,8 +404,8 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                 <div className="grid min-w-[5rem] flex-1 gap-1">
                   <Label className="text-xs text-muted-foreground">Qty *</Label>
                   <StepNumberInput
-                    min={0.01}
-                    step={0.01}
+                    min={1}
+                    step={1}
                     value={qty}
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="0"
@@ -416,7 +416,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                   <Label className="text-xs text-muted-foreground">Unit price</Label>
                   <StepNumberInput
                     min={0}
-                    step={0.01}
+                    step={1}
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(e.target.value)}
                     placeholder="0.00"
@@ -524,7 +524,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                             <TableCell className="py-2">
                               <StepNumberInput
                                 min={line.quantity_received}
-                                step={0.01}
+                                step={1}
                                 value={line.quantity_ordered}
                                 onChange={(e) =>
                                   setExistingLines((prev) =>
@@ -541,7 +541,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                             <TableCell className="py-2">
                               <StepNumberInput
                                 min={0}
-                                step={0.01}
+                                step={1}
                                 value={line.unit_price}
                                 onChange={(e) =>
                                   setExistingLines((prev) =>
