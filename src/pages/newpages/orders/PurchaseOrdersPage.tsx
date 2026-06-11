@@ -150,14 +150,13 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const mayTruncate = orders.length >= PO_LIST_LIMIT;
 
-  const selectedOrder = useMemo(() => {
-    const inFiltered = filteredOrders.find((o) => o.id === selectedOrderId);
-    if (inFiltered) return inFiltered;
-    if (showCompleteOrders) {
-      return orders.find((o) => o.id === selectedOrderId) ?? null;
-    }
-    return null;
-  }, [filteredOrders, orders, selectedOrderId, showCompleteOrders]);
+  const selectedOrder = useMemo(
+    () =>
+      filteredOrders.find((o) => o.id === selectedOrderId) ??
+      orders.find((o) => o.id === selectedOrderId) ??
+      null,
+    [filteredOrders, orders, selectedOrderId]
+  );
 
   const hasHiddenCompleteOrders = useMemo(
     () => !showCompleteOrders && orders.some(isPurchaseOrderComplete),
@@ -503,6 +502,7 @@ const PurchaseOrdersPage: React.FC = () => {
               <PurchaseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
+                showCompleteOrders={showCompleteOrders}
               />
             ) : (
               <PurchaseOrdersOverviewPanel

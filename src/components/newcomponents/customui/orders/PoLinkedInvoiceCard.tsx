@@ -31,6 +31,7 @@ export interface PoLinkedInvoiceCardProps {
   invoiceStatus: PoLinkedInvoiceStatus;
   invoiceLocked: boolean;
   hasSupplier: boolean;
+  hasUnsavedSupplier?: boolean;
   isSyncingDraft?: boolean;
   accountName: string | null;
   accountId?: number | null;
@@ -54,6 +55,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   invoiceStatus,
   invoiceLocked,
   hasSupplier,
+  hasUnsavedSupplier = false,
   isSyncingDraft = false,
   accountName,
   accountId: accountIdProp,
@@ -152,9 +154,11 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
               <>
                 <RefreshCw className="h-5 w-5 mx-auto text-muted-foreground/60" aria-hidden />
                 <p className="text-sm text-muted-foreground">
-                  {hasSupplier
-                    ? 'Draft invoice will sync from this order when saved'
-                    : 'Assign a supplier — draft invoice auto-syncs supplier and line items'}
+                  {hasUnsavedSupplier
+                    ? 'Save or confirm supplier to sync draft invoice'
+                    : hasSupplier
+                      ? 'Draft invoice will sync from this order when saved'
+                      : 'Assign a supplier — draft invoice auto-syncs supplier and line items'}
                 </p>
                 {voidedInvoices.length > 0 ? (
                   <div className="flex justify-center pt-2">{voidedInvoicesButton}</div>

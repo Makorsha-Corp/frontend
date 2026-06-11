@@ -126,6 +126,8 @@ interface PurchaseOrderDetailPanelProps {
   order: PurchaseOrder;
   onClose: () => void;
   onUpdated?: () => void;
+  /** When false, completed orders are hidden from the sidebar list. */
+  showCompleteOrders?: boolean;
 }
 
 /** Editable draft of the fields wired in this pass. */
@@ -179,6 +181,7 @@ const draftFromOrder = (o: PurchaseOrder): PoDraft => ({
 const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   order: orderFromList,
   onUpdated,
+  showCompleteOrders = false,
 }) => {
   const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
@@ -215,7 +218,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<
-    PoSectionConfirmKey | 'approvals' | 'finalize' | null
+    PoSectionConfirmKey | 'approvals' | 'finalize' | 'receiving' | null
   >(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollHighlightGenerationRef = useRef(0);
@@ -332,7 +335,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   const confirmReadiness = canConfirmPoInvoice(order, approvalSummary.met, linkedInvoiceStatus);
   const receivingReadiness = canRecordPoReceiving(linkedInvoiceStatus);
-  const hasSupplier = order.account_id != null;
+  const effectiveAccountId = draft.account_id ?? order.account_id ?? null;
+  const hasSupplier = effectiveAccountId != null;
+  const hasSavedSupplier = order.account_id != null;
+  const hasUnsavedSupplier =
+    draft.account_id != null && draft.account_id !== order.account_id;
   const confirmationsStatus = getPurchaseOrderConfirmationsStatus(order);
   const approvalSectionsStatus = getPurchaseOrderApprovalSectionsStatus(order);
 
@@ -434,6 +441,23 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     });
   };
 
+  const scrollToManageReceiving = () => {
+    const generation = ++scrollHighlightGenerationRef.current;
+    const element = document.getElementById('po-manage-receiving-btn');
+
+    clearScrollHighlights();
+
+    void scrollToHighlightTarget({
+      container: scrollContainerRef.current,
+      element,
+      onScrollStart: () => {},
+      onScrollEnd: () => {
+        if (generation !== scrollHighlightGenerationRef.current) return;
+        setScrollHighlightTarget('receiving');
+      },
+    });
+  };
+
   const openManageApprovals = () => setManageApprovalsOpen(true);
 
   const changedFields = useMemo<UpdatePurchaseOrder>(() => {
@@ -463,7 +487,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   }, [draft, order, supplierDisabled, coreDetailsDisabled]);
 
   useEffect(() => {
-    if (!hasSupplier || order.invoice_id != null || invoiceLocked) return;
+    if (!hasSavedSupplier || order.invoice_id != null || invoiceLocked || isSaving) return;
     if (ensureDraftInvoiceRef.current) return;
     ensureDraftInvoiceRef.current = true;
     void ensureDraftInvoice(order.id)
@@ -476,6 +500,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           return;
         }
         const detail = (err as { data?: { detail?: unknown } })?.data?.detail;
+        if (
+          status === 422 &&
+          typeof detail === 'string' &&
+          detail.includes('Assign a supplier')
+        ) {
+          onUpdated?.();
+          return;
+        }
         const message =
           typeof detail === 'string'
             ? detail
@@ -485,7 +517,15 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       .finally(() => {
         ensureDraftInvoiceRef.current = false;
       });
-  }, [order.id, order.invoice_id, hasSupplier, invoiceLocked, ensureDraftInvoice, onUpdated]);
+  }, [
+    order.id,
+    order.invoice_id,
+    hasSavedSupplier,
+    invoiceLocked,
+    isSaving,
+    ensureDraftInvoice,
+    onUpdated,
+  ]);
 
   const handleConfirmInvoice = async () => {
     if (!order.invoice_id || !confirmReadiness.ok) return;
@@ -508,13 +548,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const handleMarkOrderComplete = async () => {
     try {
       await markOrderComplete(order.id).unwrap();
-      toast.success(
+      const baseMessage =
         order.destination_type === 'storage'
           ? storageFactoryName
             ? `Purchase order complete — items added to ${storageFactoryName} storage`
             : 'Purchase order complete — items added to factory storage'
-          : 'Purchase order marked complete'
-      );
+          : 'Purchase order marked complete';
+      const listHint = showCompleteOrders
+        ? ''
+        : ' Hidden from open orders list — enable Complete in the sidebar to see it there.';
+      toast.success(`${baseMessage}${listHint}`);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -552,15 +595,29 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const sectionHasUnsavedChanges = (section: PoSectionConfirmKey): boolean =>
     sectionSaveKeys[section].some((key) => key in changedFields);
 
+  const saveSectionFields = async (section: PoSectionConfirmKey): Promise<boolean> => {
+    const payload: UpdatePurchaseOrder = {};
+    for (const key of sectionSaveKeys[section]) {
+      if (key in changedFields) {
+        (payload as Record<string, unknown>)[key] = changedFields[key];
+      }
+    }
+    if (Object.keys(payload).length === 0) return true;
+    try {
+      await updatePurchaseOrder({ id: order.id, data: payload }).unwrap();
+      return true;
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to save section changes');
+      return false;
+    }
+  };
+
   const requestSectionConfirmToggle = (
     section: PoSectionConfirmKey,
     currentlyConfirmed: boolean
   ) => {
     if (!currentlyConfirmed) {
-      if (section !== 'invoice' && sectionHasUnsavedChanges(section)) {
-        toast.error('Save changes before confirming this section');
-        return;
-      }
       if (!sectionConfirmReadiness[section].ok) {
         toast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
         return;
@@ -586,6 +643,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   ) => {
     setConfirmingSection(section);
     try {
+      if (
+        nextConfirmed &&
+        section !== 'invoice' &&
+        sectionHasUnsavedChanges(section as PoSectionConfirmKey)
+      ) {
+        const saved = await saveSectionFields(section as PoSectionConfirmKey);
+        if (!saved) return;
+      }
       await setSectionConfirm({ poId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
       toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
@@ -1046,7 +1111,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             onScrollToSection={scrollToPoSection}
             onScrollToFinalize={scrollToFinalizeInvoice}
             onScrollToManageApprovals={scrollToManageApprovalsCard}
-            onScrollToReceiving={() => scrollToPoSection('items')}
+            onScrollToReceiving={scrollToManageReceiving}
           />
         </div>
 
@@ -1157,8 +1222,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {receivingReadiness.ok ? (
                   <BlockedActionButton
+                    id="po-manage-receiving-btn"
                     size="sm"
-                    className="h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
+                    className={cn(
+                      'h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground',
+                      scrollHighlightTarget === 'receiving' && 'po-scroll-target-highlight'
+                    )}
+                    onMouseEnter={dismissScrollHighlight}
                     onAction={openReceiving}
                     blocked={items.length === 0}
                     blockedHint={
@@ -1212,9 +1282,12 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           invoiceStatus={linkedInvoiceStatus}
           invoiceLocked={invoiceLocked}
           hasSupplier={hasSupplier}
+          hasUnsavedSupplier={hasUnsavedSupplier}
           isSyncingDraft={isEnsuringDraft}
-          accountName={accounts.find((a) => a.id === order.account_id)?.name ?? null}
-          accountId={order.account_id ?? null}
+          accountName={
+            accounts.find((a) => a.id === effectiveAccountId)?.name ?? null
+          }
+          accountId={effectiveAccountId}
           linkedOrderNumber={order.po_number}
           poNumber={order.po_number}
           events={events}
