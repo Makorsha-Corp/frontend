@@ -1,17 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
 } from '@/components/ui/breadcrumb';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,31 +21,19 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useAppSelector } from '@/app/hooks';
 import type { Inventory, InventoryType } from '@/types/inventory';
 import type { Product } from '@/types/product';
-import {
-  Archive,
-  Package,
-  Search,
-  Plus,
-  Loader2,
-  Pencil,
-  Trash2,
-  DollarSign,
-} from 'lucide-react';
+import { Archive, Search } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
-import ActiveOrdersPanel from '@/components/newcomponents/customui/RunningOrdersPlaceholder';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import StoragePageLayout from '@/components/newcomponents/customui/storage/StoragePageLayout';
+import StorageLayoutSwitcher from '@/components/newcomponents/customui/storage/StorageLayoutSwitcher';
+import StorageActiveOrdersBanner from '@/components/newcomponents/customui/storage/StorageActiveOrdersBanner';
+import { INVENTORY_TYPES } from '@/components/newcomponents/customui/storage/storageConstants';
+import { DEFAULT_STORAGE_LAYOUT, type StorageLayoutMode } from '@/components/newcomponents/customui/storage/storageLayoutModes';
 import toast from 'react-hot-toast';
-
-const INVENTORY_TYPES: { value: InventoryType; label: string }[] = [
-  { value: 'STORAGE', label: 'Storage' },
-  { value: 'DAMAGED', label: 'Damaged' },
-  { value: 'WASTE', label: 'Waste' },
-  { value: 'SCRAP', label: 'Scrap' },
-];
 
 const StoragePage: React.FC = () => {
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
@@ -58,11 +41,13 @@ const StoragePage: React.FC = () => {
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showZeroQty, setShowZeroQty] = useState(false);
+  const [forSaleOnly, setForSaleOnly] = useState(false);
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingInventory, setEditingInventory] = useState<Inventory | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<StorageLayoutMode>(DEFAULT_STORAGE_LAYOUT);
 
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
@@ -84,6 +69,7 @@ const StoragePage: React.FC = () => {
       skip: 0,
       limit: 500,
       factory_id: factoryId ?? undefined,
+      is_available_for_sale: forSaleOnly ? true : undefined,
     }
   );
 
@@ -111,14 +97,6 @@ const StoragePage: React.FC = () => {
         (p.item_unit ?? '').toLowerCase().includes(q)
     );
   }, [productsList, searchQuery]);
-
-  const formatCurrency = (value: number | null | undefined) =>
-    value != null
-      ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
-      : '—';
-
-  const formatNumber = (value: number | null | undefined) =>
-    value != null ? new Intl.NumberFormat('en-US').format(value) : '—';
 
   const storageOverview = useMemo(() => {
     const records = filteredInventory.length;
@@ -203,8 +181,8 @@ const StoragePage: React.FC = () => {
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
             You need to create a factory before you can access storage. Set up a factory to start tracking your inventory and products.
           </p>
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
@@ -222,18 +200,22 @@ const StoragePage: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <DashboardNavbar />
-      <div className="flex-1 min-w-0">
-        {/* Header */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className="flex min-w-0 items-center gap-3 shrink-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
+              <div className="flex min-w-0 shrink-0 items-center gap-3">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
+                  aria-hidden
+                >
                   <Archive className="h-5 w-5 text-brand-primary" />
                 </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Storage</h1>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Storage
+                </h1>
               </div>
               <div className="hidden h-6 w-px bg-border sm:block" />
               <Breadcrumb className="min-w-0 self-end">
@@ -282,9 +264,10 @@ const StoragePage: React.FC = () => {
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-3">
+              <StorageLayoutSwitcher value={layoutMode} onChange={setLayoutMode} />
               <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search inventory and products..."
@@ -297,339 +280,35 @@ const StoragePage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="p-8 bg-background space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">By type</p>
-                  <div className="text-right">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total qty</p>
-                    <p className="text-lg font-semibold text-card-foreground tabular-nums">
-                      {formatNumber((storageOverview.totalQty ?? 0) + (productsOverview.totalQty ?? 0))}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 space-y-1.5 text-sm">
-                  {storageOverview.byType.map((row) => (
-                    <div key={row.type} className="flex items-center justify-between">
-                      <span className="text-muted-foreground">{row.type}</span>
-                      <span className="font-medium text-card-foreground tabular-nums">
-                        {formatNumber(row.uniqueCount)} ({formatNumber(row.totalQty)})
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Products</span>
-                    <span className="font-medium text-card-foreground tabular-nums">
-                      {formatNumber(productsOverview.uniqueCount)} ({formatNumber(productsOverview.totalQty)})
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Value overview</p>
-                  <div className="rounded-lg bg-brand-primary/10 p-2.5">
-                    <DollarSign className="h-5 w-5 text-brand-primary" />
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Storage estimated value</span>
-                    <span className="font-semibold text-card-foreground tabular-nums">
-                      {formatCurrency(storageOverview.estimatedValue)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Products cost value</span>
-                    <span className="font-semibold text-card-foreground tabular-nums">
-                      {formatCurrency(productsOverview.totalCostValue)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Potential sales value</span>
-                    <span className="font-semibold text-card-foreground tabular-nums">
-                      {formatCurrency(productsOverview.totalSalesValue)}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card shadow-sm">
-              <CardContent className="p-4">
-                {factoryId ? (
-                  <ActiveOrdersPanel scope={{ factoryId }} minimal compact />
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-card-foreground">Active orders</span>
-                      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">select factory</span>
-                    </div>
-                    <div className="space-y-2 rounded-lg border border-dashed border-border bg-muted/20 p-3">
-                      <div className="h-3.5 w-2/3 rounded bg-muted" />
-                      <div className="h-3.5 w-1/2 rounded bg-muted" />
-                      <div className="h-3.5 w-3/4 rounded bg-muted" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Select a factory to see running orders.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        {layoutMode !== 'overview' && <StorageActiveOrdersBanner factoryId={factoryId} />}
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <Card className="shadow-sm bg-card border-border">
-              <CardContent className="p-4 min-h-[560px] flex flex-col">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-card-foreground">Storage</h2>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => setIsAddInventoryOpen(true)}
-                      disabled={!factoryId}
-                      title="Add to inventory"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5" title="Show empty inventory rows">
-                      <Switch
-                        id="storage-show-zero-qty"
-                        checked={showZeroQty}
-                        onCheckedChange={setShowZeroQty}
-                        className="scale-90"
-                        aria-label="Show empty inventory rows"
-                      />
-                      <Label
-                        htmlFor="storage-show-zero-qty"
-                        className="cursor-pointer text-xs font-normal text-muted-foreground whitespace-nowrap"
-                      >
-                        Empty
-                      </Label>
-                    </div>
-                    <Tabs
-                      value={inventoryTypeFilter}
-                      onValueChange={(v) => setInventoryTypeFilter(v as InventoryType | 'all')}
-                      className="w-auto"
-                    >
-                      <TabsList className="h-8">
-                        <TabsTrigger value="all" className="px-2.5 text-xs">All</TabsTrigger>
-                        {INVENTORY_TYPES.map((t) => (
-                          <TabsTrigger key={t.value} value={t.value} className="px-2.5 text-xs">
-                            {t.label}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                </div>
-                {loadingInventory ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-                    <p className="text-muted-foreground">Loading inventory...</p>
-                  </div>
-                ) : inventoryError ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <p className="text-destructive">Failed to load inventory.</p>
-                  </div>
-                ) : !factoryId ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Archive className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">Select a factory to view inventory.</p>
-                  </div>
-                ) : filteredInventory.length === 0 ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Archive className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground mb-4">
-                      {searchQuery
-                        ? 'No inventory rows match your search.'
-                        : showZeroQty
-                          ? 'No inventory records yet.'
-                          : 'No items in stock. Turn on Empty to see cleared rows.'}
-                    </p>
-                    {!searchQuery && showZeroQty && (
-                      <Button onClick={() => setIsAddInventoryOpen(true)} className="bg-brand-primary hover:bg-brand-primary-hover">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add to Inventory
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="min-h-[460px] max-h-[70vh] flex-1 overflow-auto rounded-lg border border-border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-brand-primary/5 dark:bg-brand-primary/10 border-b border-border">
-                          <TableHead className="w-[60px] py-3 text-xs font-semibold text-muted-foreground uppercase">ID</TableHead>
-                          <TableHead className="py-3 text-xs font-semibold text-muted-foreground uppercase">Item</TableHead>
-                          <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Type</TableHead>
-                          <TableHead className="w-[80px] py-3 text-xs font-semibold text-muted-foreground uppercase">Qty</TableHead>
-                          <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Avg. Price</TableHead>
-                          <TableHead className="text-right w-[120px] py-3 text-xs font-semibold text-muted-foreground uppercase">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredInventory.map((inv) => (
-                          <TableRow key={inv.id} className="hover:bg-brand-primary/5 border-b border-border last:border-0">
-                            <TableCell className="font-mono text-sm text-muted-foreground py-3">{inv.id}</TableCell>
-                            <TableCell className="font-medium text-card-foreground py-3">
-                              {inv.item_name ?? `Item #${inv.item_id}`}
-                              {inv.item_unit && <span className="ml-1 text-xs text-muted-foreground">({inv.item_unit})</span>}
-                            </TableCell>
-                            <TableCell className="py-3">
-                              <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
-                                {inv.inventory_type}
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-3">{inv.qty}</TableCell>
-                            <TableCell className="py-3">{formatCurrency(inv.avg_price)}</TableCell>
-                            <TableCell className="py-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
-                                  onClick={() => setEditingInventory(inv)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                {(inv.qty ?? 0) > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleClearInventoryStock(inv)}
-                                    title="Set quantity to 0"
-                                    aria-label="Set quantity to 0"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm bg-card border-border">
-              <CardContent className="p-4 min-h-[560px] flex flex-col">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-card-foreground">Products</h2>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => setIsAddProductOpen(true)}
-                      disabled={!factoryId}
-                      title="Add product"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {loadingProducts ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-                    <p className="text-muted-foreground">Loading products...</p>
-                  </div>
-                ) : productsError ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <p className="text-destructive">Failed to load products.</p>
-                  </div>
-                ) : !factoryId ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Package className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">Select a factory to view products.</p>
-                  </div>
-                ) : filteredProducts.length === 0 ? (
-                  <div className="flex flex-1 flex-col items-center justify-center py-16">
-                    <Package className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground mb-4">
-                      {searchQuery ? 'No products match your search.' : 'No products yet.'}
-                    </p>
-                    {!searchQuery && (
-                      <Button onClick={() => setIsAddProductOpen(true)} className="bg-brand-primary hover:bg-brand-primary-hover">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Product
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="min-h-[460px] max-h-[70vh] flex-1 overflow-auto rounded-lg border border-border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-brand-primary/5 dark:bg-brand-primary/10 border-b border-border">
-                          <TableHead className="w-[60px] py-3 text-xs font-semibold text-muted-foreground uppercase">ID</TableHead>
-                          <TableHead className="py-3 text-xs font-semibold text-muted-foreground uppercase">Item</TableHead>
-                          <TableHead className="w-[80px] py-3 text-xs font-semibold text-muted-foreground uppercase">Qty</TableHead>
-                          <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Avg. Cost</TableHead>
-                          <TableHead className="w-[100px] py-3 text-xs font-semibold text-muted-foreground uppercase">Selling Price</TableHead>
-                          <TableHead className="w-[80px] py-3 text-xs font-semibold text-muted-foreground uppercase">For Sale</TableHead>
-                          <TableHead className="text-right w-[120px] py-3 text-xs font-semibold text-muted-foreground uppercase">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProducts.map((prod) => (
-                          <TableRow key={prod.id} className="hover:bg-brand-primary/5 border-b border-border last:border-0">
-                            <TableCell className="font-mono text-sm text-muted-foreground py-3">{prod.id}</TableCell>
-                            <TableCell className="font-medium text-card-foreground py-3">
-                              {prod.item_name ?? `Item #${prod.item_id}`}
-                              {prod.item_unit && <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>}
-                            </TableCell>
-                            <TableCell className="py-3">{prod.qty}</TableCell>
-                            <TableCell className="py-3">{formatCurrency(prod.avg_cost)}</TableCell>
-                            <TableCell className="py-3">{formatCurrency(prod.selling_price)}</TableCell>
-                            <TableCell className="py-3">
-                              <span
-                                className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                                  prod.is_available_for_sale
-                                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                                    : 'bg-muted text-muted-foreground'
-                                }`}
-                              >
-                                {prod.is_available_for_sale ? 'Yes' : 'No'}
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
-                                  onClick={() => setEditingProduct(prod)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDeleteProduct(prod)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
+          <StoragePageLayout
+            layout={layoutMode}
+            onLayoutChange={setLayoutMode}
+            factoryId={factoryId}
+            storageOverview={storageOverview}
+            productsOverview={productsOverview}
+            filteredInventory={filteredInventory}
+            filteredProducts={filteredProducts}
+            loadingInventory={loadingInventory}
+            loadingProducts={loadingProducts}
+            inventoryError={!!inventoryError}
+            productsError={!!productsError}
+            searchQuery={searchQuery}
+            showZeroQty={showZeroQty}
+            onShowZeroQtyChange={setShowZeroQty}
+            inventoryTypeFilter={inventoryTypeFilter}
+            onInventoryTypeFilterChange={setInventoryTypeFilter}
+            forSaleOnly={forSaleOnly}
+            onForSaleOnlyChange={setForSaleOnly}
+            onAddInventory={() => setIsAddInventoryOpen(true)}
+            onAddProduct={() => setIsAddProductOpen(true)}
+            onEditInventory={setEditingInventory}
+            onClearInventoryStock={handleClearInventoryStock}
+            onEditProduct={setEditingProduct}
+            onDeleteProduct={handleDeleteProduct}
+          />
         </div>
       </div>
 

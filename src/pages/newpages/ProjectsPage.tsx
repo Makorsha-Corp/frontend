@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
   appShellHeaderLoweredSelectorClass,
@@ -9,12 +8,13 @@ import AppShellHeader, {
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { Input } from '@/components/ui/input';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
 import {
@@ -25,12 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import {
   useGetProjectsQuery,
@@ -43,7 +37,11 @@ import {
 } from '@/features/projects/projectsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useGetProjectComponentsQuery, useDeleteProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
-import { useGetProjectComponentTasksQuery, useUpdateProjectComponentTaskMutation, useDeleteProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
+import {
+  useGetProjectComponentTasksQuery,
+  useUpdateProjectComponentTaskMutation,
+  useDeleteProjectComponentTaskMutation,
+} from '@/features/projectComponentTasks/projectComponentTasksApi';
 import {
   useGetProjectComponentNotesQuery,
   useDeleteProjectComponentNoteMutation,
@@ -57,49 +55,30 @@ import type { ProjectComponent } from '@/types/projectComponent';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
 import type { ProjectComponentTask } from '@/types/projectComponentTask';
 import type { ProjectVisibility } from '@/types/project';
-import type { ProjectStatus } from '@/types/project';
-import {
-  FolderKanban,
-  FolderOpen,
-  Settings,
-  Search,
-  Plus,
-  Pencil,
-  Loader2,
-  Trash2,
-  Check,
-  Circle,
-  Package,
-  DollarSign,
-  ListTodo,
-  FileText,
-  Paperclip,
-  Flag,
-  History,
-} from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FolderKanban, Search } from 'lucide-react';
 import AddProjectDialog from '@/components/newcomponents/customui/AddProjectDialog';
 import AddProjectComponentDialog from '@/components/newcomponents/customui/AddProjectComponentDialog';
 import AddProjectComponentTaskDialog from '@/components/newcomponents/customui/AddProjectComponentTaskDialog';
 import ProjectComponentNoteDialog from '@/components/newcomponents/customui/ProjectComponentNoteDialog';
-import ProjectMembersTopBar from '@/components/newcomponents/customui/projects/ProjectMembersTopBar';
 import ManageProjectMembersDialog from '@/components/newcomponents/customui/projects/ManageProjectMembersDialog';
-import ProjectEventLogRow from '@/components/newcomponents/customui/projects/ProjectEventLogRow';
 import AddProjectComponentItemDialog from '@/components/newcomponents/customui/AddProjectComponentItemDialog';
 import AddMiscellaneousProjectCostDialog from '@/components/newcomponents/customui/AddMiscellaneousProjectCostDialog';
 import EditProjectDialog from '@/components/newcomponents/customui/EditProjectDialog';
 import EditProjectComponentDialog from '@/components/newcomponents/customui/EditProjectComponentDialog';
+import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
+import ProjectsPageLayout from '@/components/newcomponents/customui/projects/ProjectsPageLayout';
+import ProjectLayoutSwitcher from '@/components/newcomponents/customui/projects/ProjectLayoutSwitcher';
+import {
+  DEFAULT_PROJECT_LAYOUT,
+  type ProjectLayoutMode,
+} from '@/components/newcomponents/customui/projects/projectLayoutModes';
+import { PROJECT_STATUSES } from '@/components/newcomponents/customui/projects/projectsPageUtils';
 import toast from 'react-hot-toast';
-
-const PROJECT_STATUSES: ProjectStatus[] = ['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED'];
 
 const ProjectsPage: React.FC = () => {
   const { factory: globalFactory, user, workspace } = useAppSelector((state) => state.auth);
   const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
-  // Sync with global factory when it changes (e.g. user selects or clears in navbar)
-  useEffect(() => {
-    setFactoryId(globalFactory?.id ?? null);
-  }, [globalFactory?.id]);
+  const [layoutMode, setLayoutMode] = useState<ProjectLayoutMode>(DEFAULT_PROJECT_LAYOUT);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedProjectData, setSelectedProjectData] = useState<Project | null>(null);
@@ -119,18 +98,18 @@ const ProjectsPage: React.FC = () => {
   const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    setFactoryId(globalFactory?.id ?? null);
+  }, [globalFactory?.id]);
 
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
-  const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery(
-    {
-      skip: 0,
-      limit: 200,
-      factory_id: factoryId ?? undefined,
-      project_status: statusFilter === 'all' ? undefined : statusFilter,
-    },
-    { skip: false }
-  );
+  const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery({
+    skip: 0,
+    limit: 200,
+    factory_id: factoryId ?? undefined,
+    project_status: statusFilter === 'all' ? undefined : statusFilter,
+  });
   const { data: componentsData, isLoading: loadingComponents } = useGetProjectComponentsQuery(
     { skip: 0, limit: 100, project_id: selectedProjectId ?? undefined },
     { skip: !selectedProjectId }
@@ -161,11 +140,10 @@ const ProjectsPage: React.FC = () => {
     },
     { skip: !selectedComponentId }
   );
-  const { data: totalCost } = useGetProjectComponentTotalCostQuery(
-    selectedComponentId ?? 0,
-    { skip: !selectedComponentId }
-  );
-  const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: false });
+  const { data: totalCost } = useGetProjectComponentTotalCostQuery(selectedComponentId ?? 0, {
+    skip: !selectedComponentId,
+  });
+  const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 });
   const { data: projectMembersData } = useGetProjectMembersQuery(selectedProjectId ?? 0, {
     skip: !selectedProjectId,
   });
@@ -187,10 +165,10 @@ const ProjectsPage: React.FC = () => {
   const [deleteTask] = useDeleteProjectComponentTaskMutation();
   const [deleteNote] = useDeleteProjectComponentNoteMutation();
 
-  const selectedProject =
-    selectedProjectData ?? projects.find((p) => p.id === selectedProjectId) ?? null;
+  const selectedProject = selectedProjectData ?? projects.find((p) => p.id === selectedProjectId) ?? null;
+  const selectedComponent = components.find((c) => c.id === selectedComponentId);
 
-  const filteredProjects = React.useMemo(() => {
+  const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) return projects;
     const q = searchQuery.toLowerCase();
     return projects.filter(
@@ -200,7 +178,20 @@ const ProjectsPage: React.FC = () => {
     );
   }, [projects, searchQuery]);
 
-  const selectedComponent = components.find((c) => c.id === selectedComponentId);
+  const assignableMembers = useMemo(() => {
+    const memberIds = new Set(projectMembers.map((m) => m.user_id));
+    return workspaceMembers.filter((m) => m.status === 'active' && !memberIds.has(m.user_id));
+  }, [workspaceMembers, projectMembers]);
+
+  const selectedFactory = useMemo(
+    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
+    [factoryId, factories]
+  );
+  const factorySelectorLabel = useMemo(() => {
+    if (selectedFactory) return selectedFactory.name;
+    if (factories.length === 1) return factories[0].name;
+    return `All factories (${factories.length})`;
+  }, [selectedFactory, factories]);
 
   const handleFactoryChange = (value: string) => {
     const id = value === 'all' ? null : parseInt(value, 10);
@@ -209,15 +200,6 @@ const ProjectsPage: React.FC = () => {
     setSelectedProjectData(null);
     setSelectedComponentId(null);
   };
-  const selectedFactory = React.useMemo(
-    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
-    [factoryId, factories]
-  );
-  const factorySelectorLabel = React.useMemo(() => {
-    if (selectedFactory) return selectedFactory.name;
-    if (factories.length === 1) return factories[0].name;
-    return `All factories (${factories.length})`;
-  }, [selectedFactory, factories]);
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProjectId(project.id);
@@ -294,13 +276,6 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
-  const assignableMembers = React.useMemo(() => {
-    const memberIds = new Set(projectMembers.map((m) => m.user_id));
-    return workspaceMembers.filter(
-      (m) => m.status === 'active' && !memberIds.has(m.user_id)
-    );
-  }, [workspaceMembers, projectMembers]);
-
   const handleAddProjectMember = async (memberUserId: number) => {
     if (!selectedProjectId) return;
     try {
@@ -353,58 +328,40 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
-
   const getItemName = (itemId: number) => items.find((i) => i.id === itemId)?.name ?? `Item #${itemId}`;
-
-  const getStatusBadge = (status: ProjectStatus) => {
-    const map: Record<ProjectStatus, string> = {
-      PLANNING: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-      IN_PROGRESS: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-      ON_HOLD: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-      COMPLETED: 'bg-muted text-muted-foreground',
-      CANCELLED: 'bg-destructive/10 text-destructive',
-    };
-    return map[status] ?? 'bg-muted text-muted-foreground';
-  };
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
       <div className="flex min-h-screen bg-background">
         <DashboardNavbar />
         <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
-          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted shadow-sm">
             <FolderKanban className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
-          <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can maintain projects. Set up a factory to start tracking projects, components, and related costs.
+          <h2 className="mb-3 text-2xl font-bold text-foreground">No Factories Set Up</h2>
+          <p className="mx-auto mb-8 max-w-md leading-relaxed text-muted-foreground">
+            You need to create a factory before you can maintain projects. Set up a factory to start tracking projects,
+            components, and related costs.
           </p>
           <Button
             size="lg"
-            className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
+            className="bg-brand-primary shadow-md transition-all hover:bg-brand-primary-hover"
             onClick={() => setIsAddFactoryOpen(true)}
           >
             Create Your First Factory
           </Button>
-
-          <AddFactoryDialog
-            open={isAddFactoryOpen}
-            onOpenChange={setIsAddFactoryOpen}
-            factories={factories}
-          />
+          <AddFactoryDialog open={isAddFactoryOpen} onOpenChange={setIsAddFactoryOpen} factories={factories} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className={appShellHeaderLeftGroupClass}>
               <div className={appShellHeaderIconTileClass}>
                 <FolderKanban className="h-5 w-5 text-brand-primary" />
@@ -417,9 +374,7 @@ const ProjectsPage: React.FC = () => {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" variant="ghost" className={appShellHeaderLoweredSelectorClass}>
-                          <span className="truncate text-card-foreground dark:text-foreground">
-                            {factorySelectorLabel}
-                          </span>
+                          <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
@@ -455,9 +410,10 @@ const ProjectsPage: React.FC = () => {
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-3">
+              <ProjectLayoutSwitcher value={layoutMode} onChange={setLayoutMode} />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] h-9">
+                <SelectTrigger className="h-9 w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -470,632 +426,62 @@ const ProjectsPage: React.FC = () => {
                 </SelectContent>
               </Select>
               <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
+                  className="h-9 pl-9"
                 />
               </div>
             </div>
           </div>
         </AppShellHeader>
 
-        <div className="p-6 flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-120px)]">
-          {/* Left panel - Navigator */}
-          <div className="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
-            <>
-              {/* Projects list */}
-              <Card className="border-border flex-1 min-h-0 flex flex-col">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-base">Projects</CardTitle>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => setIsAddProjectOpen(true)}
-                      title="Add project"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto p-0">
-                  {loadingProjects ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                    </div>
-                  ) : filteredProjects.length === 0 ? (
-                    <div className="py-8 text-center text-muted-foreground text-sm">
-                      No projects found
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {filteredProjects.map((project) => (
-                        <div
-                          key={project.id}
-                          className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${selectedProjectId === project.id ? 'bg-brand-primary/10' : ''
-                            }`}
-                          onClick={() => handleProjectSelect(project)}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-card-foreground truncate">{project.name ?? 'Unnamed'}</div>
-                            <span className={`text-xs px-2 py-0.5 rounded ${getStatusBadge(project.status ?? 'PLANNING')}`}>
-                              {(project.status ?? 'PLANNING').replace('_', ' ')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleDeleteProject(project)}
-                                    disabled={isDeletingProject}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Deactivate project</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Components list - when project selected */}
-              {selectedProjectId && (
-                <Card className="border-border flex-1 min-h-0 flex flex-col">
-                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-base">Components</CardTitle>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => setIsAddComponentOpen(true)}
-                        title="Add component"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 overflow-y-auto p-0">
-                    {loadingComponents ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                      </div>
-                    ) : components.length === 0 ? (
-                      <div className="py-8 text-center text-muted-foreground text-sm">
-                        No components
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border">
-                        {components.map((component) => (
-                          <div
-                            key={component.id}
-                            className={`flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors ${selectedComponentId === component.id ? 'bg-brand-primary/10' : ''
-                              }`}
-                            onClick={() => handleComponentSelect(component)}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-card-foreground truncate">{component.name}</div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteComponent(component);
-                              }}
-                              disabled={isDeletingComponent}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          </div>
-
-          {/* Right panel - Project/Component detail */}
-          <div className="flex-1 min-w-0 min-h-0">
-            {!selectedComponentId ? (
-              <Card className="border-border h-full">
-                {!selectedProjectId ? (
-                  <CardContent className="py-16 flex flex-col items-center justify-center min-h-[280px]">
-                    <FolderOpen className="h-12 w-12 mb-4 text-muted-foreground opacity-50" />
-                    <h3 className="text-lg font-medium text-card-foreground mb-2">Select a Project</h3>
-                    <p className="text-sm text-muted-foreground">Choose a project to view its details and components</p>
-                  </CardContent>
-                ) : selectedProject ? (
-                  <div className="p-6 flex flex-col gap-4 h-full min-h-0">
-                    <ProjectMembersTopBar
-                      members={projectMembers}
-                      visibility={selectedProject.visibility ?? 'workspace'}
-                      currentUserId={user?.id ?? null}
-                      onManage={() => setIsManageMembersOpen(true)}
-                    />
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-xl font-semibold text-card-foreground">{selectedProject.name}</h2>
-                        <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${getStatusBadge(selectedProject.status ?? 'PLANNING')}`}>
-                          {(selectedProject.status ?? 'PLANNING').replace('_', ' ')}
-                        </span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 shrink-0"
-                        onClick={() => setIsEditProjectOpen(true)}
-                        aria-label="Edit project"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    {selectedProject.description ? (
-                      <p className="text-sm text-muted-foreground mb-4">{selectedProject.description}</p>
-                    ) : null}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                      {selectedProject.budget != null && (
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Budget</p>
-                          <p className="text-base font-medium">{formatCurrency(selectedProject.budget)}</p>
-                        </div>
-                      )}
-                      {selectedProject.deadline && (
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Deadline</p>
-                          <p className="text-base font-medium">{new Date(selectedProject.deadline).toLocaleDateString()}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Components</p>
-                        <p className="text-base font-medium">{components.length}</p>
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t border-border">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Settings className="h-4 w-4" />
-                        <span>Select a component from the list to view tasks, items, and costs</span>
-                      </div>
-                    </div>
-                    <Card className="border-border flex flex-col max-h-[min(32rem,50vh)] overflow-hidden mt-2">
-                      <CardHeader className="p-4 pb-3 shrink-0">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <History className="h-4 w-4 text-muted-foreground" />
-                          Event Log
-                          <Badge variant="outline" className="ml-1 font-normal">
-                            {projectEvents.length}
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-1 min-h-0 overflow-y-auto pt-0">
-                        {projectEvents.length === 0 ? (
-                          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
-                            <History className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
-                            <p className="text-sm font-medium text-muted-foreground">No activity yet</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {projectEvents.map((event, idx) => (
-                              <ProjectEventLogRow
-                                key={event.id}
-                                event={event}
-                                isLast={idx === projectEvents.length - 1}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                ) : (
-                  <CardContent className="py-16 flex flex-col items-center justify-center min-h-[280px]">
-                    <p className="text-sm text-muted-foreground">Project not found</p>
-                  </CardContent>
-                )}
-              </Card>
-            ) : selectedComponent ? (
-              <div className="h-full min-h-0 flex flex-col gap-4">
-                {/* Unified header with a middle separator */}
-                <Card className="border-border shrink-0">
-                  <CardContent className="p-5">
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                      {/* Project (left) */}
-                      <div className="lg:col-span-7 lg:pr-6 lg:border-r lg:border-border lg:h-full">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                                Project
-                              </p>
-                              <h2 className="text-lg font-semibold text-card-foreground truncate">
-                                {selectedProject?.name ?? 'Unknown Project'}
-                              </h2>
-                              {selectedProject?.description ? (
-                                <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
-                                  {selectedProject.description}
-                                </p>
-                              ) : null}
-                            </div>
-                            {selectedProject && (
-                              <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-7 w-7 shrink-0"
-                                  onClick={() => setIsEditProjectOpen(true)}
-                                  aria-label="Edit project"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getStatusBadge(
-                                    selectedProject.status ?? 'PLANNING'
-                                  )}`}
-                                >
-                                  {(selectedProject.status ?? 'PLANNING').replace('_', ' ')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                            {selectedProject?.budget != null && (
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                  Budget
-                                </p>
-                                <p className="font-medium">{formatCurrency(selectedProject.budget)}</p>
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Start Date
-                              </p>
-                              <p className="font-medium">
-                                {selectedProject?.start_date
-                                  ? new Date(selectedProject.start_date).toLocaleDateString()
-                                  : '—'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Deadline
-                              </p>
-                              <p className="font-medium">
-                                {selectedProject?.deadline
-                                  ? new Date(selectedProject.deadline).toLocaleDateString()
-                                  : '—'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Components
-                              </p>
-                              <p className="font-medium">{components.length}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Component (right) */}
-                      <div className="lg:col-span-5 lg:pl-6 lg:h-full">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                                Component
-                              </p>
-                              <h3 className="text-base font-semibold text-card-foreground truncate">
-                                {selectedComponent.name}
-                              </h3>
-                              {selectedComponent.description ? (
-                                <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
-                                  {selectedComponent.description}
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7 shrink-0"
-                                onClick={() => setIsEditComponentOpen(true)}
-                                aria-label="Edit component"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <span
-                                className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getStatusBadge(
-                                  selectedComponent.status ?? 'PLANNING'
-                                )}`}
-                              >
-                                {(selectedComponent.status ?? 'PLANNING').replace('_', ' ')}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Start Date
-                              </p>
-                              <p className="font-medium">
-                                {selectedComponent.start_date
-                                  ? new Date(selectedComponent.start_date).toLocaleDateString()
-                                  : '—'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Deadline
-                              </p>
-                              <p className="font-medium">
-                                {selectedComponent.deadline
-                                  ? new Date(selectedComponent.deadline).toLocaleDateString()
-                                  : '—'}
-                              </p>
-                            </div>
-                            <div className="col-span-2">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                Total Cost
-                              </p>
-                              <p className="text-lg font-semibold text-brand-primary">
-                                {totalCost ? formatCurrency(totalCost.total_cost) : '—'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Fixed-size split groups below: left slightly wider, both scrollable */}
-                <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <Card className="border-border lg:col-span-7 min-h-0 flex flex-col overflow-hidden">
-                    <Tabs value={leftGroupTab} onValueChange={(v) => setLeftGroupTab(v as 'items' | 'misc')} className="w-full h-full min-h-0 flex flex-col overflow-hidden">
-                      <div className="border-b border-border px-3 shrink-0 flex h-11 items-center gap-2">
-                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                          <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
-                            <TabsTrigger value="items" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                              <Package className="h-4 w-4 mr-2" />
-                              Items ({componentItems.length})
-                            </TabsTrigger>
-                            <TabsTrigger value="misc" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                              <DollarSign className="h-4 w-4 mr-2" />
-                              Misc Costs ({miscCosts.length})
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={handleLeftGroupAdd}
-                          aria-label="Add to items and costs"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                      <TabsContent value="items" className="m-0 mt-0 p-4 flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                        {componentItems.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No items yet.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {componentItems.map((item) => (
-                              <div key={item.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-muted/50 text-sm">
-                                <span className="text-card-foreground truncate">{getItemName(item.item_id)}</span>
-                                <span className="text-muted-foreground shrink-0 ml-2">× {item.qty}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="misc" className="m-0 mt-0 p-4 flex-1 min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                        {miscCosts.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No misc costs yet.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {miscCosts.map((cost) => (
-                              <div key={cost.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-muted/50 text-sm">
-                                <span className="text-card-foreground">{cost.name}</span>
-                                <span className="font-medium">{formatCurrency(cost.amount)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </TabsContent>
-                    </Tabs>
-                  </Card>
-
-                  <Card className="border-border lg:col-span-5 min-h-0 flex flex-col overflow-hidden">
-                    <Tabs value={rightGroupTab} onValueChange={(v) => setRightGroupTab(v as 'notes' | 'tasks' | 'documents')} className="w-full h-full min-h-0 flex flex-col">
-                      <div className="border-b border-border px-3 shrink-0 flex h-11 items-center gap-2">
-                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                          <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
-                            <TabsTrigger value="notes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Notes ({componentNotes.length})
-                            </TabsTrigger>
-                            <TabsTrigger value="tasks" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                              <ListTodo className="h-4 w-4 mr-2" />
-                              Tasks ({tasks.length})
-                            </TabsTrigger>
-                            <TabsTrigger value="documents" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3">
-                              <Paperclip className="h-4 w-4 mr-2" />
-                              Documents
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
-                      </div>
-
-                      <TabsContent value="notes" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        {componentNotes.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-                            <p className="text-sm text-muted-foreground">No notes yet.</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsAddNoteOpen(true)}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Note
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => setIsAddNoteOpen(true)}
-                              >
-                                <Plus className="mr-2 h-3.5 w-3.5" />
-                                Add Note
-                              </Button>
-                            </div>
-                            {componentNotes.map((note) => (
-                              <div
-                                key={note.id}
-                                className="flex items-start gap-2 p-3 rounded-lg border border-border bg-muted/30 text-sm group"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenNote(note)}
-                                  className="flex-1 min-w-0 text-left rounded-sm hover:opacity-80 transition-opacity"
-                                >
-                                  <p className="font-medium text-card-foreground truncate">{note.name}</p>
-                                  {note.description && note.description !== note.name && (
-                                    <p className="mt-1 text-muted-foreground line-clamp-2">{note.description}</p>
-                                  )}
-                                </button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => handleDeleteNote(note)}
-                                  title="Delete note"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="tasks" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        {tasks.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-                            <p className="text-sm text-muted-foreground">No tasks yet.</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsAddTaskOpen(true)}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Task
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="flex justify-end mb-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={() => setIsAddTaskOpen(true)}
-                              >
-                                <Plus className="mr-2 h-3.5 w-3.5" />
-                                Add Task
-                              </Button>
-                            </div>
-                            {tasks.map((task) => (
-                              <div
-                                key={task.id}
-                                className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 group"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleTask(task.id, task.is_completed)}
-                                  className="shrink-0"
-                                >
-                                  {task.is_completed ? (
-                                    <Check className="h-4 w-4 text-emerald-500" />
-                                  ) : (
-                                    <Circle className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                </button>
-                                <span
-                                  className={`flex-1 text-sm truncate ${
-                                    task.is_completed ? 'line-through text-muted-foreground' : 'text-card-foreground'
-                                  }`}
-                                >
-                                  {task.name}
-                                </span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => handleDeleteTask(task)}
-                                  title="Delete task"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="documents" className="m-0 p-4 flex-1 min-h-0 overflow-y-auto">
-                        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-                          <Flag className="h-5 w-5 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            Attachments and documents support coming soon.
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toast('Documents add flow coming soon', { icon: 'ℹ️' })}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Document
-                          </Button>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              <Card className="border-border">
-                <CardContent className="py-16 flex flex-col items-center justify-center min-h-[280px]">
-                  <p className="text-sm text-muted-foreground">Component not found</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+          <ProjectsPageLayout
+            layout={layoutMode}
+            onLayoutChange={setLayoutMode}
+            filteredProjects={filteredProjects}
+            loadingProjects={loadingProjects}
+            selectedProjectId={selectedProjectId}
+            components={components}
+            loadingComponents={loadingComponents}
+            selectedComponentId={selectedComponentId}
+            selectedProject={selectedProject}
+            selectedComponent={selectedComponent}
+            projectMembers={projectMembers}
+            currentUserId={user?.id ?? null}
+            projectEvents={projectEvents}
+            componentItems={componentItems}
+            miscCosts={miscCosts}
+            componentNotes={componentNotes}
+            tasks={tasks}
+            totalCost={totalCost}
+            leftGroupTab={leftGroupTab}
+            rightGroupTab={rightGroupTab}
+            isDeletingProject={isDeletingProject}
+            isDeletingComponent={isDeletingComponent}
+            onProjectSelect={handleProjectSelect}
+            onComponentSelect={handleComponentSelect}
+            onAddProject={() => setIsAddProjectOpen(true)}
+            onAddComponent={() => setIsAddComponentOpen(true)}
+            onDeleteProject={handleDeleteProject}
+            onDeleteComponent={handleDeleteComponent}
+            onManageMembers={() => setIsManageMembersOpen(true)}
+            onEditProject={() => setIsEditProjectOpen(true)}
+            onEditComponent={() => setIsEditComponentOpen(true)}
+            onLeftGroupTabChange={setLeftGroupTab}
+            onRightGroupTabChange={setRightGroupTab}
+            onLeftGroupAdd={handleLeftGroupAdd}
+            onAddNote={() => setIsAddNoteOpen(true)}
+            onAddTask={() => setIsAddTaskOpen(true)}
+            onOpenNote={handleOpenNote}
+            onDeleteNote={handleDeleteNote}
+            onToggleTask={handleToggleTask}
+            onDeleteTask={handleDeleteTask}
+            getItemName={getItemName}
+          />
         </div>
       </div>
 
@@ -1110,22 +496,17 @@ const ProjectsPage: React.FC = () => {
           setSelectedComponentId(null);
         }}
       />
-
       <EditProjectDialog
         open={isEditProjectOpen}
         onOpenChange={setIsEditProjectOpen}
         project={selectedProject}
-        onSuccess={(updated) => {
-          setSelectedProjectData(updated);
-        }}
+        onSuccess={(updated) => setSelectedProjectData(updated)}
       />
-
       <EditProjectComponentDialog
         open={isEditComponentOpen}
         onOpenChange={setIsEditComponentOpen}
         component={selectedComponent ?? null}
       />
-
       {selectedProjectId && (
         <AddProjectComponentDialog
           open={isAddComponentOpen}

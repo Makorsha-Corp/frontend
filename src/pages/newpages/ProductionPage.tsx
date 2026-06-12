@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
+  appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
   appShellHeaderLoweredSelectorClass,
@@ -32,6 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -89,6 +91,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  LayoutDashboard,
+  Layers,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import toast from 'react-hot-toast';
@@ -96,6 +100,8 @@ import toast from 'react-hot-toast';
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
 const BATCH_STATUS_FILTER_STORAGE_KEY = 'production.batches.statusFilter';
+
+type ProductionPageTab = 'overview' | 'batches';
 
 const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
   input: 'border-transparent bg-blue-500/15 text-blue-800 dark:text-blue-200',
@@ -153,6 +159,7 @@ const ProductionPage: React.FC = () => {
     }
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<ProductionPageTab>('overview');
   const [linePage, setLinePage] = useState(1);
   const [formulaPage, setFormulaPage] = useState(1);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
@@ -512,9 +519,9 @@ const ProductionPage: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
@@ -605,7 +612,29 @@ const ProductionPage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="p-6 space-y-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as ProductionPageTab)}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden gap-6"
+          >
+            <div className="flex shrink-0 justify-center">
+              <TabsList className={appShellHeaderControlClass}>
+                <TabsTrigger value="overview" className="gap-1.5 px-3">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="batches" className="gap-1.5 px-3">
+                  <Layers className="h-4 w-4" />
+                  Batches
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent
+              value="overview"
+              className="mt-0 min-h-0 flex-1 space-y-6 overflow-y-auto data-[state=inactive]:hidden"
+            >
           {/* Top analytics: status + efficiency + activity */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
             <Card className="border-border xl:col-span-1">
@@ -849,12 +878,15 @@ const ProductionPage: React.FC = () => {
               </Card>
             </div>
           </div>
+            </TabsContent>
 
-          <div>
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(280px,380px)_1fr] gap-6 items-start">
-                <Card className="border-border xl:sticky xl:top-24 self-start min-h-[360px]">
-                  <div className="border-b border-border px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground font-medium">
+            <TabsContent
+              value="batches"
+              className="mt-0 grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden data-[state=inactive]:hidden xl:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]"
+            >
+                <Card className="flex min-h-0 flex-col overflow-hidden border-border">
+                  <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+                    <span className="text-sm font-medium text-muted-foreground">
                       {filteredBatches.length} batches
                     </span>
                     <Button
@@ -863,15 +895,15 @@ const ProductionPage: React.FC = () => {
                       onClick={() => setIsAddBatchOpen(true)}
                       disabled={linesForFactory.length === 0}
                     >
-                      <Plus className="h-4 w-4 mr-1" />
+                      <Plus className="mr-1 h-4 w-4" />
                       Add Batch
                     </Button>
                   </div>
-                  <CardContent className="p-0 min-h-[300px] max-h-[min(56vh,500px)] overflow-y-auto">
+                  <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
                     {batchesError ? (
-                      <div className="py-8 px-4 text-center">
-                        <p className="text-sm text-destructive font-medium">Failed to load batches</p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-sm font-medium text-destructive">Failed to load batches</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {(batchesError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
                         </p>
                       </div>
@@ -880,7 +912,7 @@ const ProductionPage: React.FC = () => {
                         <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                       </div>
                     ) : filteredBatches.length === 0 ? (
-                      <div className="flex min-h-[240px] items-center justify-center px-4 text-center text-muted-foreground text-sm">
+                      <div className="flex min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
                         {linesForFactory.length === 0
                           ? 'Add production lines first'
                           : 'No batches. Create one to start production.'}
@@ -906,6 +938,7 @@ const ProductionPage: React.FC = () => {
                   </CardContent>
                 </Card>
 
+                <div className="min-h-0 min-w-0 overflow-hidden">
                 {selectedBatchId ? (
                   <BatchDetailPanel
                     batchId={selectedBatchId}
@@ -928,16 +961,15 @@ const ProductionPage: React.FC = () => {
                     isDeletingBatch={isDeletingBatch}
                   />
                 ) : (
-                  <Card className="border-dashed border-border bg-muted/20 min-h-[360px]">
-                    <CardContent className="flex min-h-[300px] items-center justify-center py-16 text-center text-sm text-muted-foreground">
-                      Select a batch, then use <span className="font-medium">Batch details</span> to open the full view
-                      (summary on the left, lines on the right).
+                  <Card className="flex h-full min-h-0 flex-col border-dashed border-border bg-muted/20">
+                    <CardContent className="flex flex-1 items-center justify-center py-16 text-center text-sm text-muted-foreground">
+                      Select a batch to view details
                     </CardContent>
                   </Card>
                 )}
-
-              </div>
-          </div>
+                </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
@@ -2218,7 +2250,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
   return (
     <>
-      <Card className="border-border shadow-sm min-h-[420px]">
+      <Card className="flex h-full min-h-0 flex-col border-border shadow-sm">
         <CardContent className="flex h-full min-h-0 flex-col gap-4 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
