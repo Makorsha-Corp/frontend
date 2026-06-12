@@ -8217,7 +8217,7 @@ const ApiTestPage: React.FC = () => {
                     Dest: {po.destination_type}:{po.destination_id} | Account: {po.account_id} | Status: {po.current_status_id} | Subtotal: ${Number(po.subtotal).toFixed(2)}
                     {po.description && <> | Desc: {po.description}</>}
                     {po.order_note && <> | Note: {po.order_note}</>}
-                    {po.stage && <> | Stage: {po.stage}</>}
+                    {po.order_workflow_id && <> | Workflow: {po.order_workflow_id}</>}
                     {po.invoice_id && <> | Invoice: {po.invoice_id}</>}
                     <br />Created: {new Date(po.created_at).toLocaleString()} by #{po.created_by}
                     {po.updated_at && <> | Updated: {new Date(po.updated_at).toLocaleString()}</>}

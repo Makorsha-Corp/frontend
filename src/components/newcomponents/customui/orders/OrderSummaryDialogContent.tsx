@@ -172,7 +172,7 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
             <p className="text-lg font-semibold text-card-foreground">{purchaseOrder.po_number}</p>
           </div>
           <Badge variant="outline" className="shrink-0 capitalize">
-            {purchaseOrder.stage ?? purchaseOrder.current_status_name ?? '—'}
+            {statusLabel(purchaseOrder.current_status_id)}
           </Badge>
         </div>
 
