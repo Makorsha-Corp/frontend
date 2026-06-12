@@ -10,10 +10,12 @@ import {
 export type InvoiceFilter = 'all' | 'invoiced' | 'not_invoiced';
 export type DestinationTypeFilter = 'all' | 'storage' | 'machine' | 'project';
 
+export type { PoStage as PoStageName, PO_STAGES } from '@/types/purchaseOrder';
+
 export interface PurchaseOrderFilters {
   from?: Date;
   to?: Date;
-  statusId: string;
+  stage: string;
   accountId: string;
   factoryId: string;
   destinationType: DestinationTypeFilter;
@@ -25,7 +27,7 @@ export interface PurchaseOrderFilters {
 /** Manually closed PO (Complete stage) or legacy completed-style status names. */
 export function isPurchaseOrderComplete(order: PurchaseOrder): boolean {
   if (order.order_completed) return true;
-  const name = order.current_status_name?.trim();
+  const name = (order.stage ?? order.current_status_name)?.trim();
   if (name === 'Complete') return true;
   if (name) return isCompletedStatusLabel(name);
   return false;
@@ -55,9 +57,10 @@ export function filterPurchaseOrders(
     });
   }
 
-  if (filters.statusId !== 'all') {
-    const sid = Number(filters.statusId);
-    rows = rows.filter((o) => o.current_status_id === sid);
+  if (filters.stage !== 'all') {
+    rows = rows.filter(
+      (o) => (o.stage ?? o.current_status_name) === filters.stage
+    );
   }
 
   if (filters.accountId !== 'all') {
@@ -96,8 +99,7 @@ export function filterPurchaseOrders(
 }
 
 export function purchaseOrderSummaryStats(
-  orders: PurchaseOrder[],
-  statusById: Map<number, string>
+  orders: PurchaseOrder[]
 ): PurchaseOrderSummaryStats {
   let totalValue = 0;
   let openCount = 0;
@@ -108,8 +110,8 @@ export function purchaseOrderSummaryStats(
     const amount = Number(o.total_amount ?? 0);
     totalValue += amount;
 
-    const label = statusById.get(o.current_status_id) ?? '';
-    if (!isCompletedStatusLabel(label)) {
+    const label = o.stage ?? o.current_status_name ?? '';
+    if (!isCompletedStatusLabel(label) && label !== 'Complete') {
       openCount += 1;
       openValue += amount;
     }

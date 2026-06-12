@@ -115,7 +115,7 @@ export function normalizeOrders(
       amount: Number(po.total_amount ?? 0),
       createdAt,
       reportDate: startOfDay(createdAt),
-      statusLabel: statusName(statusById, po.current_status_id),
+      statusLabel: po.stage ?? po.current_status_name ?? '—',
       factoryId: factoryFromPurchase(po, maps),
       displayDate: format(createdAt, 'yyyy-MM-dd'),
       dueOrExpectedDate: null,

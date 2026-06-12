@@ -38,7 +38,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
           icon: <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
           timestamp: invoiceTime,
           description: `${order.po_number} invoice linked`,
-          subtext: order.current_status_name ?? statusLabel(order.current_status_id),
+          subtext: order.current_status_name ?? order.stage ?? '—',
         });
       }
     }

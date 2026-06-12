@@ -13,6 +13,9 @@ export interface PurchaseOrderItem {
   notes: string | null;
 }
 
+export const PO_STAGES = ['Draft', 'Planning', 'Receiving', 'Complete'] as const;
+export type PoStage = (typeof PO_STAGES)[number];
+
 export interface PurchaseOrder {
   id: number;
   workspace_id: number;
@@ -25,9 +28,8 @@ export interface PurchaseOrder {
   actual_delivery_date: string | null;
   subtotal: number;
   total_amount: number;
-  current_status_id: number;
+  stage: PoStage;
   current_status_name: string | null;
-  order_workflow_id: number | null;
   invoice_id: number | null;
   required_approvals: number | null;
   description: string | null;
@@ -148,8 +150,6 @@ export interface CreatePurchaseOrder {
   expected_delivery_date?: string | null;
   description?: string | null;
   order_note?: string | null;
-  current_status_id?: number;
-  order_workflow_id?: number | null;
   items?: CreatePurchaseOrderItem[];
 }
 
@@ -159,7 +159,6 @@ export interface UpdatePurchaseOrder {
   destination_id?: number | null;
   order_date?: string | null;
   expected_delivery_date?: string | null;
-  current_status_id?: number | null;
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
@@ -203,7 +202,7 @@ export interface ActiveOrderRow {
   id: number;
   number: string;
   summary: string | null;
-  current_status_id: number;
+  current_status_id: number | null;
   status_name: string | null;
   created_at: string;
   total_amount: string | null;

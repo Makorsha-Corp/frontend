@@ -27,11 +27,11 @@ import {
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
+import { PO_STAGES } from '@/types/purchaseOrder';
 import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
@@ -66,7 +66,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [stageFilter, setStageFilter] = useState<string>('all');
   const [accountFilter, setAccountFilter] = useState<string>('all');
   const [factoryFilter, setFactoryFilter] = useState<string>('all');
   const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
@@ -85,10 +85,6 @@ const PurchaseOrdersPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
-  const { data: statuses = [] } = useGetStatusesQuery({
-    skip: 0,
-    limit: API_LIMITS.STRICT_100,
-  });
   const { data: machines = [] } = useGetMachinesQuery({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
@@ -103,8 +99,6 @@ const PurchaseOrdersPage: React.FC = () => {
   });
   const [deleteOrder] = useDeletePurchaseOrderMutation();
 
-  const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
-
   const resolutionMaps = useMemo(
     () => ({
       machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
@@ -117,7 +111,7 @@ const PurchaseOrdersPage: React.FC = () => {
     () => ({
       from: dateRange.from,
       to: dateRange.to,
-      statusId: statusFilter,
+      stage: stageFilter,
       accountId: accountFilter,
       factoryId: factoryFilter,
       destinationType: destinationFilter,
@@ -128,7 +122,7 @@ const PurchaseOrdersPage: React.FC = () => {
     [
       dateRange.from,
       dateRange.to,
-      statusFilter,
+      stageFilter,
       accountFilter,
       factoryFilter,
       destinationFilter,
@@ -144,8 +138,8 @@ const PurchaseOrdersPage: React.FC = () => {
   );
 
   const overviewStats = useMemo(
-    () => purchaseOrderSummaryStats(filteredOrders, statusMap),
-    [filteredOrders, statusMap]
+    () => purchaseOrderSummaryStats(filteredOrders),
+    [filteredOrders]
   );
 
   const mayTruncate = orders.length >= PO_LIST_LIMIT;
@@ -199,7 +193,7 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const accountName = (id: number | null) =>
     id == null ? 'No supplier' : accounts.find((a) => a.id === id)?.name ?? `Account #${id}`;
-  const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
+  const statusLabel = (_id: number) => '—';
   const destinationLabel = (order: PurchaseOrder) => {
     if (order.destination_type === 'storage') {
       const factory = factories.find((f) => f.id === order.destination_id);
@@ -220,7 +214,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const hasActiveFilters =
     dateRange.from != null ||
     dateRange.to != null ||
-    statusFilter !== 'all' ||
+    stageFilter !== 'all' ||
     accountFilter !== 'all' ||
     factoryFilter !== 'all' ||
     destinationFilter !== 'all' ||
@@ -230,7 +224,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilter !== 'all') count += 1;
+    if (stageFilter !== 'all') count += 1;
     if (accountFilter !== 'all') count += 1;
     if (factoryFilter !== 'all') count += 1;
     if (destinationFilter !== 'all') count += 1;
@@ -239,7 +233,7 @@ const PurchaseOrdersPage: React.FC = () => {
   }, [
     dateRange.from,
     dateRange.to,
-    statusFilter,
+    stageFilter,
     accountFilter,
     factoryFilter,
     destinationFilter,
@@ -248,7 +242,7 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const clearFilters = () => {
     setDateRange({});
-    setStatusFilter('all');
+    setStageFilter('all');
     setAccountFilter('all');
     setFactoryFilter('all');
     setDestinationFilter('all');
@@ -370,15 +364,15 @@ const PurchaseOrdersPage: React.FC = () => {
             </PopoverContent>
           </Popover>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={stageFilter} onValueChange={setStageFilter}>
             <SelectTrigger className={`w-[140px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Stage" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
+              <SelectItem value="all">All stages</SelectItem>
+              {PO_STAGES.map((stage) => (
+                <SelectItem key={stage} value={stage}>
+                  {stage}
                 </SelectItem>
               ))}
             </SelectContent>
