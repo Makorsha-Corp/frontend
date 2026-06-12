@@ -28,9 +28,19 @@ import EditInventoryDialog from '@/components/newcomponents/customui/EditInvento
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import { Tabs } from '@/components/ui/tabs';
 import StoragePageLayout from '@/components/newcomponents/customui/storage/StoragePageLayout';
 import StorageLayoutSwitcher from '@/components/newcomponents/customui/storage/StorageLayoutSwitcher';
+import StorageHeaderTabs, { type StorageContentTab } from '@/components/newcomponents/customui/storage/StorageHeaderTabs';
 import StorageActiveOrdersBanner from '@/components/newcomponents/customui/storage/StorageActiveOrdersBanner';
+import {
+  loadStorageTabSwitcherStyle,
+  saveStorageTabSwitcherStyle,
+  loadStorageTabSwitcherPlacement,
+  saveStorageTabSwitcherPlacement,
+  type StorageTabSwitcherStyle,
+  type StorageTabSwitcherPlacement,
+} from '@/components/newcomponents/customui/storage/storageTabSwitcherStyles';
 import { INVENTORY_TYPES } from '@/components/newcomponents/customui/storage/storageConstants';
 import { DEFAULT_STORAGE_LAYOUT, type StorageLayoutMode } from '@/components/newcomponents/customui/storage/storageLayoutModes';
 import toast from 'react-hot-toast';
@@ -48,6 +58,27 @@ const StoragePage: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<StorageLayoutMode>(DEFAULT_STORAGE_LAYOUT);
+  const [contentTab, setContentTab] = useState<StorageContentTab>('storage');
+  const [tabSwitcherStyle, setTabSwitcherStyle] = useState<StorageTabSwitcherStyle>(loadStorageTabSwitcherStyle);
+  const [tabSwitcherPlacement, setTabSwitcherPlacement] = useState<StorageTabSwitcherPlacement>(
+    loadStorageTabSwitcherPlacement
+  );
+
+  useEffect(() => {
+    saveStorageTabSwitcherStyle(tabSwitcherStyle);
+  }, [tabSwitcherStyle]);
+
+  useEffect(() => {
+    saveStorageTabSwitcherPlacement(tabSwitcherPlacement);
+  }, [tabSwitcherPlacement]);
+
+  useEffect(() => {
+    if (layoutMode === 'tabs' || layoutMode === 'focusStorage') {
+      setContentTab('storage');
+    } else if (layoutMode === 'focusProducts') {
+      setContentTab('products');
+    }
+  }, [layoutMode]);
 
   useEffect(() => {
     setFactoryId(globalFactory?.id ?? null);
@@ -199,117 +230,181 @@ const StoragePage: React.FC = () => {
     );
   }
 
+  const layoutProps = {
+    layout: layoutMode,
+    onLayoutChange: setLayoutMode,
+    factoryId,
+    storageOverview,
+    productsOverview,
+    filteredInventory,
+    filteredProducts,
+    loadingInventory,
+    loadingProducts,
+    inventoryError: !!inventoryError,
+    productsError: !!productsError,
+    searchQuery,
+    showZeroQty,
+    onShowZeroQtyChange: setShowZeroQty,
+    inventoryTypeFilter,
+    onInventoryTypeFilterChange: setInventoryTypeFilter,
+    forSaleOnly,
+    onForSaleOnlyChange: setForSaleOnly,
+    onAddInventory: () => setIsAddInventoryOpen(true),
+    onAddProduct: () => setIsAddProductOpen(true),
+    onEditInventory: setEditingInventory,
+    onClearInventoryStock: handleClearInventoryStock,
+    onEditProduct: setEditingProduct,
+    onDeleteProduct: handleDeleteProduct,
+    contentTab: layoutMode === 'tabs' ? contentTab : undefined,
+    tabSwitcherStyle,
+    tabSwitcherPlacement,
+  };
+
+  const tabsInHeader = layoutMode === 'tabs' && tabSwitcherPlacement === 'header';
+
+  const storageHeader = (
+    <AppShellHeader>
+      <div
+        className={
+          tabsInHeader
+            ? 'grid grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+            : 'flex flex-wrap items-center justify-between gap-4'
+        }
+      >
+        <div
+          className={
+            tabsInHeader
+              ? 'flex min-w-0 flex-wrap items-end gap-3 lg:justify-self-start'
+              : 'flex min-w-0 flex-1 flex-wrap items-end gap-3'
+          }
+        >
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
+              aria-hidden
+            >
+              <Archive className="h-5 w-5 text-brand-primary" />
+            </div>
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+              Storage
+            </h1>
+          </div>
+          <div className="hidden h-6 w-px bg-border sm:block" />
+          <Breadcrumb className="min-w-0 self-end">
+            <BreadcrumbList className="text-card-foreground dark:text-foreground">
+              <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-7 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+                    align="start"
+                  >
+                    <DropdownMenuLabel>Factories</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      className={factoryId == null ? 'bg-accent/70' : ''}
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setFactoryId(null);
+                      }}
+                    >
+                      All factories
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {factories.map((f) => (
+                      <DropdownMenuItem
+                        key={f.id}
+                        className={factoryId === f.id ? 'bg-accent/70' : ''}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setFactoryId(f.id);
+                        }}
+                      >
+                        {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+
+        {tabsInHeader && (
+          <div className="flex justify-center lg:justify-self-center">
+            <StorageHeaderTabs
+              storageCount={storageOverview.records}
+              productsCount={productsOverview.records}
+              variant={tabSwitcherStyle}
+            />
+          </div>
+        )}
+
+        <div
+          className={
+            tabsInHeader
+              ? 'flex flex-wrap items-center justify-end gap-3 lg:justify-self-end'
+              : 'flex flex-wrap items-center gap-3'
+          }
+        >
+          <StorageLayoutSwitcher
+            value={layoutMode}
+            onChange={setLayoutMode}
+            tabSwitcherStyle={tabSwitcherStyle}
+            onTabSwitcherStyleChange={setTabSwitcherStyle}
+            tabSwitcherPlacement={tabSwitcherPlacement}
+            onTabSwitcherPlacementChange={setTabSwitcherPlacement}
+          />
+          <div className="relative w-[200px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search inventory and products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`pl-9 ${appShellHeaderControlClass} bg-background`}
+            />
+          </div>
+        </div>
+      </div>
+    </AppShellHeader>
+  );
+
+  const storageBody = (
+    <>
+      {layoutMode !== 'overview' && <StorageActiveOrdersBanner factoryId={factoryId} />}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
+        <StoragePageLayout {...layoutProps} />
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardNavbar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className="flex min-w-0 shrink-0 items-center gap-3">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
-                  aria-hidden
-                >
-                  <Archive className="h-5 w-5 text-brand-primary" />
-                </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                  Storage
-                </h1>
-              </div>
-              <div className="hidden h-6 w-px bg-border sm:block" />
-              <Breadcrumb className="min-w-0 self-end">
-                <BreadcrumbList className="text-card-foreground dark:text-foreground">
-                  <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-7 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        >
-                          <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
-                        align="start"
-                      >
-                        <DropdownMenuLabel>Factories</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          className={factoryId == null ? 'bg-accent/70' : ''}
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            setFactoryId(null);
-                          }}
-                        >
-                          All factories
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {factories.map((f) => (
-                          <DropdownMenuItem
-                            key={f.id}
-                            className={factoryId === f.id ? 'bg-accent/70' : ''}
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              setFactoryId(f.id);
-                            }}
-                          >
-                            {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <StorageLayoutSwitcher value={layoutMode} onChange={setLayoutMode} />
-              <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search inventory and products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-            </div>
-          </div>
-        </AppShellHeader>
-
-        {layoutMode !== 'overview' && <StorageActiveOrdersBanner factoryId={factoryId} />}
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
-          <StoragePageLayout
-            layout={layoutMode}
-            onLayoutChange={setLayoutMode}
-            factoryId={factoryId}
-            storageOverview={storageOverview}
-            productsOverview={productsOverview}
-            filteredInventory={filteredInventory}
-            filteredProducts={filteredProducts}
-            loadingInventory={loadingInventory}
-            loadingProducts={loadingProducts}
-            inventoryError={!!inventoryError}
-            productsError={!!productsError}
-            searchQuery={searchQuery}
-            showZeroQty={showZeroQty}
-            onShowZeroQtyChange={setShowZeroQty}
-            inventoryTypeFilter={inventoryTypeFilter}
-            onInventoryTypeFilterChange={setInventoryTypeFilter}
-            forSaleOnly={forSaleOnly}
-            onForSaleOnlyChange={setForSaleOnly}
-            onAddInventory={() => setIsAddInventoryOpen(true)}
-            onAddProduct={() => setIsAddProductOpen(true)}
-            onEditInventory={setEditingInventory}
-            onClearInventoryStock={handleClearInventoryStock}
-            onEditProduct={setEditingProduct}
-            onDeleteProduct={handleDeleteProduct}
-          />
-        </div>
+        {layoutMode === 'tabs' ? (
+          <Tabs
+            value={contentTab}
+            onValueChange={(v) => setContentTab(v as StorageContentTab)}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            {storageHeader}
+            {storageBody}
+          </Tabs>
+        ) : (
+          <>
+            {storageHeader}
+            {storageBody}
+          </>
+        )}
       </div>
 
       <AddInventoryDialog

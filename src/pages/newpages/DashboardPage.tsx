@@ -1,217 +1,296 @@
 import React from 'react';
+
+import { Link } from 'react-router-dom';
+
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, TrendingUp, DollarSign, Users as UsersIcon, Activity, Percent } from 'lucide-react';
-import { useAppSelector } from '@/app/hooks';
+
+import AppShellHeader, {
+
+  appShellHeaderControlClass,
+
+  appShellHeaderIconTileClass,
+
+  appShellHeaderTitleClass,
+
+} from '@/components/newcomponents/customui/AppShellHeader';
+
+import { Button } from '@/components/ui/button';
+
+import {
+
+  LayoutDashboard,
+
+  ShoppingCart,
+
+  FolderKanban,
+
+  Layers,
+
+  Wrench,
+
+  ChevronRight,
+
+} from 'lucide-react';
+
+import DashboardStatCard from '@/components/newcomponents/customui/dashboard/DashboardStatCard';
+
+import DashboardOrdersTrend from '@/components/newcomponents/customui/dashboard/DashboardOrdersTrend';
+
+import DashboardOrdersMixPie from '@/components/newcomponents/customui/dashboard/DashboardOrdersMixPie';
+
+import DashboardRecentOrdersPanel from '@/components/newcomponents/customui/dashboard/DashboardRecentOrdersPanel';
+
+import DashboardAttentionPanel from '@/components/newcomponents/customui/dashboard/DashboardAttentionPanel';
+
+import { useDashboardData } from '@/components/newcomponents/customui/dashboard/useDashboardData';
+
+import { formatDashboardCurrency } from '@/components/newcomponents/customui/dashboard/dashboardConstants';
+
+
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAppSelector((state) => state.auth);
-  const stats = [
-    { title: 'Current MRR', value: '—', bgColor: 'bg-brand-primary', icon: <DollarSign size={24} /> },
-    { title: 'Current Customers', value: '—', bgColor: 'bg-brand-primary-hover', icon: <UsersIcon size={24} /> },
-    { title: 'Active Customers', value: '—', bgColor: 'bg-brand-accent', icon: <Activity size={24} />, textDark: true },
-    { title: 'Churn Rate', value: '—', bgColor: 'bg-card', border: true, icon: <Percent size={24} />, textDark: true },
-  ];
 
-  const transactions: { name: string; badge: string; amount: string; status: string }[] = [];
-  const supportTickets: { email: string; issue: string; status: string; color: string }[] = [];
+  const {
+
+    factory,
+
+    kpis,
+
+    trendData,
+
+    ordersByType,
+
+    recentOrdersList,
+
+    attentionItems,
+
+    totalOrdersCount,
+
+    isLoading,
+
+    hasError,
+
+    salesMayTruncate,
+
+  } = useDashboardData();
+
+
+
+  const factoryContext = factory ? factory.name : 'All factories';
+
+
 
   return (
-    <div className="flex min-h-screen bg-background">
+
+    <div className="flex h-screen overflow-hidden bg-background">
+
       <DashboardNavbar />
-      {/* Main Content */}
-      <div className="flex-1 min-w-0">
-        {/* Top Bar */}
+
+
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+
         <AppShellHeader sticky>
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground dark:text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search transactions, customers, subscriptions..."
-                  className={`w-96 rounded-lg border border-border bg-background pl-10 pr-4 text-foreground dark:bg-background/50 ${appShellHeaderControlClass} focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background`}
-                />
+
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+
+              <div className={appShellHeaderIconTileClass}>
+
+                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
+
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-white font-semibold">
-                {user?.name?.charAt(0) || 'U'}
+
+              <div className="min-w-0">
+
+                <h1 className={appShellHeaderTitleClass}>Dashboard</h1>
+
+                <p className="text-sm text-muted-foreground truncate">{factoryContext}</p>
+
               </div>
+
             </div>
+
+            <Button
+
+              variant="outline"
+
+              size="sm"
+
+              className={`${appShellHeaderControlClass} border-border bg-background`}
+
+              asChild
+
+            >
+
+              <Link to="/orders">
+
+                View orders overview
+
+                <ChevronRight className="ml-1 h-4 w-4" />
+
+              </Link>
+
+            </Button>
+
           </div>
+
         </AppShellHeader>
 
-        {/* Dashboard Content */}
-        <div className="p-8 bg-background">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => (
-              <Card 
-                key={index} 
-                className={`${stat.bgColor} ${stat.border ? 'border-2 border-brand-accent' : ''} ${
-                  stat.textDark ? '' : 'text-white'
-                }`}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className={`text-sm font-medium ${stat.textDark ? 'text-card-foreground/60' : 'text-white/80'}`}>
-                    {stat.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className={`text-3xl font-bold ${stat.textDark ? 'text-card-foreground' : 'text-white'}`}>
-                      {stat.value}
-                    </div>
-                    <div className={`${stat.textDark ? 'text-card-foreground' : 'text-white/60'}`}>
-                      {stat.icon}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
+
+          {hasError && (
+
+            <p className="mb-4 text-sm text-destructive">
+
+              Some dashboard data could not be loaded. Check your connection and workspace access.
+
+            </p>
+
+          )}
+
+          {salesMayTruncate && (
+
+            <p className="mb-4 text-xs text-muted-foreground">
+
+              Sales order counts may be truncated due to pagination limits.
+
+            </p>
+
+          )}
+
+
+
+          <div className="space-y-8">
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+
+              <DashboardStatCard
+
+                variant="primary"
+
+                title="Open orders"
+
+                value={kpis.openOrdersCount}
+
+                icon={<ShoppingCart size={24} />}
+
+                footer={
+
+                  kpis.openOrdersPendingValue > 0
+
+                    ? `${formatDashboardCurrency(kpis.openOrdersPendingValue)} pending value`
+
+                    : 'Non-completed orders in scope'
+
+                }
+
+                isLoading={isLoading}
+
+              />
+
+              <DashboardStatCard
+
+                variant="primaryHover"
+
+                title="Active projects"
+
+                value={kpis.activeProjectsCount}
+
+                icon={<FolderKanban size={24} />}
+
+                footer={
+
+                  kpis.planningProjectsCount > 0
+
+                    ? `${kpis.planningProjectsCount} in planning`
+
+                    : 'Projects in progress'
+
+                }
+
+                isLoading={isLoading}
+
+              />
+
+              <DashboardStatCard
+
+                variant="accent"
+
+                title="Batches in progress"
+
+                value={kpis.batchesInProgressCount}
+
+                icon={<Layers size={24} />}
+
+                footer="Production batches running now"
+
+                isLoading={isLoading}
+
+              />
+
+              <DashboardStatCard
+
+                variant="outlined"
+
+                title="Maintenance due (7d)"
+
+                value={kpis.maintenanceDueCount}
+
+                icon={<Wrench size={24} />}
+
+                footer="Machines due within 7 days"
+
+                isLoading={isLoading}
+
+              />
+
+            </div>
+
+
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+              <DashboardOrdersTrend data={trendData} isLoading={isLoading} />
+
+              <DashboardOrdersMixPie
+
+                data={ordersByType}
+
+                totalCount={totalOrdersCount}
+
+                isLoading={isLoading}
+
+              />
+
+            </div>
+
+
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+              <DashboardRecentOrdersPanel orders={recentOrdersList} isLoading={isLoading} />
+
+              <DashboardAttentionPanel items={attentionItems} isLoading={isLoading} />
+
+            </div>
+
           </div>
 
-          {/* Charts and Data Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Trend Chart */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-card-foreground">Trend</CardTitle>
-                <div className="flex gap-2 mt-2">
-                  <span className="text-xs px-2 py-1 bg-muted rounded">NEW</span>
-                  <span className="text-xs px-2 py-1 bg-muted rounded">RENEWALS</span>
-                  <span className="text-xs px-2 py-1 bg-brand-secondary text-white rounded">CHURNS</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-end justify-around gap-2">
-                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'].map((month, i) => {
-                    const heights = [40, 60, 45, 70, 85, 55, 75];
-                    return (
-                      <div key={month} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="w-full bg-brand-accent rounded-t" style={{ height: `${heights[i]}%` }}></div>
-                        <span className="text-xs text-muted-foreground">{month}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Sales Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-card-foreground">Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center h-48">
-                  <div className="relative w-40 h-40 rounded-full bg-gradient-to-br from-brand-primary via-brand-primary-hover to-brand-accent flex items-center justify-center">
-                    <div className="w-24 h-24 bg-card rounded-full flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-card-foreground">342</div>
-                        <div className="text-xs text-muted-foreground">SALES</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-brand-primary rounded-full"></div>
-                    <span>BASIC PLAN</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-brand-primary-hover rounded-full"></div>
-                    <span>PRO PLAN</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-brand-accent rounded-full"></div>
-                    <span>ADVANCED PLAN</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-muted rounded-full"></div>
-                    <span>ENTERPRISE PLAN</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Bottom Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Transactions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-card-foreground">Transactions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {transactions.length === 0 ? (
-                    <p className="py-8 text-center text-muted-foreground text-sm">No transactions yet</p>
-                  ) : (
-                    transactions.map((transaction, index) => (
-                      <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-brand-primary/10 rounded-full flex items-center justify-center text-brand-primary font-semibold text-sm">
-                            {transaction.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium text-card-foreground">{transaction.name}</div>
-                            <div className="text-xs text-muted-foreground">{transaction.badge}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-card-foreground">{transaction.amount}</span>
-                          {transaction.status === 'up' && <TrendingUp size={16} className="text-green-500" />}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  <button className="w-full mt-4 py-2 text-brand-primary hover:bg-brand-primary/5 rounded-lg font-medium transition-colors">
-                    View all transactions
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Support Tickets */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-card-foreground">Support Tickets</CardTitle>
-                  <div className="flex gap-2">
-                    <button className="text-xs px-3 py-1 bg-muted rounded-full">All</button>
-                    <button className="text-xs px-3 py-1 bg-muted rounded-full">Open</button>
-                    <button className="text-xs px-3 py-1 bg-muted rounded-full">Pending</button>
-                    <button className="text-xs px-3 py-1 bg-muted rounded-full">Closed</button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {supportTickets.length === 0 ? (
-                    <p className="py-8 text-center text-muted-foreground text-sm">No support tickets</p>
-                  ) : (
-                    supportTickets.map((ticket, index) => (
-                      <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div className="flex-1 min-w-0 mr-4">
-                          <div className="text-sm text-muted-foreground truncate">{ticket.email}</div>
-                          <div className="text-xs font-medium text-card-foreground">{ticket.issue}</div>
-                        </div>
-                        <span className={`text-xs px-2 py-1 ${ticket.color} text-white rounded font-medium whitespace-nowrap`}>
-                          {ticket.status}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
+
       </div>
+
     </div>
+
   );
+
 };
 
+
+
 export default DashboardPage;
+

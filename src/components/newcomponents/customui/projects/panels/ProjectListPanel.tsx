@@ -87,23 +87,6 @@ const ProjectListPanel: React.FC<ProjectListPanelProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                {selectedProjectId === project.id && onClearSelection ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs text-muted-foreground hover:text-card-foreground"
-                          onClick={onClearSelection}
-                        >
-                          Overview
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Back to portfolio overview</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : null}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

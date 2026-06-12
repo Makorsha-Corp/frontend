@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Archive, Package } from 'lucide-react';
+import { TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import StorageSection from './StorageSection';
 import ProductsSection from './ProductsSection';
 import StorageOverviewPanel from './StorageOverviewPanel';
+import StorageTabKpiStrip from './StorageTabKpiStrip';
+import StorageHeaderTabs from './StorageHeaderTabs';
+import type { StorageContentTab } from './StorageHeaderTabs';
+import type { StorageTabSwitcherPlacement, StorageTabSwitcherStyle } from './storageTabSwitcherStyles';
 import type { StorageLayoutMode } from './storageLayoutModes';
 import type { Inventory, InventoryType } from '@/types/inventory';
 import type { Product } from '@/types/product';
@@ -35,6 +38,10 @@ export interface StoragePageLayoutProps {
   onClearInventoryStock: (inv: Inventory) => void;
   onEditProduct: (prod: Product) => void;
   onDeleteProduct: (prod: Product) => void;
+  /** Required when `layout === 'tabs'` — tabs live in the page header. */
+  contentTab?: StorageContentTab;
+  tabSwitcherStyle?: StorageTabSwitcherStyle;
+  tabSwitcherPlacement?: StorageTabSwitcherPlacement;
 }
 
 const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
@@ -62,16 +69,21 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
   onClearInventoryStock,
   onEditProduct,
   onDeleteProduct,
+  contentTab: contentTabProp,
+  tabSwitcherStyle = 'underline',
+  tabSwitcherPlacement = 'header',
 }) => {
-  const [contentTab, setContentTab] = useState<'storage' | 'products'>('storage');
+  const [internalTab, setInternalTab] = useState<StorageContentTab>('storage');
 
   useEffect(() => {
     if (layout === 'tabs' || layout === 'focusStorage') {
-      setContentTab('storage');
+      setInternalTab('storage');
     } else if (layout === 'focusProducts') {
-      setContentTab('products');
+      setInternalTab('products');
     }
   }, [layout]);
+
+  const contentTab = layout === 'tabs' ? (contentTabProp ?? 'storage') : internalTab;
 
   const storageSectionProps = {
     factoryId,
@@ -104,29 +116,40 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
   };
 
   if (layout === 'tabs') {
+    const tabLoading = contentTab === 'storage' ? loadingInventory : loadingProducts;
+
     return (
-      <Tabs
-        value={contentTab}
-        onValueChange={(v) => setContentTab(v as 'storage' | 'products')}
-        className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
-      >
-        <TabsList className="h-9 w-fit shrink-0">
-          <TabsTrigger value="storage" className="gap-2 px-4 text-xs">
-            <Archive className="h-3.5 w-3.5" />
-            Storage ({storageOverview.records})
-          </TabsTrigger>
-          <TabsTrigger value="products" className="gap-2 px-4 text-xs">
-            <Package className="h-3.5 w-3.5" />
-            Products ({productsOverview.records})
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="storage" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
+        {tabSwitcherPlacement === 'content' && (
+          <div className="flex shrink-0 justify-center">
+            <StorageHeaderTabs
+              storageCount={storageOverview.records}
+              productsCount={productsOverview.records}
+              variant={tabSwitcherStyle}
+            />
+          </div>
+        )}
+
+        <StorageTabKpiStrip
+          activeTab={contentTab}
+          storageOverview={storageOverview}
+          productsOverview={productsOverview}
+          isLoading={tabLoading}
+        />
+
+        <TabsContent
+          value="storage"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+        >
           <StorageSection {...storageSectionProps} />
         </TabsContent>
-        <TabsContent value="products" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden">
+        <TabsContent
+          value="products"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+        >
           <ProductsSection {...productsSectionProps} />
         </TabsContent>
-      </Tabs>
+      </div>
     );
   }
 
