@@ -207,6 +207,12 @@ const ProjectsPage: React.FC = () => {
     setSelectedComponentId(null);
   };
 
+  const handleClearProjectSelection = () => {
+    setSelectedProjectId(null);
+    setSelectedProjectData(null);
+    setSelectedComponentId(null);
+  };
+
   const handleComponentSelect = (component: ProjectComponent) => {
     setSelectedComponentId(component.id);
     setLeftGroupTab('items');
@@ -463,6 +469,7 @@ const ProjectsPage: React.FC = () => {
             isDeletingProject={isDeletingProject}
             isDeletingComponent={isDeletingComponent}
             onProjectSelect={handleProjectSelect}
+            onClearProjectSelection={handleClearProjectSelection}
             onComponentSelect={handleComponentSelect}
             onAddProject={() => setIsAddProjectOpen(true)}
             onAddComponent={() => setIsAddComponentOpen(true)}

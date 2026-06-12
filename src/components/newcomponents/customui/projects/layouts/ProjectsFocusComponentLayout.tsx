@@ -40,6 +40,7 @@ const ProjectsFocusComponentLayout: React.FC<ProjectsPageLayoutProps> = (props) 
           isLoading={props.loadingProjects}
           selectedProjectId={props.selectedProjectId}
           onSelect={props.onProjectSelect}
+          onClearSelection={props.onClearProjectSelection}
           onAdd={props.onAddProject}
           onDelete={props.onDeleteProject}
           isDeleting={props.isDeletingProject}

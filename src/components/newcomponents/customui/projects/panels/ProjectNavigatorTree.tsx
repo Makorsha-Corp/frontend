@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, LayoutDashboard, Loader2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
@@ -15,6 +15,7 @@ interface ProjectNavigatorTreeProps {
   selectedProjectId: number | null;
   selectedComponentId: number | null;
   onProjectSelect: (project: Project) => void;
+  onClearProjectSelection?: () => void;
   onComponentSelect: (component: ProjectComponent) => void;
   onAddProject: () => void;
   onAddComponent: () => void;
@@ -33,6 +34,7 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
   selectedProjectId,
   selectedComponentId,
   onProjectSelect,
+  onClearProjectSelection,
   onComponentSelect,
   onAddProject,
   onAddComponent,
@@ -45,7 +47,11 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
   const [expandedProjectId, setExpandedProjectId] = useState<number | null>(selectedProjectId);
 
   useEffect(() => {
-    if (selectedProjectId != null) setExpandedProjectId(selectedProjectId);
+    if (selectedProjectId != null) {
+      setExpandedProjectId(selectedProjectId);
+    } else {
+      setExpandedProjectId(null);
+    }
   }, [selectedProjectId]);
 
   const selectProject = (project: Project) => {
@@ -54,6 +60,7 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
   };
 
   const toggleExpandViaChevron = (project: Project) => {
+    if (selectedProjectId === project.id) return;
     if (expandedProjectId === project.id) {
       setExpandedProjectId(null);
       return;
@@ -64,11 +71,25 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
 
   return (
     <Card className={cn('flex min-h-0 flex-1 flex-col border-border', className)}>
-      <CardHeader className="flex shrink-0 flex-row items-center justify-between pb-3">
+      <CardHeader className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-border pb-3">
         <CardTitle className="text-base">Projects</CardTitle>
-        <Button size="icon" variant="outline" className="h-7 w-7" onClick={onAddProject} title="Add project">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {(selectedProjectId != null || selectedComponentId != null) && onClearProjectSelection ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={onClearProjectSelection}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Overview
+            </Button>
+          ) : null}
+          <Button size="icon" variant="outline" className="h-7 w-7" onClick={onAddProject} title="Add project">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
         {loadingProjects ? (
@@ -80,8 +101,8 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
         ) : (
           <div className="divide-y divide-border">
             {projects.map((project) => {
-              const isExpanded = expandedProjectId === project.id;
               const isSelected = selectedProjectId === project.id;
+              const isExpanded = isSelected || expandedProjectId === project.id;
               return (
                 <div key={project.id}>
                   <div
@@ -93,9 +114,13 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
                   >
                     <button
                       type="button"
-                      className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted"
+                      className={cn(
+                        'shrink-0 rounded p-0.5 text-muted-foreground',
+                        isSelected ? 'cursor-default opacity-60' : 'hover:bg-muted'
+                      )}
                       onClick={() => toggleExpandViaChevron(project)}
-                      aria-label={isExpanded ? 'Collapse project' : 'Expand project'}
+                      disabled={isSelected}
+                      aria-label={isExpanded ? 'Project expanded' : 'Expand project'}
                     >
                       {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </button>
@@ -154,24 +179,34 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
                           <div
                             key={component.id}
                             className={cn(
-                              'flex cursor-pointer items-center justify-between gap-2 py-2 pl-9 pr-3 hover:bg-muted/40',
+                              'flex cursor-pointer items-center justify-between gap-2 py-2.5 pl-9 pr-3 hover:bg-muted/40',
                               projectNavigatorRowBaseClass,
                               selectedComponentId === component.id && projectNavigatorRowSelectedClass
                             )}
                             onClick={() => onComponentSelect(component)}
                           >
-                            <span className="truncate text-sm text-card-foreground">{component.name}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium text-card-foreground">{component.name}</div>
+                              <span
+                                className={cn(
+                                  'rounded px-2 py-0.5 text-xs',
+                                  getStatusBadge(component.status ?? 'PLANNING')
+                                )}
+                              >
+                                {formatProjectStatus(component.status)}
+                              </span>
+                            </div>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 shrink-0 p-0 text-destructive hover:bg-destructive/10"
+                              className="h-7 w-7 shrink-0 p-0 text-destructive hover:bg-destructive/10"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onDeleteComponent(component);
                               }}
                               disabled={isDeletingComponent}
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         ))

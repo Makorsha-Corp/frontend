@@ -14,6 +14,7 @@ const ProjectsTreeNavigatorLayout: React.FC<ProjectsPageLayoutProps> = (props) =
         selectedProjectId={props.selectedProjectId}
         selectedComponentId={props.selectedComponentId}
         onProjectSelect={props.onProjectSelect}
+        onClearProjectSelection={props.onClearProjectSelection}
         onComponentSelect={props.onComponentSelect}
         onAddProject={props.onAddProject}
         onAddComponent={props.onAddComponent}

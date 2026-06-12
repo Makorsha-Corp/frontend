@@ -21,14 +21,15 @@ import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySe
 import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { Factory } from '@/types/factory';
-import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronRight, Layers, Users, Settings } from 'lucide-react';
+import { Search, Plus, Loader2, Pencil, Trash2, Factory as FactoryIcon, ChevronRight, Layers, Users, Settings, Wrench } from 'lucide-react';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import DepartmentsManageDialog from '@/components/newcomponents/customui/DepartmentsManageDialog';
+import UpcomingMaintenanceDialog from '@/components/newcomponents/customui/UpcomingMaintenanceDialog';
 import FactoryDetailCard from '@/components/newcomponents/customui/FactoryDetailCard';
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import toast, { Toaster } from 'react-hot-toast';
-import DueStatusCard, { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
+import { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
 import { cn } from '@/lib/utils';
 
 /** Matches DashboardPage stat cards — brand theme colors */
@@ -293,6 +294,7 @@ const FactoriesPage: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingFactory, setEditingFactory] = useState<Factory | null>(null);
   const [isDeptsDialogOpen, setIsDeptsDialogOpen] = useState(false);
+  const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
 
   const { data: factories, isLoading, error } = useGetFactoriesQuery({
     skip: 0,
@@ -335,10 +337,6 @@ const FactoriesPage: React.FC = () => {
     [sectionsByFactory]
   );
 
-  const avgSectionsPerFactory = React.useMemo(() => {
-    if (!factories || factories.length === 0) return 0;
-    return totalSectionsCount / factories.length;
-  }, [factories, totalSectionsCount]);
   const visibleRatio = React.useMemo(() => {
     if (!factories || factories.length === 0) return 0;
     return (filteredFactories.length / factories.length) * 100;
@@ -352,7 +350,6 @@ const FactoriesPage: React.FC = () => {
   );
   const visibleFactoryCount = filteredFactories.length;
   const avgSectionsVisible = visibleFactoryCount > 0 ? sectionsForVisible / visibleFactoryCount : 0;
-  const avgSectionsVsBaseline = avgSectionsPerFactory - 2;
 
   const activitySummary = React.useMemo(() => {
     if (!factories || factories.length === 0) {
@@ -381,7 +378,7 @@ const FactoriesPage: React.FC = () => {
     return { active, dormant: factories.length - active };
   }, [factories, sectionsByFactory]);
 
-  const overviewDueRows: DueStatusRow[] = React.useMemo(() => {
+  const overviewDueMachines = React.useMemo(() => {
     const now = new Date();
     const horizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return machines
@@ -394,9 +391,13 @@ const FactoriesPage: React.FC = () => {
         (a, b) =>
           new Date(a.next_maintenance_schedule!).getTime() -
           new Date(b.next_maintenance_schedule!).getTime()
-      )
-      .slice(0, 5)
-      .map((m) => {
+      );
+  }, [machines]);
+
+  const overviewDueCount = overviewDueMachines.length;
+
+  const overviewDueRows: DueStatusRow[] = React.useMemo(() => {
+    return overviewDueMachines.map((m) => {
         const section = sectionById.get(m.factory_section_id);
         const factory = section ? factoryById.get(section.factory_id) : undefined;
         const dateLabel = m.next_maintenance_schedule
@@ -414,7 +415,7 @@ const FactoriesPage: React.FC = () => {
           href: section ? `/factories/${section.factory_id}/sections/${section.id}` : '/factories',
         };
       });
-  }, [machines, sectionById, factoryById]);
+  }, [overviewDueMachines, sectionById, factoryById]);
 
   const handleEdit = (factory: Factory) => {
     setEditingFactory(factory);
@@ -447,11 +448,11 @@ const FactoriesPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Toaster position="top-right" />
       <DashboardNavbar />
 
-      <div className="flex-1 min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
         <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
@@ -472,8 +473,8 @@ const FactoriesPage: React.FC = () => {
         </AppShellHeader>
 
         {/* Content */}
-        <div className="p-8 bg-background">
-          <div className="mb-8 grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-5">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-8 bg-background">
+          <div className="mb-8 grid shrink-0 grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-5">
             <FactoryOverviewStatCard
               variant="primary"
               title="Workspace factories"
@@ -536,32 +537,14 @@ const FactoriesPage: React.FC = () => {
 
             <FactoryOverviewStatCard
               variant="accentLight"
-              title="Avg sections / factory"
-              value={avgSectionsPerFactory.toFixed(1)}
-              icon={<ChevronRight size={24} />}
-              footer="Baseline target is 2.0 sections per factory"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badge}>
-                  {totalSectionsCount} / {factories?.length ?? 0}
-                </Badge>
-                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badgeMuted}>
-                  {avgSectionsVsBaseline >= 0 ? '+' : ''}
-                  {avgSectionsVsBaseline.toFixed(1)} vs baseline
-                </Badge>
-              </div>
-            </FactoryOverviewStatCard>
-
-            <FactoryOverviewStatCard
-              variant="outlined"
               title="High activity"
               value={
                 <span className="flex flex-wrap items-center gap-2">
                   <span>{activitySummary.high}</span>
-                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badge}>
                     {activitySummary.medium} medium
                   </Badge>
-                  <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                  <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badgeMuted}>
                     {activitySummary.low} low
                   </Badge>
                 </span>
@@ -569,10 +552,10 @@ const FactoriesPage: React.FC = () => {
               icon={<Layers size={24} />}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badge}>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badge}>
                   {trendSeries.active} active
                 </Badge>
-                <Badge variant="outline" className={factoryOverviewStatStyles.outlined.badgeMuted}>
+                <Badge variant="outline" className={factoryOverviewStatStyles.accentLight.badgeMuted}>
                   {trendSeries.dormant} dormant
                 </Badge>
               </div>
@@ -580,7 +563,7 @@ const FactoriesPage: React.FC = () => {
                 <p
                   className={cn(
                     'mb-1 text-[11px] font-semibold uppercase tracking-wider',
-                    factoryOverviewStatStyles.outlined.sectionLabel
+                    factoryOverviewStatStyles.accentLight.sectionLabel
                   )}
                 >
                   Activity mix
@@ -604,20 +587,54 @@ const FactoriesPage: React.FC = () => {
                 </div>
               </div>
             </FactoryOverviewStatCard>
+
+            <FactoryOverviewStatCard
+              variant="outlined"
+              title="Upcoming maintenance"
+              value={machinesLoading ? '—' : overviewDueCount}
+              icon={<Wrench size={24} />}
+              interactive
+              onClick={() => setIsMaintenanceDialogOpen(true)}
+              ariaLabel={`Upcoming maintenance, ${overviewDueCount} due within 7 days`}
+              footer={
+                overviewDueCount > 0 ? 'Due within 7 days · click to view all' : 'Click to view schedule'
+              }
+            >
+              {machinesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading…
+                </div>
+              ) : overviewDueRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No machines due within 7 days across factories.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {overviewDueRows.slice(0, 3).map((row) => (
+                    <li
+                      key={row.id}
+                      className="truncate rounded-md border border-border/80 bg-muted/20 px-2.5 py-1.5 text-xs"
+                    >
+                      <span className="font-medium text-card-foreground">{row.name}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                        {row.dateLabel} · {row.contextLabel}
+                      </span>
+                    </li>
+                  ))}
+                  {overviewDueCount > 3 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      +{overviewDueCount - 3} more due this week
+                    </p>
+                  ) : null}
+                </ul>
+              )}
+            </FactoryOverviewStatCard>
           </div>
 
-          <div className="mb-5">
-            <DueStatusCard
-              title="Upcoming maintenance (overview)"
-              loading={machinesLoading}
-              rows={overviewDueRows}
-              emptyMessage="No machines due within 7 days across factories."
-            />
-          </div>
-
-          <Card className="shadow-sm bg-card border-border">
-            <CardContent className="p-0">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
+            <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
                 <div className="text-sm text-muted-foreground">
                   {!isLoading && (
                     <span className="font-medium">
@@ -638,18 +655,18 @@ const FactoriesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-4">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-16">
+                <div className="flex min-h-full flex-col items-center justify-center py-16">
                   <Loader2 className="h-12 w-12 animate-spin text-brand-primary mb-4" />
                   <p className="text-muted-foreground">Loading factories...</p>
                 </div>
               ) : error ? (
-                <div className="flex flex-col items-center justify-center py-16">
+                <div className="flex min-h-full flex-col items-center justify-center py-16">
                   <p className="text-destructive">Failed to load factories. Please try again.</p>
                 </div>
               ) : filteredFactories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
+                <div className="flex min-h-full flex-col items-center justify-center py-16">
                   <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-primary/10 rounded-full mb-4">
                     <FactoryIcon className="h-10 w-10 text-brand-primary" />
                   </div>
@@ -703,6 +720,12 @@ const FactoriesPage: React.FC = () => {
       <DepartmentsManageDialog
         open={isDeptsDialogOpen}
         onOpenChange={setIsDeptsDialogOpen}
+      />
+      <UpcomingMaintenanceDialog
+        open={isMaintenanceDialogOpen}
+        onOpenChange={setIsMaintenanceDialogOpen}
+        loading={machinesLoading}
+        rows={overviewDueRows}
       />
     </div>
   );

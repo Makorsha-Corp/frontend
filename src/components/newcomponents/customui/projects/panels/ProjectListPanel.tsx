@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Plus, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Trash2, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/types/project';
 import { formatProjectStatus, getStatusBadge, projectNavigatorRowBaseClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
@@ -17,6 +17,7 @@ interface ProjectListPanelProps {
   isLoading: boolean;
   selectedProjectId: number | null;
   onSelect: (project: Project) => void;
+  onClearSelection?: () => void;
   onAdd: () => void;
   onDelete: (project: Project) => void;
   isDeleting: boolean;
@@ -28,19 +29,32 @@ const ProjectListPanel: React.FC<ProjectListPanelProps> = ({
   isLoading,
   selectedProjectId,
   onSelect,
+  onClearSelection,
   onAdd,
   onDelete,
   isDeleting,
   className,
 }) => (
   <Card className={cn('flex min-h-0 flex-1 flex-col border-border', className)}>
-    <CardHeader className="flex shrink-0 flex-row items-center justify-between pb-3">
-      <div className="flex items-center gap-2">
+    <CardHeader className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-border pb-3">
+      <div className="flex min-w-0 items-center gap-2">
         <CardTitle className="text-base">Projects</CardTitle>
-        <Button size="icon" variant="outline" className="h-7 w-7" onClick={onAdd} title="Add project">
+        <Button size="icon" variant="outline" className="h-7 w-7 shrink-0" onClick={onAdd} title="Add project">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
+      {selectedProjectId != null && onClearSelection ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 shrink-0 gap-1.5 px-2.5 text-xs"
+          onClick={onClearSelection}
+        >
+          <LayoutDashboard className="h-3.5 w-3.5" />
+          Overview
+        </Button>
+      ) : null}
     </CardHeader>
     <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
       {isLoading ? (
@@ -73,6 +87,23 @@ const ProjectListPanel: React.FC<ProjectListPanelProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                {selectedProjectId === project.id && onClearSelection ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-card-foreground"
+                          onClick={onClearSelection}
+                        >
+                          Overview
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Back to portfolio overview</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : null}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

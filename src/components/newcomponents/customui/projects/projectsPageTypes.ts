@@ -30,6 +30,7 @@ export interface ProjectsPageLayoutProps {
   isDeletingProject: boolean;
   isDeletingComponent: boolean;
   onProjectSelect: (project: Project) => void;
+  onClearProjectSelection: () => void;
   onComponentSelect: (component: ProjectComponent) => void;
   onAddProject: () => void;
   onAddComponent: () => void;

@@ -51,7 +51,7 @@ export const PROJECT_LAYOUT_OPTIONS: ProjectLayoutOption[] = [
   {
     id: 'overview',
     label: 'Overview + workspace',
-    description: 'Portfolio KPI strip above the classic layout',
+    description: 'Portfolio KPI strip above workspace when a project is selected',
     icon: LayoutDashboard,
   },
   {

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FolderOpen, Settings, History, Pencil } from 'lucide-react';
+import { Settings, History, Pencil } from 'lucide-react';
 import ProjectMembersTopBar from '@/components/newcomponents/customui/projects/ProjectMembersTopBar';
 import ProjectEventLogRow from '@/components/newcomponents/customui/projects/ProjectEventLogRow';
 import type { Project } from '@/types/project';
@@ -36,13 +36,7 @@ const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
 }) => (
   <div className={cn('min-h-0 min-w-0 flex-1', className)}>
     <Card className="flex h-full min-h-0 flex-col border-border">
-      {!selectedProjectId ? (
-        <CardContent className="flex min-h-[280px] flex-col items-center justify-center py-16">
-          <FolderOpen className="mb-4 h-12 w-12 text-muted-foreground opacity-50" />
-          <h3 className="mb-2 text-lg font-medium text-card-foreground">Select a Project</h3>
-          <p className="text-sm text-muted-foreground">Choose a project to view its details and components</p>
-        </CardContent>
-      ) : selectedProject ? (
+      {selectedProject ? (
         <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-6">
           <ProjectMembersTopBar
             members={projectMembers}

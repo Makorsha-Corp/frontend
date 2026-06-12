@@ -1,10 +1,15 @@
 import React from 'react';
+import { Card } from '@/components/ui/card';
 import ProjectDetailPanel from './ProjectDetailPanel';
 import ComponentWorkspacePanel from './ComponentWorkspacePanel';
+import ProjectsOverviewPanel from '../ProjectsOverviewPanel';
 import type { ProjectsPageLayoutProps } from '../projectsPageTypes';
+import { cn } from '@/lib/utils';
 
 type ProjectMainPanelProps = Pick<
   ProjectsPageLayoutProps,
+  | 'filteredProjects'
+  | 'loadingProjects'
   | 'selectedProjectId'
   | 'selectedComponentId'
   | 'selectedProject'
@@ -20,6 +25,7 @@ type ProjectMainPanelProps = Pick<
   | 'miscCosts'
   | 'componentNotes'
   | 'tasks'
+  | 'onProjectSelect'
   | 'onManageMembers'
   | 'onEditProject'
   | 'onEditComponent'
@@ -36,6 +42,8 @@ type ProjectMainPanelProps = Pick<
 > & { className?: string };
 
 const ProjectMainPanel: React.FC<ProjectMainPanelProps> = ({
+  filteredProjects,
+  loadingProjects,
   selectedComponentId,
   selectedProjectId,
   selectedProject,
@@ -51,6 +59,7 @@ const ProjectMainPanel: React.FC<ProjectMainPanelProps> = ({
   miscCosts,
   componentNotes,
   tasks,
+  onProjectSelect,
   onManageMembers,
   onEditProject,
   onEditComponent,
@@ -93,6 +102,21 @@ const ProjectMainPanel: React.FC<ProjectMainPanelProps> = ({
         onDeleteTask={onDeleteTask}
         getItemName={getItemName}
       />
+    );
+  }
+
+  if (!selectedProjectId) {
+    return (
+      <div className={cn('min-h-0 min-w-0 flex-1', className)}>
+        <Card className="flex h-full min-h-0 flex-col border-border">
+          <ProjectsOverviewPanel
+            variant="embedded"
+            projects={filteredProjects}
+            loading={loadingProjects}
+            onProjectSelect={onProjectSelect}
+          />
+        </Card>
+      </div>
     );
   }
 
