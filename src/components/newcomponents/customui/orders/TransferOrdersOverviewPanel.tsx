@@ -7,7 +7,30 @@ import { transferRouteTypeLabel } from '@/pages/newpages/orders/transferOrderLoc
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
+import {
+  deriveTransferOrderStageWithItems,
+  trStageBadgeClassName,
+} from '@/components/newcomponents/customui/orders/transferOrderMilestones';
+import {
+  readTransferApprovalSummary,
+  readTransferApproverCount,
+} from '@/components/newcomponents/customui/orders/transferOrderApprovals';
+import { cn } from '@/lib/utils';
 import { ArrowLeftRight, Loader2 } from 'lucide-react';
+import { useGetTransferOrderItemsQuery } from '@/features/transferOrders/transferOrdersApi';
+
+function OverviewStageBadge({ order }: { order: TransferOrder }) {
+  const { data: items = [] } = useGetTransferOrderItemsQuery(order.id);
+  const stageName = deriveTransferOrderStageWithItems(order, items);
+  return (
+    <Badge
+      variant="secondary"
+      className={cn('text-[11px] font-medium', trStageBadgeClassName(stageName))}
+    >
+      {stageName}
+    </Badge>
+  );
+}
 
 interface TransferOrdersOverviewPanelProps {
   orders: TransferOrder[];
@@ -15,9 +38,13 @@ interface TransferOrdersOverviewPanelProps {
   isLoading?: boolean;
   mayTruncate?: boolean;
   routeLabel: (order: TransferOrder) => string;
-  statusLabel: (id: number) => string;
   formatDate: (d: string | null | undefined) => string;
   onSelectOrder: (id: number) => void;
+}
+
+function OverviewItemCount({ orderId }: { orderId: number }) {
+  const { data: items = [] } = useGetTransferOrderItemsQuery(orderId);
+  return <span className="text-muted-foreground text-sm tabular-nums">{items.length}</span>;
 }
 
 const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = ({
@@ -26,7 +53,6 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
   isLoading,
   mayTruncate,
   routeLabel,
-  statusLabel,
   formatDate,
   onSelectOrder,
 }) => {
@@ -35,7 +61,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
       {
         id: 'transfer_number',
         header: 'TR#',
-        cellClassName: 'font-medium',
+        cellClassName: 'font-medium text-card-foreground',
         cell: (o) => o.transfer_number,
       },
       {
@@ -52,27 +78,42 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
       },
       {
         id: 'status',
-        header: 'Status',
-        cell: (o) => (
-          <Badge variant="secondary" className="text-xs">
-            {statusLabel(o.current_status_id)}
-          </Badge>
-        ),
+        header: 'Stage',
+        cell: (o) => <OverviewStageBadge order={o} />,
       },
       {
         id: 'order_date',
-        header: 'Order date',
-        cellClassName: 'text-muted-foreground',
+        header: 'Date',
+        cellClassName: 'text-muted-foreground text-sm',
         cell: (o) => formatDate(o.order_date),
       },
       {
-        id: 'created',
-        header: 'Created',
-        cellClassName: 'text-muted-foreground',
-        cell: (o) => formatDate(o.created_at),
+        id: 'items',
+        header: 'Items',
+        cellClassName: 'text-sm tabular-nums',
+        cell: (o) => <OverviewItemCount orderId={o.id} />,
+      },
+      {
+        id: 'approvals',
+        header: 'Approvals',
+        cell: (o) => {
+          const count = readTransferApproverCount(o.id);
+          if (count === 0) return <span className="text-muted-foreground text-sm">—</span>;
+          const summary = readTransferApprovalSummary(o.id);
+          return (
+            <span
+              className={cn(
+                'text-xs font-medium',
+                summary.met ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+              )}
+            >
+              {summary.approved_count}/{summary.required}
+            </span>
+          );
+        },
       },
     ],
-    [routeLabel, statusLabel, formatDate]
+    [routeLabel, formatDate]
   );
 
   if (isLoading) {
@@ -94,39 +135,39 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="border-border">
-          <CardHeader className="pb-2">
+        <Card className="border-border shadow-none">
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total transfers</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.totalCount}</p>
+          <CardContent className="px-4 pb-4 pt-0">
+            <p className="text-2xl font-bold tracking-tight text-foreground">{stats.totalCount}</p>
             <p className="text-xs text-muted-foreground mt-1">In current filter scope</p>
           </CardContent>
         </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
+        <Card className="border-border shadow-none">
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Open pipeline</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.openCount}</p>
+          <CardContent className="px-4 pb-4 pt-0">
+            <p className="text-2xl font-bold tracking-tight text-foreground">{stats.openCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Not completed yet</p>
           </CardContent>
         </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
+        <Card className="border-border shadow-none">
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.completedCount}</p>
+          <CardContent className="px-4 pb-4 pt-0">
+            <p className="text-2xl font-bold tracking-tight text-foreground">{stats.completedCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Finished transfers</p>
           </CardContent>
         </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
+        <Card className="border-border shadow-none">
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Machine legs</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.machineInvolvedCount}</p>
+          <CardContent className="px-4 pb-4 pt-0">
+            <p className="text-2xl font-bold tracking-tight text-foreground">{stats.machineInvolvedCount}</p>
             <p className="text-xs text-muted-foreground mt-1">Source or destination is a machine</p>
           </CardContent>
         </Card>
@@ -140,7 +181,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
         onRowClick={(o) => onSelectOrder(o.id)}
         emptyIcon={<ArrowLeftRight className="h-12 w-12 mb-3 opacity-40" />}
         emptyMessage="No transfer orders match these filters."
-        className="flex-1 min-h-0"
+        className="flex-1 min-h-0 border-border shadow-none"
       />
     </div>
   );

@@ -105,10 +105,10 @@ const ProjectsPage: React.FC = () => {
 
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery({
-    skip: 0,
-    limit: 200,
-    factory_id: factoryId ?? undefined,
-    project_status: statusFilter === 'all' ? undefined : statusFilter,
+      skip: 0,
+      limit: 200,
+      factory_id: factoryId ?? undefined,
+      project_status: statusFilter === 'all' ? undefined : statusFilter,
   });
   const { data: componentsData, isLoading: loadingComponents } = useGetProjectComponentsQuery(
     { skip: 0, limit: 100, project_id: selectedProjectId ?? undefined },

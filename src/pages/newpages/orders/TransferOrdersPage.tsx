@@ -3,8 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -24,7 +31,7 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
-import { ArrowLeftRight, Plus, Loader2, Search, CalendarIcon, PanelLeft } from 'lucide-react';
+import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
@@ -37,6 +44,7 @@ import {
 } from './ordersOverviewData';
 import {
   filterTransferOrders,
+  isTransferOrderComplete,
   transferOrderSummaryStats,
   type TransferLocationTypeFilter,
 } from './transferOrdersOverviewData';
@@ -61,7 +69,6 @@ const TransferOrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [navigatorOpen, setNavigatorOpen] = useState(false);
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -69,6 +76,8 @@ const TransferOrdersPage: React.FC = () => {
   const [sourceTypeFilter, setSourceTypeFilter] = useState<TransferLocationTypeFilter>('all');
   const [destinationTypeFilter, setDestinationTypeFilter] =
     useState<TransferLocationTypeFilter>('all');
+  const [showCompleteOrders, setShowCompleteOrders] = useState(false);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(false);
 
   const { data: orders = [], isLoading } = useGetTransferOrdersQuery({
     skip: 0,
@@ -96,8 +105,6 @@ const TransferOrdersPage: React.FC = () => {
   });
   const [deleteOrder] = useDeleteTransferOrderMutation();
 
-  const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
-
   const resolutionMaps = useMemo(
     () => ({
       machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
@@ -120,6 +127,7 @@ const TransferOrdersPage: React.FC = () => {
       sourceType: sourceTypeFilter,
       destinationType: destinationTypeFilter,
       searchQuery,
+      showCompleteOrders,
     }),
     [
       dateRange.from,
@@ -129,6 +137,7 @@ const TransferOrdersPage: React.FC = () => {
       sourceTypeFilter,
       destinationTypeFilter,
       searchQuery,
+      showCompleteOrders,
     ]
   );
 
@@ -138,16 +147,25 @@ const TransferOrdersPage: React.FC = () => {
   );
 
   const overviewStats = useMemo(
-    () => transferOrderSummaryStats(filteredOrders, statusMap),
-    [filteredOrders, statusMap]
+    () => transferOrderSummaryStats(filteredOrders),
+    [filteredOrders]
   );
 
   const mayTruncate = orders.length >= TR_LIST_LIMIT;
 
-  const selectedOrder =
-    filteredOrders.find((o) => o.id === selectedOrderId) ??
-    orders.find((o) => o.id === selectedOrderId) ??
-    null;
+  const selectedOrder = useMemo(
+    () =>
+      filteredOrders.find((o) => o.id === selectedOrderId) ??
+      orders.find((o) => o.id === selectedOrderId) ??
+      null,
+    [filteredOrders, orders, selectedOrderId]
+  );
+
+  const hasHiddenCompleteOrders = useMemo(
+    () => !showCompleteOrders && orders.some((o) => isTransferOrderComplete(o)),
+    [showCompleteOrders, orders]
+  );
+
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
@@ -175,7 +193,6 @@ const TransferOrdersPage: React.FC = () => {
   };
 
   const routeLabel = (order: TransferOrder) => transferRouteLabel(order, labelCtx);
-  const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString() : '—';
 
@@ -187,6 +204,31 @@ const TransferOrdersPage: React.FC = () => {
     sourceTypeFilter !== 'all' ||
     destinationTypeFilter !== 'all' ||
     searchQuery.trim().length > 0;
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (dateRange.from != null || dateRange.to != null) count += 1;
+    if (statusFilter !== 'all') count += 1;
+    if (factoryFilter !== 'all') count += 1;
+    if (sourceTypeFilter !== 'all') count += 1;
+    if (destinationTypeFilter !== 'all') count += 1;
+    return count;
+  }, [
+    dateRange.from,
+    dateRange.to,
+    statusFilter,
+    factoryFilter,
+    sourceTypeFilter,
+    destinationTypeFilter,
+  ]);
+
+  const clearFilters = () => {
+    setDateRange({});
+    setStatusFilter('all');
+    setFactoryFilter('all');
+    setSourceTypeFilter('all');
+    setDestinationTypeFilter('all');
+  };
 
   const handleDelete = async (o: TransferOrder) => {
     if (!window.confirm(`Delete transfer order ${o.transfer_number}?`)) return;
@@ -208,13 +250,42 @@ const TransferOrdersPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                <ArrowLeftRight className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
+                  aria-hidden
+                >
+                  <ArrowLeftRight className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Transfer Orders
+                </h1>
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                Transfer Orders
-              </h1>
+              {selectedOrder && (
+                <>
+                  <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+                  <Breadcrumb className="min-w-0 self-end">
+                    <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                      <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
+                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
+                          <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                            {selectedOrder.transfer_number}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrder(null)}
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Close transfer order"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative w-[220px]">
@@ -239,149 +310,161 @@ const TransferOrdersPage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={navigatorOpen ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setNavigatorOpen((prev) => !prev)}
-            className={`shrink-0 max-w-[280px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+        {filtersBarOpen ? (
+          <div
+            id="tr-filters-bar"
+            className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
           >
-            <PanelLeft className="mr-2 h-4 w-4 shrink-0" />
-            {selectedOrder ? (
-              <span className="truncate text-left">
-                <span className="font-medium">{selectedOrder.transfer_number}</span>
-                <span className="text-muted-foreground font-normal">
-                  {' '}
-                  · {transferRouteTypeLabel(selectedOrder)}
-                </span>
-              </span>
-            ) : (
-              <span className="truncate">
-                Browse orders
-                <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
-              </span>
-            )}
-          </Button>
-
-          <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+                    ) : (
+                      format(dateRange.from, 'MMM d')
+                    )
                   ) : (
-                    format(dateRange.from, 'MMM d')
-                  )
-                ) : (
-                  'All dates'
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+                    'All dates'
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={factoryFilter} onValueChange={setFactoryFilter}>
-            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Factory" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All factories</SelectItem>
-              {factories.map((f) => (
-                <SelectItem key={f.id} value={String(f.id)}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={factoryFilter} onValueChange={setFactoryFilter}>
+              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Factory" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All factories</SelectItem>
+                {factories.map((f) => (
+                  <SelectItem key={f.id} value={String(f.id)}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={sourceTypeFilter}
-            onValueChange={(v) => setSourceTypeFilter(v as TransferLocationTypeFilter)}
-          >
-            <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Source" />
-            </SelectTrigger>
-            <SelectContent>
-              {LOCATION_TYPE_OPTIONS.map((opt) => (
-                <SelectItem key={`src-${opt.value}`} value={opt.value}>
-                  {opt.value === 'all' ? 'All sources' : opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={sourceTypeFilter}
+              onValueChange={(v) => setSourceTypeFilter(v as TransferLocationTypeFilter)}
+            >
+              <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                {LOCATION_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={`src-${opt.value}`} value={opt.value}>
+                    {opt.value === 'all' ? 'All sources' : opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={destinationTypeFilter}
-            onValueChange={(v) => setDestinationTypeFilter(v as TransferLocationTypeFilter)}
-          >
-            <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="All destinations">
-                {destinationTypeFilter === 'all'
-                  ? 'All destinations'
-                  : LOCATION_TYPE_OPTIONS.find((o) => o.value === destinationTypeFilter)?.label}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {LOCATION_TYPE_OPTIONS.map((opt) => (
-                <SelectItem key={`dst-${opt.value}`} value={opt.value}>
-                  {opt.value === 'all' ? 'All destinations' : opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <Select
+              value={destinationTypeFilter}
+              onValueChange={(v) => setDestinationTypeFilter(v as TransferLocationTypeFilter)}
+            >
+              <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="All destinations">
+                  {destinationTypeFilter === 'all'
+                    ? 'All destinations'
+                    : LOCATION_TYPE_OPTIONS.find((o) => o.value === destinationTypeFilter)?.label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {LOCATION_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={`dst-${opt.value}`} value={opt.value}>
+                    {opt.value === 'all' ? 'All destinations' : opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="tr-show-complete-filters"
+                  checked={showCompleteOrders}
+                  onCheckedChange={setShowCompleteOrders}
+                  aria-label="Show complete orders"
+                />
+                <Label
+                  htmlFor="tr-show-complete-filters"
+                  className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
+                >
+                  Show complete orders
+                </Label>
+              </div>
+              {activeFilterCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={clearFilters}
+                  aria-label="Clear filters"
+                  title="Clear filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
-          {navigatorOpen && (
-            <TransferOrderNavigatorPanel
-              onClose={() => setNavigatorOpen(false)}
-              filteredOrders={filteredOrders}
-              selectedOrderId={selectedOrderId}
-              isLoading={isLoading}
-              hasActiveFilters={hasActiveFilters}
-              onSelectOrder={(id) => setSelectedOrder(id)}
-              onAddOrder={() => setIsAddOpen(true)}
-              statusLabel={statusLabel}
-              formatDate={formatDate}
-            />
-          )}
+          <TransferOrderNavigatorPanel
+            filteredOrders={filteredOrders}
+            selectedOrderId={selectedOrderId}
+            isLoading={isLoading}
+            hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            filtersOpen={filtersBarOpen}
+            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={setShowCompleteOrders}
+            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
+            onSelectOrder={(id) => setSelectedOrder(id)}
+            onDeleteOrder={handleDelete}
+            onAddOrder={() => setIsAddOpen(true)}
+            routeTypeLabel={(o) => transferRouteTypeLabel(o)}
+            formatDate={formatDate}
+          />
 
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
               <TransferOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
-                onDelete={() => handleDelete(selectedOrder)}
-                onUpdated={() => setSelectedOrder(selectedOrder.id)}
+                showCompleteOrders={showCompleteOrders}
               />
             ) : (
               <TransferOrdersOverviewPanel
@@ -390,7 +473,6 @@ const TransferOrdersPage: React.FC = () => {
                 isLoading={isLoading}
                 mayTruncate={mayTruncate}
                 routeLabel={routeLabel}
-                statusLabel={statusLabel}
                 formatDate={formatDate}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
@@ -403,7 +485,7 @@ const TransferOrdersPage: React.FC = () => {
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSuccess={(createdOrder) => {
-          setSelectedOrder((createdOrder as TransferOrder).id);
+          setSelectedOrder(createdOrder.id);
           setIsAddOpen(false);
         }}
       />

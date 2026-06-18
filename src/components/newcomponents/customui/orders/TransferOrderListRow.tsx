@@ -1,63 +1,110 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
 import { useGetTransferOrderItemsQuery } from '@/features/transferOrders/transferOrdersApi';
 import type { TransferOrder } from '@/types/transferOrder';
+import {
+  deriveTransferOrderStageWithItems,
+  trStageBadgeClassName,
+} from './transferOrderMilestones';
+import { readTransferApprovalSummary, readTransferApproverCount } from './transferOrderApprovals';
 
 interface TransferOrderListRowProps {
   order: TransferOrder;
   isSelected: boolean;
   onClick: () => void;
-  statusLabel: string;
+  onDelete?: () => void;
+  routeTypeLabel: string;
   formatDate: (d: string | null | undefined) => string;
+}
+
+function ApprovalSummaryBadge({ orderId }: { orderId: number }) {
+  const approverCount = readTransferApproverCount(orderId);
+  if (approverCount === 0) return null;
+  const approvalSummary = readTransferApprovalSummary(orderId);
+  const met = approvalSummary.met;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 py-0.5 rounded text-[11px]',
+        met
+          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+          : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+      )}
+    >
+      {approvalSummary.approved_count}/{approvalSummary.required} approved
+    </span>
+  );
 }
 
 const TransferOrderListRow: React.FC<TransferOrderListRowProps> = ({
   order,
   isSelected,
   onClick,
-  statusLabel,
+  onDelete,
+  routeTypeLabel,
   formatDate,
 }) => {
   const { data: items = [] } = useGetTransferOrderItemsQuery(order.id);
   const itemCount = items.length;
-  const approvedCount = items.filter((i) => i.approved).length;
-  const approvedStatus = approvedCount === 0 ? 'Pending' : approvedCount >= itemCount ? 'Approved' : 'Partial';
+  const stageName = deriveTransferOrderStageWithItems(order, items);
+
+  const chipClass =
+    'inline-flex items-center bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded text-[11px]';
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${
-        isSelected ? 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-2 border-brand-primary' : ''
-      }`}
+    <div
+      className={cn(
+        'flex w-full transition-colors',
+        isSelected && 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-2 border-brand-primary'
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-card-foreground truncate">{order.transfer_number}</span>
-        <Badge variant="secondary" className="text-xs shrink-0">{statusLabel}</Badge>
-      </div>
-      <div className="text-sm text-muted-foreground truncate mt-0.5">
-        {order.source_location_type} → {order.destination_location_type}
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-        <span>{formatDate(order.order_date)}</span>
-        <span>•</span>
-        <span>
-          {itemCount} transfer item{itemCount !== 1 ? 's' : ''}
-        </span>
-        <span>•</span>
-        <span
-          className={
-            approvedStatus === 'Approved'
-              ? 'text-green-600 dark:text-green-400'
-              : approvedStatus === 'Partial'
-                ? 'text-amber-600 dark:text-amber-400'
-                : ''
-          }
-        >
-          {approvedStatus}
-        </span>
-      </div>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="min-w-0 flex-1 text-left px-4 py-3 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-card-foreground truncate">{order.transfer_number}</span>
+          <Badge
+            variant="secondary"
+            className={cn('text-[11px] shrink-0 font-medium', trStageBadgeClassName(stageName))}
+          >
+            {stageName}
+          </Badge>
+        </div>
+
+        <div className="text-sm text-muted-foreground truncate mt-1">{routeTypeLabel}</div>
+
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <span className={chipClass}>{formatDate(order.order_date)}</span>
+          <span className={chipClass}>
+            {itemCount} item{itemCount !== 1 ? 's' : ''}
+          </span>
+          <ApprovalSummaryBadge orderId={order.id} />
+        </div>
+      </button>
+
+      {onDelete && (
+        <div className="flex shrink-0 items-center pr-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label="Delete transfer order"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

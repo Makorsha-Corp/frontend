@@ -2,9 +2,12 @@ import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
 import type { TransferOrder } from '@/types/transferOrder';
 import {
   factoryFromTransfer,
-  isCompletedStatusLabel,
   type OrderResolutionMaps,
 } from './ordersOverviewData';
+import {
+  isTransferOrderCompleted,
+  readTransferOrderLocallyComplete,
+} from '@/components/newcomponents/customui/orders/transferOrderMilestones';
 import {
   transferLocationLabel,
   transferRouteLabel,
@@ -23,6 +26,12 @@ export interface TransferOrderFilters {
   sourceType: TransferLocationTypeFilter;
   destinationType: TransferLocationTypeFilter;
   searchQuery: string;
+  showCompleteOrders: boolean;
+}
+
+/** Completed transfer: server timestamp or local mark-complete shell. */
+export function isTransferOrderComplete(order: TransferOrder): boolean {
+  return isTransferOrderCompleted(order, readTransferOrderLocallyComplete(order.id));
 }
 
 export interface TransferOrderSummaryStats {
@@ -66,6 +75,10 @@ export function filterTransferOrders(
     rows = rows.filter((o) => o.destination_location_type === filters.destinationType);
   }
 
+  if (!filters.showCompleteOrders) {
+    rows = rows.filter((o) => !isTransferOrderComplete(o));
+  }
+
   const q = filters.searchQuery.trim().toLowerCase();
   if (q) {
     rows = rows.filter((o) => {
@@ -95,16 +108,14 @@ export function filterTransferOrders(
 }
 
 export function transferOrderSummaryStats(
-  orders: TransferOrder[],
-  statusById: Map<number, string>
+  orders: TransferOrder[]
 ): TransferOrderSummaryStats {
   let openCount = 0;
   let completedCount = 0;
   let machineInvolvedCount = 0;
 
   for (const o of orders) {
-    const label = statusById.get(o.current_status_id) ?? '';
-    if (isCompletedStatusLabel(label)) {
+    if (isTransferOrderComplete(o)) {
       completedCount += 1;
     } else {
       openCount += 1;
