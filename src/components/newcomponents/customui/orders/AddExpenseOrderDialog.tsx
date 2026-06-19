@@ -18,6 +18,10 @@ import {
 } from '@/components/ui/select';
 import { useCreateExpenseOrderMutation } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
+import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useGetMachinesQuery } from '@/features/machines/machinesApi';
+import { useGetProjectsQuery } from '@/features/projects/projectsApi';
+import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
 import type { CreateExpenseOrder, CreateExpenseOrderItem } from '@/types/expenseOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -27,6 +31,14 @@ import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/
 import { EXPENSE_CATEGORIES } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 
 const UNITS = ['', 'hr', 'day', 'month', 'pcs', 'kg', 'L', 'm', 'sqm'];
+
+const COST_CENTER_TYPES = [
+  { value: 'none', label: 'None' },
+  { value: 'factory', label: 'Factory' },
+  { value: 'machine', label: 'Machine' },
+  { value: 'project', label: 'Project' },
+  { value: 'department', label: 'Department' },
+] as const;
 
 const formatMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,6 +66,8 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       quantity: number;
       unit?: string;
       unit_price: number;
+      cost_center_type?: string | null;
+      cost_center_id?: number | null;
       notes?: string;
     }>
   >([]);
@@ -61,10 +75,44 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const [lineQty, setLineQty] = useState('1');
   const [lineUnit, setLineUnit] = useState<string>('none');
   const [linePrice, setLinePrice] = useState('');
+  const [lineCostCenterType, setLineCostCenterType] = useState('none');
+  const [lineCostCenterId, setLineCostCenterId] = useState('none');
+  const [lineNotes, setLineNotes] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   const [createOrder, { isLoading }] = useCreateExpenseOrderMutation();
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
+  const { data: factories = [] } = useGetFactoriesQuery(
+    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: !open }
+  );
+  const { data: machines = [] } = useGetMachinesQuery(
+    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: !open }
+  );
+  const { data: projects = [] } = useGetProjectsQuery(
+    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: !open }
+  );
+  const { data: departments = [] } = useGetDepartmentsQuery(
+    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: !open }
+  );
+
+  const costCenterOptions = React.useMemo(() => {
+    switch (lineCostCenterType) {
+      case 'factory':
+        return factories.map((f) => ({ id: f.id, label: f.name }));
+      case 'machine':
+        return machines.map((m) => ({ id: m.id, label: m.name }));
+      case 'project':
+        return projects.map((p) => ({ id: p.id, label: p.name }));
+      case 'department':
+        return departments.map((d) => ({ id: d.id, label: d.name }));
+      default:
+        return [];
+    }
+  }, [lineCostCenterType, factories, machines, projects, departments]);
 
   const reset = () => {
     setAccountId('none');
@@ -78,6 +126,9 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     setLineQty('1');
     setLineUnit('none');
     setLinePrice('');
+    setLineCostCenterType('none');
+    setLineCostCenterId('none');
+    setLineNotes('');
   };
 
   const handleAddItem = () => {
@@ -95,6 +146,14 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       toast.error('Enter a valid unit price');
       return;
     }
+    if (lineCostCenterType !== 'none' && lineCostCenterId === 'none') {
+      toast.error('Select a cost center');
+      return;
+    }
+    const cc =
+      lineCostCenterType !== 'none' && lineCostCenterId !== 'none'
+        ? { cost_center_type: lineCostCenterType, cost_center_id: Number(lineCostCenterId) }
+        : { cost_center_type: null, cost_center_id: null };
     setItems((prev) => [
       ...prev,
       {
@@ -102,12 +161,17 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
         quantity: q,
         unit: lineUnit && lineUnit !== 'none' ? lineUnit : undefined,
         unit_price: p,
+        ...cc,
+        notes: lineNotes.trim() || undefined,
       },
     ]);
     setLineDescription('');
     setLineQty('1');
     setLineUnit('none');
     setLinePrice('');
+    setLineCostCenterType('none');
+    setLineCostCenterId('none');
+    setLineNotes('');
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -140,6 +204,8 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           quantity: i.quantity,
           unit: i.unit && i.unit !== 'none' ? i.unit : null,
           unit_price: i.unit_price,
+          cost_center_type: i.cost_center_type ?? null,
+          cost_center_id: i.cost_center_id ?? null,
           notes: i.notes,
         })
       ),
@@ -218,6 +284,49 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Cost center type</Label>
+            <Select
+              value={lineCostCenterType}
+              onValueChange={(v) => {
+                setLineCostCenterType(v);
+                setLineCostCenterId('none');
+              }}
+            >
+              <SelectTrigger className="bg-background mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COST_CENTER_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Cost center</Label>
+            <Select
+              value={lineCostCenterId}
+              onValueChange={setLineCostCenterId}
+              disabled={lineCostCenterType === 'none'}
+            >
+              <SelectTrigger className="bg-background mt-1">
+                <SelectValue placeholder="Select…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">—</SelectItem>
+                {costCenterOptions.map((o) => (
+                  <SelectItem key={o.id} value={String(o.id)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
@@ -244,6 +353,14 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
                       ·
                     </span>
                     {totalStr}
+                    {it.cost_center_type && it.cost_center_id ? (
+                      <>
+                        <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                          ·
+                        </span>
+                        CC {it.cost_center_type} #{it.cost_center_id}
+                      </>
+                    ) : null}
                   </p>
                 </div>
                 <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
@@ -281,6 +398,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
                 : null
             }
             staleNumericId={accountId !== 'none' ? accountId : null}
+            compactLabel
           />
           <AccountSelectorDialog
             open={accountPickerOpen}

@@ -1,34 +1,47 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
-import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/orderListConstants';
-import { Receipt, Plus, Loader2, X } from 'lucide-react';
+import { ORDER_LIST_WIDTH, ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
+import { cn } from '@/lib/utils';
+import { Receipt, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
 
 export interface ExpenseOrderNavigatorPanelProps {
-  onClose: () => void;
   filteredOrders: ExpenseOrder[];
   selectedOrderId: number | null;
   isLoading: boolean;
   hasActiveFilters: boolean;
+  activeFilterCount: number;
+  filtersOpen: boolean;
+  onToggleFilters: () => void;
+  showCompleteOrders: boolean;
+  onShowCompleteOrdersChange: (value: boolean) => void;
+  hasHiddenCompleteOrders?: boolean;
   onSelectOrder: (id: number) => void;
+  onDeleteOrder?: (order: ExpenseOrder) => void;
   onAddOrder: () => void;
   accountName: (id: number | null) => string;
-  statusLabel: (id: number) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
 }
 
 const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
-  onClose,
   filteredOrders,
   selectedOrderId,
   isLoading,
   hasActiveFilters,
+  activeFilterCount,
+  filtersOpen,
+  onToggleFilters,
+  showCompleteOrders,
+  onShowCompleteOrdersChange,
+  hasHiddenCompleteOrders = false,
   onSelectOrder,
+  onDeleteOrder,
   onAddOrder,
   accountName,
-  statusLabel,
   formatCurrency,
   formatDate,
 }) => {
@@ -37,22 +50,46 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
       className="shrink-0 flex flex-col h-full border-r border-border bg-card"
       style={{ width: ORDER_LIST_WIDTH }}
     >
-      <div className="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-card-foreground">
-          Orders
-          <span className="ml-2 font-normal text-muted-foreground">
-            ({filteredOrders.length})
-          </span>
-        </h2>
+      <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
+            Orders
+            <span className="ml-2 font-normal text-muted-foreground">
+              ({filteredOrders.length})
+            </span>
+          </h2>
+          <div className="ml-4 flex shrink-0 items-center gap-1.5" title="Show complete orders">
+            <Switch
+              id="eo-show-complete-nav"
+              checked={showCompleteOrders}
+              onCheckedChange={onShowCompleteOrdersChange}
+              className="scale-90"
+              aria-label="Show complete orders"
+            />
+            <Label
+              htmlFor="eo-show-complete-nav"
+              className="cursor-pointer text-xs font-normal text-muted-foreground whitespace-nowrap"
+            >
+              Complete
+            </Label>
+          </div>
+        </div>
         <Button
           type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          variant="outline"
+          size="sm"
+          onClick={onToggleFilters}
+          aria-expanded={filtersOpen}
+          aria-controls="eo-filters-bar"
+          className={cn(
+            'shrink-0 h-8 border-border bg-background',
+            filtersOpen &&
+              'bg-gray-100 text-foreground hover:bg-gray-200 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:border-gray-600',
+            activeFilterCount > 0 && !filtersOpen && 'border-brand-primary/40 text-brand-primary'
+          )}
         >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close navigator</span>
+          <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </Button>
       </div>
 
@@ -68,7 +105,9 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
             <p className="text-sm text-muted-foreground text-center">
               {hasActiveFilters
                 ? 'No orders match your filters.'
-                : 'No expense orders yet.'}
+                : hasHiddenCompleteOrders
+                  ? 'No open orders. Turn on Complete to see finished expense orders.'
+                  : 'No expense orders yet.'}
             </p>
             {!hasActiveFilters && (
               <Button
@@ -89,8 +128,10 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
                 order={o}
                 isSelected={selectedOrderId === o.id}
                 onClick={() => onSelectOrder(o.id)}
+                onDelete={
+                  selectedOrderId === o.id && onDeleteOrder ? () => onDeleteOrder(o) : undefined
+                }
                 accountName={accountName(o.account_id)}
-                statusLabel={statusLabel(o.current_status_id)}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
               />

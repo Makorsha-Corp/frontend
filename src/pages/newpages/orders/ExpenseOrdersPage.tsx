@@ -3,8 +3,15 @@ import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -21,7 +28,7 @@ import {
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { Receipt, Plus, Loader2, Search, CalendarIcon, PanelLeft } from 'lucide-react';
+import { Receipt, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
@@ -29,12 +36,12 @@ import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orde
 import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
 import {
   EXPENSE_CATEGORIES,
-  expenseCategoryLabel,
 } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
   filterExpenseOrders,
   expenseOrderSummaryStats,
+  isExpenseOrderComplete,
   type InvoiceFilter,
 } from './expenseOrdersOverviewData';
 
@@ -45,13 +52,14 @@ const ExpenseOrdersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [navigatorOpen, setNavigatorOpen] = useState(false);
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [accountFilter, setAccountFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
+  const [showCompleteOrders, setShowCompleteOrders] = useState(false);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(false);
 
   const { data: orders = [], isLoading } = useGetExpenseOrdersQuery({
     skip: 0,
@@ -78,6 +86,7 @@ const ExpenseOrdersPage: React.FC = () => {
       categoryFilter,
       invoice: invoiceFilter,
       searchQuery,
+      showCompleteOrders,
     }),
     [
       dateRange.from,
@@ -87,6 +96,7 @@ const ExpenseOrdersPage: React.FC = () => {
       categoryFilter,
       invoiceFilter,
       searchQuery,
+      showCompleteOrders,
     ]
   );
 
@@ -102,10 +112,19 @@ const ExpenseOrdersPage: React.FC = () => {
 
   const mayTruncate = orders.length >= EO_LIST_LIMIT;
 
-  const selectedOrder =
-    filteredOrders.find((o) => o.id === selectedOrderId) ??
-    orders.find((o) => o.id === selectedOrderId) ??
-    null;
+  const selectedOrder = useMemo(
+    () =>
+      filteredOrders.find((o) => o.id === selectedOrderId) ??
+      orders.find((o) => o.id === selectedOrderId) ??
+      null,
+    [filteredOrders, orders, selectedOrderId]
+  );
+
+  const hasHiddenCompleteOrders = useMemo(
+    () => !showCompleteOrders && orders.some(isExpenseOrderComplete),
+    [showCompleteOrders, orders]
+  );
+
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
@@ -156,6 +175,24 @@ const ExpenseOrdersPage: React.FC = () => {
     invoiceFilter !== 'all' ||
     searchQuery.trim().length > 0;
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (dateRange.from != null || dateRange.to != null) count += 1;
+    if (statusFilter !== 'all') count += 1;
+    if (accountFilter !== 'all') count += 1;
+    if (categoryFilter !== 'all') count += 1;
+    if (invoiceFilter !== 'all') count += 1;
+    return count;
+  }, [dateRange.from, dateRange.to, statusFilter, accountFilter, categoryFilter, invoiceFilter]);
+
+  const clearFilters = () => {
+    setDateRange({});
+    setStatusFilter('all');
+    setAccountFilter('all');
+    setCategoryFilter('all');
+    setInvoiceFilter('all');
+  };
+
   const handleDelete = async (o: ExpenseOrder) => {
     if (!window.confirm(`Delete expense order ${o.expense_number}?`)) return;
     try {
@@ -176,13 +213,39 @@ const ExpenseOrdersPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                <Receipt className="h-5 w-5 text-brand-primary" />
+            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+              <div className="flex min-w-0 items-center gap-3 shrink-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
+                  <Receipt className="h-5 w-5 text-brand-primary" />
+                </div>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                  Expense Orders
+                </h1>
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                Expense Orders
-              </h1>
+              {selectedOrder && (
+                <>
+                  <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+                  <Breadcrumb className="min-w-0 self-end">
+                    <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                      <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
+                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
+                          <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                            {selectedOrder.expense_number}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrder(null)}
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label="Close expense order"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative w-[220px]">
@@ -194,7 +257,7 @@ const ExpenseOrdersPage: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
-                </div>
+              </div>
               <Button
                 type="button"
                 onClick={() => setIsAddOpen(true)}
@@ -207,141 +270,151 @@ const ExpenseOrdersPage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant={navigatorOpen ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setNavigatorOpen((prev) => !prev)}
-            className={`shrink-0 max-w-[240px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+        {filtersBarOpen ? (
+          <div
+            id="eo-filters-bar"
+            className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
           >
-            <PanelLeft className="mr-2 h-4 w-4 shrink-0" />
-            {selectedOrder ? (
-              <span className="truncate text-left">
-                <span className="font-medium">{selectedOrder.expense_number}</span>
-                <span className="text-muted-foreground font-normal">
-                  {' '}
-                  · {expenseCategoryLabel(selectedOrder.expense_category)}
-                </span>
-              </span>
-            ) : (
-              <span className="truncate">
-                Browse orders
-                <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
-              </span>
-            )}
-          </Button>
-
-          <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+                    ) : (
+                      format(dateRange.from, 'MMM d')
+                    )
                   ) : (
-                    format(dateRange.from, 'MMM d')
-                  )
-                ) : (
-                  'All dates'
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+                    'All dates'
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={accountFilter} onValueChange={setAccountFilter}>
-            <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Account" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All accounts</SelectItem>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={accountFilter} onValueChange={setAccountFilter}>
+              <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Account" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All accounts</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={invoiceFilter} onValueChange={(v) => setInvoiceFilter(v as InvoiceFilter)}>
-            <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-              <SelectValue placeholder="Invoice" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All invoices</SelectItem>
-              <SelectItem value="invoiced">Invoiced</SelectItem>
-              <SelectItem value="not_invoiced">Not invoiced</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <Select value={invoiceFilter} onValueChange={(v) => setInvoiceFilter(v as InvoiceFilter)}>
+              <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
+                <SelectValue placeholder="Invoice" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All invoices</SelectItem>
+                <SelectItem value="invoiced">Invoiced</SelectItem>
+                <SelectItem value="not_invoiced">Not invoiced</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="eo-show-complete-filters"
+                  checked={showCompleteOrders}
+                  onCheckedChange={setShowCompleteOrders}
+                  aria-label="Show complete orders"
+                />
+                <Label
+                  htmlFor="eo-show-complete-filters"
+                  className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
+                >
+                  Show complete orders
+                </Label>
+              </div>
+              {activeFilterCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={clearFilters}
+                  aria-label="Clear filters"
+                  title="Clear filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
-          {navigatorOpen && (
-            <ExpenseOrderNavigatorPanel
-              onClose={() => setNavigatorOpen(false)}
-              filteredOrders={filteredOrders}
-              selectedOrderId={selectedOrderId}
-              isLoading={isLoading}
-              hasActiveFilters={hasActiveFilters}
-              onSelectOrder={(id) => setSelectedOrder(id)}
-              onAddOrder={() => setIsAddOpen(true)}
-              accountName={accountName}
-              statusLabel={statusLabel}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-            />
-          )}
+          <ExpenseOrderNavigatorPanel
+            filteredOrders={filteredOrders}
+            selectedOrderId={selectedOrderId}
+            isLoading={isLoading}
+            hasActiveFilters={hasActiveFilters}
+            activeFilterCount={activeFilterCount}
+            filtersOpen={filtersBarOpen}
+            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={setShowCompleteOrders}
+            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
+            onSelectOrder={(id) => setSelectedOrder(id)}
+            onDeleteOrder={handleDelete}
+            onAddOrder={() => setIsAddOpen(true)}
+            accountName={accountName}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+          />
 
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             {selectedOrder ? (
               <ExpenseOrderDetailPanel
                 order={selectedOrder}
-                accounts={accounts}
                 onClose={() => setSelectedOrder(null)}
-                onDelete={() => handleDelete(selectedOrder)}
-                onUpdated={() => setSelectedOrder(selectedOrder.id)}
+                showCompleteOrders={showCompleteOrders}
               />
             ) : (
               <ExpenseOrdersOverviewPanel

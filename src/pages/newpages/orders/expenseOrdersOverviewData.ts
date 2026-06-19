@@ -17,6 +17,14 @@ export interface ExpenseOrderFilters {
   categoryFilter: ExpenseCategoryFilter;
   invoice: InvoiceFilter;
   searchQuery: string;
+  showCompleteOrders: boolean;
+}
+
+/** Manually closed expense order or legacy completed-style status. */
+export function isExpenseOrderComplete(order: ExpenseOrder): boolean {
+  if (order.order_completed) return true;
+  if (order.completed_at) return true;
+  return false;
 }
 
 export interface ExpenseOrderSummaryStats {
@@ -60,6 +68,10 @@ export function filterExpenseOrders(
     rows = rows.filter((o) => o.invoice_id != null);
   } else if (filters.invoice === 'not_invoiced') {
     rows = rows.filter((o) => o.invoice_id == null);
+  }
+
+  if (!filters.showCompleteOrders) {
+    rows = rows.filter((o) => !isExpenseOrderComplete(o));
   }
 
   const q = filters.searchQuery.trim().toLowerCase();
