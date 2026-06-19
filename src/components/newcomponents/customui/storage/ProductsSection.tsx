@@ -12,6 +12,7 @@ import { formatCurrency, formatNumber, type ProductsOverviewStats } from './stor
 
 interface ProductsSectionProps {
   factoryId: number | null;
+  factoryLabels?: Record<number, string>;
   overview: ProductsOverviewStats;
   products: Product[];
   isLoading: boolean;
@@ -29,6 +30,7 @@ interface ProductsSectionProps {
 
 const ProductsSection: React.FC<ProductsSectionProps> = ({
   factoryId,
+  factoryLabels = {},
   overview,
   products,
   isLoading,
@@ -47,6 +49,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
     overview.totalSalesValue > 0 && overview.totalCostValue >= 0
       ? overview.totalSalesValue - overview.totalCostValue
       : null;
+  const showFactoryColumn = factoryId == null;
 
   return (
     <Card className={cn('flex min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm', collapsed ? 'shrink-0' : 'flex-1', className)}>
@@ -137,11 +140,6 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <p className="text-destructive">Failed to load products.</p>
           </div>
-        ) : !factoryId ? (
-          <div className="flex flex-1 flex-col items-center justify-center py-12">
-            <Package className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="text-muted-foreground">Select a factory to view products.</p>
-          </div>
         ) : products.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Package className="mb-3 h-10 w-10 text-muted-foreground" />
@@ -152,7 +150,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                   ? 'No products marked for sale.'
                   : 'No products yet.'}
             </p>
-            {!searchQuery && !forSaleOnly && (
+            {!searchQuery && !forSaleOnly && factoryId != null && (
               <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Product
@@ -165,6 +163,11 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
               <TableHeader>
                 <TableRow className="border-b border-border bg-brand-primary/5 dark:bg-brand-primary/10">
                   <TableHead className="py-3 text-xs font-semibold uppercase text-muted-foreground">Item</TableHead>
+                  {showFactoryColumn && (
+                    <TableHead className="w-[140px] py-3 text-xs font-semibold uppercase text-muted-foreground">
+                      Factory
+                    </TableHead>
+                  )}
                   <TableHead className="w-[80px] py-3 text-xs font-semibold uppercase text-muted-foreground">Qty</TableHead>
                   <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
                     Avg. Cost
@@ -187,6 +190,11 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                       {prod.item_name ?? `Item #${prod.item_id}`}
                       {prod.item_unit && <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>}
                     </TableCell>
+                    {showFactoryColumn && (
+                      <TableCell className="py-3 text-sm text-muted-foreground">
+                        {factoryLabels[prod.factory_id] ?? `Factory #${prod.factory_id}`}
+                      </TableCell>
+                    )}
                     <TableCell className="py-3 tabular-nums">{prod.qty}</TableCell>
                     <TableCell className="py-3 tabular-nums">{formatCurrency(prod.avg_cost)}</TableCell>
                     <TableCell className="py-3 tabular-nums">{formatCurrency(prod.selling_price)}</TableCell>

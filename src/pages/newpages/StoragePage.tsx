@@ -32,7 +32,6 @@ import { Tabs } from '@/components/ui/tabs';
 import StoragePageLayout from '@/components/newcomponents/customui/storage/StoragePageLayout';
 import StorageLayoutSwitcher from '@/components/newcomponents/customui/storage/StorageLayoutSwitcher';
 import StorageHeaderTabs, { type StorageContentTab } from '@/components/newcomponents/customui/storage/StorageHeaderTabs';
-import StorageActiveOrdersBanner from '@/components/newcomponents/customui/storage/StorageActiveOrdersBanner';
 import {
   loadStorageTabSwitcherStyle,
   saveStorageTabSwitcherStyle,
@@ -164,6 +163,13 @@ const StoragePage: React.FC = () => {
     () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
     [factoryId, factories]
   );
+  const factoryLabels = useMemo(() => {
+    const labels: Record<number, string> = {};
+    for (const f of factories) {
+      labels[f.id] = f.abbreviation ? `${f.name} (${f.abbreviation})` : f.name;
+    }
+    return labels;
+  }, [factories]);
   const factorySelectorLabel = useMemo(() => {
     if (selectedFactory) return `${selectedFactory.name} (${selectedFactory.abbreviation})`;
     if (factories.length === 1) {
@@ -234,6 +240,7 @@ const StoragePage: React.FC = () => {
     layout: layoutMode,
     onLayoutChange: setLayoutMode,
     factoryId,
+    factoryLabels,
     storageOverview,
     productsOverview,
     filteredInventory,
@@ -378,12 +385,9 @@ const StoragePage: React.FC = () => {
   );
 
   const storageBody = (
-    <>
-      {layoutMode !== 'overview' && <StorageActiveOrdersBanner factoryId={factoryId} />}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
-        <StoragePageLayout {...layoutProps} />
-      </div>
-    </>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
+      <StoragePageLayout {...layoutProps} />
+    </div>
   );
 
   return (

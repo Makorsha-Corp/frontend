@@ -17,6 +17,7 @@ export interface StoragePageLayoutProps {
   layout: StorageLayoutMode;
   onLayoutChange: (mode: StorageLayoutMode) => void;
   factoryId: number | null;
+  factoryLabels?: Record<number, string>;
   storageOverview: StorageOverviewStats;
   productsOverview: ProductsOverviewStats;
   filteredInventory: Inventory[];
@@ -48,6 +49,7 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
   layout,
   onLayoutChange,
   factoryId,
+  factoryLabels,
   storageOverview,
   productsOverview,
   filteredInventory,
@@ -87,6 +89,7 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
 
   const storageSectionProps = {
     factoryId,
+    factoryLabels,
     overview: storageOverview,
     inventory: filteredInventory,
     isLoading: loadingInventory,
@@ -103,6 +106,7 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
 
   const productsSectionProps = {
     factoryId,
+    factoryLabels,
     overview: productsOverview,
     products: filteredProducts,
     isLoading: loadingProducts,
@@ -132,6 +136,8 @@ const StoragePageLayout: React.FC<StoragePageLayoutProps> = ({
 
         <StorageTabKpiStrip
           activeTab={contentTab}
+          factoryId={factoryId}
+          factoryLabels={factoryLabels}
           storageOverview={storageOverview}
           productsOverview={productsOverview}
           isLoading={tabLoading}

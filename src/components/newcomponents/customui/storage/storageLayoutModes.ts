@@ -62,7 +62,7 @@ export const STORAGE_LAYOUT_OPTIONS: StorageLayoutOption[] = [
   },
 ];
 
-export const DEFAULT_STORAGE_LAYOUT: StorageLayoutMode = 'stacked';
+export const DEFAULT_STORAGE_LAYOUT: StorageLayoutMode = 'tabs';
 
 export function getStorageLayoutOption(id: StorageLayoutMode): StorageLayoutOption {
   return STORAGE_LAYOUT_OPTIONS.find((o) => o.id === id) ?? STORAGE_LAYOUT_OPTIONS[0];

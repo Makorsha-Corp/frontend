@@ -13,6 +13,7 @@ import { INVENTORY_TYPES, formatCurrency, formatNumber, type StorageOverviewStat
 
 interface StorageSectionProps {
   factoryId: number | null;
+  factoryLabels?: Record<number, string>;
   overview: StorageOverviewStats;
   inventory: Inventory[];
   isLoading: boolean;
@@ -32,6 +33,7 @@ interface StorageSectionProps {
 
 const StorageSection: React.FC<StorageSectionProps> = ({
   factoryId,
+  factoryLabels = {},
   overview,
   inventory,
   isLoading,
@@ -48,6 +50,8 @@ const StorageSection: React.FC<StorageSectionProps> = ({
   collapsed = false,
   onExpandRequest,
 }) => {
+  const showFactoryColumn = factoryId == null;
+
   return (
     <Card className={cn('flex min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm', collapsed ? 'shrink-0' : 'flex-1', className)}>
       <div className={cn('sticky top-0 z-10 shrink-0 bg-card', !collapsed && 'border-b border-border')}>
@@ -146,11 +150,6 @@ const StorageSection: React.FC<StorageSectionProps> = ({
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <p className="text-destructive">Failed to load inventory.</p>
           </div>
-        ) : !factoryId ? (
-          <div className="flex flex-1 flex-col items-center justify-center py-12">
-            <Archive className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="text-muted-foreground">Select a factory to view inventory.</p>
-          </div>
         ) : inventory.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Archive className="mb-3 h-10 w-10 text-muted-foreground" />
@@ -161,7 +160,7 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                   ? 'No inventory records yet.'
                   : 'No items in stock. Turn on Empty to see cleared rows.'}
             </p>
-            {!searchQuery && showZeroQty && (
+            {!searchQuery && showZeroQty && factoryId != null && (
               <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
                 <Plus className="mr-2 h-4 w-4" />
                 Add to Inventory
@@ -174,6 +173,11 @@ const StorageSection: React.FC<StorageSectionProps> = ({
               <TableHeader>
                 <TableRow className="border-b border-border bg-brand-primary/5 dark:bg-brand-primary/10">
                   <TableHead className="py-3 text-xs font-semibold uppercase text-muted-foreground">Item</TableHead>
+                  {showFactoryColumn && (
+                    <TableHead className="w-[140px] py-3 text-xs font-semibold uppercase text-muted-foreground">
+                      Factory
+                    </TableHead>
+                  )}
                   <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
                     Type
                   </TableHead>
@@ -193,6 +197,11 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                       {inv.item_name ?? `Item #${inv.item_id}`}
                       {inv.item_unit && <span className="ml-1 text-xs text-muted-foreground">({inv.item_unit})</span>}
                     </TableCell>
+                    {showFactoryColumn && (
+                      <TableCell className="py-3 text-sm text-muted-foreground">
+                        {factoryLabels[inv.factory_id] ?? `Factory #${inv.factory_id}`}
+                      </TableCell>
+                    )}
                     <TableCell className="py-3">
                       <span className="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
                         {inv.inventory_type}
