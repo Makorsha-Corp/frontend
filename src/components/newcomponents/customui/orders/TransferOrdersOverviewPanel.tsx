@@ -11,13 +11,10 @@ import {
   deriveTransferOrderStageWithItems,
   trStageBadgeClassName,
 } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
-import {
-  readTransferApprovalSummary,
-  readTransferApproverCount,
-} from '@/components/newcomponents/customui/orders/transferOrderApprovals';
+import { useGetTransferOrderItemsQuery, useGetTransferOrderApproversQuery } from '@/features/transferOrders/transferOrdersApi';
 import { cn } from '@/lib/utils';
 import { ArrowLeftRight, Loader2 } from 'lucide-react';
-import { useGetTransferOrderItemsQuery } from '@/features/transferOrders/transferOrdersApi';
+import type { TransferApprovalSummary, TransferOrderApprover } from '@/types/transferOrder';
 
 function OverviewStageBadge({ order }: { order: TransferOrder }) {
   const { data: items = [] } = useGetTransferOrderItemsQuery(order.id);
@@ -29,6 +26,23 @@ function OverviewStageBadge({ order }: { order: TransferOrder }) {
     >
       {stageName}
     </Badge>
+  );
+}
+
+function OverviewApprovalsCell({ orderId }: { orderId: number }) {
+  const { data } = useGetTransferOrderApproversQuery(orderId);
+  const count = data?.approvers.length ?? 0;
+  if (count === 0) return <span className="text-muted-foreground text-sm">—</span>;
+  const summary = data!.summary;
+  return (
+    <span
+      className={cn(
+        'text-xs font-medium',
+        summary.met ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+      )}
+    >
+      {summary.approved_count}/{summary.required}
+    </span>
   );
 }
 
@@ -96,21 +110,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
       {
         id: 'approvals',
         header: 'Approvals',
-        cell: (o) => {
-          const count = readTransferApproverCount(o.id);
-          if (count === 0) return <span className="text-muted-foreground text-sm">—</span>;
-          const summary = readTransferApprovalSummary(o.id);
-          return (
-            <span
-              className={cn(
-                'text-xs font-medium',
-                summary.met ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
-              )}
-            >
-              {summary.approved_count}/{summary.required}
-            </span>
-          );
-        },
+        cell: (o) => <OverviewApprovalsCell orderId={o.id} />,
       },
     ],
     [routeLabel, formatDate]

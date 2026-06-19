@@ -4,10 +4,7 @@ import {
   factoryFromTransfer,
   type OrderResolutionMaps,
 } from './ordersOverviewData';
-import {
-  isTransferOrderCompleted,
-  readTransferOrderLocallyComplete,
-} from '@/components/newcomponents/customui/orders/transferOrderMilestones';
+import { isTransferOrderCompleted } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
 import {
   transferLocationLabel,
   transferRouteLabel,
@@ -29,9 +26,8 @@ export interface TransferOrderFilters {
   showCompleteOrders: boolean;
 }
 
-/** Completed transfer: server timestamp or local mark-complete shell. */
 export function isTransferOrderComplete(order: TransferOrder): boolean {
-  return isTransferOrderCompleted(order, readTransferOrderLocallyComplete(order.id));
+  return isTransferOrderCompleted(order);
 }
 
 export interface TransferOrderSummaryStats {

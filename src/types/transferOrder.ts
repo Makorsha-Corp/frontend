@@ -24,7 +24,13 @@ export interface TransferOrder {
   destination_location_type: string;
   destination_location_id: number;
   order_date: string;
+  expected_completion_date: string | null;
   current_status_id: number;
+  current_status_name: string | null;
+  required_approvals: number | null;
+  route_confirmed: boolean;
+  items_confirmed: boolean;
+  order_completed: boolean;
   description: string | null;
   note: string | null;
   created_by: number;
@@ -47,6 +53,7 @@ export interface CreateTransferOrder {
   destination_location_type: string;
   destination_location_id: number;
   order_date?: string | null;
+  expected_completion_date?: string | null;
   description?: string | null;
   note?: string | null;
   current_status_id?: number;
@@ -54,7 +61,14 @@ export interface CreateTransferOrder {
 }
 
 export interface UpdateTransferOrder {
+  source_location_type?: string;
+  source_location_id?: number;
+  destination_location_type?: string;
+  destination_location_id?: number;
+  order_date?: string | null;
+  expected_completion_date?: string | null;
   current_status_id?: number | null;
+  required_approvals?: number | null;
   description?: string | null;
   note?: string | null;
 }
@@ -70,4 +84,62 @@ export interface UpdateTransferOrderItem {
 export interface ListTransferOrdersParams {
   skip?: number;
   limit?: number;
+}
+
+export type TransferOrderSection = 'route' | 'items';
+
+export interface TransferOrderSectionConfirmRequest {
+  section: TransferOrderSection;
+  confirmed: boolean;
+}
+
+export interface TransferOrderApprover {
+  id: number;
+  workspace_id: number;
+  transfer_order_id: number;
+  user_id: number;
+  user_name: string | null;
+  user_email: string | null;
+  user_position: string | null;
+  assigned_by: number | null;
+  assigned_at: string;
+  approved: boolean;
+  approved_at: string | null;
+}
+
+export interface TransferApprovalSummary {
+  approved_count: number;
+  required: number;
+  met: boolean;
+}
+
+export interface TransferOrderApproversList {
+  approvers: TransferOrderApprover[];
+  summary: TransferApprovalSummary;
+}
+
+export interface TransferOrderEventChange {
+  field: string;
+  label: string;
+  from_value?: string | null;
+  to_value?: string | null;
+}
+
+export interface TransferOrderEventMetadata {
+  changes?: TransferOrderEventChange[];
+  user_id?: number;
+  user_name?: string | null;
+  lines_posted?: number;
+}
+
+export interface TransferOrderEvent {
+  id: number;
+  workspace_id: number;
+  transfer_order_id: number;
+  event_type: string;
+  description: string;
+  metadata?: TransferOrderEventMetadata | null;
+  performed_by: number | null;
+  user_name: string | null;
+  created_at: string;
 }

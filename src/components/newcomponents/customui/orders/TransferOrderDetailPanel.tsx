@@ -7,7 +7,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   useGetTransferOrderItemsQuery,
+  useGetTransferOrderByIdQuery,
+  useGetTransferOrderApproversQuery,
+  useGetTransferOrderEventsQuery,
   useUpdateTransferOrderMutation,
+  useSetTransferOrderSectionConfirmMutation,
+  useMarkTransferOrderCompleteMutation,
+  useAddTransferOrderApproverMutation,
+  useRemoveTransferOrderApproverMutation,
+  useApproveTransferOrderMutation,
+  useUnapproveTransferOrderMutation,
 } from '@/features/transferOrders/transferOrdersApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
@@ -24,7 +33,6 @@ import {
   AlertTriangle,
   FolderKanban,
   Loader2,
-  Calendar,
   MessageSquare,
   Send,
   History,
@@ -56,19 +64,20 @@ import ToApprovalsTopBar from './ToApprovalsTopBar';
 import ManageToApprovalsDialog from './ManageToApprovalsDialog';
 import TrWorkflowChecklist from './TrWorkflowChecklist';
 import EditTransferOrderItemsDialog from './EditTransferOrderItemsDialog';
+import EditTransferOrderRouteDialog from './EditTransferOrderRouteDialog';
+import { Label } from '@/components/ui/label';
+import ManageTransferOrderTransfersDialog from './ManageTransferOrderTransfersDialog';
 import ToEventLogRow from './ToEventLogRow';
 import { useTransferOrderEvents } from './TransferOrderEventFeed';
-import { useTransferOrderApprovals } from './transferOrderApprovals';
+import type { TransferOrderApprover } from '@/types/transferOrder';
 import {
   deriveTransferOrderStage,
   trStageBadgeClassName,
-  useTransferOrderLocalComplete,
   type TrScrollSection,
 } from './transferOrderMilestones';
 import {
   getTrSectionConfirmReadiness,
   trSectionConfirmLabel,
-  useTransferOrderSectionConfirms,
   type TrSectionConfirmKey,
 } from './transferOrderSectionConfirms';
 
@@ -84,12 +93,16 @@ interface TransferOrderDetailPanelProps {
 interface TrDraft {
   description: string;
   note: string;
+  order_date: string;
+  expected_completion_date: string;
 }
 
 function draftFromOrder(order: TransferOrder): TrDraft {
   return {
     description: order.description ?? '',
     note: order.note ?? '',
+    order_date: order.order_date ?? '',
+    expected_completion_date: order.expected_completion_date ?? '',
   };
 }
 
@@ -112,14 +125,15 @@ function getLocationDisplay(
 }
 
 const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
-  order,
+  order: orderProp,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
+  const [manageTransfersOpen, setManageTransfersOpen] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [editRouteOpen, setEditRouteOpen] = useState(false);
   const [showConfirmEvents, setShowConfirmEvents] = useState(true);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<TrScrollSection | null>(null);
-  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
   const [confirmingSection, setConfirmingSection] = useState<TrSectionConfirmKey | null>(null);
   const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
   const [pendingUnconfirmSection, setPendingUnconfirmSection] =
@@ -128,8 +142,13 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
 
+  const { data: orderFresh } = useGetTransferOrderByIdQuery(orderProp.id);
+  const order = orderFresh ?? orderProp;
+
   const { data: items = [], isLoading: itemsLoading, refetch: refetchItems } =
     useGetTransferOrderItemsQuery(order.id);
+  const { data: approversData, refetch: refetchApprovers } = useGetTransferOrderApproversQuery(order.id);
+  const { data: apiEvents = [] } = useGetTransferOrderEventsQuery(order.id);
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: projects = [] } = useGetProjectsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
@@ -137,44 +156,35 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     skip: !workspace?.id,
   });
   const [updateOrder, { isLoading: isUpdating }] = useUpdateTransferOrderMutation();
+  const [setSectionConfirm] = useSetTransferOrderSectionConfirmMutation();
+  const [markComplete, { isLoading: isMarkingComplete }] = useMarkTransferOrderCompleteMutation();
+  const [addApprover] = useAddTransferOrderApproverMutation();
+  const [removeApprover] = useRemoveTransferOrderApproverMutation();
+  const [approveOrder] = useApproveTransferOrderMutation();
+  const [unapproveOrder] = useUnapproveTransferOrderMutation();
 
-  const {
-    approvers,
-    requiredApprovals,
-    approvalSummary,
-    localEvents,
-    addApprover,
-    removeApprover,
-    setRequired,
-    toggleApproval,
-    withdrawAllApprovals,
-  } = useTransferOrderApprovals(order.id);
+  const approvers: TransferOrderApprover[] = approversData?.approvers ?? [];
+  const approvalSummary = approversData?.summary ?? { approved_count: 0, required: 0, met: true };
+  const requiredApprovals =
+    order.required_approvals != null ? String(order.required_approvals) : '';
 
-  const {
-    routeConfirmed,
-    itemsConfirmed,
-    setSectionConfirmed,
-    localEvents: sectionConfirmEvents,
-  } = useTransferOrderSectionConfirms(order.id);
-
-  const { locallyComplete, markComplete } = useTransferOrderLocalComplete(order.id);
+  const routeConfirmed = order.route_confirmed;
+  const itemsConfirmed = order.items_confirmed;
 
   const [draft, setDraft] = useState<TrDraft>(() => draftFromOrder(order));
   useEffect(() => {
     setDraft(draftFromOrder(order));
-  }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [order.id, order.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isDirty =
-    draft.description !== (order.description ?? '') || draft.note !== (order.note ?? '');
+    draft.description !== (order.description ?? '') ||
+    draft.note !== (order.note ?? '') ||
+    draft.order_date !== (order.order_date ?? '') ||
+    draft.expected_completion_date !== (order.expected_completion_date ?? '');
   const isSaving = isUpdating;
+  const orderComplete = Boolean(order.completed_at);
 
-  const stageName = deriveTransferOrderStage(
-    order,
-    items,
-    approvalSummary,
-    locallyComplete,
-    { route_confirmed: routeConfirmed, items_confirmed: itemsConfirmed }
-  );
+  const stageName = deriveTransferOrderStage(order, items, approvalSummary);
 
   const routeSectionLocked = routeConfirmed;
   const itemsSectionLocked = itemsConfirmed;
@@ -194,13 +204,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     projects
   );
 
-  const { allEvents, filteredEvents } = useTransferOrderEvents(
-    order,
-    items,
-    localEvents,
-    showConfirmEvents,
-    sectionConfirmEvents
-  );
+  const { allEvents, filteredEvents } = useTransferOrderEvents(apiEvents, showConfirmEvents);
 
   const myApproval =
     currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
@@ -259,7 +263,6 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     const section = pendingUnconfirmSection;
     setUnconfirmWarningOpen(false);
     setPendingUnconfirmSection(null);
-    withdrawAllApprovals();
     void handleToggleSectionConfirm(section, false);
   };
 
@@ -275,12 +278,20 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
           data: {
             description: draft.description.trim() || null,
             note: draft.note.trim() || null,
+            order_date: draft.order_date || null,
+            expected_completion_date: draft.expected_completion_date || null,
           },
         }).unwrap();
       }
-      setSectionConfirmed(section, nextConfirmed);
+      await setSectionConfirm({
+        id: order.id,
+        data: { section, confirmed: nextConfirmed },
+      }).unwrap();
       const label = trSectionConfirmLabel(section);
       toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
+      if (!nextConfirmed) {
+        void refetchApprovers();
+      }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to update section');
@@ -289,11 +300,14 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     }
   };
 
-  const handleMarkComplete = () => {
-    setIsMarkingComplete(true);
-    markComplete();
-    toast.success('Transfer marked complete (preview — backend pending)');
-    setIsMarkingComplete(false);
+  const handleMarkComplete = async () => {
+    try {
+      await markComplete(order.id).unwrap();
+      toast.success('Transfer order marked complete');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to mark complete');
+    }
   };
 
   const handleSave = async () => {
@@ -303,6 +317,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         data: {
           description: draft.description.trim() || null,
           note: draft.note.trim() || null,
+          order_date: draft.order_date || null,
+          expected_completion_date: draft.expected_completion_date || null,
         },
       }).unwrap();
       toast.success('Changes saved');
@@ -314,14 +330,60 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
 
   const handleDiscard = () => setDraft(draftFromOrder(order));
 
-  const handleAddApprover = (userId: number) => {
-    const member = members.find((m) => m.user_id === userId);
-    if (member) addApprover(member);
+  const handleAddApprover = async (userId: number) => {
+    try {
+      await addApprover({ toId: order.id, user_id: userId }).unwrap();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to add approver');
+    }
   };
 
-  const handleToggleMyApproval = () => {
+  const handleRemoveApprover = async (userId: number) => {
+    try {
+      await removeApprover({ toId: order.id, userId }).unwrap();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to remove approver');
+    }
+  };
+
+  const handleRequiredApprovalsChange = async (value: string) => {
+    const trimmed = value.trim();
+    const parsed = trimmed === '' ? null : Number(trimmed);
+    if (parsed != null && (Number.isNaN(parsed) || parsed < 0)) return;
+    try {
+      await updateOrder({
+        id: order.id,
+        data: { required_approvals: parsed },
+      }).unwrap();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to update required approvals');
+    }
+  };
+
+  const handleToggleMyApproval = async () => {
     if (currentUserId == null || !myApproval) return;
-    toggleApproval(currentUserId, myApproval.user_name);
+    try {
+      if (myApproval.approved) {
+        await unapproveOrder(order.id).unwrap();
+      } else {
+        await approveOrder(order.id).unwrap();
+      }
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to update approval');
+    }
+  };
+
+  const scrollToManageTransfers = () => {
+    setManageTransfersOpen(true);
+  };
+
+  const openEditRoute = () => {
+    if (routeSectionLocked) return;
+    setEditRouteOpen(true);
   };
 
   return (
@@ -377,46 +439,112 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
               <CardContent
                 className={cn('space-y-4', routeSectionLocked && confirmedSectionContentClass)}
               >
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border bg-muted/30">
-                  <div className="flex-1 flex flex-col gap-1 min-w-0">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      From
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground shrink-0">{source.icon}</span>
-                      <span className="font-semibold text-card-foreground truncate">{source.label}</span>
+                <div
+                  className={cn(
+                    'relative rounded-lg border border-border bg-muted/30',
+                    !routeSectionLocked && 'group hover:border-muted-foreground/30 hover:bg-muted/40 transition-colors'
+                  )}
+                >
+                  {!routeSectionLocked && (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 z-10 h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditRoute();
+                            }}
+                            aria-label="Edit route"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">Edit route</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <button
+                    type="button"
+                    onClick={openEditRoute}
+                    disabled={routeSectionLocked}
+                    className={cn(
+                      'flex w-full items-center gap-4 p-4 text-left',
+                      routeSectionLocked
+                        ? 'cursor-default'
+                        : 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg'
+                    )}
+                    aria-label={
+                      routeSectionLocked
+                        ? `Route from ${source.label} to ${dest.label}`
+                        : `Edit route from ${source.label} to ${dest.label}`
+                    }
+                  >
+                    <div className="flex-1 flex flex-col gap-1 min-w-0">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        From
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground shrink-0">{source.icon}</span>
+                        <span className="font-semibold text-card-foreground truncate">{source.label}</span>
+                      </div>
                     </div>
-                  </div>
-                  <ArrowRight className="h-6 w-6 text-brand-primary shrink-0" aria-hidden />
-                  <div className="flex-1 flex flex-col gap-1 min-w-0">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      To
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground shrink-0">{dest.icon}</span>
-                      <span className="font-semibold text-card-foreground truncate">{dest.label}</span>
+                    <ArrowRight className="h-6 w-6 text-brand-primary shrink-0" aria-hidden />
+                    <div className="flex-1 flex flex-col gap-1 min-w-0 pr-6">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        To
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground shrink-0">{dest.icon}</span>
+                        <span className="font-semibold text-card-foreground truncate">{dest.label}</span>
+                      </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground text-xs uppercase tracking-wide">Order date</dt>
-                    <dd className="font-medium mt-0.5 flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                      {formatDate(order.order_date)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground text-xs uppercase tracking-wide">Created</dt>
-                    <dd className="font-medium mt-0.5">{formatDate(order.created_at)}</dd>
-                  </div>
-                  {order.completed_at && (
-                    <div>
-                      <dt className="text-muted-foreground text-xs uppercase tracking-wide">Completed</dt>
-                      <dd className="font-medium mt-0.5">{formatDate(order.completed_at)}</dd>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Created</Label>
+                    <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                      {formatDate(order.created_at)}
                     </div>
-                  )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      className={cn(
+                        'text-xs uppercase tracking-wide',
+                        orderComplete ? 'text-muted-foreground' : 'text-muted-foreground'
+                      )}
+                    >
+                      {orderComplete ? 'Completed' : 'Expected'}
+                    </Label>
+                    {orderComplete ? (
+                      <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                        {formatDate(order.completed_at)}
+                      </div>
+                    ) : (
+                      <Input
+                        type="date"
+                        value={draft.expected_completion_date}
+                        onChange={(e) =>
+                          setDraft((d) => ({ ...d, expected_completion_date: e.target.value }))
+                        }
+                        disabled={routeSectionLocked}
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order date</Label>
+                    <Input
+                      type="date"
+                      value={draft.order_date}
+                      onChange={(e) => setDraft((d) => ({ ...d, order_date: e.target.value }))}
+                      disabled={routeSectionLocked}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-3 pt-2 border-t border-border">
@@ -457,8 +585,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
               approvalSummary={approvalSummary}
               routeConfirmed={routeConfirmed}
               itemsConfirmed={itemsConfirmed}
-              locallyMarkedComplete={locallyComplete}
               onScrollToSection={scrollToSection}
+              onManageTransfers={scrollToManageTransfers}
               onMarkComplete={handleMarkComplete}
               isMarkingComplete={isMarkingComplete}
             />
@@ -487,6 +615,17 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    id="tr-manage-transfers-btn"
+                    onClick={() => setManageTransfersOpen(true)}
+                    disabled={orderComplete || !itemsConfirmed || !routeConfirmed}
+                  >
+                    Manage transfers
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -668,7 +807,14 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                   {filteredEvents.map((event, idx) => (
                     <ToEventLogRow
                       key={event.id}
-                      event={event}
+                      event={{
+                        id: event.id,
+                        event_type: event.event_type,
+                        description: event.description,
+                        created_at: event.created_at,
+                        user_name: event.user_name,
+                        metadata: event.metadata,
+                      }}
                       isLast={idx === filteredEvents.length - 1}
                     />
                   ))}
@@ -710,9 +856,17 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         approvers={approvers}
         assignableMembers={assignableMembers}
         requiredApprovals={requiredApprovals}
-        onRequiredApprovalsChange={setRequired}
+        onRequiredApprovalsChange={(v) => void handleRequiredApprovalsChange(v)}
         onAddApprover={handleAddApprover}
-        onRemoveApprover={removeApprover}
+        onRemoveApprover={(userId) => void handleRemoveApprover(userId)}
+      />
+
+      <ManageTransferOrderTransfersDialog
+        open={manageTransfersOpen}
+        onOpenChange={setManageTransfersOpen}
+        toId={order.id}
+        items={items}
+        onSaved={() => void refetchItems()}
       />
 
       <EditTransferOrderItemsDialog
@@ -721,6 +875,15 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         toId={order.id}
         items={items}
         onSaved={() => refetchItems()}
+      />
+
+      <EditTransferOrderRouteDialog
+        open={editRouteOpen}
+        onOpenChange={setEditRouteOpen}
+        order={order}
+        factories={factories}
+        machines={machines}
+        projects={projects}
       />
 
       <Dialog

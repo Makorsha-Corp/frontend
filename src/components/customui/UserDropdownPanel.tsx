@@ -1,21 +1,18 @@
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "../ui/button"
 import { CircleUser } from "lucide-react"
-import { supabase_client } from "@/services/SupabaseClient"
 import { useNavigate } from "react-router-dom"
-import toast from "react-hot-toast"
+import { useAppDispatch } from "@/app/hooks"
+import { logout } from "@/features/auth/authSlice"
 
 const UserDropdownPanel = () => {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
 
-  const handleLogout = async () => {
-    const { error } = await supabase_client.auth.signOut()
-    if (error) {
-      toast.error(error.message)
-    } else {
-      navigate("/login2")
-    }
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate("/login2")
   }
 
   return (

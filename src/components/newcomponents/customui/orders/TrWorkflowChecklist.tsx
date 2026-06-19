@@ -7,7 +7,7 @@ import { Check, ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
 import { SectionConfirmIcon } from './PoSectionConfirmButton';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderItem } from '@/types/transferOrder';
-import type { TransferApprovalSummary } from './transferOrderApprovals';
+import type { TransferApprovalSummary } from '@/types/transferOrder';
 import {
   getTrChecklistProgress,
   type TrScrollSection,
@@ -21,8 +21,8 @@ export interface TrWorkflowChecklistProps {
   approvalSummary: TransferApprovalSummary;
   routeConfirmed: boolean;
   itemsConfirmed: boolean;
-  locallyMarkedComplete?: boolean;
   onScrollToSection: (section: TrScrollSection) => void;
+  onManageTransfers?: () => void;
   onMarkComplete?: () => void;
   isMarkingComplete?: boolean;
   className?: string;
@@ -156,8 +156,8 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
   approvalSummary,
   routeConfirmed,
   itemsConfirmed,
-  locallyMarkedComplete = false,
   onScrollToSection,
+  onManageTransfers,
   onMarkComplete,
   isMarkingComplete = false,
   className,
@@ -166,7 +166,6 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
     order,
     items,
     approvalSummary,
-    locallyMarkedComplete,
     { route_confirmed: routeConfirmed, items_confirmed: itemsConfirmed }
   );
   const { phase } = progress;
@@ -179,7 +178,7 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
       ? 'All line items have been transferred'
       : items.length === 0
         ? 'Add line items before recording transfers'
-        : `${progress.transferRatio} line items transferred — update transferred_at on items`;
+        : `${progress.transferRatio} line items transferred — open Manage transfers to record`;
 
   const renderCompletedPrepare = phase !== 'prepare';
   const renderCompletedApprovals = ['mark_complete', 'done'].includes(phase) && progress.approvalsComplete;
@@ -281,7 +280,7 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
                   label="Record item transfers"
                   done={progress.transfersComplete}
                   hint={progress.transferRatio}
-                  onClick={() => onScrollToSection('items')}
+                  onClick={() => (onManageTransfers ? onManageTransfers() : onScrollToSection('items'))}
                 />
               </div>
             </div>

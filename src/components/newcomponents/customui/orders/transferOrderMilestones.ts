@@ -1,61 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderItem } from '@/types/transferOrder';
-import type { TransferApprovalSummary } from './transferOrderApprovals';
-import { readTransferApprovalSummary } from './transferOrderApprovals';
-import {
-  readTransferOrderSectionConfirms,
-  type TrSectionConfirmState,
-} from './transferOrderSectionConfirms';
-
-export const TR_STAGE_NAMES = ['Draft', 'Planned', 'Completed'] as const;
-export type TrStageName = (typeof TR_STAGE_NAMES)[number];
+import type { TransferApprovalSummary } from '@/types/transferOrder';
 
 export type TrScrollSection = 'route' | 'items' | 'approvals';
 
 export type TrChecklistPhase = 'prepare' | 'execute' | 'mark_complete' | 'done';
 
-const LOCAL_COMPLETE_PREFIX = 'tr-complete-v1';
+export const TR_STAGE_NAMES = ['Draft', 'Planned', 'Completed'] as const;
+export type TrStageName = (typeof TR_STAGE_NAMES)[number];
 
-function localCompleteKey(transferOrderId: number): string {
-  return `${LOCAL_COMPLETE_PREFIX}-${transferOrderId}`;
+export interface TrSectionConfirmState {
+  route_confirmed: boolean;
+  items_confirmed: boolean;
 }
 
-export function readTransferOrderLocallyComplete(transferOrderId: number): boolean {
-  try {
-    return localStorage.getItem(localCompleteKey(transferOrderId)) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function writeTransferOrderLocallyComplete(transferOrderId: number, value: boolean): void {
-  try {
-    if (value) {
-      localStorage.setItem(localCompleteKey(transferOrderId), '1');
-    } else {
-      localStorage.removeItem(localCompleteKey(transferOrderId));
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-export function useTransferOrderLocalComplete(transferOrderId: number) {
-  const [locallyComplete, setLocallyComplete] = useState(() =>
-    readTransferOrderLocallyComplete(transferOrderId)
-  );
-
-  useEffect(() => {
-    setLocallyComplete(readTransferOrderLocallyComplete(transferOrderId));
-  }, [transferOrderId]);
-
-  const markComplete = useCallback(() => {
-    writeTransferOrderLocallyComplete(transferOrderId, true);
-    setLocallyComplete(true);
-  }, [transferOrderId]);
-
-  return { locallyComplete, markComplete };
+export function sectionConfirmsFromOrder(order: TransferOrder): TrSectionConfirmState {
+  return {
+    route_confirmed: order.route_confirmed,
+    items_confirmed: order.items_confirmed,
+  };
 }
 
 export function isTransferRouteDefined(order: TransferOrder): boolean {
@@ -67,13 +30,8 @@ export function isTransferRouteDefined(order: TransferOrder): boolean {
   );
 }
 
-export function isTransferOrderCompleted(
-  order: TransferOrder,
-  locallyMarkedComplete?: boolean
-): boolean {
-  if (order.completed_at) return true;
-  if (locallyMarkedComplete ?? readTransferOrderLocallyComplete(order.id)) return true;
-  return false;
+export function isTransferOrderCompleted(order: TransferOrder): boolean {
+  return Boolean(order.completed_at) || order.order_completed;
 }
 
 export function isTransferPrepareComplete(
@@ -81,7 +39,7 @@ export function isTransferPrepareComplete(
   _items: TransferOrderItem[],
   sectionConfirms?: TrSectionConfirmState
 ): boolean {
-  const confirms = sectionConfirms ?? readTransferOrderSectionConfirms(order.id);
+  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
   return confirms.route_confirmed && confirms.items_confirmed;
 }
 
@@ -100,10 +58,9 @@ export function deriveTransferOrderStage(
   order: TransferOrder,
   items: TransferOrderItem[],
   _approvalSummary: TransferApprovalSummary,
-  locallyMarkedComplete?: boolean,
   sectionConfirms?: TrSectionConfirmState
 ): TrStageName {
-  if (isTransferOrderCompleted(order, locallyMarkedComplete)) return 'Completed';
+  if (isTransferOrderCompleted(order)) return 'Completed';
   if (isTransferPrepareComplete(order, items, sectionConfirms)) return 'Planned';
   return 'Draft';
 }
@@ -120,27 +77,22 @@ export function getTrChecklistPhase(
   return 'mark_complete';
 }
 
-/** Derive stage for list/overview when only order is available (no items loaded). */
 export function deriveTransferOrderStageFromOrder(order: TransferOrder): TrStageName {
   if (isTransferOrderCompleted(order)) return 'Completed';
+  if (order.route_confirmed && order.items_confirmed) return 'Planned';
   if (isTransferRouteDefined(order)) return 'Planned';
   return 'Draft';
 }
 
-/** Derive stage with items from RTK cache / query. */
 export function deriveTransferOrderStageWithItems(
   order: TransferOrder,
   items: TransferOrderItem[]
 ): TrStageName {
-  const approvalSummary = readTransferApprovalSummary(order.id);
-  const locallyComplete = readTransferOrderLocallyComplete(order.id);
-  const sectionConfirms = readTransferOrderSectionConfirms(order.id);
   return deriveTransferOrderStage(
     order,
     items,
-    approvalSummary,
-    locallyComplete,
-    sectionConfirms
+    { approved_count: 0, required: 0, met: true },
+    sectionConfirmsFromOrder(order)
   );
 }
 
@@ -177,10 +129,9 @@ export function getTrChecklistProgress(
   order: TransferOrder,
   items: TransferOrderItem[],
   approvalSummary: TransferApprovalSummary,
-  locallyMarkedComplete?: boolean,
   sectionConfirms?: TrSectionConfirmState
 ): TrChecklistProgress {
-  const confirms = sectionConfirms ?? readTransferOrderSectionConfirms(order.id);
+  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
   const routeDefined = isTransferRouteDefined(order);
   const hasItems = items.length > 0;
   const routeConfirmed = confirms.route_confirmed;
@@ -189,14 +140,8 @@ export function getTrChecklistProgress(
   const prepareDoneCount = (routeConfirmed ? 1 : 0) + (itemsConfirmed ? 1 : 0);
   const approvalsComplete = isTransferApprovalsComplete(approvalSummary);
   const { transferredCount, transfersComplete, totalCount } = getTransferTransferCounts(items);
-  const orderCompleted = isTransferOrderCompleted(order, locallyMarkedComplete);
-  const stage = deriveTransferOrderStage(
-    order,
-    items,
-    approvalSummary,
-    locallyMarkedComplete,
-    confirms
-  );
+  const orderCompleted = isTransferOrderCompleted(order);
+  const stage = deriveTransferOrderStage(order, items, approvalSummary, confirms);
   const phase = getTrChecklistPhase(
     prepareComplete,
     approvalsComplete,

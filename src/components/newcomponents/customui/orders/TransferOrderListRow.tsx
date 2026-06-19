@@ -3,13 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
-import { useGetTransferOrderItemsQuery } from '@/features/transferOrders/transferOrdersApi';
+import { useGetTransferOrderItemsQuery, useGetTransferOrderApproversQuery } from '@/features/transferOrders/transferOrdersApi';
 import type { TransferOrder } from '@/types/transferOrder';
 import {
   deriveTransferOrderStageWithItems,
   trStageBadgeClassName,
 } from './transferOrderMilestones';
-import { readTransferApprovalSummary, readTransferApproverCount } from './transferOrderApprovals';
 
 interface TransferOrderListRowProps {
   order: TransferOrder;
@@ -21,9 +20,10 @@ interface TransferOrderListRowProps {
 }
 
 function ApprovalSummaryBadge({ orderId }: { orderId: number }) {
-  const approverCount = readTransferApproverCount(orderId);
+  const { data } = useGetTransferOrderApproversQuery(orderId);
+  const approverCount = data?.approvers.length ?? 0;
   if (approverCount === 0) return null;
-  const approvalSummary = readTransferApprovalSummary(orderId);
+  const approvalSummary = data!.summary;
   const met = approvalSummary.met;
   return (
     <span

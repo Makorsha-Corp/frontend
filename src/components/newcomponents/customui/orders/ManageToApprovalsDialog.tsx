@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Check, Clock, ShieldCheck, UserPlus, X } from 'lucide-react';
-import type { TransferOrderApprover } from './transferOrderApprovals';
+import type { TransferOrderApprover } from '@/types/transferOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
 import type { WorkspaceMember } from '@/types/workspace';
 

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Check, Clock, ShieldCheck, Wrench, X } from 'lucide-react';
-import type { TransferApprovalSummary, TransferOrderApprover } from './transferOrderApprovals';
+import type { TransferApprovalSummary, TransferOrderApprover } from '@/types/transferOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
 import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
 

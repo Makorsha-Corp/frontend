@@ -148,7 +148,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
         const orig = items.find((i) => i.id === line.id);
         if (!orig) continue;
         if (line.removed) {
-          await removeItem(line.id).unwrap();
+          await removeItem({ itemId: line.id, toId }).unwrap();
           continue;
         }
         if (Number(line.quantity) !== orig.quantity) {
