@@ -5,14 +5,14 @@
 @layer base {
   :root {
     /* Page background - warm cream/offwhite */
-    --background: 45 25% 97%; /* Warm cream offwhite */
+    --background: 45 25% 97%;
     --foreground: 222.2 84% 4.9%;
     
     /* Navbar background - uses brand-secondary in light mode */
-    --nav-background: 250 27% 17%; /* Not used in light mode, navbar uses brand-secondary */
+    --nav-background: 250 27% 17%;
     
     /* Cards - pure white (elevated from cream background) */
-    --card: 0 0% 100%; /* Pure white for contrast */
+    --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     
     --popover: 0 0% 100%;
@@ -21,13 +21,13 @@
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 45 20% 94%; /* Slightly darker cream for contrast */
+    --muted: 45 20% 94%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 45 20% 94%; /* Match muted with warm tone */
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 45 20% 88%; /* Warm-toned border */
+    --border: 45 20% 88%;
     --input: 0 0% 100%; /* Pure white for inputs on cream background */
     /* Focus ring — brand lavender, site-wide (see `ring` in tailwind.config) */
     --ring: 266 45% 59%;
@@ -87,15 +87,15 @@
     /* Purple Dark Theme */
     
     /* Page background - dark purple */
-    --background: 250 27% 17%; /* Midnight Violet #242038 */
-    --foreground: 220 13% 95%; /* Light gray for text */
+    --background: 250 27% 17%;
+    --foreground: 220 13% 95%;
     
     /* Navbar background - darker for depth */
-    --nav-background: 250 27% 12%; /* Darker purple #1a1625 */
+    --nav-background: 250 27% 12%;
     
-    /* Cards - OPTION 1: Subtle dark cards (slightly lighter than background) */
-    --card: 252 24% 21%; /* Slightly lighter purple #2d2440 */
-    --card-foreground: 220 13% 95%; /* Light text on dark cards */
+    /* Cards - subtle dark cards */
+    --card: 252 24% 21%;
+    --card-foreground: 220 13% 95%;
     
     --popover: 252 24% 21%;
     --popover-foreground: 220 13% 95%;
@@ -104,15 +104,15 @@
     --primary-foreground: 0 0% 100%; /* White text on purple */
     --secondary: 250 27% 17%; /* Midnight Violet */
     --secondary-foreground: 220 13% 95%;
-    --brand-heading: 220 13% 95%; /* Match foreground on dark surfaces */
-    --muted: 250 20% 28%; /* Slightly lighter for contrast on dark cards */
-    --muted-foreground: 220 13% 70%; /* Lighter for better readability */
+    --brand-heading: 220 13% 95%;
+    --muted: 250 20% 28%;
+    --muted-foreground: 220 13% 70%;
     --accent: 276 9% 79%; /* Keep Pale Slate in dark mode (don't change) */
     --accent-foreground: 222.2 84% 4.9%; /* Dark text on pale slate */
     --accent-light: 0 0% 100%; /* White in dark mode (was linen/beige) */
     --destructive: 0 63% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 250 20% 28%; /* Purple-tinted borders, lighter than cards */
+    --border: 250 20% 28%;
     --input: 252 20% 18%; /* Slightly darker input backgrounds */
     --ring: 266 45% 59%; /* Purple focus ring */
     --chart-1: 220 70% 50%;
@@ -163,14 +163,49 @@
   }
   body {
     @apply bg-background text-foreground;
-    transition: background-color 0.3s ease, color 0.3s ease;
   }
-  
-  /* Smooth transitions for theme switching */
-  * {
-    transition-property: background-color, border-color, color, fill, stroke;
-    transition-duration: 0.3s;
-    transition-timing-function: ease;
+}
+
+/* View Transitions API — circular wipe from toggle origin */
+@keyframes theme-wipe {
+  to {
+    clip-path: circle(150vmax at var(--theme-x) var(--theme-y));
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  clip-path: circle(0 at var(--theme-x) var(--theme-y));
+  animation: theme-wipe 0.45s ease-out forwards;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+/* Theme toggle icon spin (wipe + reduced-motion fallback) */
+.theme-toggle-icon--animate {
+  animation: theme-icon-spin 0.4s ease;
+}
+
+@keyframes theme-icon-spin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(0.85);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
   }
 }
 

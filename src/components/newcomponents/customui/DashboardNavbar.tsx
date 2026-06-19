@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
 import { useTheme } from '@/context/ThemeContext';
+import ThemeTransitionToggle from '@/components/newcomponents/customui/ThemeTransitionToggle';
 import toast from 'react-hot-toast';
 import {
   DropdownMenu,
@@ -68,7 +69,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user, factory, workspace } = useAppSelector((state) => state.auth);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, iconAnimating } = useTheme();
   const [factoryDialogOpen, setFactoryDialogOpen] = useState(false);
   const [factoriesExpanded, setFactoriesExpanded] = useState(() => {
     if (typeof sessionStorage === 'undefined') return false;
@@ -608,24 +609,35 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </div>
           )}
 
-          <div className="mb-2">
+          <div className={cn('mb-2 flex items-center gap-1', isCollapsed && 'justify-center')}>
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme(e)}
               className={cn(
-                'flex min-h-[2.5rem] w-full items-center gap-2 rounded-lg px-3 py-2 transition-all',
+                'flex min-h-[2.5rem] items-center gap-2 rounded-lg px-3 py-2 transition-all',
                 navInactiveClass,
-                isCollapsed ? 'justify-center' : 'justify-center sm:justify-start'
+                isCollapsed ? 'justify-center' : 'min-w-0 flex-1 justify-center sm:justify-start'
               )}
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
-              {theme === 'light' ? <Moon size={20} className="shrink-0" /> : <Sun size={20} className="shrink-0" />}
+              {theme === 'light' ? (
+                <Moon
+                  size={20}
+                  className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
+                />
+              ) : (
+                <Sun
+                  size={20}
+                  className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
+                />
+              )}
               {!isCollapsed && (
                 <span className="truncate text-left text-sm font-medium">
                   {theme === 'light' ? 'Dark' : 'Light'}
                 </span>
               )}
             </button>
+            <ThemeTransitionToggle variant="sidebar" />
           </div>
 
           {/* Logout */}
