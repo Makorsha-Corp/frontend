@@ -15,6 +15,8 @@ import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
 import type { Machine } from '@/types/machine';
 import type { FactorySection } from '@/types/factorySection';
 import type { Project } from '@/types/project';
+import type { PurchaseOrder } from '@/types/purchaseOrder';
+import type { ExpenseOrder } from '@/types/expenseOrder';
 
 export type OverviewOrderKind = 'purchase' | 'transfer' | 'expense' | 'sales' | 'work';
 
@@ -244,6 +246,7 @@ export interface CountsByTypeRow {
   type: string;
   count: number;
   value: number;
+  openCount: number;
 }
 
 export function aggregateCountsByType(orders: OverviewOrder[]): CountsByTypeRow[] {
@@ -258,7 +261,8 @@ export function aggregateCountsByType(orders: OverviewOrder[]): CountsByTypeRow[
   return kinds.map((kind) => {
     const subset = orders.filter((o) => o.kind === kind);
     const value = subset.reduce((s, o) => s + o.amount, 0);
-    return { type: labels[kind], count: subset.length, value };
+    const openCount = subset.filter((o) => !isCompletedStatusLabel(o.statusLabel)).length;
+    return { type: labels[kind], count: subset.length, value, openCount };
   });
 }
 
@@ -343,6 +347,50 @@ export function summaryStats(orders: OverviewOrder[], now: Date) {
     else pendingValue += o.amount;
   }
   return { pendingApprovalsCount, overdueCount, pendingValue, completedValue };
+}
+
+export interface ExtendedOverviewStats {
+  pendingApprovalsCount: number;
+  overdueCount: number;
+  pendingValue: number;
+  completedValue: number;
+  openOrdersCount: number;
+  avgOrderValue: number;
+  notInvoicedCount: number;
+}
+
+export function extendedOverviewStats(
+  orders: OverviewOrder[],
+  now: Date,
+  purchaseOrders: PurchaseOrder[],
+  expenseOrders: ExpenseOrder[],
+  statusById: Map<number, string>
+): ExtendedOverviewStats {
+  const base = summaryStats(orders, now);
+  const openOrders = orders.filter((o) => !isCompletedStatusLabel(o.statusLabel));
+  const totalValue = orders.reduce((s, o) => s + o.amount, 0);
+  const avgOrderValue = orders.length > 0 ? totalValue / orders.length : 0;
+
+  const scopedPoIds = new Set(orders.filter((o) => o.kind === 'purchase').map((o) => o.id));
+  const scopedEoIds = new Set(orders.filter((o) => o.kind === 'expense').map((o) => o.id));
+
+  let notInvoicedCount = 0;
+  for (const po of purchaseOrders) {
+    if (!scopedPoIds.has(po.id)) continue;
+    const label = statusById.get(po.current_status_id) ?? '';
+    if (!isCompletedStatusLabel(label) && po.invoice_id == null) notInvoicedCount += 1;
+  }
+  for (const eo of expenseOrders) {
+    if (!scopedEoIds.has(eo.id)) continue;
+    if (!eo.order_completed && !eo.completed_at && eo.invoice_id == null) notInvoicedCount += 1;
+  }
+
+  return {
+    ...base,
+    openOrdersCount: openOrders.length,
+    avgOrderValue,
+    notInvoicedCount,
+  };
 }
 
 export function recentOrders(orders: OverviewOrder[], limit = 20): OverviewOrder[] {

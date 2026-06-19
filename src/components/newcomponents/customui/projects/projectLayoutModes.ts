@@ -62,7 +62,7 @@ export const PROJECT_LAYOUT_OPTIONS: ProjectLayoutOption[] = [
   },
 ];
 
-export const DEFAULT_PROJECT_LAYOUT: ProjectLayoutMode = 'classic';
+export const DEFAULT_PROJECT_LAYOUT: ProjectLayoutMode = 'treeNavigator';
 
 export function getProjectLayoutOption(id: ProjectLayoutMode): ProjectLayoutOption {
   return PROJECT_LAYOUT_OPTIONS.find((o) => o.id === id) ?? PROJECT_LAYOUT_OPTIONS[0];

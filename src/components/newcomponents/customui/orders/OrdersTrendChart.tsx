@@ -3,30 +3,41 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import type { OrdersOverTimeRow } from '@/pages/newpages/orders/ordersOverviewData';
-import { PASTEL_CHART_FILLS } from './dashboardConstants';
+import { PASTEL_CHART_FILLS } from '@/components/newcomponents/customui/orders/overview/ordersOverviewConstants';
 
-interface DashboardOrdersTrendProps {
+export interface OrdersTrendChartProps {
   data: OrdersOverTimeRow[];
   isLoading?: boolean;
+  className?: string;
+  title?: string;
+  subtitle?: string;
+  emptyMessage?: string;
 }
 
-const DashboardOrdersTrend: React.FC<DashboardOrdersTrendProps> = ({ data, isLoading }) => {
+const OrdersTrendChart: React.FC<OrdersTrendChartProps> = ({
+  data,
+  isLoading,
+  className,
+  title = 'Orders over time',
+  subtitle = 'Daily count in selected range',
+  emptyMessage = 'Pick a date range to see the chart',
+}) => {
   const hasData = data.some((row) => row.count > 0);
 
   return (
-    <Card className="lg:col-span-2 border-border">
+    <Card className={`border-border ${className ?? ''}`}>
       <CardHeader>
-        <CardTitle className="text-card-foreground">Order activity</CardTitle>
-        <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+        <CardTitle className="text-card-foreground">{title}</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center text-muted-foreground">
+          <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
           </div>
         ) : !hasData ? (
           <p className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-            No orders in the last 30 days
+            {emptyMessage}
           </p>
         ) : (
           <div className="h-64">
@@ -52,4 +63,4 @@ const DashboardOrdersTrend: React.FC<DashboardOrdersTrendProps> = ({ data, isLoa
   );
 };
 
-export default DashboardOrdersTrend;
+export default OrdersTrendChart;

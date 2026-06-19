@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import FactorySelectorDialog from './FactorySelectorDialog';
+import NotificationBell from '@/components/newcomponents/customui/notifications/NotificationBell';
 
 interface NavItem {
   name: string;
@@ -232,6 +233,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               </div>
             )}
           </Link>
+          <NotificationBell collapsed={isCollapsed} />
         </div>
 
         {/* Navigation Items - scrollable when content overflows */}

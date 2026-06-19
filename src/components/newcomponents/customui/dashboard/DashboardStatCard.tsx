@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ export interface DashboardStatCardProps {
   variant: DashboardStatVariant;
   footer?: string;
   isLoading?: boolean;
+  href?: string;
 }
 
 const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
@@ -54,10 +56,17 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
   variant,
   footer,
   isLoading,
+  href,
 }) => {
   const s = statStyles[variant];
-  return (
-    <Card className={cn(s.card, 'flex h-full min-h-0 flex-col')}>
+  const card = (
+    <Card
+      className={cn(
+        s.card,
+        'flex h-full min-h-0 flex-col',
+        href && 'transition-opacity hover:opacity-95 cursor-pointer'
+      )}
+    >
       <CardHeader className="shrink-0 pb-3">
         <CardTitle className={cn('text-sm font-medium', s.title)}>{title}</CardTitle>
       </CardHeader>
@@ -76,6 +85,16 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link to={href} className="block h-full">
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 };
 
 export default DashboardStatCard;

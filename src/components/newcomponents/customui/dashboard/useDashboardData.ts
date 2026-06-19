@@ -1,29 +1,16 @@
 import { useMemo } from 'react';
-import { subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
+import { startOfDay, parseISO } from 'date-fns';
 import { useAppSelector } from '@/app/hooks';
-import { useGetPurchaseOrdersQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
-import { useGetTransferOrdersQuery } from '@/features/transferOrders/transferOrdersApi';
-import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
-import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
-import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
-import { useGetMachinesQuery } from '@/features/machines/machinesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetProductionBatchesQuery, useGetProductionLinesQuery } from '@/features/production/productionApi';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { useSalesOrdersForOverview } from '@/pages/newpages/orders/useSalesOrdersForOverview';
 import {
-  aggregateCountsByType,
-  bucketOrdersOverTime,
-  buildMachineIdToFactoryId,
-  buildProjectIdToFactoryId,
   filterOverviewOrders,
   isCompletedStatusLabel,
-  normalizeOrders,
-  recentOrders,
   summaryStats,
   type OverviewOrder,
 } from '@/pages/newpages/orders/ordersOverviewData';
+import { useOrdersScopeData } from '@/pages/newpages/orders/useOrdersScopeData';
 import type { Project } from '@/types/project';
 import type { Machine } from '@/types/machine';
 import type { FactorySection } from '@/types/factorySection';
@@ -140,40 +127,15 @@ export function useDashboardData() {
   const factory = useAppSelector((state) => state.auth.factory);
   const factoryId = factory?.id ?? null;
 
-  const { data: purchaseOrders = [], isLoading: loadPo, isError: errPo } = useGetPurchaseOrdersQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
-  const { data: transferOrders = [], isLoading: loadTo, isError: errTo } = useGetTransferOrdersQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
-  const { data: expenseOrders = [], isLoading: loadEo, isError: errEo } = useGetExpenseOrdersQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
   const {
-    salesOrders,
-    isLoading: loadSo,
-    isError: errSo,
-    mayTruncate: salesMayTruncate,
-  } = useSalesOrdersForOverview();
-  const { data: workOrders = [], isLoading: loadWo, isError: errWo } = useGetWorkOrdersQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
-  const { data: statuses = [], isLoading: loadSt, isError: errSt } = useGetStatusesQuery({
-    skip: 0,
-    limit: API_LIMITS.STRICT_100,
-  });
-  const { data: machines = [], isLoading: loadMa, isError: errMa } = useGetMachinesQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
-  const { data: factorySections = [], isLoading: loadSec, isError: errSec } = useGetFactorySectionsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
+    allNormalized,
+    machines,
+    factorySections,
+    isLoading: scopeLoading,
+    hasError: scopeError,
+    salesMayTruncate,
+  } = useOrdersScopeData();
+
   const { data: projects = [], isLoading: loadPr, isError: errPr } = useGetProjectsQuery({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
@@ -182,81 +144,33 @@ export function useDashboardData() {
   const { data: productionLines = [], isLoading: loadLines, isError: errLines } =
     useGetProductionLinesQuery({
       skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
+      limit: API_LIMITS.STRICT_100,
       factory_id: factoryId ?? undefined,
       active_only: false,
     });
-  const { data: batchesRaw = [], isLoading: loadBatches, isError: errBatches } =
+  const { data: batchesInProgressRaw = [], isLoading: loadBatches, isError: errBatches } =
     useGetProductionBatchesQuery({
       skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
+      limit: API_LIMITS.STRICT_100,
+      status: 'in_progress',
     });
 
-  const isLoading =
-    loadPo ||
-    loadTo ||
-    loadEo ||
-    loadSo ||
-    loadWo ||
-    loadSt ||
-    loadMa ||
-    loadSec ||
-    loadPr ||
-    loadLines ||
-    loadBatches;
-  const hasError = errPo || errTo || errEo || errSo || errWo || errSt || errMa || errSec || errPr || errLines || errBatches;
+  const isLoading = scopeLoading || loadPr || loadLines || loadBatches;
+  const hasError = scopeError || errPr || errLines || errBatches;
 
-  const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
   const sectionById = useMemo(
     () => new Map(factorySections.map((s) => [s.id, s])),
     [factorySections]
   );
 
-  const resolutionMaps = useMemo(
-    () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
-      projectIdToFactoryId: buildProjectIdToFactoryId(projects),
-    }),
-    [machines, factorySections, projects]
-  );
-
-  const allOrders = useMemo(
-    () =>
-      normalizeOrders(
-        purchaseOrders,
-        transferOrders,
-        expenseOrders,
-        salesOrders,
-        workOrders,
-        statusById,
-        resolutionMaps
-      ),
-    [purchaseOrders, transferOrders, expenseOrders, salesOrders, workOrders, statusById, resolutionMaps]
-  );
-
   const scopedOrders = useMemo(
     () =>
-      filterOverviewOrders(allOrders, {
+      filterOverviewOrders(allNormalized, {
         factoryId: factoryId != null ? String(factoryId) : 'all',
         statusFilter: 'all',
       }),
-    [allOrders, factoryId]
+    [allNormalized, factoryId]
   );
-
-  const trendRange = useMemo(() => {
-    const to = endOfDay(new Date());
-    const from = startOfDay(subDays(to, 29));
-    return { from, to };
-  }, []);
-
-  const trendData = useMemo(
-    () => bucketOrdersOverTime(scopedOrders, trendRange.from, trendRange.to),
-    [scopedOrders, trendRange.from, trendRange.to]
-  );
-
-  const ordersByType = useMemo(() => aggregateCountsByType(scopedOrders), [scopedOrders]);
-
-  const recentOrdersList = useMemo(() => recentOrders(scopedOrders, 5), [scopedOrders]);
 
   const projectsScoped = useMemo(
     () => filterProjectsByFactory(projects, factoryId),
@@ -269,14 +183,15 @@ export function useDashboardData() {
   );
 
   const lineIdsForFactory = useMemo(() => {
-    const lines = factoryId != null ? productionLines.filter((l) => l.factory_id === factoryId) : productionLines;
+    const lines =
+      factoryId != null ? productionLines.filter((l) => l.factory_id === factoryId) : productionLines;
     return new Set(lines.map((l) => l.id));
   }, [productionLines, factoryId]);
 
-  const batchesScoped = useMemo(() => {
-    if (factoryId == null) return batchesRaw;
-    return batchesRaw.filter((b) => lineIdsForFactory.has(b.production_line_id));
-  }, [batchesRaw, factoryId, lineIdsForFactory]);
+  const batchesInProgressScoped = useMemo(() => {
+    if (factoryId == null) return batchesInProgressRaw;
+    return batchesInProgressRaw.filter((b) => lineIdsForFactory.has(b.production_line_id));
+  }, [batchesInProgressRaw, factoryId, lineIdsForFactory]);
 
   const kpis: DashboardKpis = useMemo(() => {
     const now = new Date();
@@ -284,7 +199,6 @@ export function useDashboardData() {
     const openOrders = scopedOrders.filter((o) => !isCompletedStatusLabel(o.statusLabel));
     const activeProjects = projectsScoped.filter((p) => p.status === 'IN_PROGRESS');
     const planningProjects = projectsScoped.filter((p) => (p.status ?? 'PLANNING') === 'PLANNING');
-    const batchesInProgress = batchesScoped.filter((b) => b.status === 'in_progress');
 
     const maintenanceHorizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const maintenanceDue = machinesScoped.filter((m) => {
@@ -298,27 +212,21 @@ export function useDashboardData() {
       openOrdersPendingValue: stats.pendingValue,
       activeProjectsCount: activeProjects.length,
       planningProjectsCount: planningProjects.length,
-      batchesInProgressCount: batchesInProgress.length,
+      batchesInProgressCount: batchesInProgressScoped.length,
       maintenanceDueCount: maintenanceDue.length,
     };
-  }, [scopedOrders, projectsScoped, batchesScoped, machinesScoped]);
+  }, [scopedOrders, projectsScoped, batchesInProgressScoped, machinesScoped]);
 
   const attentionItems = useMemo(
     () => buildAttentionItems(scopedOrders, projectsScoped, machinesScoped, sectionById, new Date()),
     [scopedOrders, projectsScoped, machinesScoped, sectionById]
   );
 
-  const totalOrdersCount = scopedOrders.length;
-
   return {
     factory,
     factoryId,
     kpis,
-    trendData,
-    ordersByType,
-    recentOrdersList,
     attentionItems,
-    totalOrdersCount,
     isLoading,
     hasError,
     salesMayTruncate,

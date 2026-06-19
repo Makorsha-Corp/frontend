@@ -100,26 +100,10 @@ const App: React.FC = () => {
               <Route path="/orders/sales" element={<SalesOrdersPage />} />
               <Route path="/orders/work" element={<WorkOrdersPage />} />
               <Route path="/management" element={<ManagementPage />} />
+              <Route path="/storage" element={<StoragePage />} />
+              <Route path="/businesslens" element={<BusinessLensPage />} />
+              <Route path="/businesslens/:templateId" element={<BusinessLensWizardPage />} />
             </Route>
-
-            {/* Legacy routes - commented out */}
-            {/* <Route path="/audit-test" element={<AuditTestPage />} /> */}
-
-            {/* Protected routes (pageKey maps to access_control.target) */}
-            {/* <Route path="/" element={<PrivateRoute pageKey="home"><HomePage /></PrivateRoute>} /> */}
-
-            {/* <Route path="/parts" element={<PrivateRoute pageKey="parts"><PartsPage /></PrivateRoute>} /> */}
-            {/* <Route path="/viewpart/:id" element={<PrivateRoute pageKey="view part"><ViewPartPage /></PrivateRoute>} /> */}
-            {/* <Route path="/invoice/:id" element={<PrivateRoute pageKey="invoice"><InvoicePage /></PrivateRoute>} /> */}
-            {/* <Route path="/orders" element={<PrivateRoute pageKey="orders"><OrderPage /></PrivateRoute>} /> */}
-            {/* <Route path="/management" element={<PrivateRoute pageKey="management"><ManagementPage /></PrivateRoute>} /> */}
-            {/* <Route path="/createorder" element={<PrivateRoute pageKey="create order"><CreateOrderPage /></PrivateRoute>} /> */}
-            {/* <Route path="/vieworder/:id" element={<PrivateRoute pageKey="view order"><ViewOrderPage /></PrivateRoute>} /> */}
-            {/* <Route path="/manageorder/:id" element={<PrivateRoute pageKey="manage order"><ManageOrderPage /></PrivateRoute>} /> */}
-            <Route path="/storage" element={<StoragePage />} />
-            <Route path="/machine-old" element={<PrivateRoute pageKey="machine"><MachinePage /></PrivateRoute>} />
-            <Route path="/businesslens" element={<BusinessLensPage />} />
-            <Route path="/businesslens/:templateId" element={<BusinessLensWizardPage />} />
 
             {/* Public/system pages - legacy */}
             {/* <Route path="/unauthorized" element={<UnauthorizedPage />} /> */}
