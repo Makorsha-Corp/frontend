@@ -10,6 +10,9 @@ export type TrChecklistPhase = 'prepare' | 'execute' | 'mark_complete' | 'done';
 export const TR_STAGE_NAMES = ['Draft', 'Planned', 'Completed'] as const;
 export type TrStageName = (typeof TR_STAGE_NAMES)[number];
 
+/** TR orders considered in-flight on the overview hub deep link. */
+export const TR_SCOPE_OPEN_STATUS_NAMES = ['Planned'] as const;
+
 export function statusesForTrWorkflowFilter(statuses: Status[]): Status[] {
   const byName = new Map(statuses.map((s) => [s.name, s]));
   return TR_STAGE_NAMES.flatMap((name) => {

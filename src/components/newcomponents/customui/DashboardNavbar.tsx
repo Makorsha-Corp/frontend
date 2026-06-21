@@ -152,7 +152,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
       dispatch(logout());
     }
     toast.success('Logged out successfully');
-    navigate('/login2');
+    navigate('/login');
   };
 
   const isActive = (path: string) =>

@@ -5,7 +5,7 @@ import { useAppSelector } from '@/app/hooks';
 const RequireAuth: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   if (!isAuthenticated) {
-    return <Navigate to="/login2" replace />;
+    return <Navigate to="/login" replace />;
   }
   return <>{children ?? <Outlet />}</>;
 };

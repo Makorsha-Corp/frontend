@@ -9,6 +9,9 @@ export type EoChecklistPhase = 'prepare' | 'approval' | 'invoice' | 'mark_comple
 export const EO_STAGE_NAMES = ['Draft', 'Approved', 'Invoiced', 'Complete'] as const;
 export type EoStageName = (typeof EO_STAGE_NAMES)[number];
 
+/** EO orders considered in-flight on the overview hub deep link. */
+export const EO_SCOPE_OPEN_STATUS_NAMES = ['Approved', 'Invoiced'] as const;
+
 export function statusesForEoWorkflowFilter(statuses: Status[]): Status[] {
   const byName = new Map(statuses.map((s) => [s.name, s]));
   return EO_STAGE_NAMES.flatMap((name) => {
