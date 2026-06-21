@@ -175,15 +175,13 @@ export const installStorageSync = (
 ): void => {
   if (typeof window === 'undefined') return;
   window.addEventListener('storage', (event) => {
-    if (event.key === AUTH_TOKEN_KEY || event.key === REFRESH_TOKEN_KEY) {
-      const token = localStorage.getItem(AUTH_TOKEN_KEY);
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (!token || !refreshToken) {
-        // Another tab logged out — mirror that here so requests stop firing.
-        dispatch(logout());
-      } else {
-        dispatch(setTokens({ token, refreshToken }));
-      }
+    if (event.key !== AUTH_TOKEN_KEY) return;
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!token || !refreshToken) {
+      dispatch(logout());
+    } else {
+      dispatch(setTokens({ token, refreshToken }));
     }
   });
 };
