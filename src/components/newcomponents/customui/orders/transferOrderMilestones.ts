@@ -1,6 +1,7 @@
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import type { TransferApprovalSummary } from '@/types/transferOrder';
+import type { Status } from '@/types/status';
 
 export type TrScrollSection = 'route' | 'items' | 'approvals';
 
@@ -8,6 +9,14 @@ export type TrChecklistPhase = 'prepare' | 'execute' | 'mark_complete' | 'done';
 
 export const TR_STAGE_NAMES = ['Draft', 'Planned', 'Completed'] as const;
 export type TrStageName = (typeof TR_STAGE_NAMES)[number];
+
+export function statusesForTrWorkflowFilter(statuses: Status[]): Status[] {
+  const byName = new Map(statuses.map((s) => [s.name, s]));
+  return TR_STAGE_NAMES.flatMap((name) => {
+    const row = byName.get(name);
+    return row ? [row] : [];
+  });
+}
 
 export interface TrSectionConfirmState {
   route_confirmed: boolean;

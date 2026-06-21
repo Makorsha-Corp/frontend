@@ -1,5 +1,4 @@
 import React from 'react';
-import LayoutPreviewBadge from './LayoutPreviewBadge';
 import ProjectsClassicLayout from './layouts/ProjectsClassicLayout';
 import ProjectsTreeNavigatorLayout from './layouts/ProjectsTreeNavigatorLayout';
 import ProjectsThreeColumnLayout from './layouts/ProjectsThreeColumnLayout';
@@ -36,7 +35,6 @@ const ProjectsPageLayout: React.FC<ProjectsPageLayoutProps> = (props) => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <LayoutPreviewBadge layout={layout} />
       {content}
     </div>
   );

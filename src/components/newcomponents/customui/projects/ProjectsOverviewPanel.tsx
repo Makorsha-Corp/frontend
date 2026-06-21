@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarClock, Clock, DollarSign, FolderKanban, Loader2 } from 'lucide-react';
+import DashboardStatCard from '@/components/newcomponents/customui/dashboard/DashboardStatCard';
 import type { Project } from '@/types/project';
 import { PROJECT_STATUSES, formatCurrency, formatProjectStatus, getStatusBadge } from './projectsPageUtils';
 import { cn } from '@/lib/utils';
@@ -60,9 +60,9 @@ const ProjectOverviewRow: React.FC<ProjectOverviewRowProps> = ({
 }) => {
   const deadlineHint = formatDeadlineHint(project.deadline);
   const rowClass = cn(
-    'flex w-full flex-col gap-2.5 rounded-lg border border-border/80 bg-muted/20 p-4 text-left transition-colors',
+    'flex w-full flex-col gap-2 py-3 text-left transition-colors',
     onProjectSelect &&
-      'cursor-pointer hover:border-brand-primary/25 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+      'cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
   );
 
   const content = (
@@ -87,13 +87,11 @@ const ProjectOverviewRow: React.FC<ProjectOverviewRowProps> = ({
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         {emphasis === 'deadline' && project.deadline ? (
-          <>
-            <span className="inline-flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5 shrink-0 text-brand-primary" />
-              {formatShortDate(project.deadline)}
-              {deadlineHint ? ` · ${deadlineHint}` : ''}
-            </span>
-          </>
+          <span className="inline-flex items-center gap-1">
+            <CalendarClock className="h-3.5 w-3.5 shrink-0 text-brand-primary" />
+            {formatShortDate(project.deadline)}
+            {deadlineHint ? ` · ${deadlineHint}` : ''}
+          </span>
         ) : (
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5 shrink-0 text-brand-primary" />
@@ -164,6 +162,11 @@ const ProjectsOverviewPanel: React.FC<ProjectsOverviewPanelProps> = ({
       .slice(0, LIST_LIMIT);
   }, [projects]);
 
+  const statusSummary = stats.byStatus
+    .filter(({ count }) => count > 0)
+    .map(({ status, count }) => `${formatProjectStatus(status)}: ${count}`)
+    .join(' · ');
+
   const kpiGridClass =
     variant === 'embedded'
       ? 'grid shrink-0 grid-cols-1 gap-5 md:grid-cols-3'
@@ -171,61 +174,52 @@ const ProjectsOverviewPanel: React.FC<ProjectsOverviewPanelProps> = ({
 
   const kpiGrid = (
     <div className={kpiGridClass}>
-      <Card className="border-border bg-card shadow-sm">
-        <CardContent className="p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/25">
-              <FolderKanban className="h-4 w-4 text-brand-primary" />
-            </div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Total projects</p>
-          </div>
-          <p className="text-3xl font-semibold tabular-nums text-card-foreground">{stats.total}</p>
-        </CardContent>
-      </Card>
-      <Card className="border-border bg-card shadow-sm">
-        <CardContent className="p-5">
-          <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Combined budget</p>
-          <p className="text-2xl font-semibold tabular-nums text-card-foreground">
-            {stats.totalBudget > 0 ? formatCurrency(stats.totalBudget) : '—'}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {stats.withBudget} project{stats.withBudget === 1 ? '' : 's'} with budget set
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="border-border bg-card shadow-sm">
-        <CardContent className="p-5">
-          <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">By status</p>
-          <div className="space-y-2 text-sm">
-            {stats.byStatus.map(({ status, count }) => (
-              <div key={status} className="flex items-center justify-between gap-2">
-                <span className={cn('rounded px-2 py-0.5 text-xs', getStatusBadge(status))}>
-                  {formatProjectStatus(status)}
-                </span>
-                <span className="font-medium tabular-nums text-card-foreground">{count}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardStatCard
+        variant="primary"
+        title="Total projects"
+        value={stats.total}
+        icon={<FolderKanban size={24} />}
+        footer={statusSummary || 'Across current filters'}
+        isLoading={loading}
+      />
+      <DashboardStatCard
+        variant="outlined"
+        title="Combined budget"
+        value={stats.totalBudget > 0 ? formatCurrency(stats.totalBudget) : '—'}
+        icon={<DollarSign size={24} />}
+        footer={
+          stats.withBudget > 0
+            ? `${stats.withBudget} project${stats.withBudget === 1 ? '' : 's'} with budget set`
+            : 'No budgets set'
+        }
+        isLoading={loading}
+      />
+      <DashboardStatCard
+        variant="accent"
+        title="By status"
+        value={stats.byStatus.find((s) => s.status === 'IN_PROGRESS')?.count ?? 0}
+        icon={<Clock size={24} />}
+        footer={`${stats.byStatus.find((s) => s.status === 'PLANNING')?.count ?? 0} in planning`}
+        isLoading={loading}
+      />
     </div>
   );
 
   const listSections = (
     <div className="grid min-h-0 grid-cols-1 gap-6 xl:grid-cols-2">
-      <Card className="flex min-h-[320px] flex-col border-border bg-card shadow-sm">
-        <CardHeader className="shrink-0 pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+      <div className="flex min-h-[320px] flex-col rounded-lg border border-border bg-card shadow-sm">
+        <div className="shrink-0 border-b border-border px-5 py-4">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-card-foreground">
             <CalendarClock className="h-4 w-4 text-brand-primary" />
             Upcoming deadlines
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Soonest deadlines in the current filtered list</p>
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">Soonest deadlines in the current filtered list</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
           {upcomingDeadlines.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No upcoming deadlines in the filtered list.</p>
+            <p className="py-8 text-sm text-muted-foreground">No upcoming deadlines in the filtered list.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="divide-y divide-border">
               {upcomingDeadlines.map((project) => (
                 <li key={project.id}>
                   <ProjectOverviewRow
@@ -237,22 +231,22 @@ const ProjectsOverviewPanel: React.FC<ProjectsOverviewPanelProps> = ({
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="flex min-h-[320px] flex-col border-border bg-card shadow-sm">
-        <CardHeader className="shrink-0 pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+      <div className="flex min-h-[320px] flex-col rounded-lg border border-border bg-card shadow-sm">
+        <div className="shrink-0 border-b border-border px-5 py-4">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-card-foreground">
             <Clock className="h-4 w-4 text-brand-primary" />
             Recent projects
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Latest activity across the filtered list</p>
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">Latest activity across the filtered list</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
           {recentProjects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No projects in the filtered list.</p>
+            <p className="py-8 text-sm text-muted-foreground">No projects in the filtered list.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="divide-y divide-border">
               {recentProjects.map((project) => (
                 <li key={project.id}>
                   <ProjectOverviewRow
@@ -264,8 +258,8 @@ const ProjectsOverviewPanel: React.FC<ProjectsOverviewPanelProps> = ({
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 

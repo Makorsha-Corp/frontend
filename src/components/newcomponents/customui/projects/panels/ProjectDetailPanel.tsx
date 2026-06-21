@@ -73,20 +73,22 @@ const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
             {selectedProject.budget != null && (
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Budget</p>
-                <p className="text-base font-medium">{formatCurrency(selectedProject.budget)}</p>
+                <p className="text-base font-medium tabular-nums text-card-foreground">
+                  {formatCurrency(selectedProject.budget)}
+                </p>
               </div>
             )}
             {selectedProject.deadline && (
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Deadline</p>
-                <p className="text-base font-medium">
+                <p className="text-base font-medium tabular-nums text-card-foreground">
                   {new Date(selectedProject.deadline).toLocaleDateString()}
                 </p>
               </div>
             )}
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Components</p>
-              <p className="text-base font-medium">{componentsCount}</p>
+              <p className="text-base font-medium tabular-nums text-card-foreground">{componentsCount}</p>
             </div>
           </div>
           <div className="border-t border-border pt-4">

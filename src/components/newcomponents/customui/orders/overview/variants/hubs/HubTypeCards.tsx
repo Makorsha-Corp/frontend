@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { CountsByTypeRow } from '@/pages/newpages/orders/ordersOverviewData';
 import { ORDER_TYPE_HUB, formatOverviewCurrency } from '../../ordersOverviewConstants';
+import { purchaseOrdersOpenHubSearch } from '@/pages/newpages/orders/orderListUrlParams';
 
 interface HubTypeCardsProps {
   countsByType: CountsByTypeRow[];
@@ -26,8 +27,11 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
         const row = countMap.get(hub.label) ?? emptyRow(hub.label);
         const Icon = hub.icon;
         const hasOpen = row.openCount > 0;
+        const openSearch =
+          hub.id === 'purchase' ? purchaseOrdersOpenHubSearch() : 'scope=open';
+        const href = hasOpen ? `${hub.path}?${openSearch}` : hub.path;
         return (
-          <Link key={hub.id} to={hub.path} className="group block min-w-0">
+          <Link key={hub.id} to={href} className="group block min-w-0">
             <Card
               className={cn(
                 'border-border transition-colors hover:border-brand-primary/40 hover:bg-muted/30',

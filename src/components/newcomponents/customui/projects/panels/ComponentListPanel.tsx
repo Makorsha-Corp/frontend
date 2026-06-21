@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { projectNavigatorRowBaseClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
+import { projectNavigatorRowBaseClass, projectNavigatorRowHoverClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
 import type { ProjectComponent } from '@/types/projectComponent';
 
 interface ComponentListPanelProps {
@@ -41,9 +41,9 @@ const ComponentListPanel: React.FC<ComponentListPanelProps> = ({
 
   return (
     <Card className={cn('flex min-h-0 flex-1 flex-col border-border', className)}>
-      <CardHeader className="flex shrink-0 flex-row items-center justify-between pb-3">
+      <CardHeader className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-border pb-3">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-base">Components</CardTitle>
+          <CardTitle className="text-base font-semibold text-card-foreground">Components</CardTitle>
           <Button size="icon" variant="outline" className="h-7 w-7" onClick={onAdd} title="Add component">
             <Plus className="h-4 w-4" />
           </Button>
@@ -62,8 +62,9 @@ const ComponentListPanel: React.FC<ComponentListPanelProps> = ({
               <div
                 key={component.id}
                 className={cn(
-                  'flex cursor-pointer items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-muted/50',
+                  'flex cursor-pointer items-center justify-between gap-2 px-4 py-3 transition-colors',
                   projectNavigatorRowBaseClass,
+                  projectNavigatorRowHoverClass,
                   selectedComponentId === component.id && projectNavigatorRowSelectedClass
                 )}
                 onClick={() => onSelect(component)}

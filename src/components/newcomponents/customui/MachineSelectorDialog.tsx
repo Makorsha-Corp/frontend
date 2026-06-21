@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import {
   getMachineVisualKind,
   getMachineStatusLabel,
-  machineTopBarClass,
+  machineListTopBarClass,
   machineSelectorTileClass,
   machineSelectorSubtextClass,
 } from '@/lib/machineVisualStatus';
@@ -85,7 +85,7 @@ const MachineSelectorTile: React.FC<{
         machineSelectorTileClass(kind, isHighlighted)
       )}
     >
-      <div className={cn('h-1.5 shrink-0 rounded-t-md', machineTopBarClass[kind])} aria-hidden />
+      <div className={cn('h-2 shrink-0 rounded-t-md', machineListTopBarClass[kind])} aria-hidden />
       <div className="flex flex-1 flex-col justify-center gap-0.5 px-2.5 py-2">
         <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{m.name}</span>
         <span

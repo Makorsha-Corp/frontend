@@ -1,5 +1,14 @@
 import React from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  CartesianGrid,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import type { OrdersOverTimeRow } from '@/pages/newpages/orders/ordersOverviewData';
@@ -42,11 +51,36 @@ const OrdersTrendChart: React.FC<OrdersTrendChartProps> = ({
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} width={32} />
-                <Tooltip />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="18%">
+                <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                  width={36}
+                  tickMargin={6}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted))', opacity: 0.25 }}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    borderColor: 'hsl(var(--border))',
+                    borderRadius: '0.5rem',
+                    fontSize: '12px',
+                  }}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
                   {data.map((row, index) => (
                     <Cell
                       key={`${index}-${row.date}`}

@@ -10,7 +10,7 @@ import {
 import { Plus, Loader2, Trash2, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/types/project';
-import { formatProjectStatus, getStatusBadge, projectNavigatorRowBaseClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
+import { formatProjectStatus, getStatusBadge, projectNavigatorRowBaseClass, projectNavigatorRowHoverClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
 
 interface ProjectListPanelProps {
   projects: Project[];
@@ -38,7 +38,7 @@ const ProjectListPanel: React.FC<ProjectListPanelProps> = ({
   <Card className={cn('flex min-h-0 flex-1 flex-col border-border', className)}>
     <CardHeader className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-border pb-3">
       <div className="flex min-w-0 items-center gap-2">
-        <CardTitle className="text-base">Projects</CardTitle>
+        <CardTitle className="text-base font-semibold text-card-foreground">Projects</CardTitle>
         <Button size="icon" variant="outline" className="h-7 w-7 shrink-0" onClick={onAdd} title="Add project">
           <Plus className="h-4 w-4" />
         </Button>
@@ -69,8 +69,9 @@ const ProjectListPanel: React.FC<ProjectListPanelProps> = ({
             <div
               key={project.id}
               className={cn(
-                'flex cursor-pointer items-center justify-between gap-2 px-4 py-3 transition-colors hover:bg-muted/50',
+                'flex cursor-pointer items-center justify-between gap-2 px-4 py-3 transition-colors',
                 projectNavigatorRowBaseClass,
+                projectNavigatorRowHoverClass,
                 selectedProjectId === project.id && projectNavigatorRowSelectedClass
               )}
               onClick={() => onSelect(project)}

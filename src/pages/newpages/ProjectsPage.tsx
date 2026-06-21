@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
+  appShellHeaderControlClass,
   appShellHeaderLoweredSelectorClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
@@ -55,7 +56,7 @@ import type { ProjectComponent } from '@/types/projectComponent';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
 import type { ProjectComponentTask } from '@/types/projectComponentTask';
 import type { ProjectVisibility } from '@/types/project';
-import { FolderKanban, Search } from 'lucide-react';
+import { FolderKanban, Search, Plus } from 'lucide-react';
 import AddProjectDialog from '@/components/newcomponents/customui/AddProjectDialog';
 import AddProjectComponentDialog from '@/components/newcomponents/customui/AddProjectComponentDialog';
 import AddProjectComponentTaskDialog from '@/components/newcomponents/customui/AddProjectComponentTaskDialog';
@@ -74,6 +75,7 @@ import {
 } from '@/components/newcomponents/customui/projects/projectLayoutModes';
 import { PROJECT_STATUSES } from '@/components/newcomponents/customui/projects/projectsPageUtils';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 const ProjectsPage: React.FC = () => {
   const { factory: globalFactory, user, workspace } = useAppSelector((state) => state.auth);
@@ -419,7 +421,7 @@ const ProjectsPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <ProjectLayoutSwitcher value={layoutMode} onChange={setLayoutMode} />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-9 w-[140px]">
+                <SelectTrigger className={cn('w-[140px] border-border bg-background', appShellHeaderControlClass)}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -437,14 +439,21 @@ const ProjectsPage: React.FC = () => {
                   placeholder="Search projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9"
+                  className={cn('pl-9 border-border bg-background', appShellHeaderControlClass)}
                 />
               </div>
+              <Button
+                className={cn('bg-brand-primary hover:bg-brand-primary-hover', appShellHeaderControlClass)}
+                onClick={() => setIsAddProjectOpen(true)}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add project
+              </Button>
             </div>
           </div>
         </AppShellHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-8">
           <ProjectsPageLayout
             layout={layoutMode}
             onLayoutChange={setLayoutMode}

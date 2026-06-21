@@ -1,5 +1,22 @@
 import type { ApprovalSummary, PurchaseOrder, PurchaseOrderItem } from '@/types/purchaseOrder';
 import type { AccountInvoice } from '@/types/accountInvoice';
+import type { Status } from '@/types/status';
+
+/** Auto-advancing PO lifecycle stages (matches backend PO_STAGE_NAMES). */
+export const PO_WORKFLOW_STAGES = ['Draft', 'Planning', 'Receiving', 'Complete'] as const;
+
+export type PoWorkflowStage = (typeof PO_WORKFLOW_STAGES)[number];
+
+/** PO orders considered "open" on the overview hub deep link. */
+export const PO_SCOPE_OPEN_STATUS_NAMES = ['Planning', 'Receiving'] as const;
+
+export function statusesForPoWorkflowFilter(statuses: Status[]): Status[] {
+  const byName = new Map(statuses.map((s) => [s.name, s]));
+  return PO_WORKFLOW_STAGES.flatMap((name) => {
+    const row = byName.get(name);
+    return row ? [row] : [];
+  });
+}
 
 export type PoMilestoneId = 'details' | 'supplier' | 'items' | 'invoice' | 'received';
 

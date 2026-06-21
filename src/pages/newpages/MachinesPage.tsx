@@ -17,7 +17,7 @@ import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySe
 import { useGetMachinesQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
 import { clearFactory, setFactory } from '@/features/auth/authSlice';
 import type { Machine } from '@/types/machine';
-import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList, Wrench, SlidersHorizontal } from 'lucide-react';
+import { Layers, Loader2, Plus, Search, Cog, Play, Pause, Wrench, SlidersHorizontal } from 'lucide-react';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
@@ -28,17 +28,24 @@ import MachineDetailCard, {
 import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import {
   brandIconGlyphClass,
   brandIconTileClass,
-  neutralMetricIconClass,
+  machineKpiValueClass,
   neutralMetricTileClass,
   statusMetricIconClass,
-  statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+
+const machineSectionHeaderClass =
+  'flex items-center gap-2.5 border-b-2 border-border py-2.5 pb-3';
 
 const defaultMachineFilters: MachinesFiltersValue = {
   search: '',
@@ -383,6 +390,15 @@ const MachinesPage: React.FC = () => {
     }).length;
   }, [effectiveFilteredMachines]);
 
+  const runningCount = effectiveFilteredMachines.filter((m) => m.is_running).length;
+  const stoppedCount = effectiveFilteredMachines.length - runningCount;
+
+  const kpiContextLabel = section
+    ? section.name
+    : factory
+      ? factory.name
+      : 'All workspace machines';
+
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
     try {
@@ -429,17 +445,13 @@ const MachinesPage: React.FC = () => {
       <DashboardNavbar />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className="flex min-w-0 items-center gap-3 shrink-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35" aria-hidden>
-                  <Cog className={brandIconGlyphClass} strokeWidth={2} />
-                </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                  Machines
-                </h1>
+        <AppShellHeader sticky>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
+                <Cog className={brandIconGlyphClass} strokeWidth={2} />
               </div>
+              <h1 className={appShellHeaderTitleClass}>Machines</h1>
               <div className="hidden h-6 w-px bg-border sm:block" />
               <Breadcrumb className="min-w-0 self-end">
                 <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
@@ -492,12 +504,18 @@ const MachinesPage: React.FC = () => {
                       search: e.target.value,
                     })
                   }
-                  className={`${appShellHeaderControlClass} bg-background pl-9 focus-visible:ring-inset`}
+                  className={cn(
+                    appShellHeaderControlClass,
+                    'border-border bg-background pl-9 focus-visible:ring-inset'
+                  )}
                 />
               </div>
               <Button
                 variant="outline"
-                className={`${appShellHeaderControlClass} shrink-0 focus-visible:ring-offset-0`}
+                className={cn(
+                  appShellHeaderControlClass,
+                  'shrink-0 border-border bg-background focus-visible:ring-offset-0'
+                )}
                 onClick={() => setIsFiltersOpen(true)}
               >
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -505,7 +523,10 @@ const MachinesPage: React.FC = () => {
               </Button>
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
-                className={`${appShellHeaderControlClass} shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover`}
+                className={cn(
+                  appShellHeaderControlClass,
+                  'shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover'
+                )}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Machine
@@ -521,104 +542,89 @@ const MachinesPage: React.FC = () => {
             <p className="text-muted-foreground">Loading workspace machines...</p>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 flex flex-col gap-4 p-6 overflow-hidden">
-            {/* Summary card - flexes based on global vs section */}
-            <Card className="flex-shrink-0 border-border bg-card shadow-sm">
-              <CardContent className="px-4 py-4 sm:px-6">
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-                  {section ? (
-                    <div className="flex min-w-0 max-w-full items-center gap-3 sm:max-w-[14rem]">
-                      <div className={brandIconTileClass} aria-hidden>
-                        <Layers className={brandIconGlyphClass} strokeWidth={2} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Filtered Section</p>
-                        <p className="truncate text-sm font-semibold text-card-foreground">{section.name}</p>
-                        {factory && (
-                          <p className="truncate text-xs text-muted-foreground">{factory.name} · ID {section.id}</p>
-                        )}
-                      </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden p-8">
+            <Card className="shrink-0 border-border bg-card shadow-sm">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                  <div className="flex min-w-0 max-w-full items-center gap-3 sm:max-w-[14rem]">
+                    <div className={brandIconTileClass} aria-hidden>
+                      <Cog className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
-                  ) : (
-                    <div className="flex min-w-0 max-w-full items-center gap-3 sm:max-w-[14rem]">
-                      <div className={brandIconTileClass} aria-hidden>
-                        <Cog className={brandIconGlyphClass} strokeWidth={2} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Global View</p>
-                        <p className="truncate text-sm font-semibold text-card-foreground">All Workspace Machines</p>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Scope
+                      </p>
+                      <p className="truncate text-sm font-semibold text-card-foreground">
+                        {kpiContextLabel}
+                      </p>
                     </div>
-                  )}
+                  </div>
                   <div className="hidden h-9 w-px bg-border sm:block" />
                   <div className="flex items-center gap-3">
                     <div className={brandIconTileClass} aria-hidden>
                       <Cog className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total machines</p>
-                      <p className="text-base font-semibold tabular-nums text-card-foreground">{effectiveFilteredMachines.length}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Total machines
+                      </p>
+                      <p className="text-base font-semibold tabular-nums text-card-foreground">
+                        {machinesLoading ? '—' : effectiveFilteredMachines.length}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={statusMetricTileClass.running} aria-hidden>
+                    <div className={neutralMetricTileClass} aria-hidden>
                       <Play className={statusMetricIconClass.running} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Running</p>
-                      <p className="text-base font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                        {effectiveFilteredMachines.filter((m) => m.is_running).length}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Running
+                      </p>
+                      <p
+                        className={cn(
+                          'text-base font-semibold tabular-nums',
+                          machineKpiValueClass.running
+                        )}
+                      >
+                        {machinesLoading ? '—' : runningCount}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={statusMetricTileClass.stopped} aria-hidden>
+                    <div className={neutralMetricTileClass} aria-hidden>
                       <Pause className={statusMetricIconClass.stopped} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Not running</p>
-                      <p className="text-base font-semibold tabular-nums text-red-700 dark:text-red-400">
-                        {effectiveFilteredMachines.length - effectiveFilteredMachines.filter((m) => m.is_running).length}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Not running
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        maintenanceDueCount > 0 ? statusMetricTileClass.maintenance : neutralMetricTileClass
-                      )}
-                      aria-hidden
-                    >
-                      <Wrench
-                        className={
-                          maintenanceDueCount > 0
-                            ? statusMetricIconClass.maintenance
-                            : neutralMetricIconClass
-                        }
-                        strokeWidth={2}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Maint. due</p>
                       <p
-                        className={
-                          maintenanceDueCount > 0
-                            ? 'text-base font-semibold tabular-nums text-amber-800 dark:text-amber-400'
-                            : 'text-base font-semibold tabular-nums text-card-foreground'
-                        }
+                        className={cn(
+                          'text-base font-semibold tabular-nums',
+                          machineKpiValueClass.stopped
+                        )}
                       >
-                        {maintenanceDueCount}
+                        {machinesLoading ? '—' : stoppedCount}
                       </p>
                     </div>
                   </div>
-                  <div className="hidden h-9 w-px bg-border lg:block" />
                   <div className="flex items-center gap-3">
                     <div className={neutralMetricTileClass} aria-hidden>
-                      <ClipboardList className={neutralMetricIconClass} strokeWidth={2} />
+                      <Wrench className={statusMetricIconClass.maintenance} strokeWidth={2} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Orders</p>
-                      <p className="text-base font-semibold tabular-nums text-muted-foreground">—</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Maint. due (7d)
+                      </p>
+                      <p
+                        className={cn(
+                          'text-base font-semibold tabular-nums',
+                          machineKpiValueClass.maintenance
+                        )}
+                      >
+                        {machinesLoading ? '—' : maintenanceDueCount}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -653,9 +659,9 @@ const MachinesPage: React.FC = () => {
                     <div className="space-y-5">
                       {machinesGroupedBySection.map(({ section: sec, machines: secMachines }) => (
                         <div key={sec.id} className="space-y-3">
-                          <div className="flex items-center gap-2 border-b border-border/70 pb-2">
-                            <Layers className="h-4 w-4 text-brand-primary" />
-                            <p className="text-sm font-medium text-foreground/90">{sec.name}</p>
+                          <div className={machineSectionHeaderClass}>
+                            <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
+                            <p className="text-base font-semibold text-card-foreground">{sec.name}</p>
                             <span className="text-xs text-muted-foreground/90 tabular-nums">
                               {secMachines.length} machine{secMachines.length === 1 ? '' : 's'}
                             </span>
@@ -679,10 +685,10 @@ const MachinesPage: React.FC = () => {
                       {machinesGroupedByFactorySection.map((group) => (
                         <div key={group.factory!.id} className="space-y-5">
                           {group.sections.map((secGroup) => (
-                            <div key={secGroup.section!.id} className="space-y-2">
-                              <div className="flex items-center gap-2 border-b border-border/60 pb-2">
-                                <Layers className="h-3.5 w-3.5 text-brand-primary/70" />
-                                <p className="text-sm font-medium text-foreground/90">
+                            <div key={secGroup.section!.id} className="space-y-3">
+                              <div className={machineSectionHeaderClass}>
+                                <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
+                                <p className="text-base font-semibold text-card-foreground">
                                   {group.factory!.name} ({group.factory!.abbreviation}) - {secGroup.section!.name}
                                 </p>
                                 <span className="text-xs text-muted-foreground/80 tabular-nums">

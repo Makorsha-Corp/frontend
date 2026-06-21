@@ -6,6 +6,7 @@ import { useCreateWorkspaceMutation, useAcceptInvitationMutation } from '@/featu
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setWorkspace, logout } from '@/features/auth/authSlice';
 import { useTheme } from '@/context/ThemeContext';
+import ThemeTransitionToggle from '@/components/newcomponents/customui/ThemeTransitionToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ const WorkspaceSelectorPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { token, isAuthenticated, workspace, user } = useAppSelector((state) => state.auth);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, iconAnimating } = useTheme();
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(null);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
@@ -295,14 +296,20 @@ const WorkspaceSelectorPage: React.FC = () => {
             >
               <MousePointer2 className="h-4 w-4" />
             </Button>
+            <ThemeTransitionToggle variant="inline" />
             <Button
               variant="outline"
               size="icon"
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme(e)}
               className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
               type="button"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              {theme === 'light' ? (
+                <Moon className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+              ) : (
+                <Sun className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+              )}
             </Button>
           </div>
           <Button

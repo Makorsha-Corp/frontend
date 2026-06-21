@@ -8,6 +8,7 @@ import type { RootState } from '@/app/store';
 import type { Machine } from '@/types/machine';
 import type { MachineEvent } from '@/types/machine';
 import { cn } from '@/lib/utils';
+import { machineStatusSegmentClass, type MachineVisualKind } from '@/lib/machineVisualStatus';
 import DueStatusCard, { DueStatusRow } from './DueStatusCard';
 
 export interface FactoryMachinesStatusPanelProps {
@@ -130,10 +131,10 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
     [maintenanceRows, sectionNameById, factoryId]
   );
 
-  const segments: { key: StatusBucket; label: string; count: number; className: string }[] = [
-    { key: 'active', label: 'Active', count: counts.active, className: 'bg-emerald-500' },
-    { key: 'maintenance', label: 'Maintenance', count: counts.maintenance, className: 'bg-amber-500' },
-    { key: 'stoppedIdle', label: 'Stopped / idle', count: counts.stoppedIdle, className: 'bg-red-500' },
+  const segments: { key: StatusBucket; label: string; count: number; segmentKind: MachineVisualKind }[] = [
+    { key: 'active', label: 'Active', count: counts.active, segmentKind: 'running' },
+    { key: 'maintenance', label: 'Maintenance', count: counts.maintenance, segmentKind: 'maintenance' },
+    { key: 'stoppedIdle', label: 'Stopped / idle', count: counts.stoppedIdle, segmentKind: 'stopped' },
   ];
 
   const pct = (n: number) => (counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0);
@@ -176,7 +177,10 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
                     s.count > 0 && (
                       <div
                         key={s.key}
-                        className={cn(s.className, 'h-full min-w-[6px] transition-[width] duration-300')}
+                        className={cn(
+                          machineStatusSegmentClass[s.segmentKind],
+                          'h-full min-w-[6px] transition-[width] duration-300'
+                        )}
                         style={{ width: `${pct(s.count)}%` }}
                         title={`${s.label}: ${s.count}`}
                       />
@@ -186,7 +190,13 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
               <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {segments.map((s) => (
                   <li key={s.key} className="flex items-center gap-2">
-                    <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', s.className)} aria-hidden />
+                    <span
+                      className={cn(
+                        'h-2.5 w-2.5 shrink-0 rounded-full',
+                        machineStatusSegmentClass[s.segmentKind]
+                      )}
+                      aria-hidden
+                    />
                     <span className="text-muted-foreground">{s.label}</span>
                     <span className="font-semibold tabular-nums text-card-foreground">{s.count}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">({pct(s.count)}%)</span>

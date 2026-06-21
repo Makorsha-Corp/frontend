@@ -4,6 +4,7 @@ import { useLoginMutation, useRegisterMutation } from '@/features/auth/authApi';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setCredentials } from '@/features/auth/authSlice';
 import { useTheme } from '@/context/ThemeContext';
+import ThemeTransitionToggle from '@/components/newcomponents/customui/ThemeTransitionToggle';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -147,7 +148,7 @@ const Login2Page: React.FC = () => {
   const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, workspace } = useAppSelector((state) => state.auth);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, iconAnimating } = useTheme();
 
   // Refresh-token flow bails out here with ?expired=1 when /auth/refresh/
   // fails (refresh token revoked, expired, or reuse-detected). Show a single
@@ -452,15 +453,20 @@ const Login2Page: React.FC = () => {
                 </HoverCardContent>
               </HoverCardPortal>
             </HoverCard>
+            <ThemeTransitionToggle variant="inline" />
             <Button
               variant="outline"
               size="icon"
-              onClick={toggleTheme}
+              onClick={(e) => toggleTheme(e)}
               className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
               type="button"
             >
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              {theme === 'light' ? (
+                <Moon className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+              ) : (
+                <Sun className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+              )}
             </Button>
           </nav>
         </header>

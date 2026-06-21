@@ -9,8 +9,9 @@ import {
   brandIconTileClass,
   getMachineVisualKind,
   getMachineStatusLabel,
-  machineTopBarClass,
+  machineListTopBarClass,
   machineBadgeClass,
+  machineListCardSelectedClass,
 } from '@/lib/machineVisualStatus';
 import { useGetLatestMachineEventQuery } from '@/features/machines/machinesApi';
 
@@ -43,10 +44,10 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   return (
     <Card
       className={cn(
-        'group flex cursor-pointer flex-col transition-all',
+        'group flex cursor-pointer flex-col transition-all border-border',
         selected
-          ? 'border-brand-primary/40 bg-brand-primary/[0.06] ring-1 ring-brand-primary/25 shadow-sm'
-          : 'border-border hover:border-brand-primary/30 hover:shadow-md'
+          ? machineListCardSelectedClass
+          : 'hover:border-brand-primary/25 hover:shadow-sm'
       )}
       onClick={onSelect}
       onDoubleClick={(e) => {
@@ -54,7 +55,7 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
         expand();
       }}
     >
-      <div className={cn('h-1.5 shrink-0 rounded-t-lg', machineTopBarClass[kind])} aria-hidden />
+      <div className={cn('h-2 shrink-0 rounded-t-lg', machineListTopBarClass[kind])} aria-hidden />
       <CardHeader className="space-y-0 p-4 min-h-[112px]">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-3">

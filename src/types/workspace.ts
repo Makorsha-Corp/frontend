@@ -14,6 +14,17 @@ export interface WorkspaceDetails extends Workspace {
   trial_ends_at: string | null;
   created_at: string;
   updated_at: string;
+  current_members_count?: number;
+  current_storage_mb?: number;
+  current_orders_this_month?: number;
+  current_factories_count?: number;
+  current_machines_count?: number;
+  current_projects_count?: number;
+  plan_name?: string | null;
+  plan_display_name?: string | null;
+  max_members?: number | null;
+  max_storage_mb?: number | null;
+  max_orders_per_month?: number | null;
 }
 
 export interface WorkspaceListItem {

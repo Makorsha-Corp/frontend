@@ -1,46 +1,94 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  originFromMouseEvent,
+  parseStoredTransitionMode,
+  runThemeTransition,
+  THEME_TRANSITION_STORAGE_KEY,
+  type ThemeTransitionMode,
+} from '@/lib/themeTransition';
 
 type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
   theme: Theme;
-  toggleTheme: () => void;
+  iconAnimating: boolean;
+  transitionMode: ThemeTransitionMode;
+  cycleTransitionMode: () => void;
+  toggleTheme: (event?: React.MouseEvent | MouseEvent) => void;
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function applyThemeToDocument(nextTheme: Theme): void {
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  root.classList.add(nextTheme);
+  localStorage.setItem('theme', nextTheme);
+}
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Get initial theme from localStorage, default to 'light'
   const [theme, setThemeState] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     return savedTheme || 'light';
   });
+  const [iconAnimating, setIconAnimating] = useState(false);
+  const [transitionMode, setTransitionMode] = useState<ThemeTransitionMode>(() =>
+    parseStoredTransitionMode(localStorage.getItem(THEME_TRANSITION_STORAGE_KEY))
+  );
 
-  // Apply theme class to document root
   useEffect(() => {
-    const root = document.documentElement;
-    
-    // Remove both classes first
-    root.classList.remove('light', 'dark');
-    
-    // Add the current theme class
-    root.classList.add(theme);
-    
-    // Save to localStorage
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    applyThemeToDocument(theme);
+  }, []);
 
-  const toggleTheme = () => {
-    setThemeState((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
-  };
+  const cycleTransitionMode = useCallback(() => {
+    setTransitionMode((current) => {
+      const next = current === 'wipe' ? 'icon' : 'wipe';
+      localStorage.setItem(THEME_TRANSITION_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
+  const runWithTransition = useCallback(
+    (nextTheme: Theme, event?: React.MouseEvent | MouseEvent) => {
+      const apply = () => {
+        setThemeState(nextTheme);
+        applyThemeToDocument(nextTheme);
+      };
+
+      const { animateIcon } = runThemeTransition(apply, {
+        origin: originFromMouseEvent(event),
+        mode: transitionMode,
+      });
+
+      if (animateIcon) {
+        setIconAnimating(true);
+        window.setTimeout(() => setIconAnimating(false), 400);
+      }
+    },
+    [transitionMode]
+  );
+
+  const toggleTheme = useCallback(
+    (event?: React.MouseEvent | MouseEvent) => {
+      const nextTheme: Theme = theme === 'light' ? 'dark' : 'light';
+      runWithTransition(nextTheme, event);
+    },
+    [theme, runWithTransition]
+  );
+
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      if (newTheme === theme) return;
+      runWithTransition(newTheme);
+    },
+    [theme, runWithTransition]
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider
+      value={{ theme, iconAnimating, transitionMode, cycleTransitionMode, toggleTheme, setTheme }}
+    >
       {children}
     </ThemeContext.Provider>
   );

@@ -9,13 +9,11 @@ import { ORDER_TYPE_HUB, formatOverviewCurrency } from './ordersOverviewConstant
 interface OrdersRecentActivityTableProps {
   orders: OverviewOrder[];
   isLoading?: boolean;
-  contextSummary?: string;
 }
 
 const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
   orders,
   isLoading,
-  contextSummary,
 }) => {
   const navigate = useNavigate();
   const pathByKind = Object.fromEntries(ORDER_TYPE_HUB.map((h) => [h.id, h.path]));
@@ -29,7 +27,7 @@ const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
       ) : (
         <OrdersOverviewTable
           title="Recent activity"
-          subtitle={contextSummary ?? 'Latest orders matching your filters'}
+          subtitle="Latest orders matching your filters"
           rows={orders.map((o) => ({ ...o, id: `${o.kind}-${o.id}` }))}
           emptyMessage="No orders match your filters"
           onRowClick={(row) => navigate(pathByKind[row.kind] ?? '/orders/purchase')}

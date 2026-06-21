@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, LayoutDashboard, Loader2, Plus, Trash2 } fro
 import { cn } from '@/lib/utils';
 import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
-import { formatProjectStatus, getStatusBadge, projectNavigatorRowBaseClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
+import { formatProjectStatus, getStatusBadge, projectNavigatorRowBaseClass, projectNavigatorRowHoverClass, projectNavigatorRowSelectedClass } from '../projectsPageUtils';
 
 interface ProjectNavigatorTreeProps {
   projects: Project[];
@@ -72,7 +72,7 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
   return (
     <Card className={cn('flex min-h-0 flex-1 flex-col border-border', className)}>
       <CardHeader className="flex shrink-0 flex-row items-center justify-between gap-2 border-b border-border pb-3">
-        <CardTitle className="text-base">Projects</CardTitle>
+        <CardTitle className="text-base font-semibold text-card-foreground">Projects</CardTitle>
         <div className="flex items-center gap-1.5">
           {(selectedProjectId != null || selectedComponentId != null) && onClearProjectSelection ? (
             <Button
@@ -107,8 +107,9 @@ const ProjectNavigatorTree: React.FC<ProjectNavigatorTreeProps> = ({
                 <div key={project.id}>
                   <div
                     className={cn(
-                      'flex items-center gap-1 px-3 py-2.5 hover:bg-muted/50',
+                      'flex items-center gap-1 px-3 py-2.5',
                       projectNavigatorRowBaseClass,
+                      projectNavigatorRowHoverClass,
                       isSelected && projectNavigatorRowSelectedClass
                     )}
                   >
