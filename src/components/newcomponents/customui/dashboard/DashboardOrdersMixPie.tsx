@@ -49,6 +49,8 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
                     innerRadius={52}
                     outerRadius={72}
                     paddingAngle={2}
+                    stroke="hsl(var(--card))"
+                    strokeWidth={2}
                   >
                     {pieData.map((_, i) => (
                       <Cell key={i} fill={PASTEL_CHART_FILLS[i % PASTEL_CHART_FILLS.length]} />

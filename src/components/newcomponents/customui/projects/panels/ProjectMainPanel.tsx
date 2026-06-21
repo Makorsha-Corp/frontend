@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
 import ProjectDetailPanel from './ProjectDetailPanel';
 import ComponentWorkspacePanel from './ComponentWorkspacePanel';
 import ProjectsOverviewPanel from '../ProjectsOverviewPanel';
@@ -107,16 +106,13 @@ const ProjectMainPanel: React.FC<ProjectMainPanelProps> = ({
 
   if (!selectedProjectId) {
     return (
-      <div className={cn('min-h-0 min-w-0 flex-1', className)}>
-        <Card className="flex h-full min-h-0 flex-col border-border">
-          <ProjectsOverviewPanel
-            variant="embedded"
-            projects={filteredProjects}
-            loading={loadingProjects}
-            onProjectSelect={onProjectSelect}
-          />
-        </Card>
-      </div>
+      <ProjectsOverviewPanel
+        className={cn('min-h-0 min-w-0 flex-1', className)}
+        variant="embedded"
+        projects={filteredProjects}
+        loading={loadingProjects}
+        onProjectSelect={onProjectSelect}
+      />
     );
   }
 

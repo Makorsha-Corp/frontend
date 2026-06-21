@@ -164,6 +164,12 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Recharts pie defaults to white slice borders — blend with card in dark mode */
+  .dark .recharts-sector[stroke='#fff'],
+  .dark .recharts-sector[stroke='#ffffff'] {
+    stroke: hsl(var(--card));
+  }
 }
 
 /* View Transitions API — circular wipe from toggle origin */

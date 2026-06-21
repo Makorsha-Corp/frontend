@@ -1,20 +1,38 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CalendarClock, Wrench, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  AlertCircle,
+  CalendarClock,
+  Wrench,
+  ChevronRight,
+  Loader2,
+  ClipboardCheck,
+  Receipt,
+  FileWarning,
+  TrendingDown,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DashboardAttentionItem } from './useDashboardData';
+import type { DashboardAttentionItem, DashboardAttentionKind } from './useDashboardData';
 
-const KIND_ICONS = {
+const KIND_ICONS: Record<DashboardAttentionKind, React.ComponentType<{ className?: string }>> = {
   overdue_order: AlertCircle,
   project_deadline: CalendarClock,
   maintenance: Wrench,
-} as const;
+  pending_approval: ClipboardCheck,
+  overdue_payable: Receipt,
+  not_invoiced: FileWarning,
+  batch_variance: TrendingDown,
+};
 
-const KIND_COLORS = {
+const KIND_COLORS: Record<DashboardAttentionKind, string> = {
   overdue_order: 'text-destructive',
   project_deadline: 'text-amber-600 dark:text-amber-500',
   maintenance: 'text-brand-primary',
-} as const;
+  pending_approval: 'text-amber-600 dark:text-amber-500',
+  overdue_payable: 'text-destructive',
+  not_invoiced: 'text-amber-600 dark:text-amber-500',
+  batch_variance: 'text-orange-600 dark:text-orange-400',
+};
 
 interface DashboardAttentionPanelProps {
   items: DashboardAttentionItem[];

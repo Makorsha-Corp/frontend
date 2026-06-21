@@ -13,7 +13,7 @@ export type DestinationTypeFilter = 'all' | 'storage' | 'machine' | 'project';
 export interface PurchaseOrderFilters {
   from?: Date;
   to?: Date;
-  statusId: string;
+  statusIds: string[];
   accountId: string;
   factoryId: string;
   destinationType: DestinationTypeFilter;
@@ -55,9 +55,9 @@ export function filterPurchaseOrders(
     });
   }
 
-  if (filters.statusId !== 'all') {
-    const sid = Number(filters.statusId);
-    rows = rows.filter((o) => o.current_status_id === sid);
+  if (filters.statusIds.length > 0) {
+    const ids = new Set(filters.statusIds.map((id) => Number(id)));
+    rows = rows.filter((o) => ids.has(o.current_status_id));
   }
 
   if (filters.accountId !== 'all') {

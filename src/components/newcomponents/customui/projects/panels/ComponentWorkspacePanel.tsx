@@ -89,7 +89,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
       <Card className="shrink-0 border-border">
         <CardContent className="p-5">
           <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-full lg:border-r lg:border-border lg:pr-6">
+            <div className="rounded-lg bg-muted/10 p-4 lg:col-span-7">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -127,12 +127,14 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   {selectedProject?.budget != null && (
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Budget</p>
-                      <p className="font-medium">{formatCurrency(selectedProject.budget)}</p>
+                      <p className="font-medium tabular-nums text-card-foreground">
+                        {formatCurrency(selectedProject.budget)}
+                      </p>
                     </div>
                   )}
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Start Date</p>
-                    <p className="font-medium">
+                    <p className="font-medium tabular-nums text-card-foreground">
                       {selectedProject?.start_date
                         ? new Date(selectedProject.start_date).toLocaleDateString()
                         : '—'}
@@ -140,7 +142,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Deadline</p>
-                    <p className="font-medium">
+                    <p className="font-medium tabular-nums text-card-foreground">
                       {selectedProject?.deadline
                         ? new Date(selectedProject.deadline).toLocaleDateString()
                         : '—'}
@@ -148,12 +150,12 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Components</p>
-                    <p className="font-medium">{componentsCount}</p>
+                    <p className="font-medium tabular-nums text-card-foreground">{componentsCount}</p>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="lg:col-span-5 lg:h-full lg:pl-6">
+            <div className="rounded-lg bg-muted/10 p-4 lg:col-span-5">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -186,7 +188,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Start Date</p>
-                    <p className="font-medium">
+                    <p className="font-medium tabular-nums text-card-foreground">
                       {selectedComponent.start_date
                         ? new Date(selectedComponent.start_date).toLocaleDateString()
                         : '—'}
@@ -194,7 +196,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Deadline</p>
-                    <p className="font-medium">
+                    <p className="font-medium tabular-nums text-card-foreground">
                       {selectedComponent.deadline
                         ? new Date(selectedComponent.deadline).toLocaleDateString()
                         : '—'}
@@ -202,7 +204,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Cost</p>
-                    <p className="text-lg font-semibold text-brand-primary">
+                    <p className="text-lg font-semibold tabular-nums text-brand-primary">
                       {totalCost ? formatCurrency(totalCost.total_cost) : '—'}
                     </p>
                   </div>
@@ -220,25 +222,17 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
             onValueChange={(v) => onLeftGroupTabChange(v as 'items' | 'misc')}
             className="flex h-full min-h-0 w-full flex-col overflow-hidden"
           >
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
-              <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
-                  <TabsTrigger
-                    value="items"
-                    className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <Package className="mr-2 h-4 w-4" />
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+              <TabsList className="h-9 flex-1 justify-start">
+                  <TabsTrigger value="items" className="gap-1.5">
+                    <Package className="h-4 w-4" />
                     Items ({componentItems.length})
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="misc"
-                    className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <DollarSign className="mr-2 h-4 w-4" />
+                  <TabsTrigger value="misc" className="gap-1.5">
+                    <DollarSign className="h-4 w-4" />
                     Misc Costs ({miscCosts.length})
                   </TabsTrigger>
-                </TabsList>
-              </div>
+              </TabsList>
               <Button
                 variant="outline"
                 size="icon"
@@ -260,7 +254,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   {componentItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between rounded-lg p-2 text-sm hover:bg-muted/50"
+                      className="flex items-center justify-between rounded-lg p-2 text-sm hover:bg-muted/40"
                     >
                       <span className="truncate text-card-foreground">{getItemName(item.item_id)}</span>
                       <span className="ml-2 shrink-0 text-muted-foreground">× {item.qty}</span>
@@ -280,7 +274,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   {miscCosts.map((cost) => (
                     <div
                       key={cost.id}
-                      className="flex items-center justify-between rounded-lg p-2 text-sm hover:bg-muted/50"
+                      className="flex items-center justify-between rounded-lg p-2 text-sm hover:bg-muted/40"
                     >
                       <span className="text-card-foreground">{cost.name}</span>
                       <span className="font-medium">{formatCurrency(cost.amount)}</span>
@@ -298,32 +292,21 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
             onValueChange={(v) => onRightGroupTabChange(v as 'notes' | 'tasks' | 'documents')}
             className="flex h-full min-h-0 w-full flex-col"
           >
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
-              <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain">
-                <TabsList className="h-11 w-max min-w-full flex-nowrap justify-start rounded-none border-0 bg-transparent p-0">
-                  <TabsTrigger
-                    value="notes"
-                    className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+              <TabsList className="h-9 flex-1 justify-start">
+                  <TabsTrigger value="notes" className="gap-1.5">
+                    <FileText className="h-4 w-4" />
                     Notes ({componentNotes.length})
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="tasks"
-                    className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <ListTodo className="mr-2 h-4 w-4" />
+                  <TabsTrigger value="tasks" className="gap-1.5">
+                    <ListTodo className="h-4 w-4" />
                     Tasks ({tasks.length})
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="documents"
-                    className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <Paperclip className="mr-2 h-4 w-4" />
+                  <TabsTrigger value="documents" className="gap-1.5">
+                    <Paperclip className="h-4 w-4" />
                     Documents
                   </TabsTrigger>
-                </TabsList>
-              </div>
+              </TabsList>
             </div>
             <TabsContent value="notes" className="m-0 min-h-0 flex-1 overflow-y-auto p-4">
               {componentNotes.length === 0 ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
@@ -53,6 +53,15 @@ import {
   transferRouteTypeLabel,
   type TransferLocationLabelContext,
 } from './transferOrderLocationLabels';
+import { statusesForTrWorkflowFilter } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
+import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
+import {
+  clearTransferOrderFilterParams,
+  hasActiveListFilters,
+  parseTransferOrderParams,
+  writeTransferOrderParams,
+  type TransferOrderUrlFilters,
+} from './orderListUrlParams';
 
 const TR_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
@@ -66,18 +75,11 @@ const LOCATION_TYPE_OPTIONS: { value: TransferLocationTypeFilter; label: string 
 
 const TransferOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [factoryFilter, setFactoryFilter] = useState<string>('all');
-  const [sourceTypeFilter, setSourceTypeFilter] = useState<TransferLocationTypeFilter>('all');
-  const [destinationTypeFilter, setDestinationTypeFilter] =
-    useState<TransferLocationTypeFilter>('all');
-  const [showCompleteOrders, setShowCompleteOrders] = useState(false);
-  const [filtersBarOpen, setFiltersBarOpen] = useState(false);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
+    hasActiveListFilters(new URLSearchParams(window.location.search), 'transfer')
+  );
 
   const { data: orders = [], isLoading } = useGetTransferOrdersQuery({
     skip: 0,
@@ -105,6 +107,34 @@ const TransferOrdersPage: React.FC = () => {
   });
   const [deleteOrder] = useDeleteTransferOrderMutation();
 
+  const trStatusOptions = useMemo(() => statusesForTrWorkflowFilter(statuses), [statuses]);
+
+  const urlFilters = useMemo(
+    () => parseTransferOrderParams(searchParams, trStatusOptions),
+    [searchParams, trStatusOptions]
+  );
+
+  const {
+    dateRange,
+    statusFilters,
+    factoryFilter,
+    sourceTypeFilter,
+    destinationTypeFilter,
+    searchQuery,
+    showCompleteOrders,
+  } = urlFilters;
+
+  const commitTransferFilters = useCallback(
+    (patch: Partial<TransferOrderUrlFilters>) => {
+      setSearchParams(
+        (prev) =>
+          writeTransferOrderParams(prev, { ...urlFilters, ...patch }, trStatusOptions),
+        { replace: true }
+      );
+    },
+    [setSearchParams, urlFilters, trStatusOptions]
+  );
+
   const resolutionMaps = useMemo(
     () => ({
       machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
@@ -122,7 +152,7 @@ const TransferOrdersPage: React.FC = () => {
     () => ({
       from: dateRange.from,
       to: dateRange.to,
-      statusId: statusFilter,
+      statusIds: statusFilters,
       factoryId: factoryFilter,
       sourceType: sourceTypeFilter,
       destinationType: destinationTypeFilter,
@@ -132,7 +162,7 @@ const TransferOrdersPage: React.FC = () => {
     [
       dateRange.from,
       dateRange.to,
-      statusFilter,
+      statusFilters,
       factoryFilter,
       sourceTypeFilter,
       destinationTypeFilter,
@@ -199,7 +229,7 @@ const TransferOrdersPage: React.FC = () => {
   const hasActiveFilters =
     dateRange.from != null ||
     dateRange.to != null ||
-    statusFilter !== 'all' ||
+    statusFilters.length > 0 ||
     factoryFilter !== 'all' ||
     sourceTypeFilter !== 'all' ||
     destinationTypeFilter !== 'all' ||
@@ -208,7 +238,7 @@ const TransferOrdersPage: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilter !== 'all') count += 1;
+    if (statusFilters.length > 0) count += 1;
     if (factoryFilter !== 'all') count += 1;
     if (sourceTypeFilter !== 'all') count += 1;
     if (destinationTypeFilter !== 'all') count += 1;
@@ -216,18 +246,14 @@ const TransferOrdersPage: React.FC = () => {
   }, [
     dateRange.from,
     dateRange.to,
-    statusFilter,
+    statusFilters,
     factoryFilter,
     sourceTypeFilter,
     destinationTypeFilter,
   ]);
 
   const clearFilters = () => {
-    setDateRange({});
-    setStatusFilter('all');
-    setFactoryFilter('all');
-    setSourceTypeFilter('all');
-    setDestinationTypeFilter('all');
+    setSearchParams((prev) => clearTransferOrderFilterParams(prev), { replace: true });
   };
 
   const handleDelete = async (o: TransferOrder) => {
@@ -294,7 +320,7 @@ const TransferOrdersPage: React.FC = () => {
                   type="text"
                   placeholder="Search by TR# or route..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => commitTransferFilters({ searchQuery: e.target.value })}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
@@ -338,27 +364,25 @@ const TransferOrdersPage: React.FC = () => {
                 <Calendar
                   mode="range"
                   selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
+                  onSelect={(r) =>
+                    commitTransferFilters({ dateRange: { from: r?.from, to: r?.to } })
+                  }
                   numberOfMonths={2}
                 />
               </PopoverContent>
             </Popover>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {statuses.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <OrderStatusMultiFilter
+              options={trStatusOptions}
+              selectedIds={statusFilters}
+              onChange={(selectedIds) => commitTransferFilters({ statusFilters: selectedIds })}
+              triggerClassName="w-[160px]"
+            />
 
-            <Select value={factoryFilter} onValueChange={setFactoryFilter}>
+            <Select
+              value={factoryFilter}
+              onValueChange={(value) => commitTransferFilters({ factoryFilter: value })}
+            >
               <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
                 <SelectValue placeholder="Factory" />
               </SelectTrigger>
@@ -374,7 +398,9 @@ const TransferOrdersPage: React.FC = () => {
 
             <Select
               value={sourceTypeFilter}
-              onValueChange={(v) => setSourceTypeFilter(v as TransferLocationTypeFilter)}
+              onValueChange={(v) =>
+                commitTransferFilters({ sourceTypeFilter: v as TransferLocationTypeFilter })
+              }
             >
               <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
                 <SelectValue placeholder="Source" />
@@ -390,7 +416,9 @@ const TransferOrdersPage: React.FC = () => {
 
             <Select
               value={destinationTypeFilter}
-              onValueChange={(v) => setDestinationTypeFilter(v as TransferLocationTypeFilter)}
+              onValueChange={(v) =>
+                commitTransferFilters({ destinationTypeFilter: v as TransferLocationTypeFilter })
+              }
             >
               <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
                 <SelectValue placeholder="All destinations">
@@ -413,7 +441,9 @@ const TransferOrdersPage: React.FC = () => {
                 <Switch
                   id="tr-show-complete-filters"
                   checked={showCompleteOrders}
-                  onCheckedChange={setShowCompleteOrders}
+                  onCheckedChange={(value) =>
+                    commitTransferFilters({ showCompleteOrders: value })
+                  }
                   aria-label="Show complete orders"
                 />
                 <Label
@@ -450,7 +480,9 @@ const TransferOrdersPage: React.FC = () => {
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
             showCompleteOrders={showCompleteOrders}
-            onShowCompleteOrdersChange={setShowCompleteOrders}
+            onShowCompleteOrdersChange={(value) =>
+              commitTransferFilters({ showCompleteOrders: value })
+            }
             hasHiddenCompleteOrders={hasHiddenCompleteOrders}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}

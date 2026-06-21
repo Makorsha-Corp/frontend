@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, LayoutDashboard, Loader2 } from 'lucide-react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
@@ -16,14 +16,9 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import OrdersOverviewKpiSection from '@/components/newcomponents/customui/orders/overview/OrdersOverviewKpiSection';
-import { OrdersOverviewKpiHeaderInline } from '@/components/newcomponents/customui/orders/overview/variants/kpi/KpiHeaderInline';
-import OrdersOverviewTopSection from '@/components/newcomponents/customui/orders/overview/OrdersOverviewTopSection';
+import HubTypeCards from '@/components/newcomponents/customui/orders/overview/variants/hubs/HubTypeCards';
 import OrdersOverviewPageBody from '@/components/newcomponents/customui/orders/overview/OrdersOverviewPageBody';
-import OrdersOverviewLayoutPreview from '@/components/newcomponents/customui/orders/overview/OrdersOverviewLayoutPreview';
-import { isStandaloneKpiStyle } from '@/components/newcomponents/customui/orders/overview/ordersOverviewLayoutModes';
 import { useOrdersOverviewPage } from './useOrdersOverviewPage';
-import { useOrdersOverviewLayoutPreview } from './useOrdersOverviewLayoutPreview';
 
 const OrdersOverviewPage: React.FC = () => {
   const {
@@ -40,50 +35,17 @@ const OrdersOverviewPage: React.FC = () => {
     loadError,
     salesMayTruncate,
     countsByType,
-    statusBreakdown,
     ordersOverTime,
-    stats,
     totalOrdersCount,
     filteredRecentOrders,
     apiStats,
   } = useOrdersOverviewPage();
 
-  const {
-    layout,
-    setKpiStyle,
-    setTypeNavStyle,
-    setPageStructure,
-    setStatusDisplayStyle,
-    setFactoryDisplayStyle,
-    resetLayout,
-  } = useOrdersOverviewLayoutPreview();
-
-  const kpiProps = { stats, totalOrdersCount, isLoading };
-  const showHeaderInlineKpi = layout.kpiStyle === 'header-inline';
-  const showStandaloneKpi = isStandaloneKpiStyle(layout.kpiStyle);
-  const showFilterCounts = layout.statusDisplayStyle === 'filter-counts';
-  const showFactoryHighlight = factoryFilter === 'all';
-  const showFactoryPanel =
-    layout.factoryDisplayStyle === 'panel' && showFactoryHighlight;
+  const showFactoryPanel = factoryFilter === 'all';
 
   const handleFactorySelect = (factoryId: string) => {
     setFactoryFilter(factoryId === factoryFilter ? 'all' : factoryId);
   };
-
-  const statusCountByLabel = useMemo(
-    () => new Map(statusBreakdown.map((s) => [s.status, s.count])),
-    [statusBreakdown]
-  );
-
-  const formatStatusLabel = (name: string) => {
-    if (!showFilterCounts) return name;
-    const count = statusCountByLabel.get(name);
-    return count != null ? `${name} (${count})` : name;
-  };
-
-  const allStatusesLabel = showFilterCounts
-    ? `All statuses (${totalOrdersCount})`
-    : 'All statuses';
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -101,7 +63,6 @@ const OrdersOverviewPage: React.FC = () => {
                     Orders Overview
                   </h1>
                 </div>
-                {showHeaderInlineKpi ? <OrdersOverviewKpiHeaderInline {...kpiProps} /> : null}
               </div>
               <div className="hidden h-6 w-px bg-border sm:block self-center" />
               <Select value={factoryFilter} onValueChange={setFactoryFilter}>
@@ -119,15 +80,6 @@ const OrdersOverviewPage: React.FC = () => {
               </Select>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <OrdersOverviewLayoutPreview
-                layout={layout}
-                onKpiStyleChange={setKpiStyle}
-                onTypeNavStyleChange={setTypeNavStyle}
-                onPageStructureChange={setPageStructure}
-                onStatusDisplayStyleChange={setStatusDisplayStyle}
-                onFactoryDisplayStyleChange={setFactoryDisplayStyle}
-                onReset={resetLayout}
-              />
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -163,10 +115,10 @@ const OrdersOverviewPage: React.FC = () => {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{allStatusesLabel}</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   {statusOptions.map((name) => (
                     <SelectItem key={name} value={name}>
-                      {formatStatusLabel(name)}
+                      {name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -182,25 +134,7 @@ const OrdersOverviewPage: React.FC = () => {
             </p>
           )}
 
-          <OrdersOverviewTopSection
-            kpiStyle={layout.kpiStyle}
-            typeNavStyle={layout.typeNavStyle}
-            statusDisplayStyle={layout.statusDisplayStyle}
-            factoryDisplayStyle={layout.factoryDisplayStyle}
-            countsByType={countsByType}
-            statusBreakdown={statusBreakdown}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            topFactories={apiStats.top_factories}
-            factoryFilter={factoryFilter}
-            onFactoryFilterChange={setFactoryFilter}
-            showFactoryHighlight={showFactoryHighlight}
-            {...kpiProps}
-          />
-
-          {showStandaloneKpi ? (
-            <OrdersOverviewKpiSection kpiStyle={layout.kpiStyle} {...kpiProps} />
-          ) : null}
+          <HubTypeCards countsByType={countsByType} />
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -209,17 +143,12 @@ const OrdersOverviewPage: React.FC = () => {
             </div>
           ) : (
             <OrdersOverviewPageBody
-              pageStructure={layout.pageStructure}
-              kpiStyle={layout.kpiStyle}
-              statusDisplayStyle={layout.statusDisplayStyle}
               showFactoryPanel={showFactoryPanel}
               onFactorySelect={handleFactorySelect}
-              stats={stats}
               isLoading={isLoading}
               loadStats={loadStats}
               salesMayTruncate={salesMayTruncate}
               countsByType={countsByType}
-              statusBreakdown={statusBreakdown}
               ordersOverTime={ordersOverTime}
               totalOrdersCount={totalOrdersCount}
               filteredRecentOrders={filteredRecentOrders}

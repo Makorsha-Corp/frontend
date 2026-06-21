@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
@@ -50,6 +50,15 @@ import {
   type DestinationTypeFilter,
   type InvoiceFilter,
 } from './purchaseOrdersOverviewData';
+import { statusesForPoWorkflowFilter } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
+import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
+import {
+  clearPurchaseOrderFilterParams,
+  hasActiveListFilters,
+  parsePurchaseOrderParams,
+  writePurchaseOrderParams,
+  type PurchaseOrderUrlFilters,
+} from './orderListUrlParams';
 const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
 const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
@@ -61,18 +70,11 @@ const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
 
 const PurchaseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [accountFilter, setAccountFilter] = useState<string>('all');
-  const [factoryFilter, setFactoryFilter] = useState<string>('all');
-  const [destinationFilter, setDestinationFilter] = useState<DestinationTypeFilter>('all');
-  const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>('all');
-  const [showCompleteOrders, setShowCompleteOrders] = useState(false);
-  const [filtersBarOpen, setFiltersBarOpen] = useState(false);
+  const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
+    hasActiveListFilters(new URLSearchParams(window.location.search), 'purchase')
+  );
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,
     limit: PO_LIST_LIMIT,
@@ -105,6 +107,35 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
 
+  const poStatusOptions = useMemo(() => statusesForPoWorkflowFilter(statuses), [statuses]);
+
+  const urlFilters = useMemo(
+    () => parsePurchaseOrderParams(searchParams, poStatusOptions),
+    [searchParams, poStatusOptions]
+  );
+
+  const {
+    dateRange,
+    statusFilters,
+    accountFilter,
+    factoryFilter,
+    destinationFilter,
+    invoiceFilter,
+    searchQuery,
+    showCompleteOrders,
+  } = urlFilters;
+
+  const commitPurchaseFilters = useCallback(
+    (patch: Partial<PurchaseOrderUrlFilters>) => {
+      setSearchParams(
+        (prev) =>
+          writePurchaseOrderParams(prev, { ...urlFilters, ...patch }, poStatusOptions),
+        { replace: true }
+      );
+    },
+    [setSearchParams, urlFilters, poStatusOptions]
+  );
+
   const resolutionMaps = useMemo(
     () => ({
       machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
@@ -117,7 +148,7 @@ const PurchaseOrdersPage: React.FC = () => {
     () => ({
       from: dateRange.from,
       to: dateRange.to,
-      statusId: statusFilter,
+      statusIds: statusFilters,
       accountId: accountFilter,
       factoryId: factoryFilter,
       destinationType: destinationFilter,
@@ -128,7 +159,7 @@ const PurchaseOrdersPage: React.FC = () => {
     [
       dateRange.from,
       dateRange.to,
-      statusFilter,
+      statusFilters,
       accountFilter,
       factoryFilter,
       destinationFilter,
@@ -220,7 +251,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const hasActiveFilters =
     dateRange.from != null ||
     dateRange.to != null ||
-    statusFilter !== 'all' ||
+    statusFilters.length > 0 ||
     accountFilter !== 'all' ||
     factoryFilter !== 'all' ||
     destinationFilter !== 'all' ||
@@ -230,7 +261,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilter !== 'all') count += 1;
+    if (statusFilters.length > 0) count += 1;
     if (accountFilter !== 'all') count += 1;
     if (factoryFilter !== 'all') count += 1;
     if (destinationFilter !== 'all') count += 1;
@@ -239,7 +270,7 @@ const PurchaseOrdersPage: React.FC = () => {
   }, [
     dateRange.from,
     dateRange.to,
-    statusFilter,
+    statusFilters,
     accountFilter,
     factoryFilter,
     destinationFilter,
@@ -247,12 +278,7 @@ const PurchaseOrdersPage: React.FC = () => {
   ]);
 
   const clearFilters = () => {
-    setDateRange({});
-    setStatusFilter('all');
-    setAccountFilter('all');
-    setFactoryFilter('all');
-    setDestinationFilter('all');
-    setInvoiceFilter('all');
+    setSearchParams((prev) => clearPurchaseOrderFilterParams(prev), { replace: true });
   };
 
   const handleDelete = async (o: PurchaseOrder) => {
@@ -319,7 +345,7 @@ const PurchaseOrdersPage: React.FC = () => {
                   type="text"
                   placeholder="Search by PO# or supplier..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => commitPurchaseFilters({ searchQuery: e.target.value })}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
@@ -364,27 +390,25 @@ const PurchaseOrdersPage: React.FC = () => {
               <Calendar
                 mode="range"
                 selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
+                onSelect={(r) =>
+                  commitPurchaseFilters({ dateRange: { from: r?.from, to: r?.to } })
+                }
                 numberOfMonths={2}
               />
             </PopoverContent>
           </Popover>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className={`w-[140px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <OrderStatusMultiFilter
+            options={poStatusOptions}
+            selectedIds={statusFilters}
+            onChange={(selectedIds) => commitPurchaseFilters({ statusFilters: selectedIds })}
+            triggerClassName="w-[160px]"
+          />
 
-          <Select value={accountFilter} onValueChange={setAccountFilter}>
+          <Select
+            value={accountFilter}
+            onValueChange={(value) => commitPurchaseFilters({ accountFilter: value })}
+          >
             <SelectTrigger className={`w-[160px] h-9 border-border bg-background text-sm`}>
               <SelectValue placeholder="Supplier" />
             </SelectTrigger>
@@ -398,7 +422,10 @@ const PurchaseOrdersPage: React.FC = () => {
             </SelectContent>
           </Select>
 
-          <Select value={factoryFilter} onValueChange={setFactoryFilter}>
+          <Select
+            value={factoryFilter}
+            onValueChange={(value) => commitPurchaseFilters({ factoryFilter: value })}
+          >
             <SelectTrigger className={`w-[140px] h-9 border-border bg-background text-sm`}>
               <SelectValue placeholder="Factory" />
             </SelectTrigger>
@@ -414,7 +441,9 @@ const PurchaseOrdersPage: React.FC = () => {
 
           <Select
             value={destinationFilter}
-            onValueChange={(v) => setDestinationFilter(v as DestinationTypeFilter)}
+            onValueChange={(v) =>
+              commitPurchaseFilters({ destinationFilter: v as DestinationTypeFilter })
+            }
           >
             <SelectTrigger className={`w-[150px] h-9 border-border bg-background text-sm`}>
               <SelectValue placeholder="All destinations">
@@ -429,7 +458,10 @@ const PurchaseOrdersPage: React.FC = () => {
             </SelectContent>
           </Select>
 
-          <Select value={invoiceFilter} onValueChange={(v) => setInvoiceFilter(v as InvoiceFilter)}>
+          <Select
+            value={invoiceFilter}
+            onValueChange={(v) => commitPurchaseFilters({ invoiceFilter: v as InvoiceFilter })}
+          >
             <SelectTrigger className={`w-[130px] h-9 border-border bg-background text-sm`}>
               <SelectValue placeholder="Invoice" />
             </SelectTrigger>
@@ -445,7 +477,7 @@ const PurchaseOrdersPage: React.FC = () => {
               <Switch
                 id="po-show-complete-filters"
                 checked={showCompleteOrders}
-                onCheckedChange={setShowCompleteOrders}
+                onCheckedChange={(value) => commitPurchaseFilters({ showCompleteOrders: value })}
                 aria-label="Show complete orders"
               />
               <Label
@@ -485,7 +517,9 @@ const PurchaseOrdersPage: React.FC = () => {
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
             showCompleteOrders={showCompleteOrders}
-            onShowCompleteOrdersChange={setShowCompleteOrders}
+            onShowCompleteOrdersChange={(value) =>
+              commitPurchaseFilters({ showCompleteOrders: value })
+            }
             hasHiddenCompleteOrders={hasHiddenCompleteOrders}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}

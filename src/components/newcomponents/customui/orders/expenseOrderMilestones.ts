@@ -1,5 +1,6 @@
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { ExpenseApprovalSummary } from '@/types/expenseOrder';
+import type { Status } from '@/types/status';
 
 export type EoScrollSection = 'details' | 'items' | 'approvals' | 'invoice';
 
@@ -7,6 +8,14 @@ export type EoChecklistPhase = 'prepare' | 'approval' | 'invoice' | 'mark_comple
 
 export const EO_STAGE_NAMES = ['Draft', 'Approved', 'Invoiced', 'Complete'] as const;
 export type EoStageName = (typeof EO_STAGE_NAMES)[number];
+
+export function statusesForEoWorkflowFilter(statuses: Status[]): Status[] {
+  const byName = new Map(statuses.map((s) => [s.name, s]));
+  return EO_STAGE_NAMES.flatMap((name) => {
+    const row = byName.get(name);
+    return row ? [row] : [];
+  });
+}
 
 export interface EoSectionConfirmState {
   details_confirmed: boolean;
