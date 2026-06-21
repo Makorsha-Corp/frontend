@@ -323,31 +323,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const orderFieldsBlock = (
     <div className="grid gap-4 min-w-0">
       <div>
-        <Label>Supplier</Label>
-        <AccountSelectSummaryButton
-          onClick={() => setAccountPickerOpen(true)}
-          ariaLabel={
-            accountId
-              ? `Change supplier. Current account ID ${accountId}`
-              : 'Select supplier'
-          }
-          selectedLine={accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null}
-          staleNumericId={accountId || null}
-        />
-        <AccountSelectorDialog
-          open={accountPickerOpen}
-          onOpenChange={setAccountPickerOpen}
-          title="Select supplier"
-          description="Search and pick the supplier account for this purchase order."
-          selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
-          onSelect={(account) => {
-            if (!account) return;
-            setAccountId(String(account.id));
-          }}
-        />
-      </div>
-      <div>
-        <Label>Destination type</Label>
+        <Label>Destination type *</Label>
         <Select
           value={destinationType}
           onValueChange={(v) => {
@@ -420,6 +396,30 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           />
         </div>
       )}
+      <div>
+        <Label>Supplier</Label>
+        <AccountSelectSummaryButton
+          onClick={() => setAccountPickerOpen(true)}
+          ariaLabel={
+            accountId
+              ? `Change supplier. Current account ID ${accountId}`
+              : 'Select supplier'
+          }
+          selectedLine={accounts.find((a) => a.id === parseInt(accountId, 10))?.name || null}
+          staleNumericId={accountId || null}
+        />
+        <AccountSelectorDialog
+          open={accountPickerOpen}
+          onOpenChange={setAccountPickerOpen}
+          title="Select supplier"
+          description="Search and pick the supplier account for this purchase order."
+          selectedAccountId={accountId ? parseInt(accountId, 10) : undefined}
+          onSelect={(account) => {
+            if (!account) return;
+            setAccountId(String(account.id));
+          }}
+        />
+      </div>
       <div>
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
