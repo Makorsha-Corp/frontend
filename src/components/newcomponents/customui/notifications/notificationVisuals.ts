@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  AtSign,
   Bell,
   ClipboardCheck,
   FileText,
@@ -25,7 +26,8 @@ const KIND_VISUALS: Record<NotificationKind, Omit<NotificationVisual, 'colorClas
   low_stock: { icon: Package, wrapClass: 'bg-destructive/10', severity: 'urgent' },
   project_update: { icon: FolderKanban, wrapClass: 'bg-muted', severity: 'info' },
   maintenance: { icon: Wrench, wrapClass: 'bg-muted', severity: 'action' },
-  system: { icon: Bell, wrapClass: 'bg-muted', severity: 'info' },
+  system:  { icon: Bell,    wrapClass: 'bg-muted',             severity: 'info'   },
+  mention: { icon: AtSign,  wrapClass: 'bg-blue-500/10',       severity: 'info'   },
 };
 
 const SEVERITY_COLORS: Record<NotificationSeverity, string> = {

@@ -9,6 +9,40 @@ import {
   type NotificationFilter,
   type NotificationPreferences,
 } from './notificationTypes';
+import {
+  useGetNotificationsQuery,
+  useMarkNotificationsReadMutation,
+} from '@/features/notifications/notificationsApi';
+import type { BackendNotification } from '@/types/notification';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function entityTypeToHref(entityType: string, entityId: number): string {
+  switch (entityType) {
+    case 'purchase_order':    return `/orders/purchase?orderId=${entityId}`;
+    case 'transfer_order':    return `/orders/transfer?orderId=${entityId}`;
+    case 'expense_order':     return `/orders/expense?orderId=${entityId}`;
+    case 'work_order':        return `/orders/work?orderId=${entityId}`;
+    case 'sales_order':       return `/orders/sales?orderId=${entityId}`;
+    case 'project':           return `/projects?projectId=${entityId}`;
+    case 'project_component': return `/projects?componentId=${entityId}`;
+    case 'machine':           return `/machines?machineId=${entityId}`;
+    default:                  return '/';
+  }
+}
+
+function transformBackendNotification(n: BackendNotification): AppNotification {
+  return {
+    id: `api_${n.id}`,
+    kind: 'mention',
+    severity: 'info',
+    title: `${n.actor?.name ?? 'Someone'} mentioned you`,
+    body: n.preview ?? '',
+    href: entityTypeToHref(n.entity_type, n.entity_id),
+    createdAt: n.created_at,
+    entityRef: `${n.entity_type}:${n.entity_id}`,
+  };
+}
 
 export const READ_IDS_KEY = 'erp-notification-read-ids';
 export const DISMISSED_IDS_KEY = 'erp-notification-dismissed-ids';
@@ -75,21 +109,47 @@ export function useNotificationCenter(): NotificationCenterState {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>('all');
 
-  const notifications = useMemo(
+  // Backend mention notifications (polled every 60 s)
+  const { data: backendData } = useGetNotificationsQuery({}, { pollingInterval: 60_000 });
+  const [markBackendRead] = useMarkNotificationsReadMutation();
+
+  const backendNotifications = useMemo<AppNotification[]>(
+    () => (backendData?.items ?? []).map(transformBackendNotification),
+    [backendData]
+  );
+
+  const mockNotifications = useMemo(
     () =>
       MOCK_NOTIFICATIONS.filter((n) => {
         if (dismissedIds.has(n.id)) return false;
         const prefKey = preferenceKeyForKind(n.kind);
         return preferences[prefKey];
-      }).sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()),
+      }),
     [dismissedIds, preferences]
   );
 
-  const isRead = useCallback((id: string) => readIds.has(id), [readIds]);
+  const notifications = useMemo(
+    () =>
+      [...backendNotifications, ...mockNotifications].sort(
+        (a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()
+      ),
+    [backendNotifications, mockNotifications]
+  );
+
+  const isRead = useCallback(
+    (id: string) => {
+      if (id.startsWith('api_')) {
+        const numId = parseInt(id.replace('api_', ''), 10);
+        return backendData?.items.find((n) => n.id === numId)?.is_read ?? false;
+      }
+      return readIds.has(id);
+    },
+    [readIds, backendData]
+  );
 
   const unreadNotifications = useMemo(
-    () => notifications.filter((n) => !readIds.has(n.id)),
-    [notifications, readIds]
+    () => notifications.filter((n) => !isRead(n.id)),
+    [notifications, isRead]
   );
 
   const unreadCount = unreadNotifications.length;
@@ -111,13 +171,18 @@ export function useNotificationCenter(): NotificationCenterState {
   }, [notifications, readIds]);
 
   const markRead = useCallback((id: string) => {
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      saveStringSet(READ_IDS_KEY, next);
-      return next;
-    });
-  }, []);
+    if (id.startsWith('api_')) {
+      const numId = parseInt(id.replace('api_', ''), 10);
+      markBackendRead({ ids: [numId] });
+    } else {
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        saveStringSet(READ_IDS_KEY, next);
+        return next;
+      });
+    }
+  }, [markBackendRead]);
 
   const markUnread = useCallback((id: string) => {
     setReadIds((prev) => {
@@ -137,13 +202,18 @@ export function useNotificationCenter(): NotificationCenterState {
   );
 
   const markAllRead = useCallback(() => {
+    // Mark backend notifications via API
+    if (backendData?.unread_count) {
+      markBackendRead({ ids: null });
+    }
+    // Mark mock notifications via localStorage
     setReadIds((prev) => {
       const next = new Set(prev);
-      for (const n of notifications) next.add(n.id);
+      for (const n of mockNotifications) next.add(n.id);
       saveStringSet(READ_IDS_KEY, next);
       return next;
     });
-  }, [notifications]);
+  }, [backendData, markBackendRead, mockNotifications]);
 
   const dismiss = useCallback((id: string) => {
     setDismissedIds((prev) => {

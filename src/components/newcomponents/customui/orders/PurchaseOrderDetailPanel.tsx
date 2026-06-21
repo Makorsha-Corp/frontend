@@ -55,6 +55,7 @@ import PoEditOrderItemsButton from './PoEditOrderItemsButton';
 import EditPurchaseOrderItemsDialog from './EditPurchaseOrderItemsDialog';
 import PoEventLogRow from './PoEventLogRow';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
+import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import {
   canConfirmPurchaseOrderSection,
   canConfirmPoInvoice,
@@ -1302,28 +1303,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           onHighlightDismiss={dismissScrollHighlight}
         />
 
-        {/* Comments — placeholder */}
-        <Card>
-          <CardHeader className="pb-4 shrink-0">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              Comments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 pt-0">
-            <div className="rounded-lg border border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
-              <MessageSquare className="h-6 w-6 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-muted-foreground">No comments yet</p>
-              <p className="text-xs text-muted-foreground">Comment thread coming soon</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input placeholder="Write a comment..." disabled className="flex-1" />
-              <Button size="icon" disabled className="shrink-0">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <DiscussionThread entityType="purchase_order" entityId={order.id} />
 
         {/* Event Log (WIRED) */}
         <Card className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden">

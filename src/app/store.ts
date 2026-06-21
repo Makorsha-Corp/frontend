@@ -35,6 +35,8 @@ import { expenseOrdersApi } from '@/features/expenseOrders/expenseOrdersApi';
 import { orderTemplatesApi } from '@/features/orderTemplates/orderTemplatesApi';
 import { statusesApi } from '@/features/statuses/statusesApi';
 import { ordersOverviewApi } from '@/features/orders/ordersOverviewApi';
+import { discussionsApi } from '@/features/discussions/discussionsApi';
+import { notificationsApi } from '@/features/notifications/notificationsApi';
 
 export const store = configureStore({
   reducer: {
@@ -73,6 +75,8 @@ export const store = configureStore({
     [orderTemplatesApi.reducerPath]: orderTemplatesApi.reducer,
     [statusesApi.reducerPath]: statusesApi.reducer,
     [ordersOverviewApi.reducerPath]: ordersOverviewApi.reducer,
+    [discussionsApi.reducerPath]: discussionsApi.reducer,
+    [notificationsApi.reducerPath]: notificationsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -110,6 +114,8 @@ export const store = configureStore({
       orderTemplatesApi.middleware,
       statusesApi.middleware,
       ordersOverviewApi.middleware,
+      discussionsApi.middleware,
+      notificationsApi.middleware,
     ),
 });
 

@@ -6,7 +6,8 @@ export type NotificationKind =
   | 'low_stock'
   | 'project_update'
   | 'maintenance'
-  | 'system';
+  | 'system'
+  | 'mention';
 
 export type NotificationSeverity = 'urgent' | 'action' | 'info';
 
@@ -53,6 +54,8 @@ export const ALERT_KINDS: NotificationKind[] = [
   'maintenance',
   'system',
 ];
+
+export const MENTION_KINDS: NotificationKind[] = ['mention'];
 
 export function kindMatchesFilter(kind: NotificationKind, filter: NotificationFilter): boolean {
   if (filter === 'all' || filter === 'unread') return true;
