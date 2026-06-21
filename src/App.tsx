@@ -30,7 +30,6 @@ import { ThemeProvider } from "./context/ThemeContext";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
 import BusinessLensWizardPage from "./pages/newpages/BusinessLensWizardPage";
 import ManagementPage from "./pages/newpages/ManagementPage";
-import ApiTestPage from "./pages/ApiTestPage";
 import RequireAuth from "./components/newcomponents/customui/RequireAuth";
 import RequireWorkspace from "./components/newcomponents/customui/RequireWorkspace";
 
@@ -48,7 +47,6 @@ const App: React.FC = () => {
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<LoginPage />} />
-            <Route path="/api-test" element={<ApiTestPage />} />
 
             {/* Requires auth, no workspace needed */}
             <Route element={<RequireAuth />}>
