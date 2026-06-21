@@ -5,7 +5,7 @@ import { NotificationCenterProvider } from '@/components/newcomponents/customui/
 
 const RequireWorkspace: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, workspace } = useAppSelector((state) => state.auth);
-  if (!isAuthenticated) return <Navigate to="/login2" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!workspace) return <Navigate to="/workspace-selector" replace />;
   return (
     <NotificationCenterProvider>

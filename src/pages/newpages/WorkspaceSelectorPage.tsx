@@ -72,7 +72,7 @@ const WorkspaceSelectorPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !token) {
-      navigate('/login2');
+      navigate('/login');
     }
   }, [isAuthenticated, token, navigate]);
 
@@ -124,7 +124,7 @@ const WorkspaceSelectorPage: React.FC = () => {
       dispatch(logout());
     }
     toast.success('Signed out');
-    navigate('/login2');
+    navigate('/login');
   };
 
   const handleWorkspaceSelect = () => {

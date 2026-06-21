@@ -23,7 +23,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, pageKey }) => {
   // basic auth gates
   useEffect(() => {
     if (loading) return;
-    if (!session) { navigate("/login2"); return; }
+    if (!session) { navigate("/login"); return; }
     if (!profile) { navigate("/profileNotFound"); return; }
   }, [loading, session, profile, navigate]);
 

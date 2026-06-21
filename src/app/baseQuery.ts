@@ -6,7 +6,7 @@
  * so a single 401 anywhere triggers exactly one refresh, all concurrent
  * requests queue on that refresh, and the original requests are retried
  * with the new access token. If the refresh fails the user is logged out
- * and redirected to `/login2?expired=1` so we never leave them stuck in a
+ * and redirected to `/login?expired=1` so we never leave them stuck in a
  * silent dead-app state.
  *
  * Auth flow contract (must match backend `/auth/refresh/`):
@@ -92,7 +92,7 @@ function bailOut(api: BaseQueryApi): void {
   if (typeof window !== 'undefined') {
     const path = window.location.pathname;
     if (!path.startsWith('/login') && !path.startsWith('/register')) {
-      window.location.href = '/login2?expired=1';
+      window.location.href = '/login?expired=1';
     }
   }
 }

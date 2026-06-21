@@ -15,8 +15,9 @@ import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
 import type { Machine } from '@/types/machine';
 import type { FactorySection } from '@/types/factorySection';
 import type { Project } from '@/types/project';
-import type { PurchaseOrder } from '@/types/purchaseOrder';
-import type { ExpenseOrder } from '@/types/expenseOrder';
+import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
+import { TR_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
+import { EO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 
 export type OverviewOrderKind = 'purchase' | 'transfer' | 'expense' | 'sales' | 'work';
 
@@ -198,6 +199,39 @@ export function isCompletedStatusLabel(label: string): boolean {
   return /\b(complete|completed|closed|paid|received|delivered|fulfilled|done|cancelled|canceled)\b/.test(n);
 }
 
+const OPEN_STATUS_NAMES_BY_KIND: Record<OverviewOrderKind, readonly string[]> = {
+  purchase: PO_SCOPE_OPEN_STATUS_NAMES,
+  transfer: TR_SCOPE_OPEN_STATUS_NAMES,
+  expense: EO_SCOPE_OPEN_STATUS_NAMES,
+  sales: [],
+  work: [],
+};
+
+function isDraftStatusLabel(order: OverviewOrder): boolean {
+  const n = order.statusLabel.trim().toLowerCase();
+  if (n === 'draft') return true;
+  if (order.kind === 'work' && order.workStatus === 'PENDING_APPROVAL') return true;
+  if ((order.kind === 'sales' || order.kind === 'work') && n === 'pending') return true;
+  if (order.kind === 'work' && n === 'pending approval') return true;
+  return false;
+}
+
+export type OverviewOrderCountBucket = 'draft' | 'open' | 'complete';
+
+/** Classify an overview order for hub draft/open pill counts. */
+export function classifyOverviewOrderCounts(order: OverviewOrder): OverviewOrderCountBucket {
+  if (isCompletedStatusLabel(order.statusLabel)) return 'complete';
+  if (isDraftStatusLabel(order)) return 'draft';
+
+  const openNames = OPEN_STATUS_NAMES_BY_KIND[order.kind];
+  if (openNames.length > 0) {
+    return openNames.includes(order.statusLabel) ? 'open' : 'complete';
+  }
+
+  // Sales / work: non-draft, non-complete counts as open
+  return 'open';
+}
+
 /**
  * WIP heuristic: work orders in PENDING_APPROVAL; other types use workflow status name
  * "Pending" or "Draft" only (not substring match).
@@ -246,6 +280,7 @@ export interface CountsByTypeRow {
   type: string;
   count: number;
   value: number;
+  draftCount: number;
   openCount: number;
 }
 
@@ -261,8 +296,14 @@ export function aggregateCountsByType(orders: OverviewOrder[]): CountsByTypeRow[
   return kinds.map((kind) => {
     const subset = orders.filter((o) => o.kind === kind);
     const value = subset.reduce((s, o) => s + o.amount, 0);
-    const openCount = subset.filter((o) => !isCompletedStatusLabel(o.statusLabel)).length;
-    return { type: labels[kind], count: subset.length, value, openCount };
+    let draftCount = 0;
+    let openCount = 0;
+    for (const o of subset) {
+      const bucket = classifyOverviewOrderCounts(o);
+      if (bucket === 'draft') draftCount += 1;
+      else if (bucket === 'open') openCount += 1;
+    }
+    return { type: labels[kind], count: subset.length, value, draftCount, openCount };
   });
 }
 

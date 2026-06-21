@@ -1,6 +1,9 @@
 import { format, isValid, parseISO } from 'date-fns';
 import type { Status } from '@/types/status';
 import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
+import { TR_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
+import { EO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
+import type { OverviewOrderKind } from './ordersOverviewData';
 import type { DestinationTypeFilter, InvoiceFilter } from './purchaseOrdersOverviewData';
 import type { TransferLocationTypeFilter } from './transferOrdersOverviewData';
 
@@ -404,5 +407,59 @@ export function clearExpenseOrderFilterParams(prev: URLSearchParams): URLSearchP
 
 /** Hub deep link for purchase orders with open work in flight. */
 export function purchaseOrdersOpenHubSearch(): string {
-  return `status=${PO_SCOPE_OPEN_STATUS_NAMES.join(',')}`;
+  return statusSearchParam(PO_SCOPE_OPEN_STATUS_NAMES);
+}
+
+export const HUB_DRAFT_STATUS_NAME = 'Draft';
+
+export function statusSearchParam(names: readonly string[]): string {
+  return `status=${names.join(',')}`;
+}
+
+export function purchaseOrdersDraftHubSearch(): string {
+  return statusSearchParam([HUB_DRAFT_STATUS_NAME]);
+}
+
+export function transferOrdersDraftHubSearch(): string {
+  return statusSearchParam([HUB_DRAFT_STATUS_NAME]);
+}
+
+export function expenseOrdersDraftHubSearch(): string {
+  return statusSearchParam([HUB_DRAFT_STATUS_NAME]);
+}
+
+export function transferOrdersOpenHubSearch(): string {
+  return statusSearchParam(TR_SCOPE_OPEN_STATUS_NAMES);
+}
+
+export function expenseOrdersOpenHubSearch(): string {
+  return statusSearchParam(EO_SCOPE_OPEN_STATUS_NAMES);
+}
+
+/** URL search string for hub draft pill, or null when list page has no status URL sync. */
+export function hubDraftSearch(kind: OverviewOrderKind): string | null {
+  switch (kind) {
+    case 'purchase':
+      return purchaseOrdersDraftHubSearch();
+    case 'transfer':
+      return transferOrdersDraftHubSearch();
+    case 'expense':
+      return expenseOrdersDraftHubSearch();
+    default:
+      return null;
+  }
+}
+
+/** URL search string for hub open pill, or null when list page has no status URL sync. */
+export function hubOpenSearch(kind: OverviewOrderKind): string | null {
+  switch (kind) {
+    case 'purchase':
+      return purchaseOrdersOpenHubSearch();
+    case 'transfer':
+      return transferOrdersOpenHubSearch();
+    case 'expense':
+      return expenseOrdersOpenHubSearch();
+    default:
+      return null;
+  }
 }

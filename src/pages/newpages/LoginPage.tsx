@@ -184,7 +184,7 @@ const Login2Page: React.FC = () => {
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
 
-  // Already signed in: skip login (avoid redirect loop with "/" → /login2)
+  // Already signed in: skip login (avoid redirect loop with "/" → /login)
   useEffect(() => {
     if (!isAuthenticated) return;
     if (workspace) {
@@ -334,7 +334,7 @@ const Login2Page: React.FC = () => {
       <aside className="relative z-[1] flex min-h-0 flex-col overflow-hidden border-b border-border/35 bg-background/20 backdrop-blur-3xl backdrop-saturate-150 dark:border-border/50 dark:bg-background/5 dark:backdrop-saturate-100 lg:w-[min(100%,26rem)] xl:w-[30rem] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
         <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background px-5 py-4 sm:px-8">
           <Link
-            to="/login2"
+            to="/login"
             className="flex min-w-0 items-center gap-2.5 rounded-lg outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div
