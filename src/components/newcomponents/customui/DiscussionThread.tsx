@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { MessageSquare, Send, Reply, X, AtSign } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useSelector } from 'react-redux';
@@ -72,6 +72,8 @@ function toMentionKey(name: string) {
   return name.trim().replace(/\s+/g, '_');
 }
 
+const MAX_MENTION_SUGGESTIONS = 6;
+
 function MessageInput({
   entityType,
   entityId,
@@ -85,6 +87,7 @@ function MessageInput({
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionAnchorPos, setMentionAnchorPos] = useState<number | null>(null);
   const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [highlightedMentionIndex, setHighlightedMentionIndex] = useState(0);
   // key → userId  (e.g. "John_Doe" → 2)
   const [mentionMap, setMentionMap] = useState<Map<string, number>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +104,15 @@ function MessageInput({
       ),
     [members, mentionSearch]
   );
+
+  const visibleMembers = useMemo(
+    () => filteredMembers.slice(0, MAX_MENTION_SUGGESTIONS),
+    [filteredMembers]
+  );
+
+  useEffect(() => {
+    setHighlightedMentionIndex(0);
+  }, [mentionSearch, showMentionPicker, visibleMembers.length]);
 
   // Before submitting: replace @Key with @[userId] tokens the backend understands
   const resolveMessage = (text: string) =>
@@ -158,7 +170,30 @@ function MessageInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') { setShowMentionPicker(false); return; }
+    if (showMentionPicker && visibleMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedMentionIndex((i) => (i + 1) % visibleMembers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedMentionIndex(
+          (i) => (i - 1 + visibleMembers.length) % visibleMembers.length
+        );
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        selectMention(visibleMembers[highlightedMentionIndex]);
+        return;
+      }
+    }
+
+    if (e.key === 'Escape') {
+      setShowMentionPicker(false);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !showMentionPicker) {
       e.preventDefault();
       handleSend();
@@ -201,14 +236,21 @@ function MessageInput({
         </div>
       )}
 
-      {showMentionPicker && filteredMembers.length > 0 && (
+      {showMentionPicker && visibleMembers.length > 0 && (
         <div className="absolute bottom-full mb-1 left-0 z-20 w-56 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-          {filteredMembers.slice(0, 6).map((m) => (
+          {visibleMembers.map((m, index) => (
             <button
               key={m.user_id}
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"
-              onMouseDown={(e) => { e.preventDefault(); selectMention(m); }}
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-2 text-sm text-left',
+                index === highlightedMentionIndex ? 'bg-muted' : 'hover:bg-muted/70'
+              )}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectMention(m);
+              }}
+              onMouseEnter={() => setHighlightedMentionIndex(index)}
             >
               <MemberAvatar name={m.user_name ?? 'U'} />
               <span className="truncate">{m.user_name}</span>
