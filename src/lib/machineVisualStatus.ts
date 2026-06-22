@@ -1,40 +1,31 @@
-import type { Machine, MachineEvent, MachineEventType } from '@/types/machine';
+import type { Machine, MachineEventType } from '@/types/machine';
 
 /**
  * Visual bucket for machine tiles/cards (green / yellow / red).
- * Derived from `Machine.is_running` plus optional latest `MachineEvent`
+ * Derived from `Machine.is_running` plus optional `latest_status_type`
  * (MAINTENANCE is not represented by `is_running` alone).
  */
 export type MachineVisualKind = 'running' | 'maintenance' | 'stopped';
 
-export function getMachineVisualKind(
-  machine: Machine,
-  latestEvent?: MachineEvent | null | undefined
-): MachineVisualKind {
-  if (latestEvent?.event_type === 'MAINTENANCE') return 'maintenance';
+export function getMachineVisualKind(machine: Machine): MachineVisualKind {
+  if (machine.latest_status_type === 'MAINTENANCE') return 'maintenance';
   if (machine.is_running) return 'running';
   return 'stopped';
 }
 
 /** User-facing label for the current operational state. */
-export function getMachineStatusLabel(
-  machine: Machine,
-  latestEvent?: MachineEvent | null | undefined
-): string {
-  if (latestEvent?.event_type === 'MAINTENANCE') return 'Maintenance';
+export function getMachineStatusLabel(machine: Machine): string {
+  if (machine.latest_status_type === 'MAINTENANCE') return 'Maintenance';
   if (machine.is_running) return 'Running';
-  if (latestEvent?.event_type === 'IDLE') return 'Idle';
-  if (latestEvent?.event_type === 'OFF') return 'Off';
+  if (machine.latest_status_type === 'IDLE') return 'Idle';
+  if (machine.latest_status_type === 'OFF') return 'Off';
   return 'Not running';
 }
 
 /** Which event type button should appear selected in the detail card. */
-export function getHighlightedEventType(
-  machine: Machine,
-  latestEvent?: MachineEvent | null | undefined
-): MachineEventType {
+export function getHighlightedEventType(machine: Machine): MachineEventType {
   if (machine.is_running) return 'RUNNING';
-  return latestEvent?.event_type ?? 'IDLE';
+  return machine.latest_status_type ?? 'IDLE';
 }
 
 /** Softer accent strip on detail panels and dialogs. */

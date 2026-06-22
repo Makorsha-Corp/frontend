@@ -15,6 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCreateMachineMutation } from '@/features/machines/machinesApi';
 import { useCreateMachineItemMutation } from '@/features/machineItems/machineItemsApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
+import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import {
+  useSeedFactorySectionOnOpen,
+} from '@/hooks/useGlobalFactoryContext';
 import MachineDialogItemsBlock, { type MachineItemDraft } from '@/components/newcomponents/customui/MachineDialogItemsBlock';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -42,16 +46,34 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
   sectionId,
   onSuccess,
 }) => {
-  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(sectionId ?? null);
+  const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [modelNumber, setModelNumber] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<MachineItemDraft[]>([]);
+
+  const { markFactoryEdited, markSectionEdited } = useSeedFactorySectionOnOpen({
+    open,
+    explicitFactoryId: factoryId,
+    explicitSectionId: sectionId,
+    selectedFactoryId,
+    selectedSectionId,
+    setFactoryId: setSelectedFactoryId,
+    setSectionId: setSelectedSectionId,
+  });
+
+  const { data: factories = [], isLoading: factoriesLoading } = useGetFactoriesQuery(
+    { skip: 0, limit: 500 },
+    { skip: !open }
+  );
+
   const { data: sections = [], isLoading: sectionsLoading } = useGetFactorySectionsQuery(
-    factoryId
-      ? { factory_id: factoryId, limit: 500 }
-      : { skip: 0, limit: 500 }
+    selectedFactoryId
+      ? { factory_id: selectedFactoryId, limit: 500 }
+      : { skip: 0, limit: 0 },
+    { skip: !open || !selectedFactoryId }
   );
 
   const [createMachine, { isLoading: isCreatingMachine }] = useCreateMachineMutation();
@@ -62,19 +84,14 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
   const reset = () => {
     const r = resetForm();
-    setSelectedSectionId(sectionId ?? null);
+    setSelectedFactoryId(null);
+    setSelectedSectionId(null);
     setName(r.name);
     setModelNumber(r.modelNumber);
     setManufacturer(r.manufacturer);
     setNote(r.note);
     setLines(r.lines);
   };
-
-  React.useEffect(() => {
-    if (open) {
-      setSelectedSectionId(sectionId ?? null);
-    }
-  }, [open, sectionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,17 +160,57 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
   const fieldsBlock = (
     <div className="grid min-w-0 gap-4">
       <div className="grid gap-2">
+        <Label htmlFor="machine-factory">
+          Factory <span className="text-red-500">*</span>
+        </Label>
+        <Select
+          value={selectedFactoryId ? String(selectedFactoryId) : '__none__'}
+          onValueChange={(v) => {
+            markFactoryEdited();
+            const id = v === '__none__' ? null : Number(v);
+            setSelectedFactoryId(id);
+            setSelectedSectionId(null);
+          }}
+        >
+          <SelectTrigger id="machine-factory" className="bg-background">
+            <SelectValue placeholder={factoriesLoading ? 'Loading factories...' : 'Select a factory'} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Select a factory…</SelectItem>
+            {factories.map((f) => (
+              <SelectItem key={f.id} value={String(f.id)}>
+                {f.name} ({f.abbreviation})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-2">
         <Label htmlFor="machine-section">
           Factory Section <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={selectedSectionId ? String(selectedSectionId) : ''}
-          onValueChange={(v) => setSelectedSectionId(v ? Number(v) : null)}
+          value={selectedSectionId ? String(selectedSectionId) : '__none__'}
+          onValueChange={(v) => {
+            markSectionEdited();
+            setSelectedSectionId(v === '__none__' ? null : Number(v));
+          }}
+          disabled={!selectedFactoryId || sectionsLoading}
         >
           <SelectTrigger id="machine-section" className="bg-background">
-            <SelectValue placeholder={sectionsLoading ? 'Loading sections...' : 'Select a section'} />
+            <SelectValue
+              placeholder={
+                !selectedFactoryId
+                  ? 'Choose a factory first'
+                  : sectionsLoading
+                    ? 'Loading sections...'
+                    : 'Select a section'
+              }
+            />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__none__">Select a section…</SelectItem>
             {sections.map((s) => (
               <SelectItem key={s.id} value={String(s.id)}>
                 {s.name}
@@ -249,7 +306,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
             <Button
               type="submit"
               className="bg-brand-primary hover:bg-brand-primary-hover"
-              disabled={isBusy || !name.trim() || !selectedSectionId}
+              disabled={isBusy || !name.trim() || !selectedFactoryId || !selectedSectionId}
             >
               {isBusy ? (
                 <>

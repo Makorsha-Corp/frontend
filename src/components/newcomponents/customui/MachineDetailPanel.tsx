@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import {
-  useGetMachineEventsQuery,
+  useGetMachineActivityEventsQuery,
   useCreateMachineEventMutation,
 } from '@/features/machines/machinesApi';
 import {
@@ -48,9 +48,14 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
   const [updateMachineItem] = useUpdateMachineItemMutation();
   const [deleteMachineItem] = useDeleteMachineItemMutation();
 
-  const { data: events, isLoading: eventsLoading } = useGetMachineEventsQuery(
-    { machine_id: machine?.id ?? 0, skip: 0, limit: 20 },
+  const { data: activityEvents = [], isLoading: eventsLoading } = useGetMachineActivityEventsQuery(
+    { machine_id: machine?.id ?? 0, skip: 0, limit: 100 },
     { skip: !machine?.id }
+  );
+
+  const statusEvents = React.useMemo(
+    () => activityEvents.filter((e) => e.event_type === 'status_updated'),
+    [activityEvents]
   );
 
   const { data: machineItems } = useGetMachineItemsQuery(
@@ -183,18 +188,20 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
         <CardContent>
           {eventsLoading ? (
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          ) : !events || events.length === 0 ? (
+          ) : !statusEvents || statusEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground">No events yet</p>
           ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {events.map((e) => (
+              {statusEvents.map((e) => (
                 <div
                   key={e.id}
                   className="flex items-center justify-between text-sm py-1 border-b border-border last:border-0"
                 >
-                  <Badge variant="outline">{e.event_type}</Badge>
+                  <Badge variant="outline">
+                    {e.metadata?.status ?? e.description}
+                  </Badge>
                   <span className="text-muted-foreground">
-                    {new Date(e.started_at).toLocaleString()}
+                    {new Date(e.created_at).toLocaleString()}
                   </span>
                 </div>
               ))}

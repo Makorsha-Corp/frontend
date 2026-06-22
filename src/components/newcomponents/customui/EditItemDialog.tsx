@@ -27,6 +27,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
+  const [sku, setSku] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const [updateItem, { isLoading }] = useUpdateItemMutation();
@@ -36,6 +37,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
       setName(item.name);
       setDescription(item.description || '');
       setUnit(item.unit);
+      setSku(item.sku ?? '');
       setSelectedTagIds(item.tags?.map((t) => t.id) || []);
     }
   }, [item]);
@@ -62,6 +64,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
           name: name.trim(),
           description: description.trim() || null,
           unit: unit.trim(),
+          sku: sku.trim() || null,
           tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         },
       }).unwrap();
@@ -79,6 +82,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
       setName(item.name);
       setDescription(item.description || '');
       setUnit(item.unit);
+      setSku(item.sku ?? '');
       setSelectedTagIds(item.tags?.map((t) => t.id) || []);
     }
     onOpenChange(false);
@@ -120,6 +124,16 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-sku">SKU</Label>
+                <Input
+                  id="edit-sku"
+                  placeholder="Optional stock-keeping ID"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
                 />
               </div>
 

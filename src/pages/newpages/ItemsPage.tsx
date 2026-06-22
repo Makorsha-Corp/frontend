@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
@@ -10,13 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useGetItemsQuery, useDeleteItemMutation } from '@/features/items/itemsApi';
+import { useGetItemsQuery, useGetItemByIdQuery, useDeleteItemMutation } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import { Package2, Plus, Search, Tag, X } from 'lucide-react';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import EditItemDialog from '@/components/newcomponents/customui/EditItemDialog';
 import ItemTagsFilterPanel from '@/components/newcomponents/customui/items/ItemTagsFilterPanel';
-import ItemDetailsDialog from '@/components/newcomponents/customui/ItemDetailsDialog';
+import ItemDetailsDialog from '@/components/newcomponents/customui/item-details/ItemDetailsDialog';
 import ItemsOverviewPanel from '@/components/newcomponents/customui/items/ItemsOverviewPanel';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { filterItems, uniqueUnitsFromItems } from '@/features/items/itemsOverviewData';
@@ -26,6 +27,11 @@ import { cn } from '@/lib/utils';
 const ITEMS_LIST_LIMIT = API_LIMITS.STRICT_100;
 
 const ItemsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const itemIdParam = searchParams.get('itemId');
+  const detailsParam = searchParams.get('details');
+  const deepLinkItemId = itemIdParam ? parseInt(itemIdParam, 10) : null;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterUnit, setFilterUnit] = useState('');
   const [filterTagIds, setFilterTagIds] = useState<number[]>([]);
@@ -41,6 +47,29 @@ const ItemsPage: React.FC = () => {
     skip: 0,
     limit: ITEMS_LIST_LIMIT,
   });
+
+  const { data: deepLinkItem } = useGetItemByIdQuery(deepLinkItemId ?? 0, {
+    skip: deepLinkItemId == null || !Number.isFinite(deepLinkItemId),
+  });
+
+  useEffect(() => {
+    if (detailsParam !== '1' || deepLinkItemId == null || !Number.isFinite(deepLinkItemId)) return;
+
+    const fromList = allItems.find((item) => item.id === deepLinkItemId);
+    const item = fromList ?? deepLinkItem;
+    if (!item) return;
+
+    setSelectedItem(item);
+    setIsDetailsDialogOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('details');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [detailsParam, deepLinkItemId, allItems, deepLinkItem, setSearchParams]);
 
   const filterOpts = useMemo(
     () => ({

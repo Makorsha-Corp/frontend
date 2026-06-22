@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Inventory, InventoryType } from '@/types/inventory';
-import { Archive, Plus, Loader2, Pencil, Trash2, ChevronUp } from 'lucide-react';
+import { Archive, Plus, Loader2, Pencil, Trash2, ChevronUp, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildItemHref } from '@/lib/entityLinks';
 import { INVENTORY_TYPES, formatCurrency, formatNumber, type StorageOverviewStats } from './storageConstants';
 
 interface StorageSectionProps {
@@ -214,8 +216,20 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                          title="View in Items catalog"
+                          asChild
+                        >
+                          <Link to={buildItemHref(inv.item_id)} aria-label="View in Items catalog">
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
                           onClick={() => onEdit(inv)}
+                          title="Edit inventory"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>

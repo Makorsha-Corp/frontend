@@ -28,6 +28,7 @@ export interface Item {
   name: string;
   description: string | null;
   unit: string;  // e.g., "kg", "pcs", "L"
+  sku?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
@@ -43,6 +44,7 @@ export interface CreateItemRequest {
   name: string;
   description?: string | null;
   unit: string;
+  sku?: string | null;
   tag_ids?: number[];  // IDs of tags to assign
 }
 
@@ -53,6 +55,7 @@ export interface UpdateItemRequest {
   name?: string;
   description?: string | null;
   unit?: string;
+  sku?: string | null;
   is_active?: boolean;
   tag_ids?: number[];  // IDs of tags to assign (replaces existing tags)
 }

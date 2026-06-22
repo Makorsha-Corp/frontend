@@ -6,6 +6,7 @@ import type {
   UpdateMachineMaintenanceLogRequest,
   ListMachineMaintenanceLogsParams,
 } from '../../types/machineMaintenanceLog';
+import { machinesApi } from '../machines/machinesApi';
 
 export const machineMaintenanceLogsApi = createApi({
   reducerPath: 'machineMaintenanceLogsApi',
@@ -38,6 +39,16 @@ export const machineMaintenanceLogsApi = createApi({
         body,
       }),
       invalidatesTags: ['MachineMaintenanceLog'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(
+            machinesApi.util.invalidateTags([{ type: 'MachineActivity', id: arg.machine_id }])
+          );
+        } catch {
+          // Ignore
+        }
+      },
     }),
     updateMachineMaintenanceLog: builder.mutation<MachineMaintenanceLog, { id: number; data: UpdateMachineMaintenanceLogRequest }>({
       query: ({ id, data }) => ({
@@ -46,6 +57,16 @@ export const machineMaintenanceLogsApi = createApi({
         body: data,
       }),
       invalidatesTags: (_result, _error, { id }) => [{ type: 'MachineMaintenanceLog', id }, 'MachineMaintenanceLog'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            machinesApi.util.invalidateTags([{ type: 'MachineActivity', id: data.machine_id }])
+          );
+        } catch {
+          // Ignore
+        }
+      },
     }),
     deleteMachineMaintenanceLog: builder.mutation<void, number>({
       query: (id) => ({
@@ -53,6 +74,14 @@ export const machineMaintenanceLogsApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['MachineMaintenanceLog'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(machinesApi.util.invalidateTags([{ type: 'MachineActivity' }]));
+        } catch {
+          // Ignore
+        }
+      },
     }),
   }),
 });

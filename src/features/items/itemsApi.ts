@@ -4,11 +4,14 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import type { Item, CreateItemRequest, UpdateItemRequest, ListItemsParams } from '@/types/item';
+import type { ItemSummary } from '@/types/itemSummary';
+import type { GetItemOrdersParams, ItemOrdersListResponse } from '@/types/itemOrders';
+import { invalidateItemTags } from './invalidateItemTags';
 
 export const itemsApi = createApi({
   reducerPath: 'itemsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Item'],
+  tagTypes: ['Item', 'ItemSummary', 'ItemOrders'],
   endpoints: (builder) => ({
     // Get all items with pagination and search
     getItems: builder.query<Item[], ListItemsParams>({
@@ -39,6 +42,25 @@ export const itemsApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Item', id }],
     }),
 
+    getItemSummary: builder.query<ItemSummary, number>({
+      query: (id) => `items/${id}/summary/`,
+      providesTags: (result, error, id) => [{ type: 'ItemSummary', id }],
+    }),
+
+    getItemOrders: builder.query<ItemOrdersListResponse, GetItemOrdersParams>({
+      query: ({ itemId, skip = 0, limit = 50, order_type, from_date, to_date }) => {
+        const params = new URLSearchParams({
+          skip: skip.toString(),
+          limit: limit.toString(),
+        });
+        if (order_type) params.append('order_type', order_type);
+        if (from_date) params.append('from_date', from_date);
+        if (to_date) params.append('to_date', to_date);
+        return `items/${itemId}/orders/?${params.toString()}`;
+      },
+      providesTags: (result, error, { itemId }) => [{ type: 'ItemOrders', id: itemId }],
+    }),
+
     // Create new item
     createItem: builder.mutation<Item, CreateItemRequest>({
       query: (body) => ({
@@ -46,7 +68,15 @@ export const itemsApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: [{ type: 'Item', id: 'LIST' }, 'ItemTag'],
+      invalidatesTags: [{ type: 'Item', id: 'LIST' }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateItemTags(dispatch);
+        } catch {
+          /* noop */
+        }
+      },
     }),
 
     // Update existing item
@@ -59,8 +89,17 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
-        'ItemTag',
+        { type: 'ItemSummary', id },
+        { type: 'ItemOrders', id },
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateItemTags(dispatch);
+        } catch {
+          /* noop */
+        }
+      },
     }),
 
     // Delete item (soft delete)
@@ -72,8 +111,17 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
-        'ItemTag',
+        { type: 'ItemSummary', id },
+        { type: 'ItemOrders', id },
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateItemTags(dispatch);
+        } catch {
+          /* noop */
+        }
+      },
     }),
   }),
 });
@@ -81,6 +129,8 @@ export const itemsApi = createApi({
 export const {
   useGetItemsQuery,
   useGetItemByIdQuery,
+  useGetItemSummaryQuery,
+  useGetItemOrdersQuery,
   useCreateItemMutation,
   useUpdateItemMutation,
   useDeleteItemMutation,

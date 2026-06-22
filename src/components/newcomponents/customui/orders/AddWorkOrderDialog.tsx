@@ -28,6 +28,7 @@ import {
 } from '@/pages/newpages/orders/workOrderConstants';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
 interface AddWorkOrderDialogProps {
   open: boolean;
@@ -49,6 +50,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
   const [notes, setNotes] = useState('');
 
   const [createOrder, { isLoading }] = useCreateWorkOrderMutation();
+  const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 }, { skip: !open });
   const { data: sections = [] } = useGetFactorySectionsQuery(
     { factory_id: factoryId ? parseInt(factoryId, 10) : 0, limit: 100 },
@@ -156,11 +158,20 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
           </div>
           <div>
             <Label>Factory *</Label>
-            <Select value={factoryId} onValueChange={(v) => { setFactoryId(v); setMachineId('__none__'); }} required>
+            <Select
+              value={factoryId || '__none__'}
+              onValueChange={(v) => {
+                markFactoryEdited();
+                setFactoryId(v === '__none__' ? '' : v);
+                setMachineId('__none__');
+              }}
+              required
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select factory" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Select factory…</SelectItem>
                 {factories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name} ({f.abbreviation})

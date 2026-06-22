@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,10 +45,46 @@ import { INVENTORY_TYPES } from '@/components/newcomponents/customui/storage/sto
 import { DEFAULT_STORAGE_LAYOUT, type StorageLayoutMode } from '@/components/newcomponents/customui/storage/storageLayoutModes';
 import toast from 'react-hot-toast';
 
+const VALID_INVENTORY_TYPES = new Set<InventoryType>(['STORAGE', 'DAMAGED', 'WASTE', 'SCRAP']);
+
+function parseStorageDeepLink(params: URLSearchParams): {
+  factoryId: number | null;
+  itemId: number | null;
+  tab: StorageContentTab | null;
+  inventoryType: InventoryType | null;
+} {
+  const factoryRaw = params.get('factoryId');
+  const itemRaw = params.get('itemId');
+  const tabRaw = params.get('tab');
+  const typeRaw = params.get('inventoryType');
+
+  const factoryId = factoryRaw ? parseInt(factoryRaw, 10) : null;
+  const itemId = itemRaw ? parseInt(itemRaw, 10) : null;
+  const tab = tabRaw === 'products' ? 'products' : tabRaw === 'storage' ? 'storage' : null;
+  const inventoryType =
+    typeRaw && VALID_INVENTORY_TYPES.has(typeRaw as InventoryType)
+      ? (typeRaw as InventoryType)
+      : null;
+
+  return {
+    factoryId: factoryId != null && Number.isFinite(factoryId) ? factoryId : null,
+    itemId: itemId != null && Number.isFinite(itemId) ? itemId : null,
+    tab,
+    inventoryType,
+  };
+}
+
 const StoragePage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const deepLink = useMemo(() => parseStorageDeepLink(searchParams), [searchParams]);
   const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
-  const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
+  const [factoryId, setFactoryId] = useState<number | null>(
+    () => deepLink.factoryId ?? globalFactory?.id ?? null
+  );
+  const [filterItemId, setFilterItemId] = useState<number | null>(() => deepLink.itemId);
+  const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>(
+    () => deepLink.inventoryType ?? 'all'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [showZeroQty, setShowZeroQty] = useState(false);
   const [forSaleOnly, setForSaleOnly] = useState(false);
@@ -57,7 +94,9 @@ const StoragePage: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<StorageLayoutMode>(DEFAULT_STORAGE_LAYOUT);
-  const [contentTab, setContentTab] = useState<StorageContentTab>('storage');
+  const [contentTab, setContentTab] = useState<StorageContentTab>(
+    () => deepLink.tab ?? 'storage'
+  );
   const [tabSwitcherStyle, setTabSwitcherStyle] = useState<StorageTabSwitcherStyle>(loadStorageTabSwitcherStyle);
   const [tabSwitcherPlacement, setTabSwitcherPlacement] = useState<StorageTabSwitcherPlacement>(
     loadStorageTabSwitcherPlacement
@@ -80,8 +119,24 @@ const StoragePage: React.FC = () => {
   }, [layoutMode]);
 
   useEffect(() => {
+    if (deepLink.factoryId != null) {
+      setFactoryId(deepLink.factoryId);
+    }
+    if (deepLink.itemId != null) {
+      setFilterItemId(deepLink.itemId);
+    }
+    if (deepLink.inventoryType != null) {
+      setInventoryTypeFilter(deepLink.inventoryType);
+    }
+    if (deepLink.tab != null) {
+      setContentTab(deepLink.tab);
+    }
+  }, [deepLink.factoryId, deepLink.itemId, deepLink.inventoryType, deepLink.tab]);
+
+  useEffect(() => {
+    if (deepLink.factoryId != null) return;
     setFactoryId(globalFactory?.id ?? null);
-  }, [globalFactory?.id]);
+  }, [globalFactory?.id, deepLink.factoryId]);
 
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
 
@@ -109,6 +164,7 @@ const StoragePage: React.FC = () => {
   const filteredInventory = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return inventoryList.filter((inv) => {
+      if (filterItemId != null && inv.item_id !== filterItemId) return false;
       if (!showZeroQty && (inv.qty ?? 0) <= 0) return false;
       if (!q) return true;
       return (
@@ -116,17 +172,21 @@ const StoragePage: React.FC = () => {
         (inv.item_unit ?? '').toLowerCase().includes(q)
       );
     });
-  }, [inventoryList, searchQuery, showZeroQty]);
+  }, [inventoryList, searchQuery, showZeroQty, filterItemId]);
 
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return productsList;
+    let list = productsList;
+    if (filterItemId != null) {
+      list = list.filter((p) => p.item_id === filterItemId);
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return productsList.filter(
+    return list.filter(
       (p) =>
         (p.item_name ?? '').toLowerCase().includes(q) ||
         (p.item_unit ?? '').toLowerCase().includes(q)
     );
-  }, [productsList, searchQuery]);
+  }, [productsList, searchQuery, filterItemId]);
 
   const storageOverview = useMemo(() => {
     const records = filteredInventory.length;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,13 +21,14 @@ import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Account } from '@/types/account';
 import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
-import { Check, Loader2, Trash2 } from 'lucide-react';
+import { Check, Loader2, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -61,11 +62,25 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
   const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim() || unitPrice.trim());
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
+  const globalFactory = useGlobalFactory();
+  const { markFactoryEdited: markDestinationFactoryEdited } = useAutoSelectGlobalFactory(
+    open,
+    setDestinationId,
+    undefined,
+    open && destinationType === 'storage'
+  );
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
+
+  const usedItemIds = useMemo(() => new Set(items.map((line) => line.item_id)), [items]);
+  const availableItems = useMemo(
+    () => itemsList.filter((i) => !usedItemIds.has(i.id)),
+    [itemsList, usedItemIds]
+  );
 
   const reset = () => {
     setAccountId('');
@@ -81,6 +96,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setMachinePickerOpen(false);
     setAddHintOpen(false);
     setUnaddedHintOpen(false);
+    setEditingItemId(null);
   };
 
   const canAddLineItem = (() => {
@@ -88,7 +104,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
-    return !isNaN(iid) && !isNaN(q) && q > 0 && !isNaN(p) && p >= 0;
+    return !isNaN(iid) && !isNaN(q) && q > 0 && !isNaN(p) && p >= 0 && !usedItemIds.has(iid);
   })();
 
   useEffect(() => {
@@ -129,6 +145,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
+    if (usedItemIds.has(iid)) {
+      toast.error('Item already on this order — edit quantity or unit price below');
+      return;
+    }
     setItems((prev) => [...prev, { item_id: iid, quantity_ordered: q, unit_price: p }]);
     setItemId('');
     setQty('');
@@ -137,7 +157,23 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   };
 
   const handleRemoveItem = (idx: number) => {
+    const removed = items[idx];
+    if (removed && removed.item_id === editingItemId) setEditingItemId(null);
     setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateLine = (
+    idx: number,
+    field: 'quantity_ordered' | 'unit_price',
+    raw: string
+  ) => {
+    const n = parseFloat(raw);
+    if (raw.trim() === '' || Number.isNaN(n)) return;
+    if (field === 'quantity_ordered' && n <= 0) return;
+    if (field === 'unit_price' && n < 0) return;
+    setItems((prev) =>
+      prev.map((line, i) => (i === idx ? { ...line, [field]: n } : line))
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,7 +249,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                 <SelectValue placeholder="Select item" />
               </SelectTrigger>
               <SelectContent>
-                {itemsList.map((i) => (
+                {availableItems.map((i) => (
                   <SelectItem key={i.id} value={i.id.toString()}>
                     {i.name} {i.unit && `(${i.unit})`}
                   </SelectItem>
@@ -290,28 +326,80 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           items.map((it, idx) => {
             const item = itemsList.find((i) => i.id === it.item_id);
             const unitSuffix = item?.unit ? ` ${item.unit}` : '';
+            const isEditing = editingItemId === it.item_id;
             const priceStr = Number(it.unit_price).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             });
             return (
-              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                <div className="min-w-0 flex-1 space-y-0.5">
+              <div key={it.item_id} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1 space-y-2">
                   <p className="truncate text-sm font-medium leading-tight text-foreground">
                     {item?.name ?? `Item #${it.item_id}`}
                   </p>
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    Quantity {it.quantity_ordered}
-                    {unitSuffix}
-                    <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
-                      ·
-                    </span>
-                    {priceStr} per unit
-                  </p>
+                  {isEditing ? (
+                    <div className="grid max-w-xs grid-cols-2 gap-2">
+                      <div className="grid gap-1">
+                        <Label className="text-[10px] text-muted-foreground">
+                          Qty{unitSuffix}
+                        </Label>
+                        <StepNumberInput
+                          min={1}
+                          step={1}
+                          value={String(it.quantity_ordered)}
+                          onChange={(e) => handleUpdateLine(idx, 'quantity_ordered', e.target.value)}
+                          className="h-9 bg-background"
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[10px] text-muted-foreground">Unit price</Label>
+                        <StepNumberInput
+                          min={0}
+                          step={1}
+                          value={String(it.unit_price)}
+                          onChange={(e) => handleUpdateLine(idx, 'unit_price', e.target.value)}
+                          className="h-9 bg-background"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      Quantity {it.quantity_ordered}
+                      {unitSuffix}
+                      <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
+                        ·
+                      </span>
+                      {priceStr} per unit
+                    </p>
+                  )}
                 </div>
-                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {isEditing ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => setEditingItemId(null)}
+                    >
+                      Done
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setEditingItemId(it.item_id)}
+                      aria-label={`Edit ${item?.name ?? 'item'}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveItem(idx)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -345,11 +433,19 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       {destinationType === 'storage' && (
         <div>
           <Label>Factory *</Label>
-          <Select value={destinationId} onValueChange={setDestinationId} required>
+          <Select
+            value={destinationId || '__none__'}
+            onValueChange={(v) => {
+              markDestinationFactoryEdited();
+              setDestinationId(v === '__none__' ? '' : v);
+            }}
+            required
+          >
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select factory" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="__none__">Select factory…</SelectItem>
               {factories.map((f) => (
                 <SelectItem key={f.id} value={f.id.toString()}>
                   {f.name} ({f.abbreviation})
@@ -375,6 +471,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
           <MachineSelectorDialog
             open={machinePickerOpen}
             onOpenChange={setMachinePickerOpen}
+            initialFactoryId={globalFactory?.id}
             title="Select destination machine"
             description="Pick factory and section, highlight a machine, then confirm."
             onSelect={(m, ctx) => {

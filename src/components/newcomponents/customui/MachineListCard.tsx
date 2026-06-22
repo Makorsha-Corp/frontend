@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { Machine, MachineEvent } from '@/types/machine';
+import type { Machine } from '@/types/machine';
 import { Cog, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -13,7 +13,6 @@ import {
   machineBadgeClass,
   machineListCardSelectedClass,
 } from '@/lib/machineVisualStatus';
-import { useGetLatestMachineEventQuery } from '@/features/machines/machinesApi';
 
 export interface MachineListCardProps {
   machine: Machine;
@@ -25,8 +24,6 @@ export interface MachineListCardProps {
    * When omitted, falls back to `onSelect`.
    */
   onExpandDetails?: () => void;
-  /** When set (e.g. from latest-event API), maintenance vs idle/off is shown correctly. */
-  latestEvent?: MachineEvent | null;
 }
 
 export const MachineListCard: React.FC<MachineListCardProps> = ({
@@ -34,10 +31,9 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   selected,
   onSelect,
   onExpandDetails,
-  latestEvent,
 }) => {
-  const kind = getMachineVisualKind(machine, latestEvent);
-  const label = getMachineStatusLabel(machine, latestEvent);
+  const kind = getMachineVisualKind(machine);
+  const label = getMachineStatusLabel(machine);
   const expand = onExpandDetails ?? onSelect;
   const showExpandButton = onExpandDetails != null;
 
@@ -99,14 +95,7 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   );
 };
 
-/** Fetches latest machine event so maintenance (yellow) is distinct from idle/off (red). */
-export const MachineListCardWithLatest: React.FC<
-  Omit<MachineListCardProps, 'latestEvent'>
-> = (props) => {
-  const { data: latest } = useGetLatestMachineEventQuery(props.machine.id, {
-    skip: !props.machine.id,
-  });
-  return <MachineListCard {...props} latestEvent={latest} />;
-};
+/** @deprecated Use `MachineListCard` — list responses include latest status fields. */
+export const MachineListCardWithLatest = MachineListCard;
 
 export default MachineListCard;

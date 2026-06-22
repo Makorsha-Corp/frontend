@@ -27,6 +27,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
+  const [sku, setSku] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const [createItem, { isLoading }] = useCreateItemMutation();
@@ -49,6 +50,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
         name: name.trim(),
         description: description.trim() || null,
         unit: unit.trim(),
+        sku: sku.trim() || null,
         tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
       }).unwrap();
 
@@ -57,6 +59,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       setName('');
       setDescription('');
       setUnit('');
+      setSku('');
       setSelectedTagIds([]);
       onOpenChange(false);
       onSuccess?.(created);
@@ -70,6 +73,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
     setName('');
     setDescription('');
     setUnit('');
+    setSku('');
     setSelectedTagIds([]);
     onOpenChange(false);
   };
@@ -110,6 +114,16 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="sku">SKU</Label>
+                <Input
+                  id="sku"
+                  placeholder="Optional stock-keeping ID"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
                 />
               </div>
 

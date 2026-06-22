@@ -27,6 +27,9 @@ export interface Machine {
   is_deleted: boolean;
   deleted_at: string | null;
   deleted_by: number | null;
+
+  latest_status_type?: MachineEventType | null;
+  latest_status_at?: string | null;
 }
 
 export interface CreateMachineRequest {

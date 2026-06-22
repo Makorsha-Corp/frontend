@@ -23,12 +23,13 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { CreateTransferOrder, CreateTransferOrderItem } from '@/types/transferOrder';
 import type { InventoryType } from '@/types/inventory';
-import { ArrowDown, Check, Loader2, Trash2 } from 'lucide-react';
+import { ArrowDown, Check, Loader2, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import { isSameTransferLocation } from '@/components/newcomponents/customui/orders/transferOrderRouteHelpers';
+import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
 const SOURCE_TYPES = [
   { value: 'storage', label: 'Storage (Factory)' },
@@ -77,10 +78,24 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const [destMachinePickerOpen, setDestMachinePickerOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
   const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim());
 
   const [createOrder, { isLoading }] = useCreateTransferOrderMutation();
+  const globalFactory = useGlobalFactory();
+  const { markFactoryEdited: markSourceFactoryEdited } = useAutoSelectGlobalFactory(
+    open,
+    setSourceId,
+    undefined,
+    open && (sourceType === 'storage' || sourceType === 'damaged')
+  );
+  const { markFactoryEdited: markDestFactoryEdited } = useAutoSelectGlobalFactory(
+    open,
+    setDestId,
+    undefined,
+    open && (destType === 'storage' || destType === 'damaged')
+  );
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
   const { data: projects = [] } = useGetProjectsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
 
@@ -134,18 +149,20 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const loadingSourceItems =
     hasValidSource && (sourceType === 'machine' ? loadingMachineItems : loadingInventory);
 
-  const getRemainingQty = (itemIdNum: number) => {
+  const getRemainingQty = (itemIdNum: number, excludeIdx?: number) => {
     const sourceItem = sourceAvailableItems.find((row) => row.item_id === itemIdNum);
     if (!sourceItem) return 0;
     const used = items
-      .filter((line) => line.item_id === itemIdNum)
+      .filter((line, idx) => line.item_id === itemIdNum && idx !== excludeIdx)
       .reduce((sum, line) => sum + line.quantity, 0);
     return Math.max(0, sourceItem.available_qty - used);
   };
 
+  const addedItemIds = useMemo(() => new Set(items.map((line) => line.item_id)), [items]);
+
   const selectableSourceItems = useMemo(
-    () => sourceAvailableItems.filter((row) => getRemainingQty(row.item_id) > 0),
-    [sourceAvailableItems, items]
+    () => sourceAvailableItems.filter((row) => !addedItemIds.has(row.item_id)),
+    [sourceAvailableItems, addedItemIds]
   );
 
   const destinationFactories = useMemo(() => {
@@ -193,6 +210,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     setDestMachinePickerOpen(false);
     setAddHintOpen(false);
     setUnaddedHintOpen(false);
+    setEditingItemId(null);
   };
 
   const canAddLineItem = (() => {
@@ -251,7 +269,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       return;
     }
     if (items.some((line) => line.item_id === iid)) {
-      toast.error('Item already added — remove the line or adjust quantity');
+      toast.error('Item already on this order — edit quantity below');
       return;
     }
     setItems((prev) => [...prev, { item_id: iid, quantity: q }]);
@@ -261,7 +279,24 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   };
 
   const handleRemoveItem = (idx: number) => {
+    const removed = items[idx];
+    if (removed && removed.item_id === editingItemId) setEditingItemId(null);
     setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateLineQty = (idx: number, raw: string) => {
+    const n = parseFloat(raw);
+    if (raw.trim() === '' || Number.isNaN(n) || n <= 0) return;
+    const itemIdNum = items[idx]?.item_id;
+    if (itemIdNum == null) return;
+    const maxQty = getRemainingQty(itemIdNum, idx);
+    if (n > maxQty) {
+      toast.error(`Only ${maxQty} available at source`);
+      return;
+    }
+    setItems((prev) =>
+      prev.map((line, i) => (i === idx ? { ...line, quantity: n } : line))
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -414,20 +449,67 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
           items.map((it, idx) => {
             const item = sourceAvailableItems.find((row) => row.item_id === it.item_id);
             const unitSuffix = item?.item_unit ? ` ${item.item_unit}` : '';
+            const maxQty = getRemainingQty(it.item_id, idx);
+            const isEditing = editingItemId === it.item_id;
             return (
-              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                <div className="min-w-0 flex-1 space-y-0.5">
+              <div key={it.item_id} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1 space-y-2">
                   <p className="truncate text-sm font-medium leading-tight text-foreground">
                     {item?.item_name ?? `Item #${it.item_id}`}
                   </p>
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    Quantity {it.quantity}
-                    {unitSuffix}
-                  </p>
+                  {isEditing ? (
+                    <div className="grid max-w-[8rem] gap-1">
+                      <Label className="text-[10px] text-muted-foreground">
+                        Qty{unitSuffix}
+                        {maxQty > 0 ? (
+                          <span className="ml-1 font-normal text-muted-foreground/80">
+                            (max {maxQty})
+                          </span>
+                        ) : null}
+                      </Label>
+                      <StepNumberInput
+                        min={1}
+                        max={maxQty}
+                        step={1}
+                        value={String(it.quantity)}
+                        onChange={(e) => handleUpdateLineQty(idx, e.target.value)}
+                        className="h-9 bg-background"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      Quantity {it.quantity}
+                      {unitSuffix}
+                    </p>
+                  )}
                 </div>
-                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveItem(idx)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {isEditing ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => setEditingItemId(null)}
+                    >
+                      Done
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setEditingItemId(it.item_id)}
+                      aria-label={`Edit ${item?.item_name ?? 'item'}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveItem(idx)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             );
           })
@@ -465,11 +547,19 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         <div>
           <Label>Source</Label>
           {sourceType === 'storage' || sourceType === 'damaged' ? (
-            <Select value={sourceId} onValueChange={setSourceId} required>
+            <Select
+              value={sourceId || '__none__'}
+              onValueChange={(v) => {
+                markSourceFactoryEdited();
+                setSourceId(v === '__none__' ? '' : v);
+              }}
+              required
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select factory" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Select factory…</SelectItem>
                 {factories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name}
@@ -525,11 +615,19 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         <div>
           <Label>Destination</Label>
           {destType === 'storage' || destType === 'damaged' ? (
-            <Select value={destId} onValueChange={setDestId} required>
+            <Select
+              value={destId || '__none__'}
+              onValueChange={(v) => {
+                markDestFactoryEdited();
+                setDestId(v === '__none__' ? '' : v);
+              }}
+              required
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select factory" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Select factory…</SelectItem>
                 {destinationFactories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name}
@@ -625,6 +723,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       <MachineSelectorDialog
         open={sourceMachinePickerOpen}
         onOpenChange={setSourceMachinePickerOpen}
+        initialFactoryId={globalFactory?.id}
         title="Select source machine"
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {
@@ -639,6 +738,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       <MachineSelectorDialog
         open={destMachinePickerOpen}
         onOpenChange={setDestMachinePickerOpen}
+        initialFactoryId={globalFactory?.id}
         title="Select destination machine"
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {

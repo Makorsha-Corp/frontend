@@ -38,6 +38,20 @@ export const itemTagsApi = createApi({
         body,
       }),
       invalidatesTags: ['ItemTag'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data: newTag } = await queryFulfilled;
+          dispatch(
+            itemTagsApi.util.updateQueryData('getTags', undefined, (draft) => {
+              if (!draft.some((tag) => tag.id === newTag.id)) {
+                draft.push(newTag);
+              }
+            })
+          );
+        } catch {
+          /* noop */
+        }
+      },
     }),
     updateTag: builder.mutation<ItemTag, { id: number; data: UpdateTagRequest }>({
       query: ({ id, data }) => ({
@@ -46,6 +60,21 @@ export const itemTagsApi = createApi({
         body: data,
       }),
       invalidatesTags: ['ItemTag'],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updatedTag } = await queryFulfilled;
+          dispatch(
+            itemTagsApi.util.updateQueryData('getTags', undefined, (draft) => {
+              const index = draft.findIndex((tag) => tag.id === id);
+              if (index !== -1) {
+                draft[index] = updatedTag;
+              }
+            })
+          );
+        } catch {
+          /* noop */
+        }
+      },
     }),
     deleteTag: builder.mutation<void, number>({
       query: (id) => ({
@@ -53,6 +82,21 @@ export const itemTagsApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['ItemTag'],
+      async onQueryStarted(tagId, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(
+            itemTagsApi.util.updateQueryData('getTags', undefined, (draft) => {
+              const index = draft.findIndex((tag) => tag.id === tagId);
+              if (index !== -1) {
+                draft.splice(index, 1);
+              }
+            })
+          );
+        } catch {
+          /* noop */
+        }
+      },
     }),
   }),
 });

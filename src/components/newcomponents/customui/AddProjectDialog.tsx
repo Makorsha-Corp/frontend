@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useCreateProjectMutation } from '@/features/projects/projectsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import type { Project } from '@/types/project';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -42,13 +43,8 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const [factoryId, setFactoryId] = useState<string>(defaultFactoryId?.toString() ?? '');
 
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId, defaultFactoryId ?? null);
   const [createProject, { isLoading }] = useCreateProjectMutation();
-
-  React.useEffect(() => {
-    if (open && defaultFactoryId) {
-      setFactoryId(defaultFactoryId.toString());
-    }
-  }, [open, defaultFactoryId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,11 +101,18 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
           </div>
           <div>
             <Label htmlFor="factory">Factory *</Label>
-            <Select value={factoryId} onValueChange={setFactoryId}>
+            <Select
+              value={factoryId || '__none__'}
+              onValueChange={(v) => {
+                markFactoryEdited();
+                setFactoryId(v === '__none__' ? '' : v);
+              }}
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Select factory" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">Select factory…</SelectItem>
                 {factories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name}

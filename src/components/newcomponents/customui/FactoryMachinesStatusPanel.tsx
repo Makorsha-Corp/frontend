@@ -1,12 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { machinesApi } from '@/features/machines/machinesApi';
-import { createSelector } from '@reduxjs/toolkit';
-import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import type { RootState } from '@/app/store';
 import type { Machine } from '@/types/machine';
-import type { MachineEvent } from '@/types/machine';
 import { cn } from '@/lib/utils';
 import { machineStatusSegmentClass, type MachineVisualKind } from '@/lib/machineVisualStatus';
 import DueStatusCard, { DueStatusRow } from './DueStatusCard';
@@ -20,9 +15,9 @@ export interface FactoryMachinesStatusPanelProps {
 
 type StatusBucket = 'active' | 'maintenance' | 'stoppedIdle';
 
-function bucketForMachine(m: Machine, latest: MachineEvent | undefined): StatusBucket {
+function bucketForMachine(m: Machine): StatusBucket {
   if (m.is_running) return 'active';
-  if (latest?.event_type === 'MAINTENANCE') return 'maintenance';
+  if (m.latest_status_type === 'MAINTENANCE') return 'maintenance';
   return 'stoppedIdle';
 }
 
@@ -32,66 +27,18 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   machinesLoading,
   sectionNameById,
 }) => {
-  const dispatch = useAppDispatch();
-
-  const nonRunningIds = useMemo(
-    () => machines.filter((m) => !m.is_running).map((m) => m.id),
-    [machines]
-  );
-
-  const nonRunningKey = useMemo(() => [...nonRunningIds].sort((a, b) => a - b).join(','), [nonRunningIds]);
-
-  useEffect(() => {
-    const ids = nonRunningKey ? nonRunningKey.split(',').map(Number) : [];
-    if (ids.length === 0) return;
-    const results = ids.map((id) => dispatch(machinesApi.endpoints.getLatestMachineEvent.initiate(id)));
-    return () => {
-      results.forEach((r) => {
-        const u = r as { unsubscribe?: () => void };
-        if (typeof u.unsubscribe === 'function') u.unsubscribe();
-      });
-    };
-  }, [dispatch, nonRunningKey]);
-
-  const selectLatestByMachineId = useMemo(
-    () =>
-      createSelector(
-        [(state: RootState) => state],
-        (state) => {
-          const out: Record<number, MachineEvent | undefined> = {};
-          for (const id of nonRunningIds) {
-            const slice = machinesApi.endpoints.getLatestMachineEvent.select(id)(state);
-            out[id] = slice.data ?? undefined;
-          }
-          return out;
-        }
-      ),
-    [nonRunningIds]
-  );
-
-  const latestByMachineId = useAppSelector(selectLatestByMachineId);
-
-  const latestPending = useAppSelector((state: RootState) => {
-    if (nonRunningIds.length === 0) return false;
-    return nonRunningIds.some((id) => {
-      const r = machinesApi.endpoints.getLatestMachineEvent.select(id)(state);
-      return r.isLoading || r.status === 'uninitialized';
-    });
-  });
-
   const counts = useMemo(() => {
     let active = 0;
     let maintenance = 0;
     let stoppedIdle = 0;
     for (const m of machines) {
-      const latest = latestByMachineId[m.id];
-      const b = bucketForMachine(m, latest);
+      const b = bucketForMachine(m);
       if (b === 'active') active += 1;
       else if (b === 'maintenance') maintenance += 1;
       else stoppedIdle += 1;
     }
     return { active, maintenance, stoppedIdle, total: machines.length };
-  }, [machines, latestByMachineId]);
+  }, [machines]);
 
   const maintenanceRows = useMemo(() => {
     const now = new Date();
@@ -147,12 +94,6 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
             <CardTitle className="min-w-0 text-lg font-semibold tracking-tight text-card-foreground">
               Machine Statuses
             </CardTitle>
-            {latestPending && nonRunningIds.length > 0 ? (
-              <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                Syncing…
-              </span>
-            ) : null}
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-4 pt-0">

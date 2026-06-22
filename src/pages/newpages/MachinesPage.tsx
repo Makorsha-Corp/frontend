@@ -134,6 +134,7 @@ const MachinesPage: React.FC = () => {
   const factoryIdParam = searchParams.get('factoryId');
   const sectionIdParam = searchParams.get('sectionId');
   const machineIdParam = searchParams.get('machineId');
+  const detailsParam = searchParams.get('details');
   const selectedFactoryId = factoryIdParam ? parseInt(factoryIdParam, 10) : selectedGlobalFactory?.id ?? null;
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -171,6 +172,18 @@ const MachinesPage: React.FC = () => {
     },
     [handleSelectMachine]
   );
+
+  useEffect(() => {
+    if (detailsParam !== '1' || !machineIdParam) return;
+    const id = parseInt(machineIdParam, 10);
+    if (!Number.isFinite(id)) return;
+    openMachineFullDetails(id);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('details');
+      return next;
+    }, { replace: true });
+  }, [detailsParam, machineIdParam, openMachineFullDetails, setSearchParams]);
 
   const writeFiltersToParams = (
     prev: URLSearchParams,

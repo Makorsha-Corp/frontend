@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -6,8 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Product } from '@/types/product';
-import { Package, Plus, Loader2, Pencil, Trash2, ChevronUp } from 'lucide-react';
+import { Package, Plus, Loader2, Pencil, Trash2, ChevronUp, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildItemHref } from '@/lib/entityLinks';
 import { formatCurrency, formatNumber, type ProductsOverviewStats } from './storageConstants';
 
 interface ProductsSectionProps {
@@ -214,8 +216,20 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                          title="View in Items catalog"
+                          asChild
+                        >
+                          <Link to={buildItemHref(prod.item_id)} aria-label="View in Items catalog">
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
                           onClick={() => onEdit(prod)}
+                          title="Edit product"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>

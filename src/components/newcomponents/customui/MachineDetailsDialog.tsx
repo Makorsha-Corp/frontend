@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -17,9 +18,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  useGetMachineEventsQuery,
   useCreateMachineEventMutation,
-  useGetLatestMachineEventQuery,
+  useGetMachineActivityEventsQuery,
 } from '@/features/machines/machinesApi';
 import {
   useGetMachineItemsQuery,
@@ -27,8 +27,7 @@ import {
   useDeleteMachineItemMutation,
 } from '@/features/machineItems/machineItemsApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
-import type { Machine } from '@/types/machine';
-import type { MachineEventType } from '@/types/machine';
+import type { Machine, MachineEventType } from '@/types/machine';
 import type { MachineItem } from '@/types/machineItem';
 import {
   Loader2,
@@ -43,24 +42,20 @@ import {
   X,
   Package,
   CalendarClock,
+  History,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import AddMachineMaintenanceLogDialog from './AddMachineMaintenanceLogDialog';
+import MachineActivityEventLogRow from './MachineActivityEventLogRow';
 import ActiveOrdersPanel from './RunningOrdersPlaceholder';
-import {
-  useGetMachineMaintenanceLogsQuery,
-  useDeleteMachineMaintenanceLogMutation,
-} from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
-import type { MachineMaintenanceLog } from '@/types/machineMaintenanceLog';
+import { useDeleteMachineMaintenanceLogMutation } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
 import { cn } from '@/lib/utils';
 import {
   getHighlightedEventType,
   getMachineVisualKind,
   activeEventButtonClass,
   machineTopBarClass,
-  machineBadgeClass,
-  machineVisualKindFromEventType,
 } from '@/lib/machineVisualStatus';
 
 interface MachineDetailsDialogProps {
@@ -92,18 +87,28 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [isAddMaintenanceLogOpen, setIsAddMaintenanceLogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [editQty, setEditQty] = useState('');
+  const [editDraft, setEditDraft] = useState({ qty: '', req_qty: '', defective_qty: '' });
+
+  const startItemEdit = (mi: MachineItem) => {
+    setEditingItemId(mi.id);
+    setEditDraft({
+      qty: mi.qty.toString(),
+      req_qty: mi.req_qty != null ? mi.req_qty.toString() : '',
+      defective_qty: mi.defective_qty != null ? mi.defective_qty.toString() : '',
+    });
+  };
+
+  const cancelItemEdit = () => {
+    setEditingItemId(null);
+    setEditDraft({ qty: '', req_qty: '', defective_qty: '' });
+  };
 
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateMachineEventMutation();
   const [updateMachineItem] = useUpdateMachineItemMutation();
   const [deleteMachineItem] = useDeleteMachineItemMutation();
 
-  const { data: latestEvent } = useGetLatestMachineEventQuery(machine?.id ?? 0, {
-    skip: !machine?.id || !open,
-  });
-
-  const { data: events, isLoading: eventsLoading } = useGetMachineEventsQuery(
-    { machine_id: machine?.id ?? 0, skip: 0, limit: 50 },
+  const { data: activityEvents = [], isLoading: activityLoading } = useGetMachineActivityEventsQuery(
+    { machine_id: machine?.id ?? 0, skip: 0, limit: 100 },
     { skip: !machine?.id || !open }
   );
 
@@ -113,10 +118,6 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   );
 
   const { data: items } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
-  const { data: maintenanceLogs = [], isLoading: logsLoading } = useGetMachineMaintenanceLogsQuery(
-    { machine_id: machine?.id ?? 0, skip: 0, limit: 50 },
-    { skip: !machine?.id || !open }
-  );
   const [deleteMaintenanceLog] = useDeleteMachineMaintenanceLogMutation();
 
   const itemsMap = useMemo(() => {
@@ -125,19 +126,17 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
     return m;
   }, [items]);
 
-  const sortedEvents = useMemo(() => {
-    if (!events?.length) return [];
-    return [...events].sort(
-      (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
-    );
-  }, [events]);
-
-  const sortedLogs = useMemo(() => {
-    if (!maintenanceLogs.length) return [];
-    return [...maintenanceLogs].sort(
-      (a, b) => new Date(b.maintenance_date).getTime() - new Date(a.maintenance_date).getTime()
-    );
-  }, [maintenanceLogs]);
+  const handleDeleteMaintenanceLog = async (maintenanceLogId: number) => {
+    if (!window.confirm('Delete this event?')) return;
+    try {
+      await deleteMaintenanceLog(maintenanceLogId).unwrap();
+      toast.success('Log deleted');
+      onMachineUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to delete');
+    }
+  };
 
   const handleStatusChange = async (eventType: MachineEventType) => {
     if (!machine) return;
@@ -153,16 +152,35 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
     }
   };
 
-  const handleSaveEditQty = async (mi: MachineItem) => {
-    const qtyNum = parseInt(editQty, 10);
+  const parseOptionalQty = (raw: string, label: string): number | null | 'invalid' => {
+    const trimmed = raw.trim();
+    if (trimmed === '') return null;
+    const n = parseInt(trimmed, 10);
+    if (isNaN(n) || n < 0) {
+      toast.error(`Invalid ${label}`);
+      return 'invalid';
+    }
+    return n;
+  };
+
+  const handleSaveItemEdit = async (mi: MachineItem) => {
+    const qtyNum = parseInt(editDraft.qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
       toast.error('Invalid quantity');
       return;
     }
+    const reqQty = parseOptionalQty(editDraft.req_qty, 'required quantity');
+    if (reqQty === 'invalid') return;
+    const defectiveQty = parseOptionalQty(editDraft.defective_qty, 'defective quantity');
+    if (defectiveQty === 'invalid') return;
+
     try {
-      await updateMachineItem({ id: mi.id, data: { qty: qtyNum } }).unwrap();
-      toast.success('Quantity updated');
-      setEditingItemId(null);
+      await updateMachineItem({
+        id: mi.id,
+        data: { qty: qtyNum, req_qty: reqQty, defective_qty: defectiveQty },
+      }).unwrap();
+      toast.success('Item updated');
+      cancelItemEdit();
       onMachineUpdated?.();
     } catch (error: any) {
       toast.error(error?.data?.detail || 'Failed to update');
@@ -190,8 +208,8 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
 
   if (!machine) return null;
 
-  const highlightedType = getHighlightedEventType(machine, latestEvent);
-  const visualKind = getMachineVisualKind(machine, latestEvent);
+  const highlightedType = getHighlightedEventType(machine);
+  const visualKind = getMachineVisualKind(machine);
   const metaLine = [machine.model_number, machine.manufacturer].filter(Boolean).join(' · ');
 
   const sectionLabel = 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
@@ -300,126 +318,6 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
               </div>
             )}
 
-            {/* Maintenance logs */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className={sectionLabel}>Maintenance logs</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  onClick={() => setIsAddMaintenanceLogOpen(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add log
-                </Button>
-              </div>
-              {logsLoading ? (
-                <div className="flex justify-center py-6">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : sortedLogs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/15 py-8 text-center">
-                  <Wrench className="h-7 w-7 text-muted-foreground/35" />
-                  <p className="text-xs text-muted-foreground">No maintenance logs yet.</p>
-                </div>
-              ) : (
-                <ul className="max-h-44 space-y-2 overflow-y-auto pr-1">
-                  {sortedLogs.map((log: MachineMaintenanceLog) => (
-                    <li
-                      key={log.id}
-                      className="flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] font-medium">
-                            {log.maintenance_type}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {log.maintenance_date}
-                          </span>
-                        </div>
-                        <p className="text-sm font-medium text-card-foreground">{log.summary}</p>
-                        {log.performed_by ? (
-                          <p className="text-[11px] text-muted-foreground">{log.performed_by}</p>
-                        ) : null}
-                      </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 self-end sm:self-center text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={async () => {
-                              if (!window.confirm('Delete this maintenance log?')) return;
-                              try {
-                                await deleteMaintenanceLog(log.id).unwrap();
-                                toast.success('Log deleted');
-                                onMachineUpdated?.();
-                              } catch (err: unknown) {
-                                const e = err as { data?: { detail?: string } };
-                                toast.error(e?.data?.detail || 'Failed to delete');
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete log</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete log</TooltipContent>
-                      </Tooltip>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Event history */}
-            <div className="space-y-2">
-              <p className={sectionLabel}>Event history</p>
-              {eventsLoading ? (
-                <div className="flex justify-center py-6">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : sortedEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/15 py-8 text-center">
-                  <Pause className="h-7 w-7 text-muted-foreground/35" />
-                  <p className="text-xs text-muted-foreground">No status events recorded yet.</p>
-                </div>
-              ) : (
-                <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
-                  {sortedEvents.map((e) => {
-                    const vk = machineVisualKindFromEventType(e.event_type);
-                    return (
-                      <li
-                        key={e.id}
-                        className="flex items-center justify-between gap-3 rounded-md border border-border/80 bg-muted/10 px-3 py-2"
-                      >
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                            machineBadgeClass[vk]
-                          )}
-                        >
-                          {e.event_type}
-                        </span>
-                        <time
-                          className="text-xs text-muted-foreground tabular-nums shrink-0"
-                          dateTime={e.started_at}
-                        >
-                          {new Date(e.started_at).toLocaleString()}
-                        </time>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            <Separator />
-
             {/* Machine items */}
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -446,8 +344,8 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                         <th className="px-3 py-2.5 font-medium">Item</th>
                         <th className="px-2 py-2.5 font-medium w-16">Unit</th>
                         <th className="px-2 py-2.5 font-medium w-28 text-right">Qty</th>
-                        <th className="px-2 py-2.5 font-medium w-20 text-right">Req</th>
-                        <th className="px-2 py-2.5 font-medium w-24 text-right">Defective</th>
+                        <th className="px-2 py-2.5 font-medium w-28 text-right">Req</th>
+                        <th className="px-2 py-2.5 font-medium w-28 text-right">Defective</th>
                         <th className="px-2 py-2.5 font-medium w-24 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -464,44 +362,15 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                             <td className="px-2 py-2.5 text-muted-foreground text-xs">{info.unit}</td>
                             <td className="px-2 py-2.5 text-right tabular-nums">
                               {isEditing ? (
-                                <div className="flex items-center justify-end gap-1">
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    value={editQty}
-                                    onChange={(e) => setEditQty(e.target.value)}
-                                    className="h-8 w-16 px-2 text-right text-sm"
-                                  />
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 shrink-0 text-emerald-600"
-                                        onClick={() => handleSaveEditQty(mi)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Save quantity</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => {
-                                          setEditingItemId(null);
-                                          setEditQty('');
-                                        }}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Cancel</TooltipContent>
-                                  </Tooltip>
-                                </div>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={editDraft.qty}
+                                  onChange={(e) =>
+                                    setEditDraft((d) => ({ ...d, qty: e.target.value }))
+                                  }
+                                  className="ml-auto h-8 w-20 px-2 text-right text-sm"
+                                />
                               ) : (
                                 <button
                                   type="button"
@@ -509,57 +378,112 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                                     'rounded px-1.5 py-0.5 -mr-1.5 hover:bg-muted/80',
                                     low && 'text-destructive font-semibold'
                                   )}
-                                  onClick={() => {
-                                    setEditingItemId(mi.id);
-                                    setEditQty(mi.qty.toString());
-                                  }}
+                                  onClick={() => startItemEdit(mi)}
                                 >
                                   {mi.qty}
                                 </button>
                               )}
                             </td>
-                            <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">
-                              {mi.req_qty ?? '—'}
+                            <td className="px-2 py-2.5 text-right tabular-nums">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="—"
+                                  value={editDraft.req_qty}
+                                  onChange={(e) =>
+                                    setEditDraft((d) => ({ ...d, req_qty: e.target.value }))
+                                  }
+                                  className="ml-auto h-8 w-20 px-2 text-right text-sm"
+                                />
+                              ) : (
+                                <span className="text-muted-foreground">{mi.req_qty ?? '—'}</span>
+                              )}
                             </td>
-                            <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">
-                              {mi.defective_qty ?? '—'}
+                            <td className="px-2 py-2.5 text-right tabular-nums">
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  placeholder="—"
+                                  value={editDraft.defective_qty}
+                                  onChange={(e) =>
+                                    setEditDraft((d) => ({ ...d, defective_qty: e.target.value }))
+                                  }
+                                  className="ml-auto h-8 w-20 px-2 text-right text-sm"
+                                />
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  {mi.defective_qty ?? '—'}
+                                </span>
+                              )}
                             </td>
                             <td className="px-2 py-2.5 text-right">
-                              {!isEditing && (
-                                <div className="flex justify-end gap-0.5">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => {
-                                          setEditingItemId(mi.id);
-                                          setEditQty(mi.qty.toString());
-                                        }}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                        <span className="sr-only">Edit quantity</span>
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Edit qty</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeleteItem(mi)}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        <span className="sr-only">Remove item</span>
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Remove from machine</TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              )}
+                              <div className="flex justify-end gap-0.5">
+                                {isEditing ? (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-8 w-8 shrink-0 text-emerald-600"
+                                          onClick={() => handleSaveItemEdit(mi)}
+                                        >
+                                          <Check className="h-4 w-4" />
+                                          <span className="sr-only">Save</span>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Save</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-8 w-8 shrink-0"
+                                          onClick={cancelItemEdit}
+                                        >
+                                          <X className="h-4 w-4" />
+                                          <span className="sr-only">Cancel</span>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Cancel</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => startItemEdit(mi)}
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                          <span className="sr-only">Edit item</span>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Edit qty, req, defective</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleDeleteItem(mi)}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          <span className="sr-only">Remove item</span>
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Remove from machine</TooltipContent>
+                                    </Tooltip>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -569,6 +493,57 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                 </div>
               )}
             </div>
+
+            <Separator />
+
+            {/* Event log */}
+            <Card className="flex max-h-[min(32rem,50vh)] flex-col overflow-hidden border-border shadow-none">
+              <CardHeader className="shrink-0 space-y-0 p-4 pb-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold leading-none">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    Event Log
+                    {!activityLoading && (
+                      <Badge variant="outline" className="ml-1 font-normal">
+                        {activityEvents.length}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0 text-xs"
+                    onClick={() => setIsAddMaintenanceLogOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add Maintenance Log
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="min-h-0 flex-1 overflow-y-auto p-0 px-4 pb-4">
+                {activityLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : activityEvents.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+                    <History className="mx-auto mb-1 h-6 w-6 text-muted-foreground/50" />
+                    <p className="text-sm font-medium text-muted-foreground">No activity yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activityEvents.map((event, idx) => (
+                      <MachineActivityEventLogRow
+                        key={event.id}
+                        event={event}
+                        isLast={idx === activityEvents.length - 1}
+                        onDeleteMaintenance={handleDeleteMaintenanceLog}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
           </div>

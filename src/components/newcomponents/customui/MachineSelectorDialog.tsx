@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
-import { useGetMachinesQuery, useGetLatestMachineEventQuery } from '@/features/machines/machinesApi';
+import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ import {
   machineSelectorSubtextClass,
 } from '@/lib/machineVisualStatus';
 import { Loader2, Search } from 'lucide-react';
+import { resolveFactoryId, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
 /** Location labels for display in the parent form (factory has real abbreviation; section uses a short derived label — no `abbreviation` field on sections today). */
 export interface MachineSelectionContext {
@@ -70,9 +71,8 @@ const MachineSelectorTile: React.FC<{
   isHighlighted: boolean;
   onPick: () => void;
 }> = ({ machine: m, isHighlighted, onPick }) => {
-  const { data: latest } = useGetLatestMachineEventQuery(m.id, { skip: !m.id });
-  const kind = getMachineVisualKind(m, latest);
-  const label = getMachineStatusLabel(m, latest);
+  const kind = getMachineVisualKind(m);
+  const label = getMachineStatusLabel(m);
   return (
     <button
       type="button"
@@ -99,9 +99,8 @@ const MachineSelectorTile: React.FC<{
 };
 
 const MachineSelectorFooterStatus: React.FC<{ machine: Machine }> = ({ machine }) => {
-  const { data: latest } = useGetLatestMachineEventQuery(machine.id, { skip: !machine.id });
-  const kind = getMachineVisualKind(machine, latest);
-  const label = getMachineStatusLabel(machine, latest);
+  const kind = getMachineVisualKind(machine);
+  const label = getMachineStatusLabel(machine);
   return (
     <>
       Selected: <span className="font-medium text-foreground">{machine.name}</span>
@@ -123,6 +122,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   const [sectionId, setSectionId] = useState<number | undefined>();
   const [search, setSearch] = useState('');
   const [highlighted, setHighlighted] = useState<Machine | null>(null);
+  const globalFactory = useGlobalFactory();
 
   const { data: factories = [], isLoading: factoriesLoading } = useGetFactoriesQuery(
     { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
@@ -151,11 +151,13 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
       setHighlighted(null);
       return;
     }
-    setFactoryId(initialFactoryId);
+    setFactoryId(resolveFactoryId(initialFactoryId, globalFactory?.id ?? null));
     setSectionId(initialSectionId);
     setSearch('');
     setHighlighted(null);
-  }, [open, initialFactoryId, initialSectionId]);
+    // Seed defaults only when the dialog opens — not when global factory changes while open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const machines = useMemo(() => {
     const list = activeMachines(machinesRaw);

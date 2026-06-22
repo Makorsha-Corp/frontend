@@ -7,6 +7,7 @@ import type {
   ListMachineItemsParams,
 } from '../../types/machineItem';
 import { ledgersApi } from '../ledgers/ledgersApi';
+import { machinesApi } from '../machines/machinesApi';
 
 export const machineItemsApi = createApi({
   reducerPath: 'machineItemsApi',
@@ -36,13 +37,15 @@ export const machineItemsApi = createApi({
         body,
       }),
       invalidatesTags: ['MachineItem'],
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
-        // Backend writes a ledger row on create — refresh ledger views.
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
           dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+          dispatch(
+            machinesApi.util.invalidateTags([{ type: 'MachineActivity', id: arg.machine_id }])
+          );
         } catch {
-          // Ignore: mutation already surfaced the error via RTK Query.
+          // Ignore
         }
       },
     }),
@@ -54,12 +57,14 @@ export const machineItemsApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'MachineItem', id }, 'MachineItem'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
-        // qty changes trigger a ledger adjustment row on the backend.
         try {
-          await queryFulfilled;
+          const { data } = await queryFulfilled;
           dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+          dispatch(
+            machinesApi.util.invalidateTags([{ type: 'MachineActivity', id: data.machine_id }])
+          );
         } catch {
-          // Ignore: mutation already surfaced the error via RTK Query.
+          // Ignore
         }
       },
     }),
@@ -70,12 +75,12 @@ export const machineItemsApi = createApi({
       }),
       invalidatesTags: ['MachineItem'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
-        // A delete with remaining stock writes a final adjustment row.
         try {
           await queryFulfilled;
           dispatch(ledgersApi.util.invalidateTags(['Ledger', 'LedgerBalance']));
+          dispatch(machinesApi.util.invalidateTags([{ type: 'MachineActivity' }]));
         } catch {
-          // Ignore: mutation already surfaced the error via RTK Query.
+          // Ignore
         }
       },
     }),

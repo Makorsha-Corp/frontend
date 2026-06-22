@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useCreateMachineEventMutation, useGetLatestMachineEventQuery } from '@/features/machines/machinesApi';
+import { useCreateMachineEventMutation } from '@/features/machines/machinesApi';
 import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi';
 import type { Machine } from '@/types/machine';
 import type { MachineEventType } from '@/types/machine';
@@ -22,7 +22,7 @@ import {
   getHighlightedEventType,
   getMachineVisualKind,
   activeEventButtonClass,
-  machineTopBarClass,
+  machineListTopBarClass,
 } from '@/lib/machineVisualStatus';
 
 export interface MachineFullDetailsIntent {
@@ -74,10 +74,6 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
     onFullDetailsIntentConsumed?.();
   }, [fullDetailsIntent, machine, onFullDetailsIntentConsumed]);
 
-  const { data: latestEvent } = useGetLatestMachineEventQuery(machine?.id ?? 0, {
-    skip: !machine?.id,
-  });
-
   const { data: machineItems } = useGetMachineItemsQuery(
     { machine_id: machine?.id ?? 0, skip: 0, limit: 50 },
     { skip: !machine?.id }
@@ -107,8 +103,8 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
     );
   }
 
-  const highlightedType = getHighlightedEventType(machine, latestEvent);
-  const visualKind = getMachineVisualKind(machine, latestEvent);
+  const highlightedType = getHighlightedEventType(machine);
+  const visualKind = getMachineVisualKind(machine);
 
   const isLowStock = (mi: MachineItem) => mi.req_qty != null && mi.qty < mi.req_qty;
 
@@ -117,7 +113,7 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
   return (
     <TooltipProvider delayDuration={300}>
       <Card className={cn('flex flex-col min-h-0 overflow-hidden border-border shadow-sm', className)}>
-        <div className={cn('h-1 shrink-0', machineTopBarClass[visualKind])} aria-hidden />
+        <div className={cn('h-2 shrink-0 rounded-t-lg', machineListTopBarClass[visualKind])} aria-hidden />
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-4 space-y-4">
