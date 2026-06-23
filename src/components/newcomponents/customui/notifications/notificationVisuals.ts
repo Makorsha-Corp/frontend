@@ -1,3 +1,4 @@
+import { isToday, isYesterday, parseISO } from 'date-fns';
 import {
   AlertCircle,
   AtSign,
@@ -10,7 +11,7 @@ import {
   FolderKanban,
   type LucideIcon,
 } from 'lucide-react';
-import type { NotificationKind, NotificationSeverity } from './notificationTypes';
+import type { AppNotification, NotificationKind, NotificationSeverity } from './notificationTypes';
 
 export interface NotificationVisual {
   icon: LucideIcon;
@@ -49,14 +50,50 @@ export function getNotificationVisual(kind: NotificationKind, severity?: Notific
 export function getFilterEmptyMessage(filter: string): string {
   switch (filter) {
     case 'unread':
-      return 'No unread notifications';
+      return "You're all caught up";
     case 'approvals':
       return 'No approval notifications';
     case 'alerts':
       return 'No alert notifications';
+    case 'discussions':
+      return 'No discussion notifications';
     default:
       return 'No notifications';
   }
+}
+
+export type NotificationDateGroup = 'today' | 'yesterday' | 'earlier';
+
+export const DATE_GROUP_LABELS: Record<NotificationDateGroup, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  earlier: 'Earlier',
+};
+
+const DATE_GROUP_ORDER: NotificationDateGroup[] = ['today', 'yesterday', 'earlier'];
+
+export function getNotificationDateGroup(createdAt: string): NotificationDateGroup {
+  const date = parseISO(createdAt);
+  if (isToday(date)) return 'today';
+  if (isYesterday(date)) return 'yesterday';
+  return 'earlier';
+}
+
+export function groupNotificationsByDate(
+  notifications: AppNotification[]
+): { group: NotificationDateGroup; items: AppNotification[] }[] {
+  const buckets = new Map<NotificationDateGroup, AppNotification[]>(
+    DATE_GROUP_ORDER.map((group) => [group, []])
+  );
+
+  for (const notification of notifications) {
+    buckets.get(getNotificationDateGroup(notification.createdAt))!.push(notification);
+  }
+
+  return DATE_GROUP_ORDER.map((group) => ({
+    group,
+    items: buckets.get(group)!,
+  })).filter(({ items }) => items.length > 0);
 }
 
 export const FALLBACK_VISUAL: NotificationVisual = {

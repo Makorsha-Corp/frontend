@@ -11,6 +11,7 @@ import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi'
 import { useGetDiscussionsQuery, useCreateDiscussionMutation } from '@/features/discussions/discussionsApi';
 import type { Discussion } from '@/types/discussion';
 import type { WorkspaceMember } from '@/types/workspace';
+import { DISCUSSION_URL_HASH, ORDER_DISCUSSION_SECTION_ID } from '@/constants/discussion';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -410,8 +411,22 @@ export default function DiscussionThread({ entityType, entityId }: DiscussionThr
   const discussions = data?.items ?? [];
   const total = data?.total ?? 0;
 
+  useEffect(() => {
+    if (window.location.hash !== `#${DISCUSSION_URL_HASH}`) return;
+
+    const scrollToDiscussion = () => {
+      document.getElementById(ORDER_DISCUSSION_SECTION_ID)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    };
+
+    const timeoutId = window.setTimeout(scrollToDiscussion, 150);
+    return () => window.clearTimeout(timeoutId);
+  }, [entityId, entityType, isLoading]);
+
   return (
-    <Card>
+    <Card id={ORDER_DISCUSSION_SECTION_ID}>
       <CardHeader className="pb-3 shrink-0">
         <CardTitle className="text-base flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />

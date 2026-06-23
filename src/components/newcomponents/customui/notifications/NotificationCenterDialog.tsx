@@ -1,52 +1,33 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Bell, Inbox, MessageSquare } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
+import { Tabs } from '@/components/ui/tabs';
+import {
+  EmphasisTabPanel,
+  EmphasisTabsList,
+  EmphasisTabsProvider,
+  EmphasisTabsTrigger,
+} from '@/components/newcomponents/customui/EmphasisTabSwitcher';
 import { useNotificationCenterContext } from './NotificationCenterProvider';
 import NotificationListItem from './NotificationListItem';
-import { getFilterEmptyMessage } from './notificationVisuals';
-import type { NotificationFilter, NotificationPreferenceKey } from './notificationTypes';
+import {
+  DATE_GROUP_LABELS,
+  getFilterEmptyMessage,
+  groupNotificationsByDate,
+} from './notificationVisuals';
+import type { NotificationFilter } from './notificationTypes';
 
 const FILTER_TABS: { id: NotificationFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'unread', label: 'Unread' },
   { id: 'approvals', label: 'Approvals' },
   { id: 'alerts', label: 'Alerts' },
-];
-
-const PREFERENCE_ROWS: { key: NotificationPreferenceKey; label: string; description: string }[] = [
-  {
-    key: 'order_approvals',
-    label: 'Order approvals',
-    description: 'Assignments, pending approvals, section confirms, invoices',
-  },
-  {
-    key: 'low_stock',
-    label: 'Low stock',
-    description: 'Inventory below reorder point',
-  },
-  {
-    key: 'project_updates',
-    label: 'Project updates',
-    description: 'Deadlines and project activity',
-  },
-  {
-    key: 'maintenance',
-    label: 'Maintenance',
-    description: 'Machine service schedules',
-  },
-  {
-    key: 'system',
-    label: 'System',
-    description: 'Workspace and account events',
-  },
+  { id: 'discussions', label: 'Discussions' },
 ];
 
 const NotificationCenterDialog: React.FC = () => {
@@ -56,94 +37,116 @@ const NotificationCenterDialog: React.FC = () => {
     filter,
     setFilter,
     filteredForDialog,
-    unreadCount,
+    filterUnreadCounts,
     isRead,
     toggleRead,
     dismiss,
-    markAllRead,
-    preferences,
-    setPreference,
+    markManyRead,
   } = useNotificationCenterContext();
+
+  const groupedNotifications = useMemo(
+    () => groupNotificationsByDate(filteredForDialog),
+    [filteredForDialog]
+  );
+
+  const handleClose = () => setDialogOpen(false);
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="flex h-[min(80vh,720px)] w-[min(42rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <DialogTitle>Notification center</DialogTitle>
-            {unreadCount > 0 && (
-              <Button type="button" variant="ghost" size="sm" onClick={markAllRead}>
-                Mark all read
-              </Button>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFilter(tab.id)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                  filter === tab.id
-                    ? 'bg-brand-primary text-white'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </DialogHeader>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {filteredForDialog.length === 0 ? (
-              <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-                {getFilterEmptyMessage(filter)}
-              </p>
-            ) : (
-              <div className="divide-y divide-border">
-                {filteredForDialog.map((n) => (
-                  <NotificationListItem
-                    key={n.id}
-                    notification={n}
-                    isRead={isRead(n.id)}
-                    showActions
-                    onToggleRead={toggleRead}
-                    onDismiss={dismiss}
-                  />
-                ))}
+      <DialogContent className="flex h-[min(80vh,720px)] w-[min(40rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+        <EmphasisTabsProvider value={filter}>
+          <Tabs
+            value={filter}
+            onValueChange={(v) => setFilter(v as NotificationFilter)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <Bell className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <DialogTitle className="text-base">Notifications</DialogTitle>
               </div>
-            )}
-          </div>
+              <EmphasisTabsList className="mt-3">
+                {FILTER_TABS.map((tab) => {
+                  const tabUnread = filterUnreadCounts[tab.id];
+                  return (
+                    <EmphasisTabsTrigger key={tab.id} value={tab.id} className="px-2">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="truncate">{tab.label}</span>
+                        {tabUnread > 0 && (
+                          <span className="shrink-0 rounded-full bg-brand-primary/10 px-1.5 py-px text-[10px] font-semibold tabular-nums text-brand-primary">
+                            {tabUnread > 9 ? '9+' : tabUnread}
+                          </span>
+                        )}
+                      </span>
+                    </EmphasisTabsTrigger>
+                  );
+                })}
+              </EmphasisTabsList>
+            </DialogHeader>
 
-          <aside className="shrink-0 border-t border-border bg-muted/20 p-4 md:w-56 md:border-l md:border-t-0">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Preferences
-            </p>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Mock settings — saved locally until a backend exists.
-            </p>
-            <div className="space-y-4">
-              {PREFERENCE_ROWS.map((row) => (
-                <div key={row.key} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Label htmlFor={`pref-${row.key}`} className="text-sm font-medium">
-                      {row.label}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">{row.description}</p>
+            <EmphasisTabPanel
+              panelKey={filter}
+              className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
+            >
+              {filteredForDialog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted/60">
+                    {filter === 'unread' ? (
+                      <Inbox className="h-6 w-6 text-muted-foreground" />
+                    ) : filter === 'discussions' ? (
+                      <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                    ) : (
+                      <Bell className="h-6 w-6 text-muted-foreground" />
+                    )}
                   </div>
-                  <Switch
-                    id={`pref-${row.key}`}
-                    checked={preferences[row.key]}
-                    onCheckedChange={(checked) => setPreference(row.key, checked)}
-                  />
+                  <p className="text-sm font-medium text-foreground">
+                    {getFilterEmptyMessage(filter)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {filter === 'discussions'
+                      ? 'Mentions and replies from order discussions will appear here.'
+                      : 'New activity will show up here.'}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </aside>
-        </div>
+              ) : (
+                <div className="space-y-4">
+                  {groupedNotifications.map(({ group, items }) => {
+                    const unreadInGroup = items.filter((n) => !isRead(n.id));
+                    return (
+                      <section key={group}>
+                        <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {DATE_GROUP_LABELS[group]}
+                        </p>
+                        <div className="space-y-2">
+                          {items.map((n) => (
+                            <NotificationListItem
+                              key={n.id}
+                              notification={n}
+                              isRead={isRead(n.id)}
+                              showActions
+                              onNavigate={handleClose}
+                              onToggleRead={toggleRead}
+                              onDismiss={dismiss}
+                            />
+                          ))}
+                        </div>
+                        {unreadInGroup.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => markManyRead(unreadInGroup.map((n) => n.id))}
+                            className="mt-2 w-full rounded-md border border-border py-2 text-xs font-medium text-brand-primary transition-colors hover:bg-muted/40"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
+            </EmphasisTabPanel>
+          </Tabs>
+        </EmphasisTabsProvider>
       </DialogContent>
     </Dialog>
   );

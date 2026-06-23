@@ -11,7 +11,15 @@ export type NotificationKind =
 
 export type NotificationSeverity = 'urgent' | 'action' | 'info';
 
-export type NotificationFilter = 'all' | 'unread' | 'approvals' | 'alerts';
+export type NotificationFilter = 'all' | 'unread' | 'approvals' | 'alerts' | 'discussions';
+
+export const NOTIFICATION_FILTERS: NotificationFilter[] = [
+  'all',
+  'unread',
+  'approvals',
+  'alerts',
+  'discussions',
+];
 
 export interface AppNotification {
   id: string;
@@ -23,23 +31,6 @@ export interface AppNotification {
   createdAt: string;
   entityRef?: string;
 }
-
-export type NotificationPreferenceKey =
-  | 'order_approvals'
-  | 'low_stock'
-  | 'project_updates'
-  | 'maintenance'
-  | 'system';
-
-export type NotificationPreferences = Record<NotificationPreferenceKey, boolean>;
-
-export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  order_approvals: true,
-  low_stock: true,
-  project_updates: true,
-  maintenance: true,
-  system: true,
-};
 
 export const APPROVAL_KINDS: NotificationKind[] = [
   'approval_pending',
@@ -55,19 +46,12 @@ export const ALERT_KINDS: NotificationKind[] = [
   'system',
 ];
 
-export const MENTION_KINDS: NotificationKind[] = ['mention'];
+export const DISCUSSION_KINDS: NotificationKind[] = ['mention'];
 
 export function kindMatchesFilter(kind: NotificationKind, filter: NotificationFilter): boolean {
   if (filter === 'all' || filter === 'unread') return true;
   if (filter === 'approvals') return APPROVAL_KINDS.includes(kind);
   if (filter === 'alerts') return ALERT_KINDS.includes(kind);
+  if (filter === 'discussions') return DISCUSSION_KINDS.includes(kind);
   return true;
-}
-
-export function preferenceKeyForKind(kind: NotificationKind): NotificationPreferenceKey {
-  if (APPROVAL_KINDS.includes(kind)) return 'order_approvals';
-  if (kind === 'low_stock') return 'low_stock';
-  if (kind === 'project_update') return 'project_updates';
-  if (kind === 'maintenance') return 'maintenance';
-  return 'system';
 }

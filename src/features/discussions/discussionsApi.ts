@@ -12,7 +12,7 @@ interface GetDiscussionsParams {
 export const discussionsApi = createApi({
   reducerPath: 'discussionsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Discussion'],
+  tagTypes: ['Discussion', 'Notification'],
   endpoints: (builder) => ({
     getDiscussions: builder.query<DiscussionListResponse, GetDiscussionsParams>({
       query: ({ entity_type, entity_id, skip = 0, limit = 100 }) => {
@@ -33,6 +33,7 @@ export const discussionsApi = createApi({
       query: (body) => ({ url: 'discussions/', method: 'POST', body }),
       invalidatesTags: (_r, _e, { entity_type, entity_id }) => [
         { type: 'Discussion', id: `${entity_type}_${entity_id}` },
+        'Notification',
       ],
     }),
   }),

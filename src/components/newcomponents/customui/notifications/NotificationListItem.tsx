@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { ChevronRight, Mail, MailOpen, X } from 'lucide-react';
+import { ChevronRight, ExternalLink, Mail, MailOpen, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { AppNotification } from './notificationTypes';
@@ -72,12 +72,55 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
     return (
       <div
         className={cn(
-          'flex items-center gap-3 px-4 py-3',
-          !isRead && 'bg-brand-primary/5'
+          'rounded-lg border border-border p-3 transition-colors',
+          !isRead && 'border-l-2 border-l-brand-primary bg-brand-primary/5',
+          isRead && 'bg-card'
         )}
       >
-        {content}
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+              visual.wrapClass
+            )}
+          >
+            <Icon className={cn('h-4 w-4', visual.colorClass)} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-sm leading-snug',
+                    isRead ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'
+                  )}
+                >
+                  {notification.title}
+                </p>
+                {notification.entityRef && (
+                  <span className="mt-1 inline-flex rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {notification.entityRef}
+                  </span>
+                )}
+              </div>
+              <span className="shrink-0 text-[11px] text-muted-foreground">{timeAgo}</span>
+            </div>
+            <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{notification.body}</p>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center justify-end gap-1">
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
+            <Link
+              to={notification.href}
+              onClick={() => {
+                onNavigate?.();
+                if (!isRead && onToggleRead) onToggleRead(notification.id);
+              }}
+            >
+              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+              Open
+            </Link>
+          </Button>
           {onToggleRead && (
             <Button
               type="button"
