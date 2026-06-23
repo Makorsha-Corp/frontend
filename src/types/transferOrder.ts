@@ -23,16 +23,11 @@ export interface TransferOrder {
   source_location_id: number;
   destination_location_type: string;
   destination_location_id: number;
-  order_date: string;
-  expected_completion_date: string | null;
   current_status_id: number;
   current_status_name: string | null;
   required_approvals: number | null;
-  route_confirmed: boolean;
-  items_confirmed: boolean;
   order_completed: boolean;
   description: string | null;
-  note: string | null;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -52,10 +47,7 @@ export interface CreateTransferOrder {
   source_location_id: number;
   destination_location_type: string;
   destination_location_id: number;
-  order_date?: string | null;
-  expected_completion_date?: string | null;
   description?: string | null;
-  note?: string | null;
   current_status_id?: number;
   items?: CreateTransferOrderItem[];
 }
@@ -65,12 +57,9 @@ export interface UpdateTransferOrder {
   source_location_id?: number;
   destination_location_type?: string;
   destination_location_id?: number;
-  order_date?: string | null;
-  expected_completion_date?: string | null;
   current_status_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
-  note?: string | null;
 }
 
 export interface UpdateTransferOrderItem {
@@ -84,13 +73,6 @@ export interface UpdateTransferOrderItem {
 export interface ListTransferOrdersParams {
   skip?: number;
   limit?: number;
-}
-
-export type TransferOrderSection = 'route' | 'items';
-
-export interface TransferOrderSectionConfirmRequest {
-  section: TransferOrderSection;
-  confirmed: boolean;
 }
 
 export interface TransferOrderApprover {

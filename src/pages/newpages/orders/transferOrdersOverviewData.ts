@@ -48,7 +48,7 @@ export function filterTransferOrders(
   if (filters.from && filters.to) {
     const interval = { start: startOfDay(filters.from), end: endOfDay(filters.to) };
     rows = rows.filter((o) => {
-      const orderDate = parseISO(o.order_date);
+      const orderDate = parseISO(o.created_at);
       return isWithinInterval(orderDate, interval);
     });
   }

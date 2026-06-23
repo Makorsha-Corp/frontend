@@ -32,7 +32,6 @@ import {
 } from '@/features/transferOrders/transferOrdersApi';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import { API_LIMITS } from '@/constants/apiLimits';
-import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -85,13 +84,12 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
   const [pendingNewLines, setPendingNewLines] = useState<PendingNewLine[]>([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
-  const [addItemOpen, setAddItemOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { data: itemsList = [] } = useGetItemsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
+  const { data: itemsList = [] } = useGetItemsQuery(
+    { skip: 0, limit: API_LIMITS.STRICT_100 },
+    { skip: !open }
+  );
 
   const [addItem] = useAddTransferOrderItemMutation();
   const [updateItem] = useUpdateTransferOrderItemMutation();
@@ -189,32 +187,21 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
           <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-6 py-4">
             <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Add line</Label>
-              <div className="flex flex-wrap items-end gap-2">
-                <div className="grid min-w-[12rem] flex-1 gap-1">
-                  <Label className="text-xs text-muted-foreground">Item *</Label>
-                  <Select value={itemId} onValueChange={setItemId}>
-                    <SelectTrigger className="h-9 bg-background">
-                      <SelectValue placeholder="Select item..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {itemsList.map((i) => (
-                        <SelectItem key={i.id} value={String(i.id)}>
-                          {i.name}
-                          {i.unit ? ` (${i.unit})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-9 px-0 text-xs"
-                  onClick={() => setAddItemOpen(true)}
-                >
-                  Create item +
-                </Button>
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">Item *</Label>
+                <Select value={itemId} onValueChange={setItemId}>
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Select item..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {itemsList.map((i) => (
+                      <SelectItem key={i.id} value={String(i.id)}>
+                        {i.name}
+                        {i.unit ? ` (${i.unit})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="grid min-w-[5rem] flex-1 gap-1">
@@ -384,8 +371,6 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AddItemDialog open={addItemOpen} onOpenChange={setAddItemOpen} />
     </>
   );
 };

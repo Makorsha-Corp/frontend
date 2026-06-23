@@ -34,8 +34,6 @@ export interface ExpenseOrder {
   items_confirmed: boolean;
   invoice_confirmed: boolean;
   description: string | null;
-  expense_note: string | null;
-  internal_note: string | null;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -63,8 +61,6 @@ export interface CreateExpenseOrder {
   expense_date?: string | null;
   due_date?: string | null;
   description?: string | null;
-  expense_note?: string | null;
-  internal_note?: string | null;
   current_status_id?: number;
   order_workflow_id?: number | null;
   items?: CreateExpenseOrderItem[];
@@ -79,8 +75,6 @@ export interface UpdateExpenseOrder {
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
-  expense_note?: string | null;
-  internal_note?: string | null;
   details_confirmed?: boolean | null;
   items_confirmed?: boolean | null;
   invoice_confirmed?: boolean | null;

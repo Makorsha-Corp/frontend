@@ -59,7 +59,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
-  const [expenseNote, setExpenseNote] = useState('');
   const [items, setItems] = useState<
     Array<{
       description: string;
@@ -120,7 +119,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     setExpenseDate(new Date().toISOString().slice(0, 10));
     setDueDate('');
     setDescription('');
-    setExpenseNote('');
     setItems([]);
     setLineDescription('');
     setLineQty('1');
@@ -196,7 +194,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       expense_date: expenseDate || undefined,
       due_date: dueDate || undefined,
       description: description || undefined,
-      expense_note: expenseNote || undefined,
       current_status_id: 1,
       items: items.map(
         (i): CreateExpenseOrderItem => ({
@@ -443,10 +440,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       <div>
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
-      </div>
-      <div>
-        <Label>Expense note</Label>
-        <Input value={expenseNote} onChange={(e) => setExpenseNote(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
     </div>
   );

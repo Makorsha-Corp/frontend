@@ -5,7 +5,7 @@ import type { Status } from '@/types/status';
 
 export type TrScrollSection = 'route' | 'items' | 'approvals';
 
-export type TrChecklistPhase = 'prepare' | 'execute' | 'mark_complete' | 'done';
+export type TrChecklistPhase = 'approve' | 'complete' | 'done';
 
 export const TR_STAGE_NAMES = ['Draft', 'Planned', 'Completed'] as const;
 export type TrStageName = (typeof TR_STAGE_NAMES)[number];
@@ -21,18 +21,6 @@ export function statusesForTrWorkflowFilter(statuses: Status[]): Status[] {
   });
 }
 
-export interface TrSectionConfirmState {
-  route_confirmed: boolean;
-  items_confirmed: boolean;
-}
-
-export function sectionConfirmsFromOrder(order: TransferOrder): TrSectionConfirmState {
-  return {
-    route_confirmed: order.route_confirmed,
-    items_confirmed: order.items_confirmed,
-  };
-}
-
 export function isTransferRouteDefined(order: TransferOrder): boolean {
   return (
     order.source_location_id > 0 &&
@@ -46,13 +34,8 @@ export function isTransferOrderCompleted(order: TransferOrder): boolean {
   return Boolean(order.completed_at) || order.order_completed;
 }
 
-export function isTransferPrepareComplete(
-  order: TransferOrder,
-  _items: TransferOrderItem[],
-  sectionConfirms?: TrSectionConfirmState
-): boolean {
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
-  return confirms.route_confirmed && confirms.items_confirmed;
+export function isTransferReadyForApproval(order: TransferOrder, items: TransferOrderItem[]): boolean {
+  return isTransferRouteDefined(order) && items.length > 0;
 }
 
 export function isTransferApprovalsComplete(approvalSummary: TransferApprovalSummary): boolean {
@@ -60,38 +43,34 @@ export function isTransferApprovalsComplete(approvalSummary: TransferApprovalSum
   return approvalSummary.met && approvalSummary.approved_count > 0;
 }
 
-export function getTransferTransferCounts(items: TransferOrderItem[]) {
-  const transferredCount = items.filter((i) => i.transferred_at).length;
-  const transfersComplete = items.length > 0 && transferredCount === items.length;
-  return { transferredCount, transfersComplete, totalCount: items.length };
+export function getPendingTransferCount(items: TransferOrderItem[]): number {
+  return items.filter((i) => !i.transferred_at).length;
+}
+
+export function isTransferPrepareComplete(order: TransferOrder, items: TransferOrderItem[]): boolean {
+  return isTransferReadyForApproval(order, items);
 }
 
 export function deriveTransferOrderStage(
   order: TransferOrder,
-  items: TransferOrderItem[],
-  _approvalSummary: TransferApprovalSummary,
-  sectionConfirms?: TrSectionConfirmState
+  items: TransferOrderItem[]
 ): TrStageName {
   if (isTransferOrderCompleted(order)) return 'Completed';
-  if (isTransferPrepareComplete(order, items, sectionConfirms)) return 'Planned';
+  if (isTransferPrepareComplete(order, items)) return 'Planned';
   return 'Draft';
 }
 
 export function getTrChecklistPhase(
-  prepareComplete: boolean,
   approvalsComplete: boolean,
-  transfersComplete: boolean,
   orderCompleted: boolean
 ): TrChecklistPhase {
   if (orderCompleted) return 'done';
-  if (!prepareComplete) return 'prepare';
-  if (!approvalsComplete || !transfersComplete) return 'execute';
-  return 'mark_complete';
+  if (!approvalsComplete) return 'approve';
+  return 'complete';
 }
 
 export function deriveTransferOrderStageFromOrder(order: TransferOrder): TrStageName {
   if (isTransferOrderCompleted(order)) return 'Completed';
-  if (order.route_confirmed && order.items_confirmed) return 'Planned';
   if (isTransferRouteDefined(order)) return 'Planned';
   return 'Draft';
 }
@@ -100,12 +79,7 @@ export function deriveTransferOrderStageWithItems(
   order: TransferOrder,
   items: TransferOrderItem[]
 ): TrStageName {
-  return deriveTransferOrderStage(
-    order,
-    items,
-    { approved_count: 0, required: 0, met: true },
-    sectionConfirmsFromOrder(order)
-  );
+  return deriveTransferOrderStage(order, items);
 }
 
 export function trStageBadgeClassName(stageName: TrStageName | string | null | undefined): string {
@@ -126,54 +100,35 @@ export interface TrChecklistProgress {
   phase: TrChecklistPhase;
   routeDefined: boolean;
   hasItems: boolean;
-  routeConfirmed: boolean;
-  itemsConfirmed: boolean;
-  prepareComplete: boolean;
-  prepareRatio: string;
+  readyForApproval: boolean;
   approvalsComplete: boolean;
   approvalRatio: string;
-  transfersComplete: boolean;
-  transferRatio: string;
+  pendingTransferCount: number;
   orderCompleted: boolean;
 }
 
 export function getTrChecklistProgress(
   order: TransferOrder,
   items: TransferOrderItem[],
-  approvalSummary: TransferApprovalSummary,
-  sectionConfirms?: TrSectionConfirmState
+  approvalSummary: TransferApprovalSummary
 ): TrChecklistProgress {
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
   const routeDefined = isTransferRouteDefined(order);
   const hasItems = items.length > 0;
-  const routeConfirmed = confirms.route_confirmed;
-  const itemsConfirmed = confirms.items_confirmed;
-  const prepareComplete = routeConfirmed && itemsConfirmed;
-  const prepareDoneCount = (routeConfirmed ? 1 : 0) + (itemsConfirmed ? 1 : 0);
+  const readyForApproval = isTransferReadyForApproval(order, items);
   const approvalsComplete = isTransferApprovalsComplete(approvalSummary);
-  const { transferredCount, transfersComplete, totalCount } = getTransferTransferCounts(items);
   const orderCompleted = isTransferOrderCompleted(order);
-  const stage = deriveTransferOrderStage(order, items, approvalSummary, confirms);
-  const phase = getTrChecklistPhase(
-    prepareComplete,
-    approvalsComplete,
-    transfersComplete,
-    orderCompleted
-  );
+  const stage = deriveTransferOrderStage(order, items);
+  const phase = getTrChecklistPhase(approvalsComplete, orderCompleted);
 
   return {
     stage,
     phase,
     routeDefined,
     hasItems,
-    routeConfirmed,
-    itemsConfirmed,
-    prepareComplete,
-    prepareRatio: `${prepareDoneCount}/2`,
+    readyForApproval,
     approvalsComplete,
     approvalRatio: `${approvalSummary.approved_count}/${approvalSummary.required}`,
-    transfersComplete,
-    transferRatio: totalCount > 0 ? `${transferredCount}/${totalCount}` : '0/0',
+    pendingTransferCount: getPendingTransferCount(items),
     orderCompleted,
   };
 }

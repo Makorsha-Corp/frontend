@@ -8,7 +8,6 @@ import type {
   CreateTransferOrderItem,
   UpdateTransferOrderItem,
   ListTransferOrdersParams,
-  TransferOrderSectionConfirmRequest,
   TransferOrderApproversList,
   TransferOrderApprover,
   TransferOrderEvent,
@@ -60,21 +59,6 @@ export const transferOrdersApi = createApi({
           /* mutation failed */
         }
       },
-    }),
-    setTransferOrderSectionConfirm: builder.mutation<
-      TransferOrder,
-      { id: number; data: TransferOrderSectionConfirmRequest }
-    >({
-      query: ({ id, data }) => ({
-        url: `transfer-orders/${id}/section-confirm/`,
-        method: 'PATCH',
-        body: data,
-      }),
-      invalidatesTags: (_r, _e, { id }) => [
-        { type: 'TransferOrder', id },
-        { type: 'TransferOrderApprovers', id },
-        { type: 'TransferOrderEvents', id },
-      ],
     }),
     markTransferOrderComplete: builder.mutation<TransferOrder, number>({
       query: (id) => ({ url: `transfer-orders/${id}/complete/`, method: 'POST' }),
@@ -204,7 +188,6 @@ export const {
   useGetTransferOrderByIdQuery,
   useCreateTransferOrderMutation,
   useUpdateTransferOrderMutation,
-  useSetTransferOrderSectionConfirmMutation,
   useMarkTransferOrderCompleteMutation,
   useDeleteTransferOrderMutation,
   useGetTransferOrderApproversQuery,

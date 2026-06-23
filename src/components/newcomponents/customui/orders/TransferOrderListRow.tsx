@@ -15,7 +15,7 @@ interface TransferOrderListRowProps {
   isSelected: boolean;
   onClick: () => void;
   onDelete?: () => void;
-  routeTypeLabel: string;
+  routeLabel: React.ReactNode;
   formatDate: (d: string | null | undefined) => string;
 }
 
@@ -44,7 +44,7 @@ const TransferOrderListRow: React.FC<TransferOrderListRowProps> = ({
   isSelected,
   onClick,
   onDelete,
-  routeTypeLabel,
+  routeLabel,
   formatDate,
 }) => {
   const { data: items = [] } = useGetTransferOrderItemsQuery(order.id);
@@ -76,10 +76,10 @@ const TransferOrderListRow: React.FC<TransferOrderListRowProps> = ({
           </Badge>
         </div>
 
-        <div className="text-sm text-muted-foreground truncate mt-1">{routeTypeLabel}</div>
+        <div className="mt-1 min-w-0 text-sm text-muted-foreground">{routeLabel}</div>
 
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <span className={chipClass}>{formatDate(order.order_date)}</span>
+          <span className={chipClass}>{formatDate(order.created_at)}</span>
           <span className={chipClass}>
             {itemCount} item{itemCount !== 1 ? 's' : ''}
           </span>

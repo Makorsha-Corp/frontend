@@ -22,7 +22,7 @@ export interface TransferOrderNavigatorPanelProps {
   onSelectOrder: (id: number) => void;
   onDeleteOrder?: (order: TransferOrder) => void;
   onAddOrder: () => void;
-  routeTypeLabel: (order: TransferOrder) => string;
+  routeLabel: (order: TransferOrder) => React.ReactNode;
   formatDate: (d: string | null | undefined) => string;
 }
 
@@ -40,7 +40,7 @@ const TransferOrderNavigatorPanel: React.FC<TransferOrderNavigatorPanelProps> = 
   onSelectOrder,
   onDeleteOrder,
   onAddOrder,
-  routeTypeLabel,
+  routeLabel,
   formatDate,
 }) => {
   return (
@@ -131,7 +131,7 @@ const TransferOrderNavigatorPanel: React.FC<TransferOrderNavigatorPanelProps> = 
                     ? () => onDeleteOrder(o)
                     : undefined
                 }
-                routeTypeLabel={routeTypeLabel(o)}
+                routeLabel={routeLabel(o)}
                 formatDate={formatDate}
               />
             ))}

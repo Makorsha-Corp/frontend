@@ -31,10 +31,8 @@ export interface PurchaseOrder {
   invoice_id: number | null;
   required_approvals: number | null;
   description: string | null;
-  order_note: string | null;
   supplier_confirmed: boolean;
   details_confirmed: boolean;
-  notes_confirmed: boolean;
   items_confirmed: boolean;
   invoice_confirmed: boolean;
   order_completed?: boolean;
@@ -79,8 +77,6 @@ export type PurchaseOrderEventType =
   | 'supplier_unconfirmed'
   | 'details_confirmed'
   | 'details_unconfirmed'
-  | 'notes_confirmed'
-  | 'notes_unconfirmed'
   | 'items_confirmed'
   | 'items_unconfirmed'
   | 'invoice_confirmed'
@@ -91,7 +87,6 @@ export type PurchaseOrderEventType =
   | 'approvals_reset'
   | 'supplier_updated'
   | 'details_updated'
-  | 'notes_updated'
   | 'item_added'
   | 'item_removed'
   | 'item_updated'
@@ -147,7 +142,6 @@ export interface CreatePurchaseOrder {
   order_date?: string | null;
   expected_delivery_date?: string | null;
   description?: string | null;
-  order_note?: string | null;
   current_status_id?: number;
   order_workflow_id?: number | null;
   items?: CreatePurchaseOrderItem[];
@@ -163,10 +157,8 @@ export interface UpdatePurchaseOrder {
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
-  order_note?: string | null;
   supplier_confirmed?: boolean;
   details_confirmed?: boolean;
-  notes_confirmed?: boolean;
   items_confirmed?: boolean;
 }
 

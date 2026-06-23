@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   useGetTransferOrderItemsQuery,
@@ -12,7 +11,6 @@ import {
   useGetTransferOrderApproversQuery,
   useGetTransferOrderEventsQuery,
   useUpdateTransferOrderMutation,
-  useSetTransferOrderSectionConfirmMutation,
   useMarkTransferOrderCompleteMutation,
   useAddTransferOrderApproverMutation,
   useRemoveTransferOrderApproverMutation,
@@ -29,10 +27,6 @@ import {
   ArrowLeftRight,
   ArrowRight,
   Package,
-  Warehouse,
-  Cpu,
-  AlertTriangle,
-  FolderKanban,
   Loader2,
   MessageSquare,
   Send,
@@ -42,6 +36,7 @@ import {
   Clock,
   CircleDashed,
   Pencil,
+  ArrowRightLeft,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -52,35 +47,33 @@ import {
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { transferLocationLabel } from '@/pages/newpages/orders/transferOrderLocationLabels';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { SectionConfirmActions } from './PoSectionConfirmButton';
+import { transferLocationName, transferLocationTypeLabel } from '@/pages/newpages/orders/transferOrderLocationLabels';
+import { transferLocationIcon } from './TransferRouteDisplay';
 import ToApprovalsTopBar from './ToApprovalsTopBar';
 import ManageToApprovalsDialog from './ManageToApprovalsDialog';
 import TrWorkflowChecklist from './TrWorkflowChecklist';
 import EditTransferOrderItemsDialog from './EditTransferOrderItemsDialog';
 import EditTransferOrderRouteDialog from './EditTransferOrderRouteDialog';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import ManageTransferOrderTransfersDialog from './ManageTransferOrderTransfersDialog';
 import ToEventLogRow from './ToEventLogRow';
 import { useTransferOrderEvents } from './TransferOrderEventFeed';
 import type { TransferOrderApprover } from '@/types/transferOrder';
 import {
   deriveTransferOrderStage,
+  getPendingTransferCount,
+  isTransferReadyForApproval,
   trStageBadgeClassName,
   type TrScrollSection,
 } from './transferOrderMilestones';
-import {
-  getTrSectionConfirmReadiness,
-  trSectionConfirmLabel,
-  type TrSectionConfirmKey,
-} from './transferOrderSectionConfirms';
 
 const confirmedSectionCardClass = 'border-muted-foreground/15 bg-muted/20';
 const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
@@ -93,17 +86,11 @@ interface TransferOrderDetailPanelProps {
 
 interface TrDraft {
   description: string;
-  note: string;
-  order_date: string;
-  expected_completion_date: string;
 }
 
 function draftFromOrder(order: TransferOrder): TrDraft {
   return {
     description: order.description ?? '',
-    note: order.note ?? '',
-    order_date: order.order_date ?? '',
-    expected_completion_date: order.expected_completion_date ?? '',
   };
 }
 
@@ -113,16 +100,15 @@ function getLocationDisplay(
   factories: { id: number; name: string }[],
   machines: { id: number; name: string }[],
   projects: { id: number; name: string }[]
-): { label: string; icon: React.ReactNode } {
-  const iconMap = {
-    storage: <Warehouse className="h-4 w-4" />,
-    machine: <Cpu className="h-4 w-4" />,
-    damaged: <AlertTriangle className="h-4 w-4" />,
-    project: <FolderKanban className="h-4 w-4" />,
+): { label: string; icon: React.ReactNode; title: string } {
+  const ctx = { factories, machines, projects };
+  const label = transferLocationName(type, id, ctx);
+  const typeLabel = transferLocationTypeLabel(type);
+  return {
+    label,
+    icon: transferLocationIcon(type, 'h-4 w-4 shrink-0 text-muted-foreground'),
+    title: `${typeLabel} · ${label}`,
   };
-  const icon = iconMap[type as keyof typeof iconMap] ?? <Warehouse className="h-4 w-4" />;
-  const label = transferLocationLabel(type, id, { factories, machines, projects });
-  return { label, icon };
 }
 
 const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
@@ -135,10 +121,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const [editRouteOpen, setEditRouteOpen] = useState(false);
   const [showConfirmEvents, setShowConfirmEvents] = useState(true);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<TrScrollSection | null>(null);
-  const [confirmingSection, setConfirmingSection] = useState<TrSectionConfirmKey | null>(null);
-  const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
-  const [pendingUnconfirmSection, setPendingUnconfirmSection] =
-    useState<TrSectionConfirmKey | null>(null);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -148,7 +131,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
 
   const { data: items = [], isLoading: itemsLoading, refetch: refetchItems } =
     useGetTransferOrderItemsQuery(order.id);
-  const { data: approversData, refetch: refetchApprovers } = useGetTransferOrderApproversQuery(order.id);
+  const { data: approversData } = useGetTransferOrderApproversQuery(order.id);
   const { data: apiEvents = [] } = useGetTransferOrderEventsQuery(order.id);
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
@@ -157,7 +140,6 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     skip: !workspace?.id,
   });
   const [updateOrder, { isLoading: isUpdating }] = useUpdateTransferOrderMutation();
-  const [setSectionConfirm] = useSetTransferOrderSectionConfirmMutation();
   const [markComplete, { isLoading: isMarkingComplete }] = useMarkTransferOrderCompleteMutation();
   const [addApprover] = useAddTransferOrderApproverMutation();
   const [removeApprover] = useRemoveTransferOrderApproverMutation();
@@ -169,26 +151,18 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const requiredApprovals =
     order.required_approvals != null ? String(order.required_approvals) : '';
 
-  const routeConfirmed = order.route_confirmed;
-  const itemsConfirmed = order.items_confirmed;
-
   const [draft, setDraft] = useState<TrDraft>(() => draftFromOrder(order));
   useEffect(() => {
     setDraft(draftFromOrder(order));
   }, [order.id, order.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isDirty =
-    draft.description !== (order.description ?? '') ||
-    draft.note !== (order.note ?? '') ||
-    draft.order_date !== (order.order_date ?? '') ||
-    draft.expected_completion_date !== (order.expected_completion_date ?? '');
+  const isDirty = draft.description !== (order.description ?? '');
   const isSaving = isUpdating;
   const orderComplete = Boolean(order.completed_at);
 
-  const stageName = deriveTransferOrderStage(order, items, approvalSummary);
-
-  const routeSectionLocked = routeConfirmed;
-  const itemsSectionLocked = itemsConfirmed;
+  const stageName = deriveTransferOrderStage(order, items);
+  const readyForApproval = isTransferReadyForApproval(order, items);
+  const editsLocked = approvalSummary.approved_count > 0;
 
   const source = getLocationDisplay(
     order.source_location_type,
@@ -221,8 +195,11 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     it.item_name ?? `Item #${it.item_id}`;
   const qtyWithUnit = (qty: number, unit: string | null) => (unit ? `${qty} ${unit}` : String(qty));
 
-  const approvedCount = items.filter((i) => i.approved).length;
-  const transferredCount = items.filter((i) => i.transferred_at).length;
+  const approveBlockedReason = !readyForApproval
+    ? !items.length
+      ? 'Add at least one transfer item before approving'
+      : 'Set source and destination before approving'
+    : undefined;
 
   const scrollToSection = (section: TrScrollSection) => {
     const id =
@@ -242,68 +219,14 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
 
   const dismissScrollHighlight = () => setScrollHighlightTarget(null);
 
-  const requestSectionConfirmToggle = (
-    section: TrSectionConfirmKey,
-    currentlyConfirmed: boolean
-  ) => {
-    if (!currentlyConfirmed) {
-      const readiness = getTrSectionConfirmReadiness(section, order, items);
-      if (!readiness.ok) {
-        toast.error(readiness.reason ?? 'Section not ready to confirm');
-        return;
-      }
-      void handleToggleSectionConfirm(section, true);
-      return;
-    }
-    setPendingUnconfirmSection(section);
-    setUnconfirmWarningOpen(true);
-  };
-
-  const handleConfirmSectionUnconfirm = () => {
-    if (!pendingUnconfirmSection) return;
-    const section = pendingUnconfirmSection;
-    setUnconfirmWarningOpen(false);
-    setPendingUnconfirmSection(null);
-    void handleToggleSectionConfirm(section, false);
-  };
-
-  const handleToggleSectionConfirm = async (
-    section: TrSectionConfirmKey,
-    nextConfirmed: boolean
-  ) => {
-    setConfirmingSection(section);
-    try {
-      if (nextConfirmed && section === 'route' && isDirty) {
-        await updateOrder({
-          id: order.id,
-          data: {
-            description: draft.description.trim() || null,
-            note: draft.note.trim() || null,
-            order_date: draft.order_date || null,
-            expected_completion_date: draft.expected_completion_date || null,
-          },
-        }).unwrap();
-      }
-      await setSectionConfirm({
-        id: order.id,
-        data: { section, confirmed: nextConfirmed },
-      }).unwrap();
-      const label = trSectionConfirmLabel(section);
-      toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
-      if (!nextConfirmed) {
-        void refetchApprovers();
-      }
-    } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update section');
-    } finally {
-      setConfirmingSection(null);
-    }
-  };
+  const pendingTransferCount = getPendingTransferCount(items);
+  const transferredCount = items.filter((i) => i.transferred_at).length;
+  const transfersComplete = items.length > 0 && transferredCount === items.length;
 
   const handleMarkComplete = async () => {
     try {
       await markComplete(order.id).unwrap();
+      setCompleteConfirmOpen(false);
       toast.success('Transfer order marked complete');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -317,9 +240,6 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         id: order.id,
         data: {
           description: draft.description.trim() || null,
-          note: draft.note.trim() || null,
-          order_date: draft.order_date || null,
-          expected_completion_date: draft.expected_completion_date || null,
         },
       }).unwrap();
       toast.success('Changes saved');
@@ -378,12 +298,9 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     }
   };
 
-  const scrollToManageTransfers = () => {
-    setManageTransfersOpen(true);
-  };
 
   const openEditRoute = () => {
-    if (routeSectionLocked) return;
+    if (editsLocked) return;
     setEditRouteOpen(true);
   };
 
@@ -400,12 +317,18 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
             onHighlightDismiss={dismissScrollHighlight}
             onManage={() => setManageApprovalsOpen(true)}
             onToggleMyApproval={handleToggleMyApproval}
+            canApprove={readyForApproval}
+            approveBlockedReason={approveBlockedReason}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(280px,32%)] gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(280px,32%)] gap-4 lg:items-stretch">
             <Card
               id="tr-section-route"
-              className={cn('scroll-mt-6', routeSectionLocked && confirmedSectionCardClass)}
+              className={cn(
+                'scroll-mt-6 flex flex-col h-full',
+                editsLocked && confirmedSectionCardClass,
+                scrollHighlightTarget === 'route' && 'po-scroll-target-highlight'
+              )}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
@@ -425,28 +348,19 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                     >
                       {stageName}
                     </Badge>
-                    <SectionConfirmActions
-                      id="tr-confirm-route"
-                      confirmed={routeConfirmed}
-                      onToggle={() => requestSectionConfirmToggle('route', routeConfirmed)}
-                      isLoading={confirmingSection === 'route'}
-                      label="order details"
-                      highlighted={scrollHighlightTarget === 'route'}
-                      onHighlightDismiss={dismissScrollHighlight}
-                    />
                   </div>
                 </div>
               </CardHeader>
               <CardContent
-                className={cn('space-y-4', routeSectionLocked && confirmedSectionContentClass)}
+                className={cn('flex flex-1 flex-col space-y-4', editsLocked && confirmedSectionContentClass)}
               >
                 <div
                   className={cn(
                     'relative rounded-lg border border-border bg-muted/30',
-                    !routeSectionLocked && 'group hover:border-muted-foreground/30 hover:bg-muted/40 transition-colors'
+                    !editsLocked && 'group hover:border-muted-foreground/30 hover:bg-muted/40 transition-colors'
                   )}
                 >
-                  {!routeSectionLocked && (
+                  {!editsLocked && (
                     <TooltipProvider delayDuration={300}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -471,24 +385,24 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                   <button
                     type="button"
                     onClick={openEditRoute}
-                    disabled={routeSectionLocked}
+                    disabled={editsLocked}
                     className={cn(
                       'flex w-full items-center gap-4 p-4 text-left',
-                      routeSectionLocked
+                      editsLocked
                         ? 'cursor-default'
                         : 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg'
                     )}
                     aria-label={
-                      routeSectionLocked
-                        ? `Route from ${source.label} to ${dest.label}`
-                        : `Edit route from ${source.label} to ${dest.label}`
+                      editsLocked
+                        ? `Route from ${source.title} to ${dest.title}`
+                        : `Edit route from ${source.title} to ${dest.title}`
                     }
                   >
                     <div className="flex-1 flex flex-col gap-1 min-w-0">
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         From
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" title={source.title}>
                         <span className="text-muted-foreground shrink-0">{source.icon}</span>
                         <span className="font-semibold text-card-foreground truncate">{source.label}</span>
                       </div>
@@ -498,7 +412,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         To
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" title={dest.title}>
                         <span className="text-muted-foreground shrink-0">{dest.icon}</span>
                         <span className="font-semibold text-card-foreground truncate">{dest.label}</span>
                       </div>
@@ -506,7 +420,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Created</Label>
                     <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
@@ -514,37 +428,10 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      className={cn(
-                        'text-xs uppercase tracking-wide',
-                        orderComplete ? 'text-muted-foreground' : 'text-muted-foreground'
-                      )}
-                    >
-                      {orderComplete ? 'Completed' : 'Expected'}
-                    </Label>
-                    {orderComplete ? (
-                      <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
-                        {formatDate(order.completed_at)}
-                      </div>
-                    ) : (
-                      <Input
-                        type="date"
-                        value={draft.expected_completion_date}
-                        onChange={(e) =>
-                          setDraft((d) => ({ ...d, expected_completion_date: e.target.value }))
-                        }
-                        disabled={routeSectionLocked}
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order date</Label>
-                    <Input
-                      type="date"
-                      value={draft.order_date}
-                      onChange={(e) => setDraft((d) => ({ ...d, order_date: e.target.value }))}
-                      disabled={routeSectionLocked}
-                    />
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Completed</Label>
+                    <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                      {formatDate(order.completed_at)}
+                    </div>
                   </div>
                 </div>
 
@@ -559,21 +446,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                       onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
                       placeholder="Transfer description..."
                       className="bg-background"
-                      disabled={routeSectionLocked}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="tr-note" className="text-xs font-medium text-muted-foreground">
-                      Note
-                    </label>
-                    <Textarea
-                      id="tr-note"
-                      value={draft.note}
-                      onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
-                      placeholder="Internal note..."
-                      rows={3}
-                      className="bg-background resize-none"
-                      disabled={routeSectionLocked}
+                      disabled={editsLocked}
                     />
                   </div>
                 </div>
@@ -581,152 +454,158 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
             </Card>
 
             <TrWorkflowChecklist
+              className="h-full scroll-mt-6"
               order={order}
               items={items}
               approvalSummary={approvalSummary}
-              routeConfirmed={routeConfirmed}
-              itemsConfirmed={itemsConfirmed}
-              onScrollToSection={scrollToSection}
-              onManageTransfers={scrollToManageTransfers}
-              onMarkComplete={handleMarkComplete}
+              onScrollToManageApprovals={() => scrollToSection('approvals')}
+              onMarkComplete={() => setCompleteConfirmOpen(true)}
               isMarkingComplete={isMarkingComplete}
             />
           </div>
 
           <Card
             id="tr-section-items"
-            className={cn('scroll-mt-6', itemsSectionLocked && confirmedSectionCardClass)}
+            className={cn(
+              'scroll-mt-6',
+              editsLocked && confirmedSectionCardClass,
+              scrollHighlightTarget === 'items' && 'po-scroll-target-highlight'
+            )}
           >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle
-                    className={cn(
-                      'text-base flex items-center gap-2',
-                      itemsSectionLocked && confirmedSectionContentClass
-                    )}
-                  >
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    Transfer items ({items.length})
-                  </CardTitle>
-                  {items.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {approvedCount} approved · {transferredCount} transferred
-                    </p>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle
+                  className={cn(
+                    'text-base flex items-center gap-2',
+                    editsLocked && confirmedSectionContentClass
                   )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    id="tr-manage-transfers-btn"
-                    onClick={() => setManageTransfersOpen(true)}
-                    disabled={orderComplete || !itemsConfirmed || !routeConfirmed}
-                  >
-                    Manage transfers
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setEditItemsOpen(true)}
-                    disabled={itemsSectionLocked}
-                  >
-                    <Pencil className="h-3.5 w-3.5 mr-1" />
-                    Edit items
-                  </Button>
-                  <SectionConfirmActions
-                    id="tr-confirm-items"
-                    confirmed={itemsConfirmed}
-                    onToggle={() => requestSectionConfirmToggle('items', itemsConfirmed)}
-                    isLoading={confirmingSection === 'items'}
-                    label="transfer items"
-                    highlighted={scrollHighlightTarget === 'items'}
-                    onHighlightDismiss={dismissScrollHighlight}
-                  />
-                </div>
+                >
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  Transfer items
+                  <Badge variant="outline" className="ml-1 font-normal">
+                    {items.length}
+                  </Badge>
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent
-              className={cn('p-0', itemsSectionLocked && confirmedSectionContentClass)}
+              className={cn('pt-0', editsLocked && confirmedSectionContentClass)}
             >
               {itemsLoading ? (
-                <p className="text-sm text-muted-foreground py-8 px-6">Loading items…</p>
+                <p className="text-sm text-muted-foreground py-8 text-center">Loading items…</p>
               ) : items.length === 0 ? (
-                <div className="px-6 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">No transfer items</p>
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+                  <Package className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
+                  <p className="text-sm font-medium text-muted-foreground">No items on this transfer</p>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     className="mt-3"
                     onClick={() => setEditItemsOpen(true)}
-                    disabled={itemsSectionLocked}
+                    disabled={editsLocked}
                   >
                     Add items
                   </Button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="border border-border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
-                        <TableHead className="py-2 w-10">#</TableHead>
-                        <TableHead className="py-2">Item name</TableHead>
-                        <TableHead className="py-2">Qty</TableHead>
-                        <TableHead className="py-2">Approved</TableHead>
-                        <TableHead className="py-2">Transferred at</TableHead>
+                        <TableHead className="py-2 w-12 text-center">#</TableHead>
+                        <TableHead className="py-2">Item</TableHead>
+                        <TableHead className="py-2 text-right w-24">Quantity</TableHead>
+                        <TableHead className="py-2 text-right w-28">Transferred</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.map((it) => (
-                        <TableRow key={it.id} className="border-b border-border">
-                          <TableCell className="py-2 text-muted-foreground">{it.line_number}</TableCell>
-                          <TableCell className="py-2">
-                            <span className="font-medium text-sm">{itemDisplayName(it)}</span>
-                          </TableCell>
-                          <TableCell className="py-2">{qtyWithUnit(it.quantity, it.item_unit)}</TableCell>
-                          <TableCell className="py-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-help underline decoration-dotted">
-                                    {it.approved ? 'Yes' : 'No'}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {it.approved
-                                    ? `Approved on ${formatDateTime(it.approved_at)}${it.approved_by ? ` by user #${it.approved_by}` : ''}`
-                                    : 'Pending approval'}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableCell>
-                          <TableCell className="py-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="cursor-help underline decoration-dotted">
-                                    {it.transferred_at ? formatDate(it.transferred_at) : '—'}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {it.transferred_at
-                                    ? `Transferred by ${it.transferred_by ?? '—'} on ${formatDateTime(it.transferred_at)}`
-                                    : 'Not yet transferred'}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {items.map((it) => {
+                        const isTransferred = Boolean(it.transferred_at);
+                        return (
+                          <TableRow
+                            key={it.id}
+                            className={
+                              isTransferred ? 'bg-green-50/50 dark:bg-green-950/20' : ''
+                            }
+                          >
+                            <TableCell className="py-2 text-center text-muted-foreground text-sm">
+                              {it.line_number}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <span className="font-medium text-sm">{itemDisplayName(it)}</span>
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-sm">
+                              {qtyWithUnit(it.quantity, it.item_unit)}
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-sm">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      className={cn(
+                                        'cursor-help',
+                                        isTransferred
+                                          ? 'text-green-600 dark:text-green-400 font-medium'
+                                          : 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {isTransferred ? formatDate(it.transferred_at) : 'Pending'}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {isTransferred
+                                      ? `Transferred by ${it.transferred_by ?? '—'} on ${formatDateTime(it.transferred_at)}`
+                                      : 'Not yet transferred'}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
               )}
+              {items.length > 0 && !itemsLoading ? (
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      id="tr-manage-transfers-btn"
+                      className="h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
+                      onClick={() => setManageTransfersOpen(true)}
+                      disabled={orderComplete || !approvalSummary.met}
+                    >
+                      <ArrowRightLeft className="h-4 w-4 mr-1" />
+                      Manage transfers
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-fit"
+                      onClick={() => setEditItemsOpen(true)}
+                      disabled={editsLocked}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                      Edit items
+                    </Button>
+                    <span
+                      className={cn(
+                        'text-xs font-medium',
+                        transfersComplete
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {transferredCount} / {items.length} transferred
+                    </span>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -806,7 +685,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         </div>
       </div>
 
-      {isDirty && !routeSectionLocked && (
+      {isDirty && !editsLocked && (
         <div className="shrink-0 border-t border-border bg-card px-6 py-3 flex items-center justify-end gap-3">
           <span className="mr-auto text-sm text-muted-foreground flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
@@ -867,38 +746,54 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         projects={projects}
       />
 
-      <Dialog
-        open={unconfirmWarningOpen}
-        onOpenChange={(open) => {
-          setUnconfirmWarningOpen(open);
-          if (!open) setPendingUnconfirmSection(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
+      <Dialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
+        <DialogContent className="w-[min(28rem,94vw)] max-w-none">
           <DialogHeader>
-            <DialogTitle>Unconfirm section?</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-brand-primary" />
+              Complete transfer order?
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-1 text-left">
+              <span className="block">
+                Completing this order will mark any remaining line items as transferred and post
+                inventory from {source.label} to {dest.label}. The order will be locked and cannot
+                be edited afterward.
+              </span>
+              {pendingTransferCount > 0 ? (
+                <span className="block text-muted-foreground">
+                  {pendingTransferCount} of {items.length} line item
+                  {items.length !== 1 ? 's have' : ' has'} not been recorded yet — they will be
+                  marked as transferred when you confirm.
+                </span>
+              ) : null}
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            All current transfer approvals will be withdrawn. Approvers must approve the order again
-            after sections are re-confirmed.
-          </p>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button
-              type="button"
               variant="outline"
-              onClick={() => {
-                setUnconfirmWarningOpen(false);
-                setPendingUnconfirmSection(null);
-              }}
+              onClick={() => setCompleteConfirmOpen(false)}
+              disabled={isMarkingComplete}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleConfirmSectionUnconfirm}>
-              Unconfirm
+            <Button
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              onClick={() => void handleMarkComplete()}
+              disabled={isMarkingComplete}
+            >
+              {isMarkingComplete ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Completing…
+                </>
+              ) : (
+                'Mark order complete'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

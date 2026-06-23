@@ -83,7 +83,7 @@ export const purchaseOrdersApi = createApi({
       PurchaseOrder,
       {
         poId: number;
-        section: 'supplier' | 'details' | 'notes' | 'items' | 'invoice';
+        section: 'supplier' | 'details' | 'items' | 'invoice';
         confirmed: boolean;
       }
     >({
@@ -102,7 +102,6 @@ export const purchaseOrdersApi = createApi({
         const fieldMap = {
           supplier: 'supplier_confirmed',
           details: 'details_confirmed',
-          notes: 'notes_confirmed',
           items: 'items_confirmed',
           invoice: 'invoice_confirmed',
         } as const;

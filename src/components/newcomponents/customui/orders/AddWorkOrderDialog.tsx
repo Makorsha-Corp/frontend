@@ -47,7 +47,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
   const [endDate, setEndDate] = useState('');
   const [cost, setCost] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
-  const [notes, setNotes] = useState('');
 
   const [createOrder, { isLoading }] = useCreateWorkOrderMutation();
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
@@ -72,7 +71,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
     setEndDate('');
     setCost('');
     setAssignedTo('');
-    setNotes('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +97,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
         end_date: endDate || undefined,
         cost: cost ? parseFloat(cost) : undefined,
         assigned_to: assignedTo.trim() || undefined,
-        notes: notes.trim() || undefined,
       }).unwrap();
       toast.success('Work order created');
       reset();
@@ -213,10 +210,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
           <div>
             <Label>Assigned to</Label>
             <Input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Optional" />
-          </div>
-          <div>
-            <Label>Notes</Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

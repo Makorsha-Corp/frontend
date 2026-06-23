@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -100,8 +99,6 @@ interface EoDraft {
   expense_date: string;
   due_date: string;
   description: string;
-  expense_note: string;
-  internal_note: string;
 }
 
 function draftFromOrder(order: ExpenseOrder): EoDraft {
@@ -111,8 +108,6 @@ function draftFromOrder(order: ExpenseOrder): EoDraft {
     expense_date: order.expense_date ?? '',
     due_date: order.due_date ?? '',
     description: order.description ?? '',
-    expense_note: order.expense_note ?? '',
-    internal_note: order.internal_note ?? '',
   };
 }
 
@@ -187,9 +182,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     draft.expense_category !== order.expense_category ||
     draft.expense_date !== (order.expense_date ?? '') ||
     draft.due_date !== (order.due_date ?? '') ||
-    draft.description !== (order.description ?? '') ||
-    draft.expense_note !== (order.expense_note ?? '') ||
-    draft.internal_note !== (order.internal_note ?? '');
+    draft.description !== (order.description ?? '');
 
   const stageName = deriveExpenseOrderStage(order, approvalSummary);
 
@@ -249,8 +242,6 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         expense_date: draft.expense_date || null,
         due_date: draft.due_date || null,
         description: draft.description.trim() || null,
-        expense_note: draft.expense_note.trim() || null,
-        internal_note: draft.internal_note.trim() || null,
       },
     }).unwrap();
   };
@@ -545,34 +536,6 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                       placeholder="Expense description..."
                       className="bg-background"
                       disabled={detailsSectionLocked}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="eo-expense-note" className="text-xs font-medium text-muted-foreground">
-                      Expense note
-                    </label>
-                    <Textarea
-                      id="eo-expense-note"
-                      value={draft.expense_note}
-                      onChange={(e) => setDraft((d) => ({ ...d, expense_note: e.target.value }))}
-                      placeholder="Note visible on expense..."
-                      rows={2}
-                      className="bg-background resize-none"
-                      disabled={detailsSectionLocked}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="eo-internal-note" className="text-xs font-medium text-muted-foreground">
-                      Internal note
-                    </label>
-                    <Textarea
-                      id="eo-internal-note"
-                      value={draft.internal_note}
-                      onChange={(e) => setDraft((d) => ({ ...d, internal_note: e.target.value }))}
-                      placeholder="Internal note..."
-                      rows={2}
-                      className="bg-background resize-none"
-                      disabled={orderComplete}
                     />
                   </div>
                 </div>

@@ -30,7 +30,6 @@ export interface WorkOrder {
   cost_approved_by: number | null;
   cost_approved_at: string | null;
 
-  notes: string | null;
   completion_notes: string | null;
 
   created_at: string;
@@ -56,7 +55,6 @@ export interface CreateWorkOrderRequest {
   end_date?: string;
   cost?: number;
   assigned_to?: string;
-  notes?: string;
 }
 
 export interface UpdateWorkOrderRequest {
@@ -73,7 +71,6 @@ export interface UpdateWorkOrderRequest {
   assigned_to?: string;
   order_approved?: boolean;
   cost_approved?: boolean;
-  notes?: string;
   completion_notes?: string;
 }
 

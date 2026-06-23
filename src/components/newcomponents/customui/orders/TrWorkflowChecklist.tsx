@@ -3,14 +3,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
-import { SectionConfirmIcon } from './PoSectionConfirmButton';
+import { Check, ClipboardList, Loader2 } from 'lucide-react';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import type { TransferApprovalSummary } from '@/types/transferOrder';
 import {
   getTrChecklistProgress,
-  type TrScrollSection,
 } from './transferOrderMilestones';
 
 type StepVisualState = 'complete' | 'active' | 'pending';
@@ -19,13 +17,44 @@ export interface TrWorkflowChecklistProps {
   order: TransferOrder;
   items: TransferOrderItem[];
   approvalSummary: TransferApprovalSummary;
-  routeConfirmed: boolean;
-  itemsConfirmed: boolean;
-  onScrollToSection: (section: TrScrollSection) => void;
-  onManageTransfers?: () => void;
+  onScrollToManageApprovals?: () => void;
   onMarkComplete?: () => void;
   isMarkingComplete?: boolean;
   className?: string;
+}
+
+interface ChecklistStepProps {
+  clickable?: boolean;
+  onClick?: () => void;
+  ariaLabel?: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+function ChecklistStep({
+  clickable,
+  onClick,
+  ariaLabel,
+  className,
+  children,
+}: ChecklistStepProps) {
+  if (clickable && onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel}
+        className={cn(
+          'w-full p-4 space-y-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          className
+        )}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return <div className={cn('p-4 space-y-3', className)}>{children}</div>;
 }
 
 function StepCircle({ state }: { state: StepVisualState }) {
@@ -122,183 +151,86 @@ function ChecklistStepHeader({
   );
 }
 
-function PrepareSubRow({
-  label,
-  done,
-  hint,
-  onClick,
-}: {
-  label: string;
-  done: boolean;
-  hint?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={`Go to ${label}`}
-    >
-      <SectionConfirmIcon confirmed={done} />
-      <span className="flex-1 text-sm text-card-foreground">{label}</span>
-      {hint ? (
-        <span className="max-w-[40%] truncate text-xs text-muted-foreground">{hint}</span>
-      ) : null}
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-    </button>
-  );
-}
-
 const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
   order,
   items,
   approvalSummary,
-  routeConfirmed,
-  itemsConfirmed,
-  onScrollToSection,
-  onManageTransfers,
+  onScrollToManageApprovals,
   onMarkComplete,
   isMarkingComplete = false,
   className,
 }) => {
-  const progress = getTrChecklistProgress(
-    order,
-    items,
-    approvalSummary,
-    { route_confirmed: routeConfirmed, items_confirmed: itemsConfirmed }
-  );
+  const progress = getTrChecklistProgress(order, items, approvalSummary);
   const { phase } = progress;
 
-  const executeDescription = !progress.approvalsComplete
-    ? approvalSummary.required === 0
-      ? 'Add approvers in the bar above, then record item transfers'
-      : `Get ${progress.approvalRatio} approvals, then record item transfers`
-    : progress.transfersComplete
-      ? 'All line items have been transferred'
-      : items.length === 0
-        ? 'Add line items before recording transfers'
-        : `${progress.transferRatio} line items transferred — open Manage transfers to record`;
+  const approvalRatio = `${approvalSummary.approved_count}/${approvalSummary.required}`;
 
-  const renderCompletedPrepare = phase !== 'prepare';
-  const renderCompletedApprovals = ['mark_complete', 'done'].includes(phase) && progress.approvalsComplete;
-  const renderCompletedTransfers = ['mark_complete', 'done'].includes(phase) && progress.transfersComplete;
-  const renderCompletedMark = phase === 'done';
+  const approvalDescription = !progress.hasItems
+    ? 'Add line items before requesting approval'
+    : !progress.routeDefined
+      ? 'Set source and destination before requesting approval'
+      : 'Get required approvals in the bar above';
+
+  const renderCompletedApproval = ['complete', 'done'].includes(phase) && progress.approvalsComplete;
+  const renderCompletedMarkOrder = phase === 'done';
+
+  const completeStepDescription =
+    'Record transfers manually on with Manage Transfers, or mark the order complete to record all remaining transfers.';
 
   return (
-    <Card className={cn('flex flex-col h-fit', className)}>
-      <CardHeader className="pb-4 shrink-0">
+    <Card className={cn('flex flex-col h-full', className)}>
+      <CardHeader className="pb-3 shrink-0">
         <CardTitle className="text-base flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
           Order Checklist
         </CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">Approve · Complete</p>
       </CardHeader>
-      <CardContent className="flex-1 pt-0">
-        <div className="space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
-          {renderCompletedPrepare && (
+      <CardContent className="flex flex-1 flex-col pt-0 min-h-0">
+        <div className="flex flex-1 flex-col space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
+          {renderCompletedApproval && (
             <CompletedStepRow
-              title="Prepare transfer"
-              badge={ratioBadge(progress.prepareRatio, 'green')}
+              title="Order approval"
+              badge={ratioBadge(approvalRatio, 'green')}
             />
           )}
 
-          {renderCompletedApprovals && (
-            <CompletedStepRow
-              title="Approvals"
-              badge={ratioBadge(progress.approvalRatio, 'green')}
-            />
+          {renderCompletedMarkOrder && (
+            <CompletedStepRow title="Mark order complete" isLast={phase === 'done'} />
           )}
 
-          {renderCompletedTransfers && (
-            <CompletedStepRow
-              title="Items transferred"
-              badge={ratioBadge(progress.transferRatio, 'green')}
-            />
-          )}
-
-          {renderCompletedMark && (
-            <CompletedStepRow title="Mark complete" isLast={phase === 'done'} />
-          )}
-
-          {phase === 'prepare' && (
-            <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
+          {phase === 'approve' && (
+            <ChecklistStep
+              clickable={Boolean(onScrollToManageApprovals)}
+              onClick={onScrollToManageApprovals}
+              ariaLabel="Go to approvals"
+              className={cn(
+                'border-b border-border/60 last:border-b-0',
+                onScrollToManageApprovals && 'cursor-pointer'
+              )}
+            >
               <ChecklistStepHeader
                 state="active"
-                title="Prepare transfer"
-                description="Confirm order details and transfer items using the checkmarks on each card"
-                badge={ratioBadge(
-                  progress.prepareRatio,
-                  progress.prepareComplete ? 'green' : 'amber'
-                )}
+                title="Order approval"
+                description={approvalDescription}
+                badge={ratioBadge(approvalRatio, progress.approvalsComplete ? 'green' : 'amber')}
               />
-              <div className="ml-10 space-y-1">
-                {!progress.routeConfirmed && (
-                  <PrepareSubRow
-                    label="Order details"
-                    done={false}
-                    hint={
-                      progress.routeDefined ? 'Ready to confirm' : 'Set source and destination'
-                    }
-                    onClick={() => onScrollToSection('route')}
-                  />
-                )}
-                {!progress.itemsConfirmed && (
-                  <PrepareSubRow
-                    label="Transfer items"
-                    done={false}
-                    hint={
-                      progress.hasItems
-                        ? `${items.length} item${items.length !== 1 ? 's' : ''}`
-                        : 'Add at least one item'
-                    }
-                    onClick={() => onScrollToSection('items')}
-                  />
-                )}
-              </div>
-            </div>
+            </ChecklistStep>
           )}
 
-          {phase === 'execute' && (
+          {phase === 'complete' && (
             <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
               <ChecklistStepHeader
                 state="active"
-                title="Approvals & execute"
-                description={executeDescription}
-                badge={ratioBadge(
-                  progress.transfersComplete ? progress.transferRatio : progress.approvalRatio,
-                  progress.approvalsComplete && progress.transfersComplete ? 'green' : 'amber'
-                )}
-              />
-              <div className="ml-10 space-y-1">
-                <PrepareSubRow
-                  label="Get approvals"
-                  done={progress.approvalsComplete}
-                  hint={progress.approvalRatio}
-                  onClick={() => onScrollToSection('approvals')}
-                />
-                <PrepareSubRow
-                  label="Record item transfers"
-                  done={progress.transfersComplete}
-                  hint={progress.transferRatio}
-                  onClick={() => (onManageTransfers ? onManageTransfers() : onScrollToSection('items'))}
-                />
-              </div>
-            </div>
-          )}
-
-          {phase === 'mark_complete' && (
-            <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
-              <ChecklistStepHeader
-                state="active"
-                title="Mark complete"
-                description="All items are transferred. Close this transfer order when ready."
+                title="Mark order complete"
+                description={completeStepDescription}
               />
               <div className="ml-10">
                 <Button
                   type="button"
                   size="sm"
                   className="bg-brand-primary hover:bg-brand-primary-hover"
-                  disabled={!onMarkComplete || isMarkingComplete}
+                  disabled={!onMarkComplete || isMarkingComplete || items.length === 0}
                   onClick={onMarkComplete}
                 >
                   {isMarkingComplete ? (
@@ -307,7 +239,7 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
                       Marking complete…
                     </>
                   ) : (
-                    'Mark transfer complete'
+                    'Mark order complete'
                   )}
                 </Button>
               </div>
@@ -317,7 +249,7 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
           {phase === 'done' && (
             <div className="border-t border-border/60 bg-green-50/80 px-4 py-3 dark:bg-green-950/30">
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                Transfer is complete!
+                Order is complete!
               </p>
               <p className="mt-0.5 text-xs text-green-700/90 dark:text-green-400/90">
                 {order.completed_at

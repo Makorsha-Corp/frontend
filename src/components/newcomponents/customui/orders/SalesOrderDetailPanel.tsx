@@ -74,7 +74,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
           <span><span className="text-muted-foreground">Invoiced:</span> {order.is_invoiced ? 'Yes' : 'No'}</span>
         </div>
 
-        {order.notes && <p className="text-sm text-muted-foreground">{order.notes}</p>}
+        {order.description && <p className="text-sm text-muted-foreground">{order.description}</p>}
 
         {deliveries.length > 0 && (
           <div>

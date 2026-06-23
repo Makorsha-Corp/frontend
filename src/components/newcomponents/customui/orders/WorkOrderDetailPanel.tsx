@@ -80,7 +80,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
     }
   };
 
-  const hasNotes = order.description || order.notes || order.completion_notes;
+  const hasNotes = order.description || order.completion_notes;
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -189,12 +189,6 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                     <p>
                       <span className="text-muted-foreground">Description: </span>
                       {order.description}
-                    </p>
-                  )}
-                  {order.notes && (
-                    <p>
-                      <span className="text-muted-foreground">Notes: </span>
-                      {order.notes}
                     </p>
                   )}
                   {order.completion_notes && (

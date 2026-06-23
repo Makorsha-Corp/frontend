@@ -22,6 +22,8 @@ export interface ToApprovalsTopBarProps {
   onHighlightDismiss?: () => void;
   onManage: () => void;
   onToggleMyApproval: () => void;
+  canApprove?: boolean;
+  approveBlockedReason?: string;
 }
 
 const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
@@ -33,10 +35,13 @@ const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
   onHighlightDismiss,
   onManage,
   onToggleMyApproval,
+  canApprove = true,
+  approveBlockedReason,
 }) => {
   const sortedApprovers = [...approvers].sort((a, b) => Number(b.approved) - Number(a.approved));
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div
       id="tr-section-approvals"
       className={cn(
@@ -64,7 +69,6 @@ const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
         </Badge>
       </div>
 
-      <TooltipProvider delayDuration={150}>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
           {sortedApprovers.length === 0 ? (
             <span className="text-xs text-muted-foreground">No approvers assigned — use Manage to add</span>
@@ -116,7 +120,6 @@ const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
             ))
           )}
         </div>
-      </TooltipProvider>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={onManage}>
@@ -124,31 +127,42 @@ const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
           Manage
         </Button>
         {myApproval && (
-          <Button
-            type="button"
-            size="sm"
-            variant={myApproval.approved ? 'outline' : 'default'}
-            className={cn(
-              'h-8 shrink-0',
-              !myApproval.approved && 'bg-brand-primary hover:bg-brand-primary-hover'
-            )}
-            onClick={onToggleMyApproval}
-          >
-            {myApproval.approved ? (
-              <>
-                <X className="mr-1 h-4 w-4" />
-                Withdraw
-              </>
-            ) : (
-              <>
-                <Check className="mr-1 h-4 w-4" />
-                Approve
-              </>
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={myApproval.approved ? 'outline' : 'default'}
+                  className={cn(
+                    'h-8 shrink-0',
+                    !myApproval.approved && 'bg-brand-primary hover:bg-brand-primary-hover'
+                  )}
+                  onClick={onToggleMyApproval}
+                  disabled={!myApproval.approved && !canApprove}
+                >
+                  {myApproval.approved ? (
+                    <>
+                      <X className="mr-1 h-4 w-4" />
+                      Withdraw
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-1 h-4 w-4" />
+                      Approve
+                    </>
+                  )}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!myApproval.approved && !canApprove && approveBlockedReason ? (
+              <TooltipContent>{approveBlockedReason}</TooltipContent>
+            ) : null}
+          </Tooltip>
         )}
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 

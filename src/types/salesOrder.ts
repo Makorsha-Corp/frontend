@@ -12,7 +12,7 @@ export interface SalesOrder {
   is_fully_delivered: boolean;
   invoice_id: number | null;
   is_invoiced: boolean;
-  notes: string | null;
+  description: string | null;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -26,7 +26,7 @@ export interface CreateSalesOrderDTO {
   quotation_sent_date?: string;
   expected_delivery_date?: string;
   current_status_id?: number;
-  notes?: string;
+  description?: string;
   // Note: total_amount is calculated automatically from items
 }
 
@@ -38,5 +38,5 @@ export interface UpdateSalesOrderDTO {
   is_fully_delivered?: boolean;
   invoice_id?: number;
   is_invoiced?: boolean;
-  notes?: string;
+  description?: string;
 }

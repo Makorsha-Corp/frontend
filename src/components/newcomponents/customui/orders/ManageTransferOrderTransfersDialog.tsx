@@ -93,8 +93,8 @@ const ManageTransferOrderTransfersDialog: React.FC<ManageTransferOrderTransfersD
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
             {pendingCount > 0
-              ? `${pendingCount} line(s) still need a transfer recorded.`
-              : 'All lines on this order have transfer recorded.'}
+              ? `${pendingCount} item(s) still need a transfer recorded.`
+              : 'All items on this order have transfer recorded.'}
           </p>
         </DialogHeader>
         <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
@@ -119,7 +119,7 @@ const ManageTransferOrderTransfersDialog: React.FC<ManageTransferOrderTransfersD
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Line {item.line_number} · Qty {item.quantity}
+                    Item #{item.line_number} · Qty {item.quantity}
                     {item.item_unit ? ` ${item.item_unit}` : ''}
                   </p>
                 </div>

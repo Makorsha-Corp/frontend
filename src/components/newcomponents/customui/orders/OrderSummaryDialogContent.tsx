@@ -316,11 +316,11 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
           </CardContent>
         </Card>
 
-        {purchaseOrder.order_note ? (
+        {purchaseOrder.description ? (
           <div className="rounded-md border border-border bg-muted/10 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Order note</p>
+            <p className="text-xs font-medium text-muted-foreground">Description</p>
             <p className="mt-1 text-sm text-card-foreground whitespace-pre-wrap">
-              {purchaseOrder.order_note}
+              {purchaseOrder.description}
             </p>
           </div>
         ) : null}
@@ -432,11 +432,11 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
           </CardContent>
         </Card>
 
-        {expenseOrder.expense_note ? (
+        {expenseOrder.description ? (
           <div className="rounded-md border border-border bg-muted/10 p-3">
-            <p className="text-xs font-medium text-muted-foreground">Expense note</p>
+            <p className="text-xs font-medium text-muted-foreground">Description</p>
             <p className="mt-1 text-sm text-card-foreground whitespace-pre-wrap">
-              {expenseOrder.expense_note}
+              {expenseOrder.description}
             </p>
           </div>
         ) : null}

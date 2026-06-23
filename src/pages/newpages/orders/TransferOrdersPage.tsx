@@ -34,6 +34,7 @@ import type { TransferOrder } from '@/types/transferOrder';
 import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
+import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
 import TransferOrderNavigatorPanel from '@/components/newcomponents/customui/orders/TransferOrderNavigatorPanel';
 import AddTransferOrderDialog from '@/components/newcomponents/customui/orders/AddTransferOrderDialog';
@@ -49,9 +50,8 @@ import {
   type TransferLocationTypeFilter,
 } from './transferOrdersOverviewData';
 import {
-  transferRouteLabel,
-  transferRouteTypeLabel,
   type TransferLocationLabelContext,
+  transferRouteLabel,
 } from './transferOrderLocationLabels';
 import { statusesForTrWorkflowFilter } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
 import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
@@ -222,7 +222,9 @@ const TransferOrdersPage: React.FC = () => {
     });
   };
 
-  const routeLabel = (order: TransferOrder) => transferRouteLabel(order, labelCtx);
+  const renderRouteLabel = (order: TransferOrder) => (
+    <TransferRouteDisplay order={order} ctx={labelCtx} />
+  );
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString() : '—';
 
@@ -487,7 +489,7 @@ const TransferOrdersPage: React.FC = () => {
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
-            routeTypeLabel={(o) => transferRouteTypeLabel(o)}
+            routeLabel={renderRouteLabel}
             formatDate={formatDate}
           />
 
@@ -504,8 +506,7 @@ const TransferOrdersPage: React.FC = () => {
                 stats={overviewStats}
                 isLoading={isLoading}
                 mayTruncate={mayTruncate}
-                routeLabel={routeLabel}
-                formatDate={formatDate}
+                routeSubtext={(o) => transferRouteLabel(o, labelCtx)}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
             )}

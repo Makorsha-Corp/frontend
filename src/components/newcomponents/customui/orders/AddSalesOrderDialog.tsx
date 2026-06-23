@@ -44,7 +44,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [quotationSentDate, setQuotationSentDate] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
-  const [notes, setNotes] = useState('');
+  const [description, setDescription] = useState('');
   const [items, setItems] = useState<
     Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
   >([]);
@@ -69,7 +69,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     setOrderDate(new Date().toISOString().slice(0, 10));
     setQuotationSentDate('');
     setExpectedDeliveryDate('');
-    setNotes('');
+    setDescription('');
     setItems([]);
     setItemId('');
     setQty('');
@@ -139,7 +139,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       quotation_sent_date: quotationSentDate || undefined,
       expected_delivery_date: expectedDeliveryDate || undefined,
       current_status_id: 1,
-      notes: notes || undefined,
+      description: description || undefined,
     };
 
     const itemsData: CreateSalesOrderItemDTO[] = items.map((i) => ({
@@ -373,8 +373,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         </div>
       </div>
       <div>
-        <Label>Notes</Label>
-        <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="mt-1" />
+        <Label>Description</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
     </div>
   );

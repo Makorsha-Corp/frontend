@@ -159,12 +159,11 @@ const CONFIRM_EVENT_TYPES = new Set([
 ]);
 
 const SECTION_CONFIRM_LABELS: Record<
-  'supplier' | 'details' | 'notes' | 'items' | 'invoice',
+  'supplier' | 'details' | 'items' | 'invoice',
   string
 > = {
   supplier: 'Supplier',
   details: 'Order details',
-  notes: 'Order notes',
   items: 'Order items',
   invoice: 'Draft invoice',
 };
@@ -205,7 +204,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       : undefined;
   const linkedInvoiceStatus: PoLinkedInvoiceStatus = linkedInvoice?.invoice_status ?? null;
   const [confirmingSection, setConfirmingSection] = useState<
-    'supplier' | 'details' | 'notes' | 'items' | 'invoice' | null
+    'supplier' | 'details' | 'items' | 'invoice' | null
   >(null);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
   const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
@@ -639,7 +638,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   };
 
   const handleToggleSectionConfirm = async (
-    section: 'supplier' | 'details' | 'notes' | 'items' | 'invoice',
+    section: 'supplier' | 'details' | 'items' | 'invoice',
     nextConfirmed: boolean
   ) => {
     setConfirmingSection(section);
@@ -1517,13 +1516,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     <span className="text-xs text-muted-foreground">/</span>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-8 px-2 text-xs"
+                      className="h-8 shrink-0 px-2.5 text-xs"
                       onClick={() => setAdd(String(remainingToAdd))}
                       disabled={directMode || remainingToAdd <= 0}
                     >
-                      all
+                      All
                     </Button>
                   </div>
                 </div>

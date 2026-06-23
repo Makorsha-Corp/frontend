@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { PurchaseOrderSummaryStats } from '@/pages/newpages/orders/purchaseOrdersOverviewData';
 import PurchaseOrderActivityFeed from '@/components/newcomponents/customui/orders/PurchaseOrderActivityFeed';
 import PurchaseOrderPendingActions from '@/components/newcomponents/customui/orders/PurchaseOrderPendingActions';
+import { OrderOverviewKpiCard } from '@/components/newcomponents/customui/orders/OrderOverviewKpiCard';
 import { Loader2 } from 'lucide-react';
 
 interface PurchaseOrdersOverviewPanelProps {
@@ -51,44 +51,26 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.totalCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">In current filter scope</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{formatCompactCurrency(stats.totalValue)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Sum of order totals</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Open pipeline</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.openCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCompactCurrency(stats.openValue)} not completed
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Not invoiced</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{stats.notInvoicedCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">No linked invoice yet</p>
-          </CardContent>
-        </Card>
+        <OrderOverviewKpiCard
+          title="Total orders"
+          value={stats.totalCount}
+          footer="In current filter scope"
+        />
+        <OrderOverviewKpiCard
+          title="Total value"
+          value={formatCompactCurrency(stats.totalValue)}
+          footer="Sum of order totals"
+        />
+        <OrderOverviewKpiCard
+          title="Open pipeline"
+          value={stats.openCount}
+          footer={`${formatCompactCurrency(stats.openValue)} not completed`}
+        />
+        <OrderOverviewKpiCard
+          title="Not invoiced"
+          value={stats.notInvoicedCount}
+          footer="No linked invoice yet"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">

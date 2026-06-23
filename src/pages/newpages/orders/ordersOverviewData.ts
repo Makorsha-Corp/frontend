@@ -53,7 +53,7 @@ export interface OverviewOrder {
   createdAt: Date;
   /**
    * Business calendar day for date-range filter, totals, and Orders over time.
-   * Transfer → order_date, expense → expense_date, sales → order_date; else createdAt.
+   * Transfer → created_at, expense → expense_date, sales → order_date; else createdAt.
    */
   reportDate: Date;
   statusLabel: string;
@@ -133,10 +133,10 @@ export function normalizeOrders(
       ref: t.transfer_number,
       amount: 0,
       createdAt,
-      reportDate: parseBusinessDay(t.order_date, startOfDay(createdAt)),
+      reportDate: startOfDay(createdAt),
       statusLabel: statusName(statusById, t.current_status_id),
       factoryId: factoryFromTransfer(t, maps),
-      displayDate: t.order_date?.slice(0, 10) ?? format(createdAt, 'yyyy-MM-dd'),
+      displayDate: format(createdAt, 'yyyy-MM-dd'),
       dueOrExpectedDate: null,
     });
   }

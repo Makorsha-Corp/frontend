@@ -49,7 +49,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [destinationType, setDestinationType] = useState<'storage' | 'machine' | 'project'>('storage');
   const [destinationId, setDestinationId] = useState<string>('');
   const [description, setDescription] = useState('');
-  const [orderNote, setOrderNote] = useState('');
   const [items, setItems] = useState<
     Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
   >([]);
@@ -87,7 +86,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setDestinationType('storage');
     setDestinationId('');
     setDescription('');
-    setOrderNote('');
     setItems([]);
     setItemId('');
     setQty('');
@@ -213,7 +211,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       destination_id: did,
       order_date: new Date().toISOString().slice(0, 10),
       description: description || undefined,
-      order_note: orderNote || undefined,
       items: items.map((i) => ({
         item_id: i.item_id,
         quantity_ordered: i.quantity_ordered,
@@ -520,10 +517,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       <div>
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
-      </div>
-      <div>
-        <Label>Order note</Label>
-        <Input value={orderNote} onChange={(e) => setOrderNote(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
     </div>
   );

@@ -66,9 +66,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const [sourceId, setSourceId] = useState<string>('');
   const [destType, setDestType] = useState<'storage' | 'machine' | 'project' | 'damaged'>('storage');
   const [destId, setDestId] = useState<string>('');
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState('');
-  const [note, setNote] = useState('');
   const [items, setItems] = useState<Array<{ item_id: number; quantity: number; notes?: string }>>([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
@@ -198,9 +196,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     setSourceId('');
     setDestType('storage');
     setDestId('');
-    setOrderDate(new Date().toISOString().slice(0, 10));
     setDescription('');
-    setNote('');
     setItems([]);
     setItemId('');
     setQty('');
@@ -336,9 +332,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       source_location_id: sid,
       destination_location_type: destType,
       destination_location_id: did,
-      order_date: orderDate || undefined,
       description: description || undefined,
-      note: note || undefined,
       current_status_id: 1,
       items: items.map((i) => ({ item_id: i.item_id, quantity: i.quantity, notes: i.notes })) as CreateTransferOrderItem[],
     };
@@ -666,16 +660,8 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       </div>
 
       <div>
-        <Label>Order date</Label>
-        <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
-      </div>
-      <div>
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
-      </div>
-      <div>
-        <Label>Note</Label>
-        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
     </div>
   );
