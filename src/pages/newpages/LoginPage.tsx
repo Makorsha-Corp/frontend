@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import toast, { Toaster } from 'react-hot-toast';
 import { BarChart3, Loader2, Moon, MousePointer2, Package, Palette, Sun, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 
 type LoginTheme = 'light' | 'dark';
 
@@ -142,6 +143,245 @@ const LOGIN_GRADIENT_PRESETS: {
     },
   ];
 
+interface LoginPageChromeProps {
+  theme: string;
+  toggleTheme: () => void;
+  gradientFollowsMouse: boolean;
+  setGradientFollowsMouse: React.Dispatch<React.SetStateAction<boolean>>;
+  gradientPresetIndex: number;
+  setGradientPresetIndex: React.Dispatch<React.SetStateAction<number>>;
+  gradientPreset: (typeof LOGIN_GRADIENT_PRESETS)[number];
+  /** Mobile sticky header: icon-only logo, controls stacked below */
+  compact?: boolean;
+}
+
+const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
+  theme,
+  toggleTheme,
+  gradientFollowsMouse,
+  setGradientFollowsMouse,
+  gradientPresetIndex,
+  setGradientPresetIndex,
+  gradientPreset,
+  compact = false,
+}) => (
+  <div
+    className={cn(
+      compact ? 'flex w-full flex-col items-center gap-3' : 'contents'
+    )}
+  >
+    <Link
+      to="/login"
+      className={cn(
+        'flex min-w-0 items-center gap-2.5 rounded-lg outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring',
+        compact && 'justify-center'
+      )}
+    >
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/15 ring-1 ring-brand-primary/25"
+        aria-hidden
+      >
+        <span className="text-sm font-bold text-brand-primary">M</span>
+      </div>
+      <span
+        className={cn(
+          'truncate text-lg font-semibold tracking-tight',
+          compact && 'sr-only'
+        )}
+      >
+        <span className="text-brand-primary">M</span>
+        <span className="text-foreground">arker</span>
+      </span>
+    </Link>
+    <nav
+      className={cn(
+        'flex flex-wrap items-center gap-1 sm:gap-2',
+        compact ? 'justify-center' : 'justify-end'
+      )}
+      aria-label="Marketing"
+    >
+      <a
+        href="#highlights"
+        className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        Product
+      </a>
+      <a
+        href="#about"
+        className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        About
+      </a>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setGradientFollowsMouse((v) => !v)}
+        className={cn(
+          'h-9 w-9 shrink-0 rounded-full border-border bg-card',
+          gradientFollowsMouse && 'ring-2 ring-brand-primary/35 ring-offset-2 ring-offset-background'
+        )}
+        title={
+          gradientFollowsMouse
+            ? 'Use fixed background gradient (turn off cursor follow)'
+            : 'Make background gradient follow cursor'
+        }
+        type="button"
+        aria-pressed={gradientFollowsMouse}
+        aria-label={
+          gradientFollowsMouse
+            ? 'Background gradient follows cursor; click for fixed gradient'
+            : 'Fixed background gradient; click to follow cursor'
+        }
+      >
+        <MousePointer2 className="h-4 w-4" />
+      </Button>
+      <HoverCard openDelay={140} closeDelay={200}>
+        <HoverCardTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn(
+              'h-9 w-9 shrink-0 rounded-full border-border bg-card',
+              gradientPresetIndex > 0 && 'ring-2 ring-brand-primary/25 ring-offset-2 ring-offset-background'
+            )}
+            title={`Click: next palette (${gradientPresetIndex + 1}/${LOGIN_GRADIENT_PRESETS.length}). Hover: pick from list.`}
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={`Background gradient: ${gradientPreset.title}. Click to cycle; hover to open palette list.`}
+            onClick={() => setGradientPresetIndex((i) => (i + 1) % LOGIN_GRADIENT_PRESETS.length)}
+          >
+            <Palette className="h-4 w-4" aria-hidden />
+          </Button>
+        </HoverCardTrigger>
+        <HoverCardPortal>
+          <HoverCardContent
+            align="end"
+            side="bottom"
+            sideOffset={8}
+            collisionPadding={12}
+            className="z-[300] w-[min(17rem,calc(100vw-1.5rem))] border-border bg-popover p-0 text-popover-foreground shadow-xl"
+          >
+            <div className="p-3">
+              <p className="text-xs font-semibold text-foreground">Background palettes</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                Click a row to apply. Icon click still cycles.
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Current: <span className="text-foreground">{gradientPreset.label}</span>
+              </p>
+              <ul
+                className="mt-2 max-h-[min(18rem,50vh)] space-y-0.5 overflow-y-auto border-t border-border/60 pt-2"
+                role="listbox"
+                aria-label="Gradient palettes"
+              >
+                {LOGIN_GRADIENT_PRESETS.map((p, i) => (
+                  <li key={p.id} role="none">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={i === gradientPresetIndex}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+                        'hover:bg-accent hover:text-accent-foreground',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        i === gradientPresetIndex && 'bg-accent/80 font-medium text-foreground'
+                      )}
+                      onClick={() => setGradientPresetIndex(i)}
+                    >
+                      <span className="w-4 shrink-0 tabular-nums opacity-70">{i + 1}.</span>
+                      <span className="min-w-0 flex-1">{p.label}</span>
+                      {i === gradientPresetIndex ? (
+                        <span className="shrink-0 text-brand-primary" aria-hidden>
+                          ✓
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </HoverCardContent>
+        </HoverCardPortal>
+      </HoverCard>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={toggleTheme}
+        className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
+        title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        type="button"
+      >
+        {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+    </nav>
+  </div>
+);
+
+const LoginMarketingSections: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('space-y-8 lg:space-y-10', className)}>
+    <section id="about" className="space-y-4">
+      <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        Procurement, inventory, and production in one workspace.
+      </h1>
+      <p className="max-w-prose text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+        Marker helps teams run orders, stock, projects, and accounts with clear roles and a single source of
+        truth—built for mills and manufacturing operations like yours.
+      </p>
+    </section>
+
+    <section id="highlights" className="space-y-4">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">At a glance</h2>
+      <ul className="flex flex-col gap-4">
+        <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
+            <Package className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </div>
+          <h3 className="mb-1.5 font-semibold text-card-foreground">Operations &amp; inventory</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Orders, storage, machines, and ledgers connected so you always know what moved where.
+          </p>
+        </li>
+        <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
+            <Users className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </div>
+          <h3 className="mb-1.5 font-semibold text-card-foreground">Team &amp; workspaces</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Multi-tenant workspaces with invitations and roles so finance, floor, and managers see what they need.
+          </p>
+        </li>
+        <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
+            <BarChart3 className="h-5 w-5" strokeWidth={2} aria-hidden />
+          </div>
+          <h3 className="mb-1.5 font-semibold text-card-foreground">Visibility</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Dashboards and structured data for decisions—without digging through spreadsheets.
+          </p>
+        </li>
+      </ul>
+    </section>
+  </div>
+);
+
+const chromeProps = (
+  theme: string,
+  toggleTheme: () => void,
+  gradientFollowsMouse: boolean,
+  setGradientFollowsMouse: React.Dispatch<React.SetStateAction<boolean>>,
+  gradientPresetIndex: number,
+  setGradientPresetIndex: React.Dispatch<React.SetStateAction<number>>,
+  gradientPreset: (typeof LOGIN_GRADIENT_PRESETS)[number]
+): LoginPageChromeProps => ({
+  theme,
+  toggleTheme,
+  gradientFollowsMouse,
+  setGradientFollowsMouse,
+  gradientPresetIndex,
+  setGradientPresetIndex,
+  gradientPreset,
+});
+
 const Login2Page: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -179,6 +419,7 @@ const Login2Page: React.FC = () => {
 
   /** LOGIN_GRADIENT_PRESETS index — click icon to cycle, hover for list to pick */
   const [gradientPresetIndex, setGradientPresetIndex] = useState(0);
+  const isLgScreen = useIsLgScreen();
 
   // RTK Query hooks
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
@@ -321,7 +562,7 @@ const Login2Page: React.FC = () => {
   return (
     <div
       ref={pageRootRef}
-      className="relative flex min-h-screen flex-col overflow-hidden bg-background transition-colors lg:flex-row"
+      className="relative flex min-h-dvh flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors lg:min-h-screen lg:flex-row lg:overflow-hidden"
     >
       {/* Full-page wash: preset + mouse-follow radial vs static linear (header toggles). */}
       <div
@@ -331,187 +572,42 @@ const Login2Page: React.FC = () => {
       />
       <Toaster position="top-right" />
 
-      <aside className="relative z-[1] flex min-h-0 flex-col overflow-hidden border-b border-border/35 bg-background/20 backdrop-blur-3xl backdrop-saturate-150 dark:border-border/50 dark:bg-background/5 dark:backdrop-saturate-100 lg:w-[min(100%,26rem)] xl:w-[30rem] lg:flex-shrink-0 lg:border-b-0 lg:border-r">
-        <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background px-5 py-4 sm:px-8">
-          <Link
-            to="/login"
-            className="flex min-w-0 items-center gap-2.5 rounded-lg outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/15 ring-1 ring-brand-primary/25"
-              aria-hidden
-            >
-              <span className="text-sm font-bold text-brand-primary">M</span>
-            </div>
-            <span className="truncate text-lg font-semibold tracking-tight">
-              <span className="text-brand-primary">M</span>
-              <span className="text-foreground">arker</span>
-            </span>
-          </Link>
-          <nav className="flex flex-wrap items-center justify-end gap-1 sm:gap-2" aria-label="Marketing">
-            <a
-              href="#highlights"
-              className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              Product
-            </a>
-            <a
-              href="#about"
-              className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              About
-            </a>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setGradientFollowsMouse((v) => !v)}
-              className={cn(
-                'h-9 w-9 shrink-0 rounded-full border-border bg-card',
-                gradientFollowsMouse && 'ring-2 ring-brand-primary/35 ring-offset-2 ring-offset-background'
-              )}
-              title={
-                gradientFollowsMouse
-                  ? 'Use fixed background gradient (turn off cursor follow)'
-                  : 'Make background gradient follow cursor'
-              }
-              type="button"
-              aria-pressed={gradientFollowsMouse}
-              aria-label={
-                gradientFollowsMouse ? 'Background gradient follows cursor; click for fixed gradient' : 'Fixed background gradient; click to follow cursor'
-              }
-            >
-              <MousePointer2 className="h-4 w-4" />
-            </Button>
-            <HoverCard openDelay={140} closeDelay={200}>
-              <HoverCardTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={cn(
-                    'h-9 w-9 shrink-0 rounded-full border-border bg-card',
-                    gradientPresetIndex > 0 && 'ring-2 ring-brand-primary/25 ring-offset-2 ring-offset-background'
-                  )}
-                  title={`Click: next palette (${gradientPresetIndex + 1}/${LOGIN_GRADIENT_PRESETS.length}). Hover: pick from list.`}
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-label={`Background gradient: ${gradientPreset.title}. Click to cycle; hover to open palette list.`}
-                  onClick={() =>
-                    setGradientPresetIndex((i) => (i + 1) % LOGIN_GRADIENT_PRESETS.length)
-                  }
-                >
-                  <Palette className="h-4 w-4" aria-hidden />
-                </Button>
-              </HoverCardTrigger>
-              <HoverCardPortal>
-                <HoverCardContent
-                  align="end"
-                  side="bottom"
-                  sideOffset={8}
-                  collisionPadding={12}
-                  className="z-[300] w-[min(17rem,calc(100vw-1.5rem))] border-border bg-popover p-0 text-popover-foreground shadow-xl"
-                >
-                  <div className="p-3">
-                    <p className="text-xs font-semibold text-foreground">Background palettes</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                      Click a row to apply. Icon click still cycles.
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Current: <span className="text-foreground">{gradientPreset.label}</span>
-                    </p>
-                    <ul
-                      className="mt-2 max-h-[min(18rem,50vh)] space-y-0.5 overflow-y-auto border-t border-border/60 pt-2"
-                      role="listbox"
-                      aria-label="Gradient palettes"
-                    >
-                      {LOGIN_GRADIENT_PRESETS.map((p, i) => (
-                        <li key={p.id} role="none">
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={i === gradientPresetIndex}
-                            className={cn(
-                              'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
-                              'hover:bg-accent hover:text-accent-foreground',
-                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                              i === gradientPresetIndex && 'bg-accent/80 font-medium text-foreground'
-                            )}
-                            onClick={() => setGradientPresetIndex(i)}
-                          >
-                            <span className="w-4 shrink-0 tabular-nums opacity-70">{i + 1}.</span>
-                            <span className="min-w-0 flex-1">{p.label}</span>
-                            {i === gradientPresetIndex ? (
-                              <span className="shrink-0 text-brand-primary" aria-hidden>
-                                ✓
-                              </span>
-                            ) : null}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </HoverCardContent>
-              </HoverCardPortal>
-            </HoverCard>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-              type="button"
-            >
-              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            </Button>
-          </nav>
+      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 px-5 py-3 backdrop-blur-md sm:px-8 lg:hidden">
+        <LoginPageChrome
+          compact
+          {...chromeProps(
+            theme,
+            toggleTheme,
+            gradientFollowsMouse,
+            setGradientFollowsMouse,
+            gradientPresetIndex,
+            setGradientPresetIndex,
+            gradientPreset
+          )}
+        />
+      </header>
+
+      <aside className="relative z-[1] hidden min-h-0 flex-col overflow-hidden border-b border-border/35 bg-background/20 backdrop-blur-3xl backdrop-saturate-150 dark:border-border/50 dark:bg-background/5 dark:backdrop-saturate-100 lg:order-1 lg:flex lg:w-[min(100%,26rem)] lg:flex-shrink-0 lg:border-b-0 lg:border-r xl:w-[30rem]">
+        <header className="relative z-20 hidden flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background px-5 py-4 sm:px-8 lg:flex">
+          <LoginPageChrome
+            {...chromeProps(
+              theme,
+              toggleTheme,
+              gradientFollowsMouse,
+              setGradientFollowsMouse,
+              gradientPresetIndex,
+              setGradientPresetIndex,
+              gradientPreset
+            )}
+          />
         </header>
 
-        <div className="relative z-0 flex-1 space-y-10 overflow-y-auto px-5 pb-8 pt-10 sm:px-8 sm:pb-10 sm:pt-12">
-          <section id="about" className="space-y-4">
-            <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Procurement, inventory, and production in one workspace.
-            </h1>
-            <p className="max-w-prose text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Marker helps teams run orders, stock, projects, and accounts with clear roles and a single source of
-              truth—built for mills and manufacturing operations like yours.
-            </p>
-          </section>
-
-          <section id="highlights" className="space-y-4">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">At a glance</h2>
-            <ul className="flex flex-col gap-4">
-              <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
-                  <Package className="h-5 w-5" strokeWidth={2} aria-hidden />
-                </div>
-                <h3 className="mb-1.5 font-semibold text-card-foreground">Operations &amp; inventory</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Orders, storage, machines, and ledgers connected so you always know what moved where.
-                </p>
-              </li>
-              <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
-                  <Users className="h-5 w-5" strokeWidth={2} aria-hidden />
-                </div>
-                <h3 className="mb-1.5 font-semibold text-card-foreground">Team &amp; workspaces</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Multi-tenant workspaces with invitations and roles so finance, floor, and managers see what they need.
-                </p>
-              </li>
-              <li className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-primary/12 text-brand-primary">
-                  <BarChart3 className="h-5 w-5" strokeWidth={2} aria-hidden />
-                </div>
-                <h3 className="mb-1.5 font-semibold text-card-foreground">Visibility</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Dashboards and structured data for decisions—without digging through spreadsheets.
-                </p>
-              </li>
-            </ul>
-          </section>
+        <div className="relative z-0 flex-1 overflow-y-auto px-5 pb-8 pt-10 sm:px-8 sm:pb-10 sm:pt-12">
+          {isLgScreen ? <LoginMarketingSections /> : null}
         </div>
       </aside>
 
-      <main className="relative z-[1] flex flex-1 flex-col items-center justify-center bg-transparent px-4 py-10 sm:px-8 lg:px-10 xl:px-16">
+      <main className="relative z-[1] order-1 flex min-h-[calc(100dvh-7.5rem)] shrink-0 flex-col items-center justify-center bg-transparent px-4 py-4 sm:px-8 lg:order-2 lg:min-h-0 lg:flex-1 lg:shrink lg:px-10 lg:py-10 xl:px-16">
         <div className="w-full max-w-[420px]">
           <Card
             className={cn(
@@ -699,6 +795,12 @@ const Login2Page: React.FC = () => {
           </Card>
         </div>
       </main>
+
+      {!isLgScreen ? (
+        <div className="relative z-[1] order-3 shrink-0 px-5 pb-10 pt-4 sm:px-8 lg:hidden">
+          <LoginMarketingSections />
+        </div>
+      ) : null}
     </div>
   );
 };

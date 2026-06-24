@@ -38,6 +38,8 @@ import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/A
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
+import { cn } from '@/lib/utils';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
   buildMachineIdToFactoryId,
@@ -75,6 +77,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'purchase')
   );
+  const isLgScreen = useIsLgScreen();
   const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
     skip: 0,
     limit: PO_LIST_LIMIT,
@@ -509,6 +512,10 @@ const PurchaseOrdersPage: React.FC = () => {
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           {/* Navigator panel */}
           <PurchaseOrderNavigatorPanel
+            className={cn(
+              selectedOrder && 'max-lg:hidden',
+              !isLgScreen && 'flex-1 border-r-0'
+            )}
             filteredOrders={filteredOrders}
             selectedOrderId={selectedOrderId}
             isLoading={isLoading}
@@ -531,14 +538,19 @@ const PurchaseOrdersPage: React.FC = () => {
           />
 
           {/* Content panel (overview or detail) */}
-          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              'flex-1 min-w-0 min-h-0 overflow-hidden',
+              !selectedOrder && 'max-lg:hidden'
+            )}
+          >
             {selectedOrder ? (
               <PurchaseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
                 showCompleteOrders={showCompleteOrders}
               />
-            ) : (
+            ) : isLgScreen ? (
               <PurchaseOrdersOverviewPanel
                 orders={filteredOrders}
                 stats={overviewStats}
@@ -548,7 +560,7 @@ const PurchaseOrdersPage: React.FC = () => {
                 statusLabel={statusLabel}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>

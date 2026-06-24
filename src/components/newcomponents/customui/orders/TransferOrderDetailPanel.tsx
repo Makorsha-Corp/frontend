@@ -454,7 +454,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
             </Card>
 
             <TrWorkflowChecklist
-              className="h-full scroll-mt-6"
+              className="max-lg:h-auto max-lg:w-full lg:h-full scroll-mt-6"
               order={order}
               items={items}
               approvalSummary={approvalSummary}

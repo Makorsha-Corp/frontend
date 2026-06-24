@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseISO } from 'date-fns';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
@@ -51,6 +51,8 @@ export interface NotificationCenterState {
   toggleRead: (id: string) => void;
   markManyRead: (ids: string[]) => void;
   dismiss: (id: string) => void;
+  toastNotifications: AppNotification[];
+  dismissToast: (id: string) => void;
 }
 
 export function useNotificationCenter(): NotificationCenterState {
@@ -58,7 +60,17 @@ export function useNotificationCenter(): NotificationCenterState {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadStringSet(DISMISSED_IDS_KEY));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>('all');
-  const streamConnected = useNotificationStream();
+  const [toastNotifications, setToastNotifications] = useState<AppNotification[]>([]);
+  const pendingToastIdsRef = useRef<Set<number>>(new Set());
+  const dialogOpenRef = useRef(dialogOpen);
+  dialogOpenRef.current = dialogOpen;
+
+  const handleStreamNotification = useCallback((notificationId: number) => {
+    if (dialogOpenRef.current) return;
+    pendingToastIdsRef.current.add(notificationId);
+  }, []);
+
+  const streamConnected = useNotificationStream({ onNotification: handleStreamNotification });
 
   // Poll as fallback when SSE is disconnected; long safety net when connected
   const { data: backendData, refetch: refetchNotifications } = useGetNotificationsQuery(
@@ -69,6 +81,31 @@ export function useNotificationCenter(): NotificationCenterState {
     }
   );
   const [markBackendRead] = useMarkNotificationsReadMutation();
+
+  useEffect(() => {
+    if (!backendData?.items.length || pendingToastIdsRef.current.size === 0) return;
+
+    const resolved: AppNotification[] = [];
+    for (const id of pendingToastIdsRef.current) {
+      const item = backendData.items.find((n) => n.id === id);
+      if (item) {
+        resolved.push(transformBackendNotification(item));
+        pendingToastIdsRef.current.delete(id);
+      }
+    }
+
+    if (resolved.length === 0) return;
+
+    setToastNotifications((prev) => {
+      const existingIds = new Set(prev.map((n) => n.id));
+      const fresh = resolved.filter((n) => !existingIds.has(n.id));
+      return [...fresh, ...prev];
+    });
+  }, [backendData]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToastNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
 
   const backendNotifications = useMemo<AppNotification[]>(
     () =>
@@ -232,5 +269,7 @@ export function useNotificationCenter(): NotificationCenterState {
     toggleRead,
     markManyRead,
     dismiss,
+    toastNotifications,
+    dismissToast,
   };
 }

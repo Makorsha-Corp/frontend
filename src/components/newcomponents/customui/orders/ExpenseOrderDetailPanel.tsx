@@ -543,6 +543,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             </Card>
 
             <EoWorkflowChecklist
+              className="max-lg:h-auto max-lg:w-full scroll-mt-6"
               order={order}
               itemCount={items.length}
               approvalSummary={approvalSummary}

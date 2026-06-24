@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
-import { ORDER_LIST_WIDTH, ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
+import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
 import { Receipt, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
 
@@ -25,6 +25,7 @@ export interface ExpenseOrderNavigatorPanelProps {
   accountName: (id: number | null) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
+  className?: string;
 }
 
 const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
@@ -44,11 +45,14 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
   accountName,
   formatCurrency,
   formatDate,
+  className,
 }) => {
   return (
     <div
-      className="shrink-0 flex flex-col h-full border-r border-border bg-card"
-      style={{ width: ORDER_LIST_WIDTH }}
+      className={cn(
+        'flex h-full shrink-0 flex-col border-r border-border bg-card w-full min-w-0 lg:w-[360px]',
+        className
+      )}
     >
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
         <div className="flex min-w-0 flex-1 items-center gap-3">

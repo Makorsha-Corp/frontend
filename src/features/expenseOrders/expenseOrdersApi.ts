@@ -18,7 +18,7 @@ import type {
 export const expenseOrdersApi = createApi({
   reducerPath: 'expenseOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'ExpenseOrderApprovers', 'ExpenseOrderEvents'],
+  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'ExpenseOrderApprovers', 'ExpenseOrderEvents', 'Notification'],
   endpoints: (builder) => ({
     getExpenseOrders: builder.query<ExpenseOrder[], ListExpenseOrdersParams>({
       query: ({ skip = 0, limit = 100, expense_category, account_id, invoice_id } = {}) => {
@@ -61,6 +61,7 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrder', id },
         { type: 'ExpenseOrderApprovers', id },
         { type: 'ExpenseOrderEvents', id },
+        'Notification',
       ],
     }),
     markExpenseOrderComplete: builder.mutation<ExpenseOrder, number>({
@@ -82,6 +83,7 @@ export const expenseOrdersApi = createApi({
         'ExpenseOrder',
         { type: 'ExpenseOrderItem', id: id },
         { type: 'ExpenseOrderEvents', id },
+        'Notification',
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
@@ -105,6 +107,7 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, { eoId }) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
+        'Notification',
       ],
     }),
     removeExpenseOrderApprover: builder.mutation<void, { eoId: number; userId: number }>({

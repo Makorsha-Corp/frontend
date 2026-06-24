@@ -22,7 +22,7 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['AccountInvoice'],
+  tagTypes: ['AccountInvoice', 'Notification'],
   endpoints: (builder) => ({
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({
       query: ({
@@ -109,6 +109,7 @@ export const accountInvoicesApi = createApi({
         'PurchaseOrderItem',
         'PurchaseOrderEvents',
         'ActiveOrders',
+        'Notification',
       ],
     }),
     voidAccountInvoice: builder.mutation<AccountInvoice, { id: number; void_note: string }>({
