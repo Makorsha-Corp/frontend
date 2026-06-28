@@ -23,6 +23,7 @@ export interface PurchaseOrderUrlFilters {
   invoiceFilter: InvoiceFilter;
   searchQuery: string;
   showCompleteOrders: boolean;
+  showVoidedOrders: boolean;
 }
 
 export interface TransferOrderUrlFilters {
@@ -52,6 +53,7 @@ const FILTER_PARAM_KEYS = [
   'status',
   'search',
   'showComplete',
+  'showVoided',
   'supplier',
   'factory',
   'destination',
@@ -169,7 +171,7 @@ function isScopeOpenOnly(params: URLSearchParams): boolean {
   return !FILTER_PARAM_KEYS.some((key) => {
     if (key === 'scope') return false;
     const v = params.get(key);
-    if (key === 'showComplete') return v === '1';
+    if (key === 'showComplete' || key === 'showVoided') return v === '1';
     return v != null && v !== '';
   });
 }
@@ -186,6 +188,7 @@ export function hasActiveListFilters(
   if (params.get('status')) return true;
   if (params.get('search')?.trim()) return true;
   if (params.get('showComplete') === '1') return true;
+  if (params.get('showVoided') === '1') return true;
   if (pageKind === 'purchase' && params.get('scope') === 'open') return true;
 
   if (pageKind === 'purchase') {
@@ -216,6 +219,7 @@ const defaultPurchaseFilters = (): PurchaseOrderUrlFilters => ({
   invoiceFilter: 'all',
   searchQuery: '',
   showCompleteOrders: false,
+  showVoidedOrders: false,
 });
 
 const defaultTransferFilters = (): TransferOrderUrlFilters => ({
@@ -244,7 +248,7 @@ function readDestinationFilter(value: string | null): DestinationTypeFilter {
 }
 
 function readInvoiceFilter(value: string | null): InvoiceFilter {
-  if (value === 'invoiced' || value === 'not_invoiced') return value;
+  if (value === 'invoiced' || value === 'not_invoiced' || value === 'outstanding_payment') return value;
   return 'all';
 }
 
@@ -280,6 +284,7 @@ export function parsePurchaseOrderParams(
     invoiceFilter: readInvoiceFilter(params.get('invoice')),
     searchQuery: readSearch(params),
     showCompleteOrders: readShowComplete(params),
+    showVoidedOrders: params.get('showVoided') === '1',
   };
 }
 
@@ -306,6 +311,8 @@ export function writePurchaseOrderParams(
     'invoice',
     filters.invoiceFilter === 'all' ? undefined : filters.invoiceFilter
   );
+  if (filters.showVoidedOrders) next.set('showVoided', '1');
+  else next.delete('showVoided');
   return next;
 }
 

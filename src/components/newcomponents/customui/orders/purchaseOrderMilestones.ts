@@ -55,17 +55,17 @@ export function isPurchaseOrderItemsComplete(items: PurchaseOrderItem[]): boolea
 }
 
 export function isPoFinanciallyLocked(invoiceStatus: PoLinkedInvoiceStatus): boolean {
-  return invoiceStatus === 'confirmed' || invoiceStatus === 'locked';
+  return invoiceStatus === 'confirmed';
 }
 
 export function isPoInvoiceFinalized(invoiceStatus: PoLinkedInvoiceStatus): boolean {
-  return invoiceStatus === 'confirmed' || invoiceStatus === 'locked';
+  return invoiceStatus === 'confirmed';
 }
 
 export function canRecordPoReceiving(
   invoiceStatus: PoLinkedInvoiceStatus
 ): { ok: boolean; reason?: string } {
-  if (invoiceStatus === 'confirmed' || invoiceStatus === 'locked') {
+  if (invoiceStatus === 'confirmed') {
     return { ok: true };
   }
   return { ok: false, reason: 'Finalize the invoice before recording receiving' };
@@ -218,7 +218,7 @@ function invoiceMilestoneState(
   invoiceStatus: PoLinkedInvoiceStatus
 ): PoMilestoneState {
   if (order.invoice_id == null) return 'pending';
-  if (invoiceStatus === 'confirmed' || invoiceStatus === 'locked') return 'complete';
+  if (invoiceStatus === 'confirmed') return 'complete';
   if (invoiceStatus === 'draft') return 'partial';
   return 'pending';
 }

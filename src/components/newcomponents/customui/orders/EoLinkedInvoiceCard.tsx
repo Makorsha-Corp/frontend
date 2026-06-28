@@ -51,7 +51,7 @@ const EoLinkedInvoiceCard: React.FC<EoLinkedInvoiceCardProps> = ({
   const invoiceId = order.invoice_id;
   const hasInvoice = invoiceId != null;
   const isDraft = invoice?.invoice_status === 'draft';
-  const isFinalized = invoice?.invoice_status === 'confirmed' || invoice?.invoice_status === 'locked';
+  const isFinalized = invoice?.invoice_status === 'confirmed';
   const accountId = order.account_id ?? invoice?.account_id ?? null;
 
   const linkedInvoiceLabel =

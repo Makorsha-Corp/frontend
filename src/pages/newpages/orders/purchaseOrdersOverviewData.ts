@@ -7,7 +7,7 @@ import {
   type OrderResolutionMaps,
 } from './ordersOverviewData';
 
-export type InvoiceFilter = 'all' | 'invoiced' | 'not_invoiced';
+export type InvoiceFilter = 'all' | 'invoiced' | 'not_invoiced' | 'outstanding_payment';
 export type DestinationTypeFilter = 'all' | 'storage' | 'machine' | 'project';
 
 export interface PurchaseOrderFilters {
@@ -20,6 +20,7 @@ export interface PurchaseOrderFilters {
   invoice: InvoiceFilter;
   searchQuery: string;
   showCompleteOrders: boolean;
+  showVoidedOrders: boolean;
 }
 
 /** Manually closed PO (Complete stage) or legacy completed-style status names. */
@@ -78,10 +79,18 @@ export function filterPurchaseOrders(
     rows = rows.filter((o) => o.invoice_id != null);
   } else if (filters.invoice === 'not_invoiced') {
     rows = rows.filter((o) => o.invoice_id == null);
+  } else if (filters.invoice === 'outstanding_payment') {
+    rows = rows.filter(
+      (o) => o.invoice_id != null && o.invoice_payment_status != null && o.invoice_payment_status !== 'paid'
+    );
   }
 
   if (!filters.showCompleteOrders) {
     rows = rows.filter((o) => !isPurchaseOrderComplete(o));
+  }
+
+  if (!filters.showVoidedOrders) {
+    rows = rows.filter((o) => !o.voided);
   }
 
   const q = filters.searchQuery.trim().toLowerCase();

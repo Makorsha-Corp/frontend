@@ -121,8 +121,8 @@ const AccountDetailPage: React.FC = () => {
   });
 
   const invoiceOrderNumberMap = useMemo(
-    () => buildInvoiceOrderNumberMap(purchaseOrdersForInvoices, expenseOrdersForInvoices),
-    [purchaseOrdersForInvoices, expenseOrdersForInvoices]
+    () => buildInvoiceOrderNumberMap(purchaseOrdersForInvoices, expenseOrdersForInvoices, invoicesForTotals),
+    [purchaseOrdersForInvoices, expenseOrdersForInvoices, invoicesForTotals]
   );
 
   const invoicesPanelReady = !invoiceListLoading && !invoiceTotalsLoading;

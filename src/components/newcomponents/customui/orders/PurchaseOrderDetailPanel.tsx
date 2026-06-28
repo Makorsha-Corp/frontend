@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertTriangle,
   Building2,
   Package,
   Truck,
@@ -43,7 +44,6 @@ import {
   Send,
   Check,
   X,
-  Pencil,
 } from 'lucide-react';
 import { SectionConfirmActions } from './PoSectionConfirmButton';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
@@ -71,6 +71,8 @@ import {
   InvoiceConfirmDialog,
   InvoiceVoidDialog,
 } from '@/components/newcomponents/customui/accounts/InvoiceLifecycleDialogs';
+import VoidPurchaseOrderDialog from './VoidPurchaseOrderDialog';
+import PoReceivingDialog from './PoReceivingDialog';
 import {
   useGetAccountInvoiceByIdQuery,
   useConfirmAccountInvoiceMutation,
@@ -86,7 +88,6 @@ import {
   useSetPurchaseOrderSectionConfirmMutation,
   useGetPurchaseOrderByIdQuery,
   useGetPurchaseOrderItemsQuery,
-  useUpdatePurchaseOrderItemMutation,
   useGetPurchaseOrderApproversQuery,
   useAddPurchaseOrderApproverMutation,
   useRemovePurchaseOrderApproverMutation,
@@ -95,6 +96,7 @@ import {
   useGetPurchaseOrderEventsQuery,
   useCreateInvoiceFromPurchaseOrderMutation,
   useMarkPurchaseOrderCompleteMutation,
+  useVoidPurchaseOrderMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -194,6 +196,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     useMarkPurchaseOrderCompleteMutation();
   const [confirmInvoice, { isLoading: isConfirmingInvoice }] = useConfirmAccountInvoiceMutation();
   const [voidInvoice, { isLoading: isVoidingInvoice }] = useVoidAccountInvoiceMutation();
+  const [voidPurchaseOrder, { isLoading: isVoidingPo }] = useVoidPurchaseOrderMutation();
 
   const { data: linkedInvoiceQuery } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
     skip: order.invoice_id == null,
@@ -213,6 +216,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [confirmInvoiceOpen, setConfirmInvoiceOpen] = useState(false);
   const [voidInvoiceOpen, setVoidInvoiceOpen] = useState(false);
+  const [voidPoOpen, setVoidPoOpen] = useState(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
@@ -247,8 +251,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       showConfirmEvents ? events : events.filter((e) => !CONFIRM_EVENT_TYPES.has(e.event_type)),
     [events, showConfirmEvents]
   );
-  const [updateItem] = useUpdatePurchaseOrderItemMutation();
-
   const [addApprover] = useAddPurchaseOrderApproverMutation();
   const [removeApprover] = useRemovePurchaseOrderApproverMutation();
   const [approveOrder, { isLoading: isApproving }] = useApprovePurchaseOrderMutation();
@@ -284,8 +286,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const handleToggleMyApproval = async () => {
     try {
       if (myApproval?.approved) {
-        if (linkedInvoiceStatus === 'locked') {
-          toast.error('Cannot withdraw approval — invoice is locked');
+        if (linkedInvoice?.receiving_started) {
+          toast.error('Cannot withdraw approval — receiving has started on this invoice');
           return;
         }
         await unapproveOrder(order.id).unwrap();
@@ -326,12 +328,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   // Build a payload of only the fields that differ from the saved order.
   const invoiceLocked = isPoFinanciallyLocked(linkedInvoiceStatus);
+  const isPoVoided = order.voided ?? false;
+  const isPoCompleted = order.order_completed === true || order.current_status_name === 'Complete';
   const supplierConfirmed = order.supplier_confirmed ?? false;
   const detailsConfirmed = order.details_confirmed ?? false;
   const itemsConfirmed = order.items_confirmed ?? false;
-  const supplierDisabled = invoiceLocked || supplierConfirmed;
-  const coreDetailsDisabled = invoiceLocked || detailsConfirmed;
-  const itemsSectionConfirmed = itemsConfirmed || invoiceLocked;
+  const supplierDisabled = invoiceLocked || supplierConfirmed || isPoVoided;
+  const coreDetailsDisabled = invoiceLocked || detailsConfirmed || isPoVoided;
+  const itemsSectionConfirmed = itemsConfirmed || invoiceLocked || isPoVoided;
 
   const confirmReadiness = canConfirmPoInvoice(order, approvalSummary.met, linkedInvoiceStatus);
   const receivingReadiness = canRecordPoReceiving(linkedInvoiceStatus);
@@ -488,6 +492,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   useEffect(() => {
     if (!hasSavedSupplier || order.invoice_id != null || invoiceLocked || isSaving) return;
+    // Don't auto-create if this PO ever had a linked invoice — user creates the new draft manually
+    if (order.invoice_ever_linked) return;
     if (ensureDraftInvoiceRef.current) return;
     ensureDraftInvoiceRef.current = true;
     void ensureDraftInvoice(order.id)
@@ -520,6 +526,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   }, [
     order.id,
     order.invoice_id,
+    order.invoice_ever_linked,
     hasSavedSupplier,
     invoiceLocked,
     isSaving,
@@ -531,7 +538,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     if (!order.invoice_id || !confirmReadiness.ok) return;
     try {
       await confirmInvoice(order.invoice_id).unwrap();
-      toast.success('Invoice confirmed — order is now locked');
+      toast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmInvoiceOpen(false);
       onUpdated?.();
     } catch (err: unknown) {
@@ -571,17 +578,22 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       await voidInvoice({ id: order.invoice_id, void_note: voidNote }).unwrap();
       toast.success('Invoice voided — order approvals cleared and order is editable again');
       setVoidInvoiceOpen(false);
-      if (order.account_id != null) {
-        try {
-          await ensureDraftInvoice(order.id).unwrap();
-        } catch {
-          /* backend void handler may have already synced the draft */
-        }
-      }
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to void invoice');
+    }
+  };
+
+  const handleVoidPurchaseOrder = async (voidNote: string) => {
+    try {
+      await voidPurchaseOrder({ id: order.id, void_note: voidNote }).unwrap();
+      toast.success(`Purchase order ${order.po_number} voided`);
+      setVoidPoOpen(false);
+      onUpdated?.();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to void purchase order');
     }
   };
 
@@ -692,115 +704,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   ).length;
   const subtotal = Number(order.subtotal ?? 0);
 
-  // Receiving dialog: stagedReceived = local totals; receivingDraft = incremental qty applied on save.
   const [receivingOpen, setReceivingOpen] = useState(false);
-  const [stagedReceived, setStagedReceived] = useState<Record<number, number>>({});
-  const [receivingDraft, setReceivingDraft] = useState<Record<number, string>>({});
-  const [usingDirectReceive, setUsingDirectReceive] = useState<Record<number, boolean>>({});
-  const [directEditOpen, setDirectEditOpen] = useState<Record<number, boolean>>({});
-  const [savingReceiving, setSavingReceiving] = useState(false);
-
-  const stagedReceivedFor = (item: { id: number; quantity_received: number }) =>
-    stagedReceived[item.id] ?? Number(item.quantity_received);
-
-  const openReceiving = () => {
-    const staged: Record<number, number> = {};
-    const draft: Record<number, string> = {};
-    for (const it of items) {
-      staged[it.id] = Number(it.quantity_received);
-      draft[it.id] = '';
-    }
-    setStagedReceived(staged);
-    setReceivingDraft(draft);
-    setUsingDirectReceive({});
-    setDirectEditOpen({});
-    setReceivingOpen(true);
-  };
-
-  const closeReceiving = () => {
-    if (savingReceiving) return;
-    setReceivingOpen(false);
-    setStagedReceived({});
-    setReceivingDraft({});
-    setUsingDirectReceive({});
-    setDirectEditOpen({});
-  };
-
-  const setDirectReceived = (
-    itemId: number,
-    ordered: number,
-    raw: string,
-    currentReceived: number
-  ) => {
-    setReceivingDraft((d) => ({ ...d, [itemId]: '' }));
-    if (raw === '') return;
-    let n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    n = Math.max(0, Math.min(ordered, n));
-    if (n !== currentReceived) {
-      setUsingDirectReceive((prev) => ({ ...prev, [itemId]: true }));
-    }
-    setStagedReceived((prev) => ({ ...prev, [itemId]: n }));
-  };
-
-  const addNowFor = (item: { id: number; quantity_ordered: number; quantity_received: number }) => {
-    const raw = Number(receivingDraft[item.id] ?? '');
-    if (!Number.isFinite(raw) || raw <= 0) return 0;
-    return Math.floor(raw);
-  };
-
-  const effectiveReceivedFor = (item: {
-    id: number;
-    quantity_ordered: number;
-    quantity_received: number;
-  }) =>
-    Math.min(
-      Number(item.quantity_ordered),
-      stagedReceivedFor(item) + addNowFor(item)
-    );
-
-  const receivingTotalRemaining = items.reduce(
-    (sum, it) => sum + Math.max(0, Number(it.quantity_ordered) - effectiveReceivedFor(it)),
-    0
-  );
-  const hasReceivingChanges = items.some(
-    (it) => effectiveReceivedFor(it) !== Number(it.quantity_received)
-  );
-  const receivingChangeUnits = items.reduce(
-    (sum, it) => sum + Math.abs(effectiveReceivedFor(it) - Number(it.quantity_received)),
-    0
-  );
-
-  const handleSaveReceiving = async () => {
-    const toUpdate = items
-      .map((it) => ({
-        it,
-        newReceived: effectiveReceivedFor(it),
-      }))
-      .filter(({ it, newReceived }) => newReceived !== Number(it.quantity_received));
-    if (toUpdate.length === 0) {
-      closeReceiving();
-      return;
-    }
-    setSavingReceiving(true);
-    try {
-      for (const { it, newReceived } of toUpdate) {
-        await updateItem({
-          itemId: it.id,
-          poId: order.id,
-          data: { quantity_received: newReceived },
-        }).unwrap();
-      }
-      toast.success('Receiving saved');
-      closeReceiving();
-      onUpdated?.();
-    } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save receiving');
-    } finally {
-      setSavingReceiving(false);
-    }
-  };
+  const openReceiving = () => setReceivingOpen(true);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
@@ -814,20 +719,40 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           ref={scrollContainerRef}
           className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6"
         >
+        {isPoVoided && (
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                This purchase order has been voided
+              </p>
+            </div>
+            {order.void_note && (
+              <p className="text-xs text-red-600 dark:text-red-400 pl-6">
+                Reason: {order.void_note}
+              </p>
+            )}
+          </div>
+        )}
+
         <PoApprovalsTopBar
           approvers={approvers}
           approvalSummary={approvalSummary}
           currentUserId={currentUserId}
           myApproval={myApproval}
           approvalSectionsStatus={approvalSectionsStatus}
-          approvalWithdrawBlocked={linkedInvoiceStatus === 'locked'}
+          approvalWithdrawBlocked={linkedInvoice?.receiving_started === true}
           isApproving={isApproving}
           isUnapproving={isUnapproving}
           highlighted={scrollHighlightTarget === 'approvals'}
           onHighlightDismiss={dismissScrollHighlight}
           onManage={openManageApprovals}
           onToggleMyApproval={handleToggleMyApproval}
+          isVoided={isPoVoided}
+          onVoidOrder={isPoCompleted ? undefined : () => setVoidPoOpen(true)}
         />
+
+        <div className={cn('space-y-6', isPoVoided && 'opacity-40 pointer-events-none select-none')}>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_auto] gap-4 lg:items-stretch">
           {/* Order Details */}
@@ -1220,33 +1145,34 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                {receivingReadiness.ok ? (
-                  <BlockedActionButton
-                    id="po-manage-receiving-btn"
-                    size="sm"
-                    className={cn(
-                      'h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground',
-                      scrollHighlightTarget === 'receiving' && 'po-scroll-target-highlight'
-                    )}
-                    onMouseEnter={dismissScrollHighlight}
-                    onAction={openReceiving}
-                    blocked={items.length === 0}
-                    blockedHint={
-                      items.length === 0
+                <BlockedActionButton
+                  id="po-manage-receiving-btn"
+                  size="sm"
+                  className={cn(
+                    'h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground',
+                    scrollHighlightTarget === 'receiving' && 'po-scroll-target-highlight'
+                  )}
+                  onMouseEnter={dismissScrollHighlight}
+                  onAction={openReceiving}
+                  blocked={!receivingReadiness.ok || items.length === 0}
+                  blockedHint={
+                    !receivingReadiness.ok
+                      ? { title: 'Invoice not finalized', reason: receivingReadiness.reason ?? 'Finalize the invoice before recording receiving' }
+                      : items.length === 0
                         ? { title: 'No items', reason: 'Add line items before recording receiving' }
                         : undefined
-                    }
-                  >
-                    <Truck className="h-4 w-4 mr-1" />
-                    Manage receiving
-                  </BlockedActionButton>
-                ) : !invoiceLocked ? (
+                  }
+                >
+                  <Truck className="h-4 w-4 mr-1" />
+                  Manage receiving
+                </BlockedActionButton>
+                {!invoiceLocked && (
                   <PoEditOrderItemsButton
                     itemsConfirmed={itemsConfirmed}
                     onEdit={() => setEditItemsOpen(true)}
                     className="h-8 w-fit"
                   />
-                ) : null}
+                )}
                 {receivingReadiness.ok ? (
                   <span
                     className={`text-xs font-medium ${
@@ -1292,12 +1218,22 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           poNumber={order.po_number}
           events={events}
           confirmReadiness={confirmReadiness}
-          poItems={items}
           isConfirming={isConfirmingInvoice}
           isVoiding={isVoidingInvoice}
           onConfirmInvoice={() => setConfirmInvoiceOpen(true)}
           onVoidInvoice={() => setVoidInvoiceOpen(true)}
           onOpenFullView={() => setInvoiceDialogOpen(true)}
+          onCreateDraft={async () => {
+            try {
+              await ensureDraftInvoice(order.id).unwrap();
+              onUpdated?.();
+            } catch (err: unknown) {
+              const e = err as { data?: { detail?: string } };
+              toast.error(e?.data?.detail || 'Failed to create new draft invoice');
+            }
+          }}
+          isCreatingDraft={isEnsuringDraft}
+          hasActiveReceiving={items.some((i) => Number(i.quantity_received ?? 0) > 0)}
           highlightedTarget={scrollHighlightTarget}
           onHighlightDismiss={dismissScrollHighlight}
         />
@@ -1366,6 +1302,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             )}
           </CardContent>
         </Card>
+
+        </div>{/* end voided-dimmer wrapper */}
         </div>
       </div>
 
@@ -1391,169 +1329,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         </div>
       )}
 
-      {/* Manage receiving dialog */}
-      <Dialog open={receivingOpen} onOpenChange={(o) => { if (!o) closeReceiving(); }}>
-        <DialogContent className="w-[min(42rem,94vw)] max-w-none">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-muted-foreground" />
-              Receive items
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              {receivingTotalRemaining > 0
-                ? `Enter how many arrived now. ${receivingTotalRemaining} unit(s) still outstanding across this order.`
-                : 'Everything on this order has been received.'}
-            </p>
-          </DialogHeader>
-          <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
-            {items.map((item) => {
-              const ordered = Number(item.quantity_ordered);
-              const staged = stagedReceivedFor(item);
-              const received = effectiveReceivedFor(item);
-              const savedReceived = Number(item.quantity_received);
-              const remainingToAdd = Math.max(0, ordered - staged);
-              const isComplete = received >= ordered;
-              const hasUnsaved = received !== savedReceived;
-
-              const directMode = usingDirectReceive[item.id] ?? false;
-              const editingTotal = directEditOpen[item.id] ?? false;
-              const unsavedDelta = received - savedReceived;
-
-              const setAdd = (raw: string) => {
-                setUsingDirectReceive((prev) => ({ ...prev, [item.id]: false }));
-                if (raw === '') {
-                  setReceivingDraft((d) => ({ ...d, [item.id]: '' }));
-                  return;
-                }
-                let n = Number(raw);
-                if (!Number.isFinite(n)) return;
-                n = Math.max(0, Math.floor(n));
-                setReceivingDraft((d) => ({ ...d, [item.id]: n === 0 ? '' : String(n) }));
-              };
-
-              return (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-medium text-card-foreground truncate">
-                        {item.item_name ?? `Item #${item.item_id}`}
-                      </p>
-                      {isComplete && (
-                        <Badge className="shrink-0 bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/40 dark:text-green-300">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Fully received
-                        </Badge>
-                      )}
-                    </div>
-                    {hasUnsaved && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        {unsavedDelta > 0 ? '+' : ''}
-                        {unsavedDelta} unsaved
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground whitespace-nowrap">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={() =>
-                        setDirectEditOpen((prev) => ({ ...prev, [item.id]: !editingTotal }))
-                      }
-                      title="Adjust received total"
-                      aria-label={`Adjust received total for ${item.item_name ?? 'item'}`}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    {editingTotal ? (
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={ordered}
-                        autoFocus
-                        value={staged}
-                        onChange={(e) =>
-                          setDirectReceived(item.id, ordered, e.target.value, staged)
-                        }
-                        onBlur={() =>
-                          setDirectEditOpen((prev) => ({ ...prev, [item.id]: false }))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === 'Escape') {
-                            e.currentTarget.blur();
-                          }
-                        }}
-                        className="h-6 w-10 px-0.5 py-0 text-xs text-right border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring/40 rounded-sm"
-                        aria-label={`Received quantity for ${item.item_name ?? 'item'}`}
-                      />
-                    ) : (
-                      <span className="tabular-nums">{received}</span>
-                    )}
-                    <span>/ {ordered} {item.item_unit ?? ''} received</span>
-                  </div>
-                  <div
-                    className={cn(
-                      'flex items-center gap-1.5 shrink-0',
-                      directMode && 'pointer-events-none opacity-40'
-                    )}
-                  >
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">Receiving</span>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      placeholder="0"
-                      value={receivingDraft[item.id] ?? ''}
-                      onChange={(e) => setAdd(e.target.value)}
-                      disabled={directMode}
-                      className="w-20 h-8 text-sm text-right"
-                    />
-                    <span className="text-xs text-muted-foreground">/</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 shrink-0 px-2.5 text-xs"
-                      onClick={() => setAdd(String(remainingToAdd))}
-                      disabled={directMode || remainingToAdd <= 0}
-                    >
-                      All
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <DialogFooter className="items-center sm:justify-between gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground mr-auto">
-              {hasReceivingChanges
-                ? `${receivingChangeUnits} unit(s) to save`
-                : receivingTotalRemaining > 0
-                  ? 'Enter quantities, then save changes'
-                  : 'All items received'}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={closeReceiving} disabled={savingReceiving}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveReceiving}
-                disabled={savingReceiving || !hasReceivingChanges}
-                className="bg-brand-primary hover:bg-brand-primary-hover"
-              >
-                {savingReceiving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
-                Save changes
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PoReceivingDialog
+        open={receivingOpen}
+        onOpenChange={setReceivingOpen}
+        poId={order.id}
+        items={items}
+        onSaved={() => { onUpdated?.(); toast.success('Receiving updated'); }}
+      />
 
       {order.invoice_id ? (
         <AccountInvoiceDialog
@@ -1592,6 +1374,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         poId={order.id}
         items={items}
         onSaved={onUpdated}
+      />
+
+      <VoidPurchaseOrderDialog
+        open={voidPoOpen}
+        onOpenChange={setVoidPoOpen}
+        onVoid={handleVoidPurchaseOrder}
+        isVoiding={isVoidingPo}
+        poNumber={order.po_number}
+        hasConfirmedInvoice={linkedInvoiceStatus === 'confirmed'}
+        hasDraftInvoice={linkedInvoiceStatus === 'draft'}
       />
 
       <ManagePoApprovalsDialog

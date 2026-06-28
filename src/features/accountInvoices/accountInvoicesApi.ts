@@ -7,6 +7,8 @@ import type {
   UpdateAccountInvoiceRequest,
   ListAccountInvoicesParams,
   InvoiceStatusEntry,
+  InvoiceItem,
+  InvoiceEvent,
 } from '@/types/accountInvoice';
 
 const toNumber = (value: number | string | null | undefined): number =>
@@ -22,7 +24,7 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['AccountInvoice'],
+  tagTypes: ['AccountInvoice', 'InvoiceItem', 'InvoiceEvent'],
   endpoints: (builder) => ({
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({
       query: ({
@@ -109,6 +111,8 @@ export const accountInvoicesApi = createApi({
         'PurchaseOrderItem',
         'PurchaseOrderEvents',
         'ActiveOrders',
+        { type: 'InvoiceItem', id },
+        { type: 'InvoiceEvent', id },
       ],
     }),
     voidAccountInvoice: builder.mutation<AccountInvoice, { id: number; void_note: string }>({
@@ -124,7 +128,42 @@ export const accountInvoicesApi = createApi({
         'PurchaseOrder',
         'PurchaseOrderItem',
         'PurchaseOrderEvents',
+        'PurchaseOrderApprovers',
         'ActiveOrders',
+        { type: 'InvoiceEvent', id },
+      ],
+    }),
+    getInvoiceItems: builder.query<InvoiceItem[], number>({
+      query: (invoiceId) => `account-invoices/${invoiceId}/items/`,
+      providesTags: (result, error, invoiceId) => [{ type: 'InvoiceItem', id: invoiceId }],
+    }),
+    getInvoiceEvents: builder.query<InvoiceEvent[], number>({
+      query: (invoiceId) => `account-invoices/${invoiceId}/events/`,
+      providesTags: (result, error, invoiceId) => [{ type: 'InvoiceEvent', id: invoiceId }],
+    }),
+    revertInvoiceToDraft: builder.mutation<AccountInvoice, number>({
+      query: (id) => ({
+        url: `account-invoices/${id}/revert/`,
+        method: 'POST',
+      }),
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
+      invalidatesTags: (result, error, id) => [
+        { type: 'AccountInvoice', id },
+        'AccountInvoice',
+        { type: 'InvoiceEvent', id },
+      ],
+    }),
+    resyncInvoiceItems: builder.mutation<AccountInvoice, number>({
+      query: (id) => ({
+        url: `account-invoices/${id}/resync/`,
+        method: 'POST',
+      }),
+      transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
+      invalidatesTags: (result, error, id) => [
+        { type: 'AccountInvoice', id },
+        'AccountInvoice',
+        { type: 'InvoiceItem', id },
+        { type: 'InvoiceEvent', id },
       ],
     }),
   }),
@@ -139,4 +178,8 @@ export const {
   useConfirmAccountInvoiceMutation,
   useVoidAccountInvoiceMutation,
   useGetInvoiceStatusHistoryQuery,
+  useGetInvoiceItemsQuery,
+  useGetInvoiceEventsQuery,
+  useRevertInvoiceToDraftMutation,
+  useResyncInvoiceItemsMutation,
 } = accountInvoicesApi;

@@ -36,10 +36,17 @@ export interface PurchaseOrder {
   items_confirmed: boolean;
   invoice_confirmed: boolean;
   order_completed?: boolean;
+  voided: boolean;
+  invoice_ever_linked: boolean;
+  void_note: string | null;
+  voided_at: string | null;
+  voided_by: number | null;
+  invoice_payment_status: string | null;
   created_by: number;
   created_at: string;
   updated_by: number | null;
   updated_at: string | null;
+  items_updated_at: string | null;
 }
 
 export interface PurchaseOrderApprover {
@@ -95,7 +102,9 @@ export type PurchaseOrderEventType =
   | 'status_updated'
   | 'order_completed'
   | 'inventory_posted'
-  | 'approvals_threshold_updated';
+  | 'approvals_threshold_updated'
+  | 'po_voided'
+  | 'quantity_correction';
 
 export interface PurchaseOrderEventChange {
   field: string;
@@ -179,6 +188,42 @@ export interface PurchaseOrderItemSyncRequest {
   remove_ids: number[];
   updates: PurchaseOrderItemSyncUpdate[];
   additions: CreatePurchaseOrderItem[];
+}
+
+export interface PoReceiveEventItem {
+  id: number;
+  receive_event_id: number;
+  po_item_id: number;
+  po_item_name: string | null;
+  po_item_unit: string | null;
+  quantity_delta: number;
+}
+
+export interface PoReceiveEvent {
+  id: number;
+  workspace_id: number;
+  purchase_order_id: number;
+  event_type: 'receive' | 'correction';
+  rcc: string | null;
+  received_by: string | null;
+  correction_note: string | null;
+  performed_by: number | null;
+  performer_name: string | null;
+  created_at: string;
+  items: PoReceiveEventItem[];
+}
+
+export interface PoReceiveEventItemCreate {
+  po_item_id: number;
+  quantity_delta: number;
+}
+
+export interface PoReceiveEventCreate {
+  event_type: 'receive' | 'correction';
+  rcc?: string | null;
+  received_by?: string | null;
+  correction_note?: string | null;
+  items: PoReceiveEventItemCreate[];
 }
 
 export interface ListPurchaseOrdersParams {

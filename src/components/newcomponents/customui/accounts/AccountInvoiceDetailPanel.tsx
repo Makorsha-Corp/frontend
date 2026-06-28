@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2, RotateCcw, XCircle } from 'lucide-react';
+import InvoiceLockedBadge from './InvoiceLockedBadge';
 import { Button } from '@/components/ui/button';
 import { InvoiceConfirmDialog, InvoiceVoidDialog } from './InvoiceLifecycleDialogs';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
@@ -7,7 +8,8 @@ import {
   useGetAccountInvoiceByIdQuery,
   useConfirmAccountInvoiceMutation,
   useVoidAccountInvoiceMutation,
-  useGetInvoiceStatusHistoryQuery,
+  useGetInvoiceEventsQuery,
+  useRevertInvoiceToDraftMutation,
 } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetInvoicePaymentsByInvoiceQuery } from '@/features/invoicePayments/invoicePaymentsApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
@@ -15,10 +17,9 @@ import { formatInvLabel } from './invoiceDisplayUtils';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
-import InvoiceLinkedOrderItemsSummary from './InvoiceLinkedOrderItemsSummary';
+import InvoiceItemsTable from './InvoiceItemsTable';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
-import InvoiceLockedBadge from '@/components/newcomponents/customui/accounts/InvoiceLockedBadge';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -50,10 +51,6 @@ const STATUS_CONFIG = {
 } as const;
 
 function InvoiceStatusBadge({ status }: { status: string }) {
-  if (status === 'locked') {
-    return <InvoiceLockedBadge />;
-  }
-
   const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
   const Icon = config.icon;
   return (
@@ -64,23 +61,24 @@ function InvoiceStatusBadge({ status }: { status: string }) {
   );
 }
 
-// ─── Status history row ────────────────────────────────────────────────────────
+// ─── Event log dot color ───────────────────────────────────────────────────────
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Draft',
-  confirmed: 'Confirmed',
-  locked: 'Locked',
-  voided: 'Voided',
-};
+function eventDotColor(eventType: string): string {
+  switch (eventType) {
+    case 'confirmed': return 'bg-green-500';
+    case 'voided': return 'bg-red-500';
+    case 'reverted_to_draft': return 'bg-amber-500';
+    case 'created': return 'bg-sky-500';
+    case 'items_synced':
+    case 'item_manually_updated': return 'bg-blue-400';
+    case 'payment_recorded': return 'bg-violet-500';
+    case 'payment_voided': return 'bg-rose-400';
+    case 'receiving_started_set': return 'bg-amber-500';
+    default: return 'bg-muted-foreground/40';
+  }
+}
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-muted-foreground/40',
-  confirmed: 'bg-green-500',
-  locked: 'bg-amber-500',
-  voided: 'bg-red-500',
-};
-
-function formatHistoryDate(iso: string) {
+function formatEventDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -98,15 +96,13 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
 
-  const { orderNumber: fetchedOrderNumber, poItems, expenseItems, isLoading: isOrderLoading } =
+  const { orderNumber: fetchedOrderNumber, isLoading: isOrderLoading } =
     useLinkedOrderForInvoice(invoiceId, { skipExpenseLookup: linkedOrderNumberProp !== undefined });
   const linkedOrderNumber =
     linkedOrderNumberProp !== undefined ? linkedOrderNumberProp : fetchedOrderNumber;
 
-  const { data: statusHistory = [] } = useGetInvoiceStatusHistoryQuery(invoiceId);
+  const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId);
 
-  // Fetch payments to show accurate count in void dialog.
-  // Shares the same RTK cache key as AccountInvoicePaymentsSection — no extra network request.
   const { data: paymentsForCount = [] } = useGetInvoicePaymentsByInvoiceQuery(
     { invoice_id: invoiceId, skip: 0, limit: 100 },
     { skip: !invoiceId }
@@ -117,6 +113,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
   const [confirmInvoice, { isLoading: isConfirming }] = useConfirmAccountInvoiceMutation();
   const [voidInvoice, { isLoading: isVoiding }] = useVoidAccountInvoiceMutation();
+  const [revertToDraft, { isLoading: isReverting }] = useRevertInvoiceToDraftMutation();
 
   const handleConfirm = async () => {
     try {
@@ -130,7 +127,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   };
 
   const handleVoid = async (voidNote: string) => {
-    const readiness = canVoidPoInvoice(invoice?.invoice_status ?? null, poItems);
+    const readiness = canVoidPoInvoice(invoice?.invoice_status ?? null, invoice?.receiving_started ?? false);
     if (!readiness.ok) {
       toast.error(readiness.reason ?? 'This invoice cannot be voided');
       setVoidOpen(false);
@@ -146,7 +143,24 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
     }
   };
 
+  const handleRevert = async () => {
+    try {
+      await revertToDraft(invoiceId).unwrap();
+      toast.success('Invoice reverted to draft.');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to revert invoice');
+    }
+  };
+
+
+
   const activePaymentCount = paymentsForCount.filter((p) => !p.is_voided).length;
+
+  const resolvedInvoice = fetchedInvoice ?? invoiceProp;
+  const linkedOrderId = resolvedInvoice?.order_id ?? null;
+  const linkedOrderType = resolvedInvoice?.order_type ?? null;
+
 
   if (isLoading && !invoice) {
     return (
@@ -163,10 +177,12 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
   const isDraft = invoice.invoice_status === 'draft';
   const isConfirmed = invoice.invoice_status === 'confirmed';
-  const isLocked = invoice.invoice_status === 'locked';
-  const isFinalized = isConfirmed || isLocked;
+  const isFinalized = isConfirmed;
   const isVoided = invoice.invoice_status === 'voided';
-  const voidReadiness = canVoidPoInvoice(invoice.invoice_status, poItems);
+  const receivingStarted = invoice.receiving_started;
+  const voidReadiness = canVoidPoInvoice(invoice.invoice_status, receivingStarted);
+  const canRevertToDraft = isConfirmed && !receivingStarted && invoice.paid_amount === 0;
+
 
   return (
     <div className="space-y-4">
@@ -192,6 +208,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
             />
           ) : null}
           <InvoiceStatusBadge status={invoice.invoice_status} />
+          {isConfirmed && receivingStarted && <InvoiceLockedBadge />}
           {isFinalized && (
             <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
               {invoice.payment_status}
@@ -219,6 +236,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
           </Button>
         </div>
       )}
+
 
       {/* ── Voided notice ── */}
       {isVoided && (
@@ -259,11 +277,8 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       </div>
 
-      <InvoiceLinkedOrderItemsSummary
-        poItems={poItems}
-        expenseItems={expenseItems}
-        isLoading={isOrderLoading}
-      />
+      {/* ── Invoice items ── */}
+      <InvoiceItemsTable invoiceId={invoiceId} />
 
       {/* ── Details grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
@@ -300,50 +315,63 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       ) : null}
 
-      {/* ── Void action ── */}
-      {isFinalized && (
-        <div className="flex justify-end pt-1">
-          <BlockedActionButton
-            variant="outline"
-            size="sm"
-            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-            blocked={!voidReadiness.ok}
-            blockedHint={
-              !voidReadiness.ok
-                ? {
-                    title: 'Cannot void anymore',
-                    reason:
-                      voidReadiness.reason ??
-                      'Receiving has started — this invoice can no longer be voided',
-                  }
-                : undefined
-            }
-            isBusy={isVoiding}
-            onAction={() => setVoidOpen(true)}
-          >
-            <XCircle className="mr-1.5 h-4 w-4" />
-            Void Invoice
-          </BlockedActionButton>
+      {/* ── Actions (revert to draft + void) ── */}
+      {(isFinalized || canRevertToDraft) && (
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          {canRevertToDraft && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRevert}
+              disabled={isReverting}
+            >
+              {isReverting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-1.5 h-4 w-4" />
+              )}
+              Revert to Draft
+            </Button>
+          )}
+          {isFinalized && (
+            <BlockedActionButton
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              blocked={!voidReadiness.ok}
+              blockedHint={
+                !voidReadiness.ok
+                  ? {
+                      title: 'Cannot void',
+                      reason:
+                        voidReadiness.reason ??
+                        'Receiving has started — this invoice can no longer be voided',
+                    }
+                  : undefined
+              }
+              isBusy={isVoiding}
+              onAction={() => setVoidOpen(true)}
+            >
+              <XCircle className="mr-1.5 h-4 w-4" />
+              Void Invoice
+            </BlockedActionButton>
+          )}
         </div>
       )}
 
-      {/* ── Status history ── */}
-      {statusHistory.length > 0 && (
+      {/* ── Event log ── */}
+      {events.length > 0 && (
         <div className="space-y-2 pt-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice History</p>
           <div className="relative space-y-0 pl-4">
             <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
-            {statusHistory.map((entry) => (
-              <div key={entry.id} className="relative flex items-start gap-3 pb-3 last:pb-0">
-                <span className={cn('absolute -left-[1px] mt-1.5 h-2.5 w-2.5 rounded-full border-2 border-background', STATUS_COLORS[entry.to_status] ?? 'bg-muted-foreground')} />
+            {events.map((event) => (
+              <div key={event.id} className="relative flex items-start gap-3 pb-3 last:pb-0">
+                <span className={cn('absolute -left-[1px] mt-1.5 h-2.5 w-2.5 rounded-full border-2 border-background', eventDotColor(event.event_type))} />
                 <div className="pl-4 min-w-0">
-                  <p className="text-sm text-card-foreground">
-                    <span className="font-medium">{STATUS_LABELS[entry.from_status] ?? entry.from_status}</span>
-                    <span className="text-muted-foreground mx-1.5">→</span>
-                    <span className="font-medium">{STATUS_LABELS[entry.to_status] ?? entry.to_status}</span>
-                  </p>
+                  <p className="text-sm text-card-foreground">{event.description}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {entry.changed_by_name ?? 'Unknown'} · {formatHistoryDate(entry.changed_at)}
+                    {event.performed_by_name ?? 'System'} · {formatEventDate(event.created_at)}
                   </p>
                 </div>
               </div>

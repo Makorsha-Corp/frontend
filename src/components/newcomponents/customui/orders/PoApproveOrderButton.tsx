@@ -25,7 +25,7 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
   blocked,
   blockedStatus,
   withdrawBlocked = false,
-  withdrawBlockedReason = 'Invoice is locked — approval cannot be withdrawn',
+  withdrawBlockedReason = 'Receiving has started — approval cannot be withdrawn',
   isBusy,
   onToggle,
   className,

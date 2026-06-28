@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Check, Clock, ShieldCheck, Wrench } from 'lucide-react';
+import { AlertTriangle, Check, Clock, ShieldCheck, Wrench, XCircle } from 'lucide-react';
 import PoApproveOrderButton from './PoApproveOrderButton';
 import type { ApprovalSummary, PurchaseOrderApprover } from '@/types/purchaseOrder';
 import type { PoConfirmationsStatus } from './purchaseOrderMilestones';
@@ -46,6 +46,8 @@ export interface PoApprovalsTopBarProps {
   onHighlightDismiss?: () => void;
   onManage: () => void;
   onToggleMyApproval: () => void;
+  isVoided?: boolean;
+  onVoidOrder?: () => void;
 }
 
 const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
@@ -61,6 +63,8 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
   onHighlightDismiss,
   onManage,
   onToggleMyApproval,
+  isVoided = false,
+  onVoidOrder,
 }) => {
   const sortedApprovers = [...approvers].sort((a, b) => Number(b.approved) - Number(a.approved));
 
@@ -147,11 +151,30 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
       </TooltipProvider>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
+        {isVoided ? (
+          <Badge variant="outline" className="h-8 px-2.5 gap-1.5 border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 font-normal">
+            <XCircle className="h-3.5 w-3.5" />
+            Voided
+          </Badge>
+        ) : (
+          onVoidOrder && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={onVoidOrder}
+            >
+              <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+              Void Order
+            </Button>
+          )
+        )}
         <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={onManage}>
           <Wrench className="mr-1 h-4 w-4" />
           Manage
         </Button>
-        {myApproval && (
+        {myApproval && !isVoided && (
           <PoApproveOrderButton
             className="h-8 shrink-0"
             approved={myApproval.approved}

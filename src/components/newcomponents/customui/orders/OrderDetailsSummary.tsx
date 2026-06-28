@@ -13,9 +13,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-import { useGetPurchaseOrdersQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
+import {
+  useGetPurchaseOrdersQuery,
+  useGetPurchaseOrderByIdQuery,
+} from '@/features/purchaseOrders/purchaseOrdersApi';
 
-import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
+import {
+  useGetExpenseOrdersQuery,
+  useGetExpenseOrderByIdQuery,
+} from '@/features/expenseOrders/expenseOrdersApi';
 
 import type { AccountInvoice } from '@/types/accountInvoice';
 
@@ -53,55 +59,64 @@ const OrderDetailsSummary: React.FC<OrderDetailsSummaryProps> = ({
 
   const navigate = useNavigate();
 
+  const orderType = invoice.order_type;
+  const orderId = invoice.order_id;
+  const isPo = orderType === 'purchase_order';
+  const isEo = orderType === 'expense_order';
+  // Use reverse lookup only for older invoices that have no order_type stored
+  const useFallback = orderType == null;
 
-
-  const { data: purchaseOrders = [], isLoading: isPurchaseLoading } = useGetPurchaseOrdersQuery(
-
-    { invoice_id: invoice.id, skip: 0, limit: 1 },
-
-    { skip: !invoice.id }
-
+  const { data: purchaseOrderById, isLoading: isPoBidLoading } = useGetPurchaseOrderByIdQuery(
+    orderId!,
+    { skip: !isPo || orderId == null }
   );
 
-  const { data: expenseOrders = [], isLoading: isExpenseLoading } = useGetExpenseOrdersQuery(
-
-    { invoice_id: invoice.id, skip: 0, limit: 1 },
-
-    { skip: !invoice.id }
-
+  const { data: expenseOrderById, isLoading: isEoBidLoading } = useGetExpenseOrderByIdQuery(
+    orderId!,
+    { skip: !isEo || orderId == null }
   );
 
+  const { data: purchaseOrdersFallback = [], isLoading: isPurchaseLoading } = useGetPurchaseOrdersQuery(
+    { invoice_id: invoice.id, skip: 0, limit: 1 },
+    { skip: !useFallback || !invoice.id }
+  );
 
+  const { data: expenseOrdersFallback = [], isLoading: isExpenseLoading } = useGetExpenseOrdersQuery(
+    { invoice_id: invoice.id, skip: 0, limit: 1 },
+    { skip: !useFallback || !invoice.id }
+  );
 
-  const purchaseOrder = purchaseOrders[0] ?? null;
+  const purchaseOrder = isPo
+    ? (purchaseOrderById ?? null)
+    : useFallback
+      ? (purchaseOrdersFallback[0] ?? null)
+      : null;
 
-  const expenseOrder = expenseOrders[0] ?? null;
+  const expenseOrder = isEo
+    ? (expenseOrderById ?? null)
+    : useFallback
+      ? (expenseOrdersFallback[0] ?? null)
+      : null;
 
-  const isLoading = isPurchaseLoading || isExpenseLoading;
+  const isLoading = isPoBidLoading || isEoBidLoading || isPurchaseLoading || isExpenseLoading;
 
   const hasLinkedOrder = !!purchaseOrder || !!expenseOrder;
 
-
-
   const orderHref = useMemo(() => {
-
+    if (isPo && orderId) return `/orders/purchase?orderId=${orderId}`;
+    if (isEo && orderId) return `/orders/expense?orderId=${orderId}`;
     if (purchaseOrder) return `/orders/purchase?orderId=${purchaseOrder.id}`;
-
     if (expenseOrder) return `/orders/expense?orderId=${expenseOrder.id}`;
-
     return null;
-
-  }, [purchaseOrder, expenseOrder]);
-
-
+  }, [isPo, isEo, orderId, purchaseOrder, expenseOrder]);
 
   const badgeLabel =
-
-    linkedOrderNumberProp ??
 
     purchaseOrder?.po_number ??
 
     expenseOrder?.expense_number ??
+
+    linkedOrderNumberProp ??
 
     null;
 

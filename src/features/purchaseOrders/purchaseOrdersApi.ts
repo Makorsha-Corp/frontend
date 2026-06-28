@@ -15,6 +15,8 @@ import type {
   PurchaseOrderApprover,
   PurchaseOrderApproversList,
   PurchaseOrderEvent,
+  PoReceiveEvent,
+  PoReceiveEventCreate,
 } from '../../types/purchaseOrder';
 
 function activeOrdersQueryString(scope: ActiveOrdersScope): string {
@@ -30,7 +32,7 @@ function activeOrdersQueryString(scope: ActiveOrdersScope): string {
 export const purchaseOrdersApi = createApi({
   reducerPath: 'purchaseOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApprovers', 'PurchaseOrderEvents', 'AccountInvoice', 'ActiveOrders'],
+  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApprovers', 'PurchaseOrderEvents', 'AccountInvoice', 'ActiveOrders', 'PoReceiveEvents'],
   endpoints: (builder) => ({
     getActiveOrdersForContext: builder.query<ActiveOrderRow[], ActiveOrdersScope>({
       query: (scope) => `purchase-orders/active/?${activeOrdersQueryString(scope)}`,
@@ -156,6 +158,32 @@ export const purchaseOrdersApi = createApi({
         { type: 'PurchaseOrderEvents', id },
       ],
     }),
+    voidPurchaseOrder: builder.mutation<PurchaseOrder, { id: number; void_note: string }>({
+      query: ({ id, void_note }) => ({
+        url: `purchase-orders/${id}/void/`,
+        method: 'POST',
+        body: { void_note },
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'PurchaseOrder', id },
+        'PurchaseOrder',
+        'ActiveOrders',
+        { type: 'PurchaseOrderEvents', id },
+        { type: 'PurchaseOrderApprovers', id },
+        'AccountInvoice',
+      ],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          dispatch(
+            purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => updated)
+          );
+          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+        } catch {
+          /* mutation failed */
+        }
+      },
+    }),
     // Items
     getPurchaseOrderItems: builder.query<PurchaseOrderItem[], number>({
       query: (poId) => `purchase-orders/${poId}/items/`,
@@ -253,6 +281,21 @@ export const purchaseOrdersApi = createApi({
       query: (poId) => `purchase-orders/${poId}/events/`,
       providesTags: (_r, _e, poId) => [{ type: 'PurchaseOrderEvents', id: poId }],
     }),
+    // Receiving
+    getPoReceiveEvents: builder.query<PoReceiveEvent[], number>({
+      query: (poId) => `purchase-orders/${poId}/receive-events/`,
+      providesTags: (_r, _e, poId) => [{ type: 'PoReceiveEvents', id: poId }],
+    }),
+    createPoReceiveEvent: builder.mutation<PoReceiveEvent, { poId: number; data: PoReceiveEventCreate }>({
+      query: ({ poId, data }) => ({ url: `purchase-orders/${poId}/receive/`, method: 'POST', body: data }),
+      invalidatesTags: (_r, _e, { poId }) => [
+        { type: 'PoReceiveEvents', id: poId },
+        { type: 'PurchaseOrder', id: poId },
+        'PurchaseOrder',
+        { type: 'PurchaseOrderEvents', id: poId },
+        { type: 'PurchaseOrderItem', id: poId },
+      ],
+    }),
   }),
 });
 
@@ -266,6 +309,7 @@ export const {
   useDeletePurchaseOrderMutation,
   useCreateInvoiceFromPurchaseOrderMutation,
   useMarkPurchaseOrderCompleteMutation,
+  useVoidPurchaseOrderMutation,
   useGetPurchaseOrderItemsQuery,
   useAddPurchaseOrderItemMutation,
   useUpdatePurchaseOrderItemMutation,
@@ -277,4 +321,6 @@ export const {
   useApprovePurchaseOrderMutation,
   useUnapprovePurchaseOrderMutation,
   useGetPurchaseOrderEventsQuery,
+  useGetPoReceiveEventsQuery,
+  useCreatePoReceiveEventMutation,
 } = purchaseOrdersApi;

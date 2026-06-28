@@ -36,7 +36,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const [createPayment, { isLoading: isCreatingPayment }] = useCreateInvoicePaymentMutation();
   const [voidPayment, { isLoading: isVoidingPayment }] = useVoidInvoicePaymentMutation();
 
-  // Add payment dialog
+  // Make payment dialog
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -53,8 +53,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const [showVoided, setShowVoided] = useState(false);
 
   const isConfirmed = invoice.invoice_status === 'confirmed';
-  const isLocked = invoice.invoice_status === 'locked';
-  const isFinalized = isConfirmed || isLocked;
+  const isFinalized = isConfirmed;
   const isDraft = invoice.invoice_status === 'draft';
   const isVoided = invoice.invoice_status === 'voided';
 
@@ -137,7 +136,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
               className={cn(!canAddPayment && 'opacity-50 cursor-not-allowed')}
             >
               <CreditCard className="mr-1.5 h-4 w-4" />
-              Add Payment
+              Make Payment
             </Button>
             {addPaymentDisabledReason && (
               <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 w-56 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
@@ -234,7 +233,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
         )}
       </div>
 
-      {/* ── Add payment dialog ── */}
+      {/* ── Make payment dialog ── */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="w-[min(34rem,94vw)] max-w-none">
           <DialogHeader>

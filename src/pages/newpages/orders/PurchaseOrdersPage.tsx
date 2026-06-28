@@ -123,6 +123,7 @@ const PurchaseOrdersPage: React.FC = () => {
     invoiceFilter,
     searchQuery,
     showCompleteOrders,
+    showVoidedOrders,
   } = urlFilters;
 
   const commitPurchaseFilters = useCallback(
@@ -155,6 +156,7 @@ const PurchaseOrdersPage: React.FC = () => {
       invoice: invoiceFilter,
       searchQuery,
       showCompleteOrders,
+      showVoidedOrders,
     }),
     [
       dateRange.from,
@@ -166,6 +168,7 @@ const PurchaseOrdersPage: React.FC = () => {
       invoiceFilter,
       searchQuery,
       showCompleteOrders,
+      showVoidedOrders,
     ]
   );
 
@@ -469,6 +472,7 @@ const PurchaseOrdersPage: React.FC = () => {
               <SelectItem value="all">All invoices</SelectItem>
               <SelectItem value="invoiced">Invoiced</SelectItem>
               <SelectItem value="not_invoiced">Not invoiced</SelectItem>
+              <SelectItem value="outstanding_payment">Outstanding payment</SelectItem>
             </SelectContent>
           </Select>
 
@@ -484,7 +488,21 @@ const PurchaseOrdersPage: React.FC = () => {
                 htmlFor="po-show-complete-filters"
                 className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
               >
-                Show complete orders
+                Show complete
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="po-show-voided-filters"
+                checked={showVoidedOrders}
+                onCheckedChange={(value) => commitPurchaseFilters({ showVoidedOrders: value })}
+                aria-label="Show voided orders"
+              />
+              <Label
+                htmlFor="po-show-voided-filters"
+                className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
+              >
+                Show voided
               </Label>
             </div>
             {activeFilterCount > 0 ? (

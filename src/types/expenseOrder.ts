@@ -38,6 +38,7 @@ export interface ExpenseOrder {
   created_at: string;
   updated_by: number | null;
   updated_at: string | null;
+  items_updated_at: string | null;
   approved_by: number | null;
   approved_at: string | null;
   completed_by: number | null;
