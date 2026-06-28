@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { TransferOrder } from '@/types/transferOrder';
 import TransferOrderListRow from '@/components/newcomponents/customui/orders/TransferOrderListRow';
-import { ORDER_LIST_WIDTH, ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
+import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
 import { ArrowLeftRight, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
 
@@ -24,6 +24,7 @@ export interface TransferOrderNavigatorPanelProps {
   onAddOrder: () => void;
   routeLabel: (order: TransferOrder) => React.ReactNode;
   formatDate: (d: string | null | undefined) => string;
+  className?: string;
 }
 
 const TransferOrderNavigatorPanel: React.FC<TransferOrderNavigatorPanelProps> = ({
@@ -42,11 +43,14 @@ const TransferOrderNavigatorPanel: React.FC<TransferOrderNavigatorPanelProps> = 
   onAddOrder,
   routeLabel,
   formatDate,
+  className,
 }) => {
   return (
     <div
-      className="shrink-0 flex flex-col h-full border-r border-border bg-card"
-      style={{ width: ORDER_LIST_WIDTH }}
+      className={cn(
+        'flex h-full shrink-0 flex-col border-r border-border bg-card w-full min-w-0 lg:w-[360px]',
+        className
+      )}
     >
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
         <div className="flex min-w-0 flex-1 items-center gap-3">

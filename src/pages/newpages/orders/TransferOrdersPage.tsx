@@ -37,6 +37,8 @@ import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
 import TransferOrderNavigatorPanel from '@/components/newcomponents/customui/orders/TransferOrderNavigatorPanel';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
+import { cn } from '@/lib/utils';
 import AddTransferOrderDialog from '@/components/newcomponents/customui/orders/AddTransferOrderDialog';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
@@ -80,6 +82,7 @@ const TransferOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'transfer')
   );
+  const isLgScreen = useIsLgScreen();
 
   const { data: orders = [], isLoading } = useGetTransferOrdersQuery({
     skip: 0,
@@ -474,6 +477,10 @@ const TransferOrdersPage: React.FC = () => {
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           <TransferOrderNavigatorPanel
+            className={cn(
+              selectedOrder && 'max-lg:hidden',
+              !isLgScreen && 'flex-1 border-r-0'
+            )}
             filteredOrders={filteredOrders}
             selectedOrderId={selectedOrderId}
             isLoading={isLoading}
@@ -493,14 +500,19 @@ const TransferOrdersPage: React.FC = () => {
             formatDate={formatDate}
           />
 
-          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              'flex-1 min-w-0 min-h-0 overflow-hidden',
+              !selectedOrder && 'max-lg:hidden'
+            )}
+          >
             {selectedOrder ? (
               <TransferOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
                 showCompleteOrders={showCompleteOrders}
               />
-            ) : (
+            ) : isLgScreen ? (
               <TransferOrdersOverviewPanel
                 orders={filteredOrders}
                 stats={overviewStats}
@@ -509,7 +521,7 @@ const TransferOrdersPage: React.FC = () => {
                 routeSubtext={(o) => transferRouteLabel(o, labelCtx)}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>

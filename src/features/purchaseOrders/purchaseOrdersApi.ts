@@ -32,7 +32,7 @@ function activeOrdersQueryString(scope: ActiveOrdersScope): string {
 export const purchaseOrdersApi = createApi({
   reducerPath: 'purchaseOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApprovers', 'PurchaseOrderEvents', 'AccountInvoice', 'ActiveOrders', 'PoReceiveEvents'],
+  tagTypes: ['PurchaseOrder', 'PurchaseOrderItem', 'PurchaseOrderApprovers', 'PurchaseOrderEvents', 'AccountInvoice', 'ActiveOrders', 'PoReceiveEvents', 'Notification'],
   endpoints: (builder) => ({
     getActiveOrdersForContext: builder.query<ActiveOrderRow[], ActiveOrdersScope>({
       query: (scope) => `purchase-orders/active/?${activeOrdersQueryString(scope)}`,
@@ -99,6 +99,7 @@ export const purchaseOrdersApi = createApi({
         'PurchaseOrder',
         { type: 'PurchaseOrderEvents', id: poId },
         { type: 'PurchaseOrderApprovers', id: poId },
+        'Notification',
       ],
       async onQueryStarted({ poId, section, confirmed }, { dispatch, queryFulfilled }) {
         const fieldMap = {
@@ -136,6 +137,7 @@ export const purchaseOrdersApi = createApi({
         'AccountInvoice',
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
+        'Notification',
       ],
       async onQueryStarted(id, { dispatch, queryFulfilled }) {
         try {
@@ -253,7 +255,10 @@ export const purchaseOrdersApi = createApi({
         method: 'POST',
         body: { user_id },
       }),
-      invalidatesTags: (_r, _e, { poId }) => [{ type: 'PurchaseOrderApprovers', id: poId }],
+      invalidatesTags: (_r, _e, { poId }) => [
+        { type: 'PurchaseOrderApprovers', id: poId },
+        'Notification',
+      ],
     }),
     removePurchaseOrderApprover: builder.mutation<void, { poId: number; userId: number }>({
       query: ({ poId, userId }) => ({

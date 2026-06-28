@@ -178,7 +178,7 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
     'Record transfers manually on with Manage Transfers, or mark the order complete to record all remaining transfers.';
 
   return (
-    <Card className={cn('flex flex-col h-full', className)}>
+    <Card className={cn('flex flex-col lg:h-full', className)}>
       <CardHeader className="pb-3 shrink-0">
         <CardTitle className="text-base flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />

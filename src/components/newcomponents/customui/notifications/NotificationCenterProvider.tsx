@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { useNotificationCenter, type NotificationCenterState } from './useNotificationCenter';
 import NotificationCenterDialog from './NotificationCenterDialog';
+import NotificationToastStack from './NotificationToastStack';
 
 const NotificationCenterContext = createContext<NotificationCenterState | null>(null);
 
@@ -11,6 +12,15 @@ export function NotificationCenterProvider({ children }: { children: React.React
     <NotificationCenterContext.Provider value={value}>
       {children}
       <NotificationCenterDialog />
+      <NotificationToastStack
+        notifications={value.toastNotifications}
+        onDismiss={value.dismissToast}
+        onOpen={(notification) => {
+          if (!value.isRead(notification.id)) {
+            value.markRead(notification.id);
+          }
+        }}
+      />
     </NotificationCenterContext.Provider>
   );
 }

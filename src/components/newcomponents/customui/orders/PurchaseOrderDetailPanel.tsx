@@ -993,7 +993,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           </Card>
 
           <PoInvoiceWorkflowChecklist
-            className="order-3 lg:col-start-3 lg:row-start-1 lg:row-span-2 h-full scroll-mt-6"
+            className="order-3 max-lg:h-auto max-lg:w-full lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full scroll-mt-6"
             invoiceId={order.invoice_id ?? null}
             invoiceStatus={linkedInvoiceStatus}
             hasSupplier={hasSupplier}

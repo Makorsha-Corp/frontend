@@ -11,12 +11,18 @@ function streamUrl(): string {
   return `${base.replace(/\/?$/, '/')}me/notifications/stream`;
 }
 
-export function useNotificationStream(): boolean {
+export interface UseNotificationStreamOptions {
+  onNotification?: (notificationId: number) => void;
+}
+
+export function useNotificationStream(options?: UseNotificationStreamOptions): boolean {
   const dispatch = useDispatch();
   const token = useSelector((state: RootState) => state.auth.token);
   const workspaceId = useSelector((state: RootState) => state.auth.workspace?.id);
   const [streamConnected, setStreamConnected] = useState(false);
   const retryDelayRef = useRef(1000);
+  const onNotificationRef = useRef(options?.onNotification);
+  onNotificationRef.current = options?.onNotification;
 
   useEffect(() => {
     if (!token || workspaceId == null) {
@@ -52,6 +58,14 @@ export function useNotificationStream(): boolean {
           onMessage: (message) => {
             if (message.event === 'notification') {
               dispatch(notificationsApi.util.invalidateTags(['Notification']));
+              try {
+                const payload = JSON.parse(message.data) as { notification_id?: number };
+                if (typeof payload.notification_id === 'number') {
+                  onNotificationRef.current?.(payload.notification_id);
+                }
+              } catch {
+                // ignore malformed payloads
+              }
             }
           },
         });

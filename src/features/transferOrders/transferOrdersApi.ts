@@ -17,7 +17,7 @@ import { purchaseOrdersApi } from '../purchaseOrders/purchaseOrdersApi';
 export const transferOrdersApi = createApi({
   reducerPath: 'transferOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['TransferOrder', 'TransferOrderItem', 'TransferOrderApprovers', 'TransferOrderEvents'],
+  tagTypes: ['TransferOrder', 'TransferOrderItem', 'TransferOrderApprovers', 'TransferOrderEvents', 'Notification'],
   endpoints: (builder) => ({
     getTransferOrders: builder.query<TransferOrder[], ListTransferOrdersParams>({
       query: ({ skip = 0, limit = 100 } = {}) => {
@@ -101,6 +101,7 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, { toId }) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
+        'Notification',
       ],
     }),
     removeTransferOrderApprover: builder.mutation<void, { toId: number; userId: number }>({

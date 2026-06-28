@@ -64,6 +64,22 @@ const HOVER_ZONE_WIDTH = 56; // Wide enough to cover button + easy to trigger
 const FACTORIES_SUB_PATHS = ['/factories', '/storage', '/project', '/production'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/sales', '/orders/work'];
 
+function useMobileNavViewport() {
+  const [isMobileNav, setIsMobileNav] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobileNav(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  return isMobileNav;
+}
+
 const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -85,6 +101,25 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   });
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
   const [isButtonMounted, setIsButtonMounted] = useState(false);
+  const isMobileNav = useMobileNavViewport();
+  const isExpanded = !isCollapsed && !isMobileNav;
+
+  // Sync parent's content margin on mount (in case we're collapsed from localStorage)
+  useEffect(() => {
+    onCollapsedChange?.(isMobileNav || isCollapsed);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only sync initial state on mount
+
+  useEffect(() => {
+    onCollapsedChange?.(isMobileNav || isCollapsed);
+  }, [isMobileNav, isCollapsed, onCollapsedChange]);
+
+  const handleToggleCollapse = () => {
+    if (isMobileNav) return;
+    const newCollapsed = !isCollapsed;
+    setIsCollapsed(newCollapsed);
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newCollapsed));
+    onCollapsedChange?.(newCollapsed);
+  };
 
   // Delay visibility:hidden until after hide animation to avoid compositing artifacts
   useEffect(() => {
@@ -95,18 +130,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
       return () => clearTimeout(t);
     }
   }, [isHoveringEdge]);
-
-  // Sync parent's content margin on mount (in case we're collapsed from localStorage)
-  useEffect(() => {
-    onCollapsedChange?.(isCollapsed);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- only sync initial state on mount
-
-  const handleToggleCollapse = () => {
-    const newCollapsed = !isCollapsed;
-    setIsCollapsed(newCollapsed);
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newCollapsed));
-    onCollapsedChange?.(newCollapsed);
-  };
 
   const navItems: NavItem[] = [
     { name: 'Accounts', icon: <Users size={20} />, path: '/accounts' },
@@ -167,7 +190,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   return (
     <div
       ref={sidebarRef}
-      className={`relative z-10 flex h-screen shrink-0 flex-col self-start overflow-visible border-r border-border/35 transition-all duration-300 dark:border-border/50 sticky top-0 ${isCollapsed ? 'w-20' : 'w-64'
+      className={`relative z-10 flex h-screen shrink-0 flex-col self-start overflow-visible border-r border-border/35 transition-all duration-300 dark:border-border/50 sticky top-0 ${isExpanded ? 'w-64' : 'w-20'
         }`}
     >
       <div aria-hidden className="absolute inset-0 z-0 pointer-events-none" style={navBackgroundStyle} />
@@ -189,6 +212,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
         aria-hidden
       />
       {/* Hover zone - right edge, contains button so hover persists when clicking */}
+      {!isMobileNav ? (
       <div
         className="absolute top-0 bottom-0 z-20"
         style={{
@@ -213,28 +237,34 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             clipPath: 'ellipse(55% 50% at 0% 50%)',
             filter: 'drop-shadow(0 0 1px hsl(var(--border)))',
           }}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           <span className="flex items-center justify-center text-white/90">
-            {isCollapsed ? <ChevronRight size={26} /> : <ChevronLeft size={26} />}
+            {isExpanded ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
           </span>
         </button>
       </div>
+      ) : null}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {/* Logo Section */}
-        <div className="p-6 flex items-center justify-between">
+        <div
+          className={cn(
+            'p-6 flex',
+            isMobileNav ? 'flex-col items-center gap-2' : 'items-center justify-between'
+          )}
+        >
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white dark:bg-brand-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <div className="w-6 h-6 bg-brand-primary rounded"></div>
             </div>
-            {!isCollapsed && (
+            {isExpanded && (
               <div>
                 <h1 className="text-xl font-bold whitespace-nowrap text-white/90">Marker</h1>
               </div>
             )}
           </Link>
-          <NotificationBell collapsed={isCollapsed} />
+          <NotificationBell collapsed={!isExpanded} />
         </div>
 
         {/* Navigation Items - scrollable when content overflows */}
@@ -246,11 +276,11 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/dashboard')
                     ? 'bg-brand-primary text-white'
                     : navInactiveClass
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                title={isCollapsed ? 'Overview' : ''}
+                  } ${!isExpanded ? 'justify-center' : ''}`}
+                title={!isExpanded ? 'Overview' : ''}
               >
                 <LayoutDashboard size={20} />
-                {!isCollapsed && <span className="font-medium">Overview</span>}
+                {isExpanded && <span className="font-medium">Overview</span>}
               </Link>
             </li>
 
@@ -261,18 +291,18 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/items')
                     ? 'bg-brand-primary text-white'
                     : navInactiveClass
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                title={isCollapsed ? 'Items' : ''}
+                  } ${!isExpanded ? 'justify-center' : ''}`}
+                title={!isExpanded ? 'Items' : ''}
               >
                 <Package size={20} />
-                {!isCollapsed && <span className="font-medium">Items</span>}
+                {isExpanded && <span className="font-medium">Items</span>}
               </Link>
             </li>
 
 
             {/* Factories expandable section */}
             <li>
-              {isCollapsed ? (
+              {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <div
@@ -439,7 +469,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
 
             {/* Orders expandable section */}
             <li>
-              {isCollapsed ? (
+              {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <div
@@ -574,11 +604,11 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(item.path)
                       ? 'bg-brand-primary text-white'
                       : navInactiveClass
-                    } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.name : ''}
+                    } ${!isExpanded ? 'justify-center' : ''}`}
+                  title={!isExpanded ? item.name : ''}
                 >
                   {item.icon}
-                  {!isCollapsed && <span className="font-medium">{item.name}</span>}
+                  {isExpanded && <span className="font-medium">{item.name}</span>}
                 </Link>
               </li>
             ))}
@@ -590,7 +620,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
         {/* User Profile, Theme Toggle & Logout */}
         <div className="p-4 border-t border-border/30 dark:border-border">
           {/* User Profile Section */}
-          {user && !isCollapsed && (
+          {user && isExpanded && (
             <div className="flex items-center gap-3 px-3 py-2 mb-3">
               <div className="w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center flex-shrink-0">
                 <User size={16} className="text-white" />
@@ -601,7 +631,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               </div>
             </div>
           )}
-          {user && isCollapsed && (
+          {user && !isExpanded && (
             <div className="flex justify-center mb-3">
               <div className="w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center" title={user.name}>
                 <User size={16} className="text-white" />
@@ -609,14 +639,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </div>
           )}
 
-          <div className={cn('mb-2 flex items-center gap-1', isCollapsed && 'justify-center')}>
+          <div className={cn('mb-2 flex items-center gap-1', !isExpanded && 'justify-center')}>
             <button
               type="button"
               onClick={(e) => toggleTheme(e)}
               className={cn(
                 'flex min-h-[2.5rem] items-center gap-2 rounded-lg px-3 py-2 transition-all',
                 navInactiveClass,
-                isCollapsed ? 'justify-center' : 'min-w-0 flex-1 justify-center sm:justify-start'
+                !isExpanded ? 'justify-center' : 'min-w-0 flex-1 justify-center sm:justify-start'
               )}
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
@@ -631,7 +661,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
                 />
               )}
-              {!isCollapsed && (
+              {isExpanded && (
                 <span className="truncate text-left text-sm font-medium">
                   {theme === 'light' ? 'Dark' : 'Light'}
                 </span>
@@ -646,12 +676,12 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             className={cn(
               'flex items-center gap-3 px-4 py-2 w-full rounded-lg transition-all hover:bg-red-500/10 hover:!text-red-300',
               navInactiveClass,
-              isCollapsed ? 'justify-center' : ''
+              !isExpanded ? 'justify-center' : ''
             )}
-            title={isCollapsed ? 'Log out' : ''}
+            title={!isExpanded ? 'Log out' : ''}
           >
             <LogOut size={20} />
-            {!isCollapsed && <span className="font-medium">Log out</span>}
+            {isExpanded && <span className="font-medium">Log out</span>}
           </button>
         </div>
       </div>

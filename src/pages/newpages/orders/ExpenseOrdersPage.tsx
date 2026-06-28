@@ -34,6 +34,8 @@ import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/Ad
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
 import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/ExpenseOrdersOverviewPanel';
 import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
+import { cn } from '@/lib/utils';
 import {
   EXPENSE_CATEGORIES,
 } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
@@ -63,6 +65,7 @@ const ExpenseOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'expense')
   );
+  const isLgScreen = useIsLgScreen();
 
   const { data: orders = [], isLoading } = useGetExpenseOrdersQuery({
     skip: 0,
@@ -424,6 +427,10 @@ const ExpenseOrdersPage: React.FC = () => {
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           <ExpenseOrderNavigatorPanel
+            className={cn(
+              selectedOrder && 'max-lg:hidden',
+              !isLgScreen && 'flex-1 border-r-0'
+            )}
             filteredOrders={filteredOrders}
             selectedOrderId={selectedOrderId}
             isLoading={isLoading}
@@ -444,14 +451,19 @@ const ExpenseOrdersPage: React.FC = () => {
             formatDate={formatDate}
           />
 
-          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              'flex-1 min-w-0 min-h-0 overflow-hidden',
+              !selectedOrder && 'max-lg:hidden'
+            )}
+          >
             {selectedOrder ? (
               <ExpenseOrderDetailPanel
                 order={selectedOrder}
                 onClose={() => setSelectedOrder(null)}
                 showCompleteOrders={showCompleteOrders}
               />
-            ) : (
+            ) : isLgScreen ? (
               <ExpenseOrdersOverviewPanel
                 orders={filteredOrders}
                 stats={overviewStats}
@@ -463,7 +475,7 @@ const ExpenseOrdersPage: React.FC = () => {
                 formatDate={formatDate}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </div>
