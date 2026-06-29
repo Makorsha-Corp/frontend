@@ -6,7 +6,6 @@ import { useCreateWorkspaceMutation, useAcceptInvitationMutation } from '@/featu
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setWorkspace, logout } from '@/features/auth/authSlice';
 import { useTheme } from '@/context/ThemeContext';
-import ThemeTransitionToggle from '@/components/newcomponents/customui/ThemeTransitionToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -296,7 +295,6 @@ const WorkspaceSelectorPage: React.FC = () => {
             >
               <MousePointer2 className="h-4 w-4" />
             </Button>
-            <ThemeTransitionToggle variant="inline" />
             <Button
               variant="outline"
               size="icon"

@@ -24,6 +24,7 @@ import {
   formatInvLabel,
   formatOrderLabel,
 } from '@/components/newcomponents/customui/accounts/invoiceDisplayUtils';
+import InvoicePaymentStatusBadge from '@/components/newcomponents/customui/accounts/InvoicePaymentStatusBadge';
 import { useGetPurchaseOrdersQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
 import {
@@ -554,9 +555,12 @@ const AccountDetailPage: React.FC = () => {
                                             Void
                                           </span>
                                         ) : null}
-                                        <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-[11px] capitalize text-muted-foreground">
-                                          {inv.payment_status}
-                                        </span>
+                                        {inv.invoice_status !== 'voided' && (
+                                          <InvoicePaymentStatusBadge
+                                            status={inv.payment_status}
+                                            className="text-[11px]"
+                                          />
+                                        )}
                                       </div>
                                     </div>
                                     <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">

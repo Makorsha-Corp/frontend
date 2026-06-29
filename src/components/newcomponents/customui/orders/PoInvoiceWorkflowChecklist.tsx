@@ -14,7 +14,7 @@ type StepVisualState = 'complete' | 'active' | 'pending';
 
 export type PoInvoiceScrollSection = PoSectionConfirmKey;
 
-type ChecklistPhase = 'sections' | 'approval' | 'finalize' | 'receiving' | 'complete' | 'done';
+type ChecklistPhase = 'sections' | 'approval' | 'finalize' | 'receiving' | 'payment' | 'complete' | 'done';
 
 interface SectionRow {
   section: PoInvoiceScrollSection;
@@ -31,7 +31,9 @@ export interface PoInvoiceWorkflowChecklistProps {
   sections: SectionRow[];
   approvalSummary: ApprovalSummary;
   items: PurchaseOrderItem[];
+  invoicePaymentStatus?: string | null;
   orderCompleted: boolean;
+  markCompleteReadiness?: { ok: boolean; reason?: string };
   onMarkOrderComplete?: () => void;
   isMarkingOrderComplete?: boolean;
   destinationType?: string;
@@ -40,6 +42,7 @@ export interface PoInvoiceWorkflowChecklistProps {
   onScrollToFinalize?: () => void;
   onScrollToManageApprovals?: () => void;
   onScrollToReceiving?: () => void;
+  onScrollToPayments?: () => void;
   className?: string;
 }
 
@@ -185,14 +188,39 @@ function getChecklistPhase(
   approvalComplete: boolean,
   isFinalized: boolean,
   receivingComplete: boolean,
-  orderCompleted: boolean
+  orderCompleted: boolean,
+  paymentComplete: boolean
 ): ChecklistPhase {
   if (!sectionsComplete) return 'sections';
   if (!approvalComplete && !isFinalized) return 'approval';
   if (!isFinalized) return 'finalize';
   if (!receivingComplete) return 'receiving';
   if (!orderCompleted) return 'complete';
+  if (!paymentComplete) return 'payment';
   return 'done';
+}
+
+function paymentStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case 'paid':
+      return 'Paid';
+    case 'partial':
+      return 'Partial';
+    case 'overdue':
+      return 'Overdue';
+    case 'unpaid':
+      return 'Not paid';
+    default:
+      return 'Not paid';
+  }
+}
+
+function paymentStatusBadgeTone(
+  status: string | null | undefined
+): 'green' | 'amber' | 'muted' {
+  if (status === 'paid') return 'green';
+  if (status === 'partial' || status === 'overdue' || status === 'unpaid') return 'amber';
+  return 'muted';
 }
 
 const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
@@ -203,7 +231,9 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   sections,
   approvalSummary,
   items,
+  invoicePaymentStatus = null,
   orderCompleted,
+  markCompleteReadiness = { ok: true },
   onMarkOrderComplete,
   isMarkingOrderComplete = false,
   destinationType,
@@ -212,6 +242,7 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   onScrollToFinalize,
   onScrollToManageApprovals,
   onScrollToReceiving,
+  onScrollToPayments,
   className,
 }) => {
   const hasDraft = invoiceStatus === 'draft' && invoiceId != null;
@@ -219,12 +250,14 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   const sectionsComplete = confirmationsStatus.allConfirmed;
   const approvalComplete = approvalSummary.met || isFinalized;
   const { totalOrdered, totalReceived, receivingComplete } = getReceivingTotals(items);
+  const paymentComplete = invoicePaymentStatus === 'paid';
   const phase = getChecklistPhase(
     sectionsComplete,
     approvalComplete,
     isFinalized,
     receivingComplete,
-    orderCompleted
+    orderCompleted,
+    paymentComplete
   );
 
   const confirmedCount = sections.filter((s) => s.confirmed).length;
@@ -238,27 +271,26 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   const completeStepDescription =
     destinationType === 'storage'
       ? storageFactoryName
-        ? `All items are received. Confirm to close this order and add items to ${storageFactoryName} storage.`
-        : 'All items are received. Confirm to close this order and add items to factory storage.'
-      : 'All items are received. Confirm to close this order and move it to Complete.';
+        ? `All items are received. Close this order to add items to ${storageFactoryName} storage. The order moves to Complete; payment status syncs from the linked invoice.`
+        : 'All items are received. Close this order to add items to factory storage. The order moves to Complete; payment status syncs from the linked invoice.'
+      : 'All items are received. Close this order to move it to Complete. If the invoice is already paid, the order is marked paid automatically.';
 
   const renderCompletedSections = phase !== 'sections';
-  const renderCompletedApproval = ['finalize', 'receiving', 'complete', 'done'].includes(phase);
-  const renderCompletedFinalize = ['receiving', 'complete', 'done'].includes(phase);
-  const renderCompletedReceiving = ['complete', 'done'].includes(phase);
-  const renderCompletedMarkOrder = phase === 'done';
+  const renderCompletedApproval = ['finalize', 'receiving', 'complete', 'payment', 'done'].includes(phase);
+  const renderCompletedFinalize = ['receiving', 'complete', 'payment', 'done'].includes(phase);
+  const renderCompletedReceiving = ['complete', 'payment', 'done'].includes(phase);
+  const renderCompletedMarkOrder = ['payment', 'done'].includes(phase);
+  const renderCompletedPayment = phase === 'done' && paymentComplete;
 
-  const approvalDescription = !hasSupplier
-    ? 'Assign a supplier so the draft invoice can sync'
+  const approvalDescription = !sectionsComplete
+    ? confirmationsStatus.reason
     : !hasDraft
-      ? 'Draft invoice syncs automatically from the order'
-      : !sectionsComplete
-        ? confirmationsStatus.reason
-        : 'Get required approvals in the bar above';
+      ? 'Draft invoice syncs automatically once all sections are confirmed'
+      : 'Get required approvals in the bar above';
 
   const finalizeDescription = hasDraft
     ? 'Confirm in the Linked Invoice card to post payable and lock the order'
-    : 'Draft invoice syncs from the order before finalizing';
+    : 'Confirm all sections — draft invoice syncs automatically after that';
 
   const receivingDescription =
     items.length === 0
@@ -268,6 +300,13 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
         : receivingComplete
           ? 'All ordered units have been received'
           : `${totalOrdered - totalReceived} unit(s) still outstanding across this order`;
+
+  const paymentDescription =
+    invoicePaymentStatus === 'partial'
+      ? 'Partial payment recorded — pay the remaining invoice balance to mark this order as paid'
+      : invoicePaymentStatus === 'overdue'
+        ? 'Payment is overdue — record the full invoice balance to mark this order as paid'
+        : 'Payment not finished — record the full invoice balance to mark this order as paid';
 
   return (
     <Card className={cn('flex flex-col', className)}>
@@ -305,7 +344,15 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
           )}
 
           {renderCompletedMarkOrder && (
-            <CompletedStepRow title="Mark order complete" isLast />
+            <CompletedStepRow title="Mark order complete" />
+          )}
+
+          {renderCompletedPayment && (
+            <CompletedStepRow
+              title="Record payment"
+              badge={ratioBadge(paymentStatusLabel(invoicePaymentStatus), 'green')}
+              isLast={phase === 'done'}
+            />
           )}
 
           {phase === 'sections' && (
@@ -396,6 +443,25 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
             </ChecklistStep>
           )}
 
+          {phase === 'payment' && (
+            <ChecklistStep
+              clickable={Boolean(onScrollToPayments)}
+              onClick={onScrollToPayments}
+              ariaLabel="Go to invoice payments"
+              className={cn('last:border-b-0', onScrollToPayments && 'cursor-pointer')}
+            >
+              <ChecklistStepHeader
+                state="active"
+                title="Record payment"
+                description={paymentDescription}
+                badge={ratioBadge(
+                  paymentStatusLabel(invoicePaymentStatus),
+                  paymentStatusBadgeTone(invoicePaymentStatus)
+                )}
+              />
+            </ChecklistStep>
+          )}
+
           {phase === 'complete' && (
             <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
               <ChecklistStepHeader
@@ -403,12 +469,14 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
                 title="Mark order complete"
                 description={completeStepDescription}
               />
-              <div className="ml-10">
+              <div className="ml-10 space-y-2">
                 <Button
                   type="button"
                   size="sm"
                   className="bg-brand-primary hover:bg-brand-primary-hover"
-                  disabled={!onMarkOrderComplete || isMarkingOrderComplete}
+                  disabled={
+                    !onMarkOrderComplete || isMarkingOrderComplete || !markCompleteReadiness.ok
+                  }
                   onClick={onMarkOrderComplete}
                 >
                   {isMarkingOrderComplete ? (
@@ -420,6 +488,9 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
                     'Mark order complete'
                   )}
                 </Button>
+                {!markCompleteReadiness.ok && markCompleteReadiness.reason ? (
+                  <p className="text-xs text-muted-foreground">{markCompleteReadiness.reason}</p>
+                ) : null}
               </div>
             </div>
           )}
@@ -430,7 +501,8 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
                 Order is complete!
               </p>
               <p className="mt-0.5 text-xs text-green-700/90 dark:text-green-400/90">
-                All sections confirmed, invoice finalized, items received, and order closed.
+                All sections confirmed, invoice finalized, items received, order closed, and payment
+                recorded.
               </p>
             </div>
           )}

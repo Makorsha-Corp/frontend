@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import {
   Check,
   ExternalLink,
-  FilePlus,
   FileText,
   History,
   Loader2,
@@ -32,6 +31,7 @@ export interface PoLinkedInvoiceCardProps {
   invoiceLocked: boolean;
   hasSupplier: boolean;
   hasUnsavedSupplier?: boolean;
+  baseSectionsConfirmed?: boolean;
   isSyncingDraft?: boolean;
   accountName: string | null;
   accountId?: number | null;
@@ -44,8 +44,6 @@ export interface PoLinkedInvoiceCardProps {
   onConfirmInvoice: () => void;
   onVoidInvoice: () => void;
   onOpenFullView: () => void;
-  onCreateDraft?: () => void;
-  isCreatingDraft?: boolean;
   hasActiveReceiving?: boolean;
   highlightedTarget?: PoSectionConfirmKey | 'approvals' | 'finalize' | 'receiving' | null;
   onHighlightDismiss?: () => void;
@@ -58,6 +56,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   invoiceLocked,
   hasSupplier,
   hasUnsavedSupplier = false,
+  baseSectionsConfirmed = false,
   isSyncingDraft = false,
   accountName,
   accountId: accountIdProp,
@@ -70,8 +69,6 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   onConfirmInvoice,
   onVoidInvoice,
   onOpenFullView,
-  onCreateDraft,
-  isCreatingDraft = false,
   hasActiveReceiving = false,
   highlightedTarget = null,
   onHighlightDismiss,
@@ -159,24 +156,9 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
               <>
                 <XCircle className="h-5 w-5 mx-auto text-muted-foreground/60" aria-hidden />
                 <p className="text-sm text-muted-foreground">
-                  The previous invoice was voided.
+                  The previous invoice was voided. Re-confirm supplier and items to generate a new
+                  draft.
                 </p>
-                {onCreateDraft && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="mt-1 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
-                    onClick={onCreateDraft}
-                    disabled={isCreatingDraft}
-                  >
-                    {isCreatingDraft ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <FilePlus className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Create New Draft
-                  </Button>
-                )}
                 <div className="flex justify-center pt-2">{voidedInvoicesButton}</div>
               </>
             ) : (
@@ -184,10 +166,10 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
                 <RefreshCw className="h-5 w-5 mx-auto text-muted-foreground/60" aria-hidden />
                 <p className="text-sm text-muted-foreground">
                   {hasUnsavedSupplier
-                    ? 'Save or confirm supplier to sync draft invoice'
-                    : hasSupplier
-                      ? 'Draft invoice will sync from this order when saved'
-                      : 'Assign a supplier — draft invoice auto-syncs supplier and line items'}
+                    ? 'Save or confirm supplier first'
+                    : !baseSectionsConfirmed
+                      ? 'Confirm supplier, order details, and items — draft invoice syncs after that'
+                      : 'Draft invoice will sync from this order shortly'}
                 </p>
               </>
             )}
@@ -201,6 +183,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
                 accountName={accountName}
                 linkedOrderNumber={linkedOrderNumber}
                 showOrderSummary={false}
+                dueDateReadOnly={isFinalized}
               />
             </div>
 

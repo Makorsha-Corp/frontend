@@ -28,7 +28,6 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
 import { useTheme } from '@/context/ThemeContext';
-import ThemeTransitionToggle from '@/components/newcomponents/customui/ThemeTransitionToggle';
 import toast from 'react-hot-toast';
 import {
   DropdownMenu,
@@ -250,11 +249,16 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
         {/* Logo Section */}
         <div
           className={cn(
-            'p-6 flex',
-            isMobileNav ? 'flex-col items-center gap-2' : 'items-center justify-between'
+            'flex',
+            isExpanded
+              ? 'items-center justify-between p-6'
+              : 'flex-col items-center gap-2 px-3 pt-4 pb-2'
           )}
         >
-          <Link to="/dashboard" className="flex items-center gap-3">
+          <Link
+            to="/dashboard"
+            className={cn('flex items-center gap-3', !isExpanded && 'justify-center')}
+          >
             <div className="w-10 h-10 bg-white dark:bg-brand-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <div className="w-6 h-6 bg-brand-primary rounded"></div>
             </div>
@@ -639,36 +643,33 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </div>
           )}
 
-          <div className={cn('mb-2 flex items-center gap-1', !isExpanded && 'justify-center')}>
-            <button
-              type="button"
-              onClick={(e) => toggleTheme(e)}
-              className={cn(
-                'flex min-h-[2.5rem] items-center gap-2 rounded-lg px-3 py-2 transition-all',
-                navInactiveClass,
-                !isExpanded ? 'justify-center' : 'min-w-0 flex-1 justify-center sm:justify-start'
-              )}
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            >
-              {theme === 'light' ? (
-                <Moon
-                  size={20}
-                  className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
-                />
-              ) : (
-                <Sun
-                  size={20}
-                  className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
-                />
-              )}
-              {isExpanded && (
-                <span className="truncate text-left text-sm font-medium">
-                  {theme === 'light' ? 'Dark' : 'Light'}
-                </span>
-              )}
-            </button>
-            <ThemeTransitionToggle variant="sidebar" />
-          </div>
+          <button
+            type="button"
+            onClick={(e) => toggleTheme(e)}
+            className={cn(
+              'mb-2 flex min-h-[2.5rem] w-full items-center gap-2 rounded-lg px-3 py-2 transition-all',
+              navInactiveClass,
+              !isExpanded ? 'justify-center' : 'justify-center sm:justify-start'
+            )}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? (
+              <Moon
+                size={20}
+                className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
+              />
+            ) : (
+              <Sun
+                size={20}
+                className={cn('shrink-0', iconAnimating && 'theme-toggle-icon--animate')}
+              />
+            )}
+            {isExpanded && (
+              <span className="truncate text-left text-sm font-medium">
+                {theme === 'light' ? 'Dark' : 'Light'}
+              </span>
+            )}
+          </button>
 
           {/* Logout */}
           <button

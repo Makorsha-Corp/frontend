@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import { useGetPurchaseOrderItemsQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { poStageBadgeClassName } from './purchaseOrderMilestones';
+import { getPurchaseOrderListRowBadges } from './purchaseOrderMilestones';
 
 interface PurchaseOrderListRowProps {
   order: PurchaseOrder;
@@ -31,13 +31,13 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
   const { data: items = [] } = useGetPurchaseOrderItemsQuery(order.id);
 
   const itemCount = items.length;
-  const stageName = order.current_status_name ?? '—';
+  const stageBadges = getPurchaseOrderListRowBadges(order);
 
   const chipClass =
     'inline-flex items-center bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded text-[11px]';
 
   const receivingHint =
-    stageName === 'Receiving' && itemCount > 0
+    (order.current_status_name ?? '') === 'Receiving' && itemCount > 0
       ? (() => {
           const totalOrdered = items.reduce((sum, i) => sum + Number(i.quantity_ordered), 0);
           const totalReceived = items.reduce((sum, i) => sum + Number(i.quantity_received), 0);
@@ -59,12 +59,17 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
       >
         <div className="flex items-center justify-between gap-2">
           <span className="font-medium text-card-foreground truncate">{order.po_number}</span>
-          <Badge
-            variant="secondary"
-            className={cn('text-[11px] shrink-0 font-medium', poStageBadgeClassName(stageName))}
-          >
-            {stageName}
-          </Badge>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+            {stageBadges.map((badge) => (
+              <Badge
+                key={badge.label}
+                variant="secondary"
+                className={cn('text-[11px] font-medium', badge.className)}
+              >
+                {badge.label}
+              </Badge>
+            ))}
+          </div>
         </div>
 
         <div className="text-sm text-muted-foreground truncate mt-1">{accountName}</div>
@@ -78,11 +83,11 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
         </div>
 
         <div className="flex items-center justify-between mt-2">
-          {receivingHint ? (
-            <span className={cn(chipClass, 'font-medium')}>{receivingHint}</span>
-          ) : (
-            <span />
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+            {receivingHint ? (
+              <span className={cn(chipClass, 'font-medium')}>{receivingHint}</span>
+            ) : null}
+          </div>
           <span className="text-sm font-semibold text-card-foreground">
             {formatCurrency(Number(order.total_amount))}
           </span>

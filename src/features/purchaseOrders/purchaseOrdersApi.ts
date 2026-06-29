@@ -99,6 +99,7 @@ export const purchaseOrdersApi = createApi({
         'PurchaseOrder',
         { type: 'PurchaseOrderEvents', id: poId },
         { type: 'PurchaseOrderApprovers', id: poId },
+        'AccountInvoice',
         'Notification',
       ],
       async onQueryStarted({ poId, section, confirmed }, { dispatch, queryFulfilled }) {
@@ -119,6 +120,14 @@ export const purchaseOrdersApi = createApi({
           dispatch(
             purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', poId, () => updated)
           );
+          if (updated.invoice_id != null) {
+            dispatch(
+              accountInvoicesApi.util.invalidateTags([
+                { type: 'AccountInvoice', id: updated.invoice_id },
+                'AccountInvoice',
+              ])
+            );
+          }
         } catch {
           patchById.undo();
         }

@@ -25,7 +25,7 @@ export const API_LIMITS = {
    * Account detail page: invoices sidebar uses `skip`/`limit` pagination (not a server cap).
    * Totals row uses up to FLEXIBLE_1000 in one request; if an account exceeds that, totals may be partial.
    */
-  ACCOUNT_INVOICE_PAGE_SIZE: 50,
+  ACCOUNT_INVOICE_PAGE_SIZE: 11,
 
   /**
    * Accounts hub (aggregated + tag tabs), tag-scoped accounts list, Manage Accounts dialog.

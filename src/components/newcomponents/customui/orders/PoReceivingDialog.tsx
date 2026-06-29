@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -287,15 +288,15 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
                       <p className="text-xs text-muted-foreground">{alreadyReceived} / {ordered} {item.item_unit ?? ''} already received · {remaining} remaining</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
+                      <StepNumberInput
                         min={0}
                         max={remaining}
+                        step={1}
                         placeholder="0"
                         value={addQtys[item.id] ?? ''}
                         onChange={(e) => setAddQtys((p) => ({ ...p, [item.id]: e.target.value }))}
-                        className={cn('w-20 h-8 text-sm text-right', willExceed && 'border-destructive')}
+                        disabled={remaining <= 0}
+                        className={cn('h-8 w-24 text-sm text-right bg-background', willExceed && 'border-destructive')}
                       />
                       <Button
                         type="button"
@@ -373,14 +374,13 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
                           {delta > 0 ? '+' : ''}{delta}
                         </span>
                       )}
-                      <Input
-                        type="number"
-                        inputMode="numeric"
+                      <StepNumberInput
                         min={0}
                         max={ordered}
-                        value={correctionQtys[item.id] ?? current}
+                        step={1}
+                        value={correctionQtys[item.id] ?? String(current)}
                         onChange={(e) => setCorrectionQtys((p) => ({ ...p, [item.id]: e.target.value }))}
-                        className={cn('w-20 h-8 text-sm text-right', changed && 'border-amber-400 ring-1 ring-amber-400/30')}
+                        className={cn('h-8 w-24 text-sm text-right bg-background', changed && 'border-amber-400 ring-1 ring-amber-400/30')}
                       />
                     </div>
                   </div>

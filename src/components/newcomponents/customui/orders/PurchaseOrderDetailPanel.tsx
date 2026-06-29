@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,10 +59,13 @@ import DiscussionThread from '@/components/newcomponents/customui/DiscussionThre
 import {
   canConfirmPurchaseOrderSection,
   canConfirmPoInvoice,
+  canMarkPurchaseOrderComplete,
+  isPurchaseOrderMarkedComplete,
   canRecordPoReceiving,
   getPurchaseOrderConfirmationsStatus,
   getPurchaseOrderApprovalSectionsStatus,
   isPoFinanciallyLocked,
+  purchaseOrderItemNeedsUnitPrice,
   type PoLinkedInvoiceStatus,
   type PoSectionConfirmKey,
 } from './purchaseOrderMilestones';
@@ -94,7 +97,6 @@ import {
   useApprovePurchaseOrderMutation,
   useUnapprovePurchaseOrderMutation,
   useGetPurchaseOrderEventsQuery,
-  useCreateInvoiceFromPurchaseOrderMutation,
   useMarkPurchaseOrderCompleteMutation,
   useVoidPurchaseOrderMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
@@ -185,13 +187,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   onUpdated,
   showCompleteOrders = false,
 }) => {
-  const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
+  const { data: orderDetail, refetch: refetchOrder } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
 
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
   const [setSectionConfirm] = useSetPurchaseOrderSectionConfirmMutation();
-  const [ensureDraftInvoice, { isLoading: isEnsuringDraft }] =
-    useCreateInvoiceFromPurchaseOrderMutation();
   const [markOrderComplete, { isLoading: isMarkingOrderComplete }] =
     useMarkPurchaseOrderCompleteMutation();
   const [confirmInvoice, { isLoading: isConfirmingInvoice }] = useConfirmAccountInvoiceMutation();
@@ -226,7 +226,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   >(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollHighlightGenerationRef = useRef(0);
-  const ensureDraftInvoiceRef = useRef(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -238,13 +237,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
     skip: !workspace?.id,
   });
-  const { data: approversData } = useGetPurchaseOrderApproversQuery(order.id);
+  const { data: approversData, refetch: refetchApprovers } = useGetPurchaseOrderApproversQuery(order.id);
   const approvers = approversData?.approvers ?? [];
   const approvalSummary = approversData?.summary ?? { approved_count: 0, required: 0, met: true };
 
   const { data: items = [] } = useGetPurchaseOrderItemsQuery(order.id);
-  const { data: events = [] } = useGetPurchaseOrderEventsQuery(order.id);
-  const [showConfirmEvents, setShowConfirmEvents] = useState(true);
+  const { data: events = [], refetch: refetchEvents } = useGetPurchaseOrderEventsQuery(order.id);
+  const [showConfirmEvents, setShowConfirmEvents] = useState(false);
 
   const filteredEvents = useMemo(
     () =>
@@ -255,6 +254,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [removeApprover] = useRemovePurchaseOrderApproverMutation();
   const [approveOrder, { isLoading: isApproving }] = useApprovePurchaseOrderMutation();
   const [unapproveOrder, { isLoading: isUnapproving }] = useUnapprovePurchaseOrderMutation();
+
+  const refreshOrderData = useCallback(async () => {
+    await Promise.all([refetchOrder(), refetchEvents(), refetchApprovers()]);
+  }, [refetchOrder, refetchEvents, refetchApprovers]);
 
   // Show all assigned approvers in the header, approved first.
   const myApproval = currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
@@ -346,6 +349,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     draft.account_id != null && draft.account_id !== order.account_id;
   const confirmationsStatus = getPurchaseOrderConfirmationsStatus(order);
   const approvalSectionsStatus = getPurchaseOrderApprovalSectionsStatus(order);
+  const itemsMissingPriceCount = itemsConfirmed
+    ? 0
+    : items.filter((i) => purchaseOrderItemNeedsUnitPrice(i.unit_price)).length;
 
   const effectiveOrderFields = useMemo(
     () => ({
@@ -371,6 +377,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       ),
     }),
     [effectiveOrderFields, items, order, linkedInvoiceStatus]
+  );
+
+  const markCompleteReadiness = useMemo(
+    () => canMarkPurchaseOrderComplete(order, items),
+    [order, items]
   );
 
   useEffect(() => {
@@ -490,56 +501,13 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     return payload;
   }, [draft, order, supplierDisabled, coreDetailsDisabled]);
 
-  useEffect(() => {
-    if (!hasSavedSupplier || order.invoice_id != null || invoiceLocked || isSaving) return;
-    // Don't auto-create if this PO ever had a linked invoice — user creates the new draft manually
-    if (order.invoice_ever_linked) return;
-    if (ensureDraftInvoiceRef.current) return;
-    ensureDraftInvoiceRef.current = true;
-    void ensureDraftInvoice(order.id)
-      .unwrap()
-      .then(() => onUpdated?.())
-      .catch((err: unknown) => {
-        const status = (err as { status?: number })?.status;
-        if (status === 409) {
-          onUpdated?.();
-          return;
-        }
-        const detail = (err as { data?: { detail?: unknown } })?.data?.detail;
-        if (
-          status === 422 &&
-          typeof detail === 'string' &&
-          detail.includes('Assign a supplier')
-        ) {
-          onUpdated?.();
-          return;
-        }
-        const message =
-          typeof detail === 'string'
-            ? detail
-            : 'Could not create a draft invoice for this order. Item edits may fail until this is resolved.';
-        toast.error(message);
-      })
-      .finally(() => {
-        ensureDraftInvoiceRef.current = false;
-      });
-  }, [
-    order.id,
-    order.invoice_id,
-    order.invoice_ever_linked,
-    hasSavedSupplier,
-    invoiceLocked,
-    isSaving,
-    ensureDraftInvoice,
-    onUpdated,
-  ]);
-
   const handleConfirmInvoice = async () => {
     if (!order.invoice_id || !confirmReadiness.ok) return;
     try {
       await confirmInvoice(order.invoice_id).unwrap();
       toast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmInvoiceOpen(false);
+      await refreshOrderData();
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -553,17 +521,24 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       : undefined;
 
   const handleMarkOrderComplete = async () => {
+    if (!markCompleteReadiness.ok) {
+      toast.error(markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
+      return;
+    }
     try {
-      await markOrderComplete(order.id).unwrap();
+      const updated = await markOrderComplete(order.id).unwrap();
       const baseMessage =
         order.destination_type === 'storage'
           ? storageFactoryName
             ? `Purchase order complete — items added to ${storageFactoryName} storage`
             : 'Purchase order complete — items added to factory storage'
           : 'Purchase order marked complete';
-      const listHint = showCompleteOrders
-        ? ''
-        : ' Hidden from open orders list — enable Complete in the sidebar to see it there.';
+      let listHint = '';
+      if (!showCompleteOrders) {
+        listHint = updated.paid
+          ? ' Hidden from open orders list — enable Complete in the sidebar to see it there.'
+          : ' Stays in the open list until the invoice is fully paid.';
+      }
       toast.success(`${baseMessage}${listHint}`);
       onUpdated?.();
     } catch (err: unknown) {
@@ -575,9 +550,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const handleVoidInvoice = async (voidNote: string) => {
     if (!order.invoice_id) return;
     try {
-      await voidInvoice({ id: order.invoice_id, void_note: voidNote }).unwrap();
-      toast.success('Invoice voided — order approvals cleared and order is editable again');
+      await voidInvoice({
+        id: order.invoice_id,
+        void_note: voidNote,
+        poId: order.id,
+      }).unwrap();
+      toast.success(
+        'Invoice voided — re-confirm supplier and items to generate a new draft invoice'
+      );
       setVoidInvoiceOpen(false);
+      await refreshOrderData();
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -666,6 +648,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       await setSectionConfirm({ poId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
       toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
+      if (nextConfirmed) {
+        await refreshOrderData();
+      }
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -1026,9 +1011,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             ]}
             approvalSummary={approvalSummary}
             items={items}
-            orderCompleted={
-              order.order_completed || order.current_status_name === 'Complete'
-            }
+            invoicePaymentStatus={order.invoice_payment_status}
+            orderCompleted={isPurchaseOrderMarkedComplete(order)}
+            markCompleteReadiness={markCompleteReadiness}
             onMarkOrderComplete={handleMarkOrderComplete}
             isMarkingOrderComplete={isMarkingOrderComplete}
             destinationType={order.destination_type}
@@ -1037,6 +1022,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             onScrollToFinalize={scrollToFinalizeInvoice}
             onScrollToManageApprovals={scrollToManageApprovalsCard}
             onScrollToReceiving={scrollToManageReceiving}
+            onScrollToPayments={() => scrollToPoSection('invoice')}
           />
         </div>
 
@@ -1084,6 +1070,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                 <p className="text-sm font-medium text-muted-foreground">No items on this order</p>
               </div>
             ) : (
+              <div className="space-y-2">
+                {itemsMissingPriceCount > 0 ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {itemsMissingPriceCount === 1
+                      ? '1 item still needs a unit price — required before you can confirm order items.'
+                      : `${itemsMissingPriceCount} items still need unit prices — required before you can confirm order items.`}
+                  </p>
+                ) : null}
               <div className="border border-border rounded-lg overflow-hidden">
                 <Table>
                     <TableHeader>
@@ -1103,18 +1097,27 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                         const ordered = Number(item.quantity_ordered);
                         const received = Number(item.quantity_received);
                         const isComplete = received >= ordered;
+                        const needsPrice =
+                          !itemsConfirmed && purchaseOrderItemNeedsUnitPrice(item.unit_price);
                         return (
                           <TableRow
                             key={item.id}
                             className={
-                              receivingReadiness.ok && isComplete
-                                ? 'bg-green-50/50 dark:bg-green-950/20'
-                                : ''
+                              needsPrice
+                                ? 'bg-amber-50/60 dark:bg-amber-950/20'
+                                : receivingReadiness.ok && isComplete
+                                  ? 'bg-green-50/50 dark:bg-green-950/20'
+                                  : ''
                             }
                           >
                             <TableCell className="py-2 text-center text-muted-foreground text-sm">{item.line_number}</TableCell>
                             <TableCell className="py-2">
                               <span className="font-medium text-sm">{item.item_name ?? `Item #${item.item_id}`}</span>
+                              {needsPrice ? (
+                                <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                                  Set unit price
+                                </p>
+                              ) : null}
                             </TableCell>
                             <TableCell className="py-2 text-right text-sm">
                               {ordered} {item.item_unit ?? ''}
@@ -1134,14 +1137,31 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                                 </span>
                               </TableCell>
                             ) : null}
-                            <TableCell className="py-2 text-right text-sm">{formatCurrency(Number(item.unit_price))}</TableCell>
-                            <TableCell className="py-2 text-right text-sm font-medium">{formatCurrency(Number(item.line_subtotal))}</TableCell>
+                            <TableCell className="py-2 text-right text-sm">
+                              {item.unit_price != null ? (
+                                formatCurrency(Number(item.unit_price))
+                              ) : needsPrice ? (
+                                <span className="text-amber-700 dark:text-amber-400">Set price</span>
+                              ) : (
+                                '—'
+                              )}
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-sm font-medium">
+                              {item.line_subtotal != null ? (
+                                formatCurrency(Number(item.line_subtotal))
+                              ) : needsPrice ? (
+                                <span className="font-normal text-amber-700 dark:text-amber-400">—</span>
+                              ) : (
+                                '—'
+                              )}
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                     </TableBody>
                   </Table>
                 </div>
+              </div>
             )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -1209,7 +1229,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           invoiceLocked={invoiceLocked}
           hasSupplier={hasSupplier}
           hasUnsavedSupplier={hasUnsavedSupplier}
-          isSyncingDraft={isEnsuringDraft}
+          baseSectionsConfirmed={confirmationsStatus.allConfirmed}
+          isSyncingDraft={confirmingSection != null}
           accountName={
             accounts.find((a) => a.id === effectiveAccountId)?.name ?? null
           }
@@ -1223,16 +1244,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           onConfirmInvoice={() => setConfirmInvoiceOpen(true)}
           onVoidInvoice={() => setVoidInvoiceOpen(true)}
           onOpenFullView={() => setInvoiceDialogOpen(true)}
-          onCreateDraft={async () => {
-            try {
-              await ensureDraftInvoice(order.id).unwrap();
-              onUpdated?.();
-            } catch (err: unknown) {
-              const e = err as { data?: { detail?: string } };
-              toast.error(e?.data?.detail || 'Failed to create new draft invoice');
-            }
-          }}
-          isCreatingDraft={isEnsuringDraft}
           hasActiveReceiving={items.some((i) => Number(i.quantity_received ?? 0) > 0)}
           highlightedTarget={scrollHighlightTarget}
           onHighlightDismiss={dismissScrollHighlight}

@@ -1,10 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   originFromMouseEvent,
-  parseStoredTransitionMode,
   runThemeTransition,
-  THEME_TRANSITION_STORAGE_KEY,
-  type ThemeTransitionMode,
 } from '@/lib/themeTransition';
 
 type Theme = 'light' | 'dark';
@@ -12,8 +9,6 @@ type Theme = 'light' | 'dark';
 interface ThemeContextType {
   theme: Theme;
   iconAnimating: boolean;
-  transitionMode: ThemeTransitionMode;
-  cycleTransitionMode: () => void;
   toggleTheme: (event?: React.MouseEvent | MouseEvent) => void;
   setTheme: (theme: Theme) => void;
 }
@@ -33,20 +28,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return savedTheme || 'light';
   });
   const [iconAnimating, setIconAnimating] = useState(false);
-  const [transitionMode, setTransitionMode] = useState<ThemeTransitionMode>(() =>
-    parseStoredTransitionMode(localStorage.getItem(THEME_TRANSITION_STORAGE_KEY))
-  );
 
   useEffect(() => {
     applyThemeToDocument(theme);
-  }, []);
-
-  const cycleTransitionMode = useCallback(() => {
-    setTransitionMode((current) => {
-      const next = current === 'wipe' ? 'icon' : 'wipe';
-      localStorage.setItem(THEME_TRANSITION_STORAGE_KEY, next);
-      return next;
-    });
   }, []);
 
   const runWithTransition = useCallback(
@@ -58,7 +42,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const { animateIcon } = runThemeTransition(apply, {
         origin: originFromMouseEvent(event),
-        mode: transitionMode,
       });
 
       if (animateIcon) {
@@ -66,7 +49,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         window.setTimeout(() => setIconAnimating(false), 400);
       }
     },
-    [transitionMode]
+    []
   );
 
   const toggleTheme = useCallback(
@@ -86,9 +69,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   return (
-    <ThemeContext.Provider
-      value={{ theme, iconAnimating, transitionMode, cycleTransitionMode, toggleTheme, setTheme }}
-    >
+    <ThemeContext.Provider value={{ theme, iconAnimating, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

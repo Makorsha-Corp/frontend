@@ -84,7 +84,11 @@ export const accountInvoicesApi = createApi({
         body: data,
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (result, error, { id }) => [{ type: 'AccountInvoice', id }, 'AccountInvoice'],
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'AccountInvoice', id },
+        { type: 'InvoiceEvent', id },
+        'AccountInvoice',
+      ],
     }),
     deleteAccountInvoice: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
@@ -116,23 +120,83 @@ export const accountInvoicesApi = createApi({
         'Notification',
       ],
     }),
-    voidAccountInvoice: builder.mutation<AccountInvoice, { id: number; void_note: string }>({
+    voidAccountInvoice: builder.mutation<
+      AccountInvoice,
+      { id: number; void_note: string; poId?: number }
+    >({
       query: ({ id, void_note }) => ({
         url: `account-invoices/${id}/void/`,
         method: 'POST',
         body: { void_note },
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (result, error, { id }) => [
-        { type: 'AccountInvoice', id },
-        'AccountInvoice',
-        'PurchaseOrder',
-        'PurchaseOrderItem',
-        'PurchaseOrderEvents',
-        'PurchaseOrderApprovers',
-        'ActiveOrders',
-        { type: 'InvoiceEvent', id },
-      ],
+      invalidatesTags: (result, error, { id, poId }) => {
+        const tags: Array<
+          | 'AccountInvoice'
+          | 'PurchaseOrder'
+          | 'PurchaseOrderItem'
+          | 'PurchaseOrderEvents'
+          | 'PurchaseOrderApprovers'
+          | 'ActiveOrders'
+          | { type: 'AccountInvoice'; id: number }
+          | { type: 'PurchaseOrder'; id: number }
+          | { type: 'PurchaseOrderEvents'; id: number }
+          | { type: 'InvoiceEvent'; id: number }
+        > = [
+          { type: 'AccountInvoice', id },
+          'AccountInvoice',
+          'PurchaseOrder',
+          'PurchaseOrderItem',
+          'PurchaseOrderEvents',
+          'PurchaseOrderApprovers',
+          'ActiveOrders',
+          { type: 'InvoiceEvent', id },
+        ];
+        if (poId != null) {
+          tags.push({ type: 'PurchaseOrder', id: poId });
+          tags.push({ type: 'PurchaseOrderEvents', id: poId });
+        }
+        return tags;
+      },
+      async onQueryStarted({ poId }, { dispatch, queryFulfilled }) {
+        let patchUndo: { undo: () => void } | undefined;
+        if (poId != null) {
+          const { purchaseOrdersApi } = await import('@/features/purchaseOrders/purchaseOrdersApi');
+          patchUndo = dispatch(
+            purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', poId, (draft) => {
+              draft.invoice_id = null;
+              draft.invoice_confirmed = false;
+              draft.supplier_confirmed = false;
+              draft.items_confirmed = false;
+            })
+          );
+        }
+        try {
+          await queryFulfilled;
+          if (poId != null) {
+            const { purchaseOrdersApi } = await import('@/features/purchaseOrders/purchaseOrdersApi');
+            await Promise.all([
+              dispatch(
+                purchaseOrdersApi.endpoints.getPurchaseOrderById.initiate(poId, {
+                  forceRefetch: true,
+                })
+              ),
+              dispatch(
+                purchaseOrdersApi.endpoints.getPurchaseOrderEvents.initiate(poId, {
+                  forceRefetch: true,
+                })
+              ),
+              dispatch(
+                purchaseOrdersApi.endpoints.getPurchaseOrderApprovers.initiate(poId, {
+                  forceRefetch: true,
+                })
+              ),
+            ]);
+          }
+        } catch {
+          patchUndo?.undo();
+        }
+      },
     }),
     getInvoiceItems: builder.query<InvoiceItem[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/items/`,

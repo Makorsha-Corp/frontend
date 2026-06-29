@@ -478,6 +478,30 @@ const Login2Page: React.FC = () => {
   }, [gradientFollowsMouse, gradientPreset, loginTheme]);
 
   // Handle Login
+  const performLogin = async (email: string, password: string) => {
+    const response = await login({ email, password }).unwrap();
+
+    dispatch(
+      setCredentials({
+        user: response.user,
+        token: response.access_token,
+        refreshToken: response.refresh_token,
+      })
+    );
+
+    if (response.messages && response.messages.length > 0) {
+      response.messages.forEach((msg: { type?: string; message?: string }) => {
+        if (msg.type === 'success' && msg.message) {
+          toast.success(msg.message);
+        }
+      });
+    } else {
+      toast.success('Login successful!');
+    }
+
+    navigate('/workspace-selector');
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -487,37 +511,21 @@ const Login2Page: React.FC = () => {
     }
 
     try {
-      const response = await login({
-        email: loginEmail,
-        password: loginPassword,
-      }).unwrap();
-
-      // Save credentials to Redux (both tokens — refresh token enables
-      // transparent re-auth from baseQueryWithReauth when access expires).
-      dispatch(
-        setCredentials({
-          user: response.user,
-          token: response.access_token,
-          refreshToken: response.refresh_token,
-        })
-      );
-
-      // Show success message
-      if (response.messages && response.messages.length > 0) {
-        response.messages.forEach((msg: any) => {
-          if (msg.type === 'success') {
-            toast.success(msg.message);
-          }
-        });
-      } else {
-        toast.success('Login successful!');
-      }
-
-      // Navigate to workspace selector
-      navigate('/workspace-selector');
-    } catch (error: any) {
+      await performLogin(loginEmail, loginPassword);
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      toast.error(error?.data?.detail || 'Login failed. Please check your credentials.');
+      const err = error as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Login failed. Please check your credentials.');
+    }
+  };
+
+  const handleDevQuickLogin = async () => {
+    try {
+      await performLogin('shohanc@hotmail.com', 'shohan123');
+    } catch (error: unknown) {
+      console.error('Dev login error:', error);
+      const err = error as { data?: { detail?: string } };
+      toast.error(err?.data?.detail || 'Dev quick login failed.');
     }
   };
 
@@ -689,6 +697,17 @@ const Login2Page: React.FC = () => {
                         'Sign In'
                       )}
                     </Button>
+                    {import.meta.env.DEV ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-11 text-base border-dashed"
+                        disabled={isLoggingIn}
+                        onClick={() => void handleDevQuickLogin()}
+                      >
+                        Dev: Quick sign in (Shohan)
+                      </Button>
+                    ) : null}
                     <p className="text-sm text-center text-card-foreground/60">
                       Don't have an account?{' '}
                       <button

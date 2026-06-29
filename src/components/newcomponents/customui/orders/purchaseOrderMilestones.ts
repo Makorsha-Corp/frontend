@@ -3,12 +3,31 @@ import type { AccountInvoice } from '@/types/accountInvoice';
 import type { Status } from '@/types/status';
 
 /** Auto-advancing PO lifecycle stages (matches backend PO_STAGE_NAMES). */
-export const PO_WORKFLOW_STAGES = ['Draft', 'Planning', 'Receiving', 'Complete'] as const;
+export const PO_WORKFLOW_STAGES = [
+  'Draft',
+  'Planning',
+  'Receiving',
+  'Complete',
+] as const;
+
+/** PO orders considered "open" on the overview hub deep link. */
+export const PO_SCOPE_OPEN_STATUS_NAMES = ['Planning', 'Receiving', 'Complete'] as const;
 
 export type PoWorkflowStage = (typeof PO_WORKFLOW_STAGES)[number];
 
-/** PO orders considered "open" on the overview hub deep link. */
-export const PO_SCOPE_OPEN_STATUS_NAMES = ['Planning', 'Receiving'] as const;
+export function isPurchaseOrderMarkedComplete(order: PurchaseOrder): boolean {
+  const name = order.current_status_name?.trim();
+  return (
+    Boolean(order.order_completed) ||
+    name === 'Complete' ||
+    name === 'Complete - Unpaid' ||
+    name === 'Complete - Paid'
+  );
+}
+
+export function isPurchaseOrderFullyClosed(order: PurchaseOrder): boolean {
+  return isPurchaseOrderMarkedComplete(order) && order.paid === true;
+}
 
 export function statusesForPoWorkflowFilter(statuses: Status[]): Status[] {
   const byName = new Map(statuses.map((s) => [s.name, s]));
@@ -52,6 +71,19 @@ export function isPurchaseOrderDetailsComplete(order: PurchaseOrder): boolean {
 
 export function isPurchaseOrderItemsComplete(items: PurchaseOrderItem[]): boolean {
   return items.length > 0;
+}
+
+export function purchaseOrderItemNeedsUnitPrice(
+  unitPrice: number | null | undefined
+): boolean {
+  return unitPrice == null || Number(unitPrice) <= 0;
+}
+
+export function allPurchaseOrderItemsHaveUnitPrice(items: PurchaseOrderItem[]): boolean {
+  return (
+    items.length > 0 &&
+    items.every((i) => !purchaseOrderItemNeedsUnitPrice(i.unit_price))
+  );
 }
 
 export function isPoFinanciallyLocked(invoiceStatus: PoLinkedInvoiceStatus): boolean {
@@ -125,7 +157,7 @@ export function canConfirmPurchaseOrderSection(
 ): { ok: boolean; reason?: string } {
   if (section === 'invoice') {
     if (invoiceId == null || invoiceStatus !== 'draft') {
-      return { ok: false, reason: 'Assign a supplier — draft invoice syncs from the order' };
+      return { ok: false, reason: 'Confirm supplier, order details, and items — draft invoice syncs after that' };
     }
     const po = order as PurchaseOrder;
     if (!po.supplier_confirmed || !po.details_confirmed || !po.items_confirmed) {
@@ -144,6 +176,18 @@ export function canConfirmPurchaseOrderSection(
       return {
         ok: false,
         reason: 'Complete destination, location, and order date first',
+      };
+    }
+    return { ok: true };
+  }
+  if (section === 'items') {
+    if (!isPurchaseOrderItemsComplete(items)) {
+      return { ok: false, reason: 'Add at least one line item first' };
+    }
+    if (!allPurchaseOrderItemsHaveUnitPrice(items)) {
+      return {
+        ok: false,
+        reason: 'Enter unit prices to confirm',
       };
     }
     return { ok: true };
@@ -180,6 +224,12 @@ export function canCreateDraftPoInvoice(
   if (!isPurchaseOrderItemsComplete(items)) {
     return { ok: false, reason: 'Add at least one line item first' };
   }
+  if (!allPurchaseOrderItemsHaveUnitPrice(items)) {
+    return {
+      ok: false,
+      reason: 'Enter unit prices to confirm',
+    };
+  }
   return { ok: true };
 }
 
@@ -189,7 +239,7 @@ export function canConfirmPoInvoice(
   invoiceStatus: PoLinkedInvoiceStatus
 ): { ok: boolean; reason?: string } {
   if (order.invoice_id == null) {
-    return { ok: false, reason: 'Draft invoice has not synced yet — assign a supplier and save' };
+    return { ok: false, reason: 'Draft invoice has not synced yet — confirm all sections first' };
   }
   if (invoiceStatus !== 'draft') {
     return { ok: false, reason: 'Only draft invoices can be confirmed' };
@@ -258,6 +308,30 @@ export function approvalsMilestoneState(summary: ApprovalSummary): PoMilestoneSt
   return 'pending';
 }
 
+export function isPurchaseOrderReceivingComplete(items: PurchaseOrderItem[]): boolean {
+  if (items.length === 0) return false;
+  const totalOrdered = items.reduce((sum, i) => sum + Number(i.quantity_ordered), 0);
+  const totalReceived = items.reduce((sum, i) => sum + Number(i.quantity_received), 0);
+  return totalOrdered > 0 && totalReceived >= totalOrdered;
+}
+
+export function isPurchaseOrderInvoicePaid(order: PurchaseOrder): boolean {
+  return order.paid === true;
+}
+
+export function canMarkPurchaseOrderComplete(
+  order: PurchaseOrder,
+  items: PurchaseOrderItem[]
+): { ok: boolean; reason?: string } {
+  if (isPurchaseOrderMarkedComplete(order)) {
+    return { ok: false, reason: 'Order is already complete' };
+  }
+  if (!isPurchaseOrderReceivingComplete(items)) {
+    return { ok: false, reason: 'All line items must be fully received first' };
+  }
+  return { ok: true };
+}
+
 export function poStageBadgeClassName(stageName: string | null | undefined): string {
   switch (stageName) {
     case 'Draft':
@@ -271,4 +345,29 @@ export function poStageBadgeClassName(stageName: string | null | undefined): str
     default:
       return 'border-transparent bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-50';
   }
+}
+
+export interface PoListRowBadge {
+  label: string;
+  className: string;
+}
+
+/** Navigator list: workflow badge, or Unpaid/Paid + Complete when closed. */
+export function getPurchaseOrderListRowBadges(order: PurchaseOrder): PoListRowBadge[] {
+  const stageName = order.current_status_name?.trim() ?? '—';
+
+  if (isPurchaseOrderMarkedComplete(order)) {
+    const paid = order.paid === true;
+    return [
+      {
+        label: paid ? 'Paid' : 'Unpaid',
+        className: paid
+          ? 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+          : 'border-transparent bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+      },
+      { label: 'Complete', className: poStageBadgeClassName('Complete') },
+    ];
+  }
+
+  return [{ label: stageName, className: poStageBadgeClassName(stageName) }];
 }

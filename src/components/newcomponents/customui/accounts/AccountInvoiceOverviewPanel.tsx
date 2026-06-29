@@ -1,12 +1,15 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
-import { useGetAccountInvoiceByIdQuery } from '@/features/accountInvoices/accountInvoicesApi';
+import { useGetAccountInvoiceByIdQuery, useGetInvoiceEventsQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
+import InvoiceDueDateField from './InvoiceDueDateField';
+import InvoiceEventLogCard from './InvoiceEventLogCard';
+import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
 
 export interface AccountInvoiceOverviewPanelProps {
   invoiceId: number;
@@ -14,6 +17,8 @@ export interface AccountInvoiceOverviewPanelProps {
   accountName?: string | null;
   linkedOrderNumber?: string | null;
   showOrderSummary?: boolean;
+  /** When true, due date is read-only (finalized invoice embedded on PO). */
+  dueDateReadOnly?: boolean;
 }
 
 const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = ({
@@ -22,9 +27,11 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
   accountName: accountNameProp,
   linkedOrderNumber: linkedOrderNumberProp,
   showOrderSummary = false,
+  dueDateReadOnly = false,
 }) => {
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
+  const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId);
 
   const { data: account } = useGetAccountByIdQuery(invoice?.account_id ?? 0, {
     skip: !invoice?.account_id || accountNameProp !== undefined,
@@ -86,9 +93,9 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
               }
             />
           ) : null}
-          <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
-            {invoice.payment_status}
-          </span>
+          {invoice.invoice_status !== 'voided' && (
+            <InvoicePaymentStatusBadge status={invoice.payment_status} />
+          )}
         </div>
       </div>
 
@@ -122,7 +129,7 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">Due Date</p>
-          <p className="mt-0.5 text-sm text-card-foreground">{formatInvoiceDate(invoice.due_date)}</p>
+          <InvoiceDueDateField invoice={invoice} readOnly={dueDateReadOnly} />
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">Type</p>
@@ -143,6 +150,8 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
       </div>
 
       <AccountInvoicePaymentsSection invoice={invoice} />
+
+      <InvoiceEventLogCard events={events} invoice={invoice} />
 
       {invoice.notes ? (
         <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">

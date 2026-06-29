@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Clock, Loader2, RotateCcw, XCircle } from 'lucide-react';
 import InvoiceLockedBadge from './InvoiceLockedBadge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,9 @@ import { formatInvLabel } from './invoiceDisplayUtils';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
+import InvoiceDueDateField from './InvoiceDueDateField';
+import InvoiceEventLogCard from './InvoiceEventLogCard';
+import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
 import InvoiceItemsTable from './InvoiceItemsTable';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
@@ -59,30 +62,6 @@ function InvoiceStatusBadge({ status }: { status: string }) {
       {config.label}
     </span>
   );
-}
-
-// ─── Event log dot color ───────────────────────────────────────────────────────
-
-function eventDotColor(eventType: string): string {
-  switch (eventType) {
-    case 'confirmed': return 'bg-green-500';
-    case 'voided': return 'bg-red-500';
-    case 'reverted_to_draft': return 'bg-amber-500';
-    case 'created': return 'bg-sky-500';
-    case 'items_synced':
-    case 'item_manually_updated': return 'bg-blue-400';
-    case 'payment_recorded': return 'bg-violet-500';
-    case 'payment_voided': return 'bg-rose-400';
-    case 'receiving_started_set': return 'bg-amber-500';
-    default: return 'bg-muted-foreground/40';
-  }
-}
-
-function formatEventDate(iso: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  }).format(new Date(iso));
 }
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -157,6 +136,15 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
   const activePaymentCount = paymentsForCount.filter((p) => !p.is_voided).length;
 
+  const voidedByName = useMemo(() => {
+    const voidEvents = events.filter((e) => e.event_type === 'voided');
+    if (voidEvents.length === 0) return null;
+    const latest = voidEvents.reduce((a, b) =>
+      new Date(a.created_at) >= new Date(b.created_at) ? a : b
+    );
+    return latest.performed_by_name;
+  }, [events]);
+
   const resolvedInvoice = fetchedInvoice ?? invoiceProp;
   const linkedOrderId = resolvedInvoice?.order_id ?? null;
   const linkedOrderType = resolvedInvoice?.order_type ?? null;
@@ -209,11 +197,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
           ) : null}
           <InvoiceStatusBadge status={invoice.invoice_status} />
           {isConfirmed && receivingStarted && <InvoiceLockedBadge />}
-          {isFinalized && (
-            <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium capitalize text-muted-foreground">
-              {invoice.payment_status}
-            </span>
-          )}
+          {isFinalized && <InvoicePaymentStatusBadge status={invoice.payment_status} />}
         </div>
       </div>
 
@@ -243,7 +227,9 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
           <div className="flex items-center gap-2">
             <XCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-            <p className="text-sm font-semibold text-red-700 dark:text-red-300">This invoice has been voided</p>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+              This invoice has been voided{voidedByName ? ` by ${voidedByName}` : ''}
+            </p>
           </div>
           {invoice.void_note && (
             <p className="text-xs text-red-600 dark:text-red-400 pl-6">
@@ -288,7 +274,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">Due Date</p>
-          <p className="mt-0.5 text-sm text-card-foreground">{formatInvoiceDate(invoice.due_date)}</p>
+          <InvoiceDueDateField invoice={invoice} />
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">Type</p>
@@ -359,26 +345,8 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       )}
 
-      {/* ── Event log ── */}
-      {events.length > 0 && (
-        <div className="space-y-2 pt-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice History</p>
-          <div className="relative space-y-0 pl-4">
-            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
-            {events.map((event) => (
-              <div key={event.id} className="relative flex items-start gap-3 pb-3 last:pb-0">
-                <span className={cn('absolute -left-[1px] mt-1.5 h-2.5 w-2.5 rounded-full border-2 border-background', eventDotColor(event.event_type))} />
-                <div className="pl-4 min-w-0">
-                  <p className="text-sm text-card-foreground">{event.description}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {event.performed_by_name ?? 'System'} · {formatEventDate(event.created_at)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── Invoice logs ── */}
+      <InvoiceEventLogCard events={events} invoice={invoice} />
 
       <InvoiceConfirmDialog
         open={confirmOpen}

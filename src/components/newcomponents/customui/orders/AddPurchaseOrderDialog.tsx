@@ -50,7 +50,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [destinationId, setDestinationId] = useState<string>('');
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<
-    Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
+    Array<{ item_id: number; quantity_ordered: number; unit_price: number | null; notes?: string }>
   >([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
@@ -98,11 +98,14 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   };
 
   const canAddLineItem = (() => {
-    if (!itemId.trim() || !qty.trim() || !unitPrice.trim()) return false;
+    if (!itemId.trim() || !qty.trim()) return false;
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
-    const p = parseFloat(unitPrice);
-    return !isNaN(iid) && !isNaN(q) && q > 0 && !isNaN(p) && p >= 0 && !usedItemIds.has(iid);
+    if (unitPrice.trim()) {
+      const p = parseFloat(unitPrice);
+      if (Number.isNaN(p) || p < 0) return false;
+    }
+    return !isNaN(iid) && !isNaN(q) && q > 0 && !usedItemIds.has(iid);
   })();
 
   useEffect(() => {
@@ -142,7 +145,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     }
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
-    const p = parseFloat(unitPrice);
+    const p = unitPrice.trim() ? parseFloat(unitPrice) : null;
+    if (p != null && (Number.isNaN(p) || p < 0)) {
+      toast.error('Enter a valid unit price or leave blank');
+      return;
+    }
     if (usedItemIds.has(iid)) {
       toast.error('Item already on this order — edit quantity or unit price below');
       return;
@@ -165,10 +172,22 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     field: 'quantity_ordered' | 'unit_price',
     raw: string
   ) => {
+    if (field === 'unit_price') {
+      if (raw.trim() === '') {
+        setItems((prev) =>
+          prev.map((line, i) => (i === idx ? { ...line, unit_price: null } : line))
+        );
+        return;
+      }
+      const n = parseFloat(raw);
+      if (Number.isNaN(n) || n < 0) return;
+      setItems((prev) =>
+        prev.map((line, i) => (i === idx ? { ...line, unit_price: n } : line))
+      );
+      return;
+    }
     const n = parseFloat(raw);
-    if (raw.trim() === '' || Number.isNaN(n)) return;
-    if (field === 'quantity_ordered' && n <= 0) return;
-    if (field === 'unit_price' && n < 0) return;
+    if (raw.trim() === '' || Number.isNaN(n) || n <= 0) return;
     setItems((prev) =>
       prev.map((line, i) => (i === idx ? { ...line, [field]: n } : line))
     );
@@ -214,7 +233,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       items: items.map((i) => ({
         item_id: i.item_id,
         quantity_ordered: i.quantity_ordered,
-        unit_price: i.unit_price,
+        ...(i.unit_price != null ? { unit_price: i.unit_price } : {}),
         notes: i.notes,
       })) as CreatePurchaseOrderItem[],
     };
@@ -278,13 +297,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             />
           </div>
           <div className="grid flex-1 min-w-[5.5rem] gap-1">
-            <Label className="text-xs text-muted-foreground">Unit price</Label>
+            <Label className="text-xs text-muted-foreground">Unit price (optional)</Label>
             <StepNumberInput
               min={0}
               step={1}
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
-              placeholder="0.00"
+              placeholder="Optional"
               className="bg-background"
             />
           </div>
@@ -294,7 +313,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                 role="tooltip"
                 className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
               >
-                Select item, qty and unit price to add
+                Select item and qty to add (unit price optional)
               </div>
             ) : null}
             <Button
@@ -324,10 +343,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             const item = itemsList.find((i) => i.id === it.item_id);
             const unitSuffix = item?.unit ? ` ${item.unit}` : '';
             const isEditing = editingItemId === it.item_id;
-            const priceStr = Number(it.unit_price).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
+            const priceStr =
+              it.unit_price != null
+                ? Number(it.unit_price).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : null;
             return (
               <div key={it.item_id} className="flex items-start justify-between gap-3 px-3 py-2.5">
                 <div className="min-w-0 flex-1 space-y-2">
@@ -353,9 +375,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                         <StepNumberInput
                           min={0}
                           step={1}
-                          value={String(it.unit_price)}
+                          value={it.unit_price != null ? String(it.unit_price) : ''}
                           onChange={(e) => handleUpdateLine(idx, 'unit_price', e.target.value)}
                           className="h-9 bg-background"
+                          placeholder="—"
                         />
                       </div>
                     </div>
@@ -366,7 +389,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                       <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
                         ·
                       </span>
-                      {priceStr} per unit
+                      {priceStr != null ? `${priceStr} per unit` : 'Price not set'}
                     </p>
                   )}
                 </div>

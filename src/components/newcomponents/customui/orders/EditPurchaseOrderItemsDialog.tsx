@@ -36,6 +36,7 @@ import type { PurchaseOrderItem } from '@/types/purchaseOrder';
 import type { Item } from '@/types/item';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import { cn } from '@/lib/utils';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -54,7 +55,7 @@ interface PendingNewLine {
   key: string;
   item_id: number;
   quantity_ordered: number;
-  unit_price: number;
+  unit_price: number | null;
 }
 
 export interface EditPurchaseOrderItemsDialogProps {
@@ -73,6 +74,27 @@ function numEq(a: number | string, b: number | string): boolean {
   return Math.abs(Number(a) - Number(b)) < 1e-9;
 }
 
+function parseUnitPriceForSave(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === '') return null;
+  const n = parseFloat(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+function unitPriceDraftEq(raw: string, original: number | null): boolean {
+  const parsed = parseUnitPriceForSave(raw);
+  if (parsed === null && (original === null || original === undefined)) return true;
+  if (parsed === null || original === null || original === undefined) return false;
+  return numEq(parsed, original);
+}
+
+function draftLineNeedsUnitPrice(unitPrice: string): boolean {
+  const trimmed = unitPrice.trim();
+  if (trimmed === '') return true;
+  const n = parseFloat(trimmed);
+  return !Number.isFinite(n) || n <= 0;
+}
+
 function linesFromItems(items: PurchaseOrderItem[]): ExistingLineDraft[] {
   return items.map((item) => ({
     id: item.id,
@@ -81,7 +103,7 @@ function linesFromItems(items: PurchaseOrderItem[]): ExistingLineDraft[] {
     item_unit: item.item_unit,
     quantity_ordered: String(item.quantity_ordered),
     quantity_received: Number(item.quantity_received),
-    unit_price: String(item.unit_price),
+    unit_price: item.unit_price != null ? String(item.unit_price) : '',
     removed: false,
   }));
 }
@@ -144,11 +166,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   const availableItems = itemsList.filter((i) => !usedItemIds.has(i.id));
 
   const canAddLineItem = (() => {
-    if (!itemId.trim() || !qty.trim() || !unitPrice.trim()) return false;
+    if (!itemId.trim() || !qty.trim()) return false;
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
-    const p = parseFloat(unitPrice);
-    return !isNaN(iid) && !isNaN(q) && q > 0 && !isNaN(p) && p >= 0 && !usedItemIds.has(iid);
+    if (unitPrice.trim()) {
+      const p = parseFloat(unitPrice);
+      if (Number.isNaN(p) || p < 0) return false;
+    }
+    return !isNaN(iid) && !isNaN(q) && q > 0 && !usedItemIds.has(iid);
   })();
 
   useEffect(() => {
@@ -190,7 +215,11 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
     }
     const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
-    const p = parseFloat(unitPrice);
+    const p = unitPrice.trim() ? parseFloat(unitPrice) : null;
+    if (p != null && (Number.isNaN(p) || p < 0)) {
+      toast.error('Enter a valid unit price or leave blank');
+      return;
+    }
     setPendingNewLines((prev) => [
       ...prev,
       { key: newLineKey(), item_id: iid, quantity_ordered: q, unit_price: p },
@@ -210,14 +239,17 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
 
     for (const line of activeExisting) {
       const ordered = parseFloat(line.quantity_ordered);
-      const price = parseFloat(line.unit_price);
       if (!Number.isFinite(ordered) || ordered <= 0) {
         toast.error(`Invalid quantity for ${line.item_name ?? 'item'}`);
         return false;
       }
-      if (!Number.isFinite(price) || price < 0) {
-        toast.error(`Invalid unit price for ${line.item_name ?? 'item'}`);
-        return false;
+      const trimmedPrice = line.unit_price.trim();
+      if (trimmedPrice !== '') {
+        const price = parseFloat(trimmedPrice);
+        if (!Number.isFinite(price) || price < 0) {
+          toast.error(`Invalid unit price for ${line.item_name ?? 'item'}`);
+          return false;
+        }
       }
       const orig = originalById.get(line.id);
       const minOrdered = Math.max(
@@ -228,6 +260,17 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
         toast.error(
           `${line.item_name ?? 'Item'}: ordered qty cannot be less than received (${minOrdered})`
         );
+        return false;
+      }
+    }
+
+    for (const line of pendingNewLines) {
+      if (!Number.isFinite(line.quantity_ordered) || line.quantity_ordered <= 0) {
+        toast.error('Invalid quantity on new line item');
+        return false;
+      }
+      if (line.unit_price != null && line.unit_price < 0) {
+        toast.error('Invalid unit price on new line item');
         return false;
       }
     }
@@ -242,7 +285,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
       if (!orig) continue;
       if (
         !numEq(orig.quantity_ordered, line.quantity_ordered) ||
-        !numEq(orig.unit_price, line.unit_price)
+        !unitPriceDraftEq(line.unit_price, orig.unit_price)
       ) {
         return true;
       }
@@ -277,14 +320,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
           if (!orig) return [];
           if (
             numEq(orig.quantity_ordered, line.quantity_ordered) &&
-            numEq(orig.unit_price, line.unit_price)
+            unitPriceDraftEq(line.unit_price, orig.unit_price)
           ) {
             return [];
           }
           return [{
             id: line.id,
             quantity_ordered: parseFloat(line.quantity_ordered),
-            unit_price: parseFloat(line.unit_price),
+            unit_price: parseUnitPriceForSave(line.unit_price),
           }];
         });
       const additions = pendingNewLines.map((line) => ({
@@ -310,10 +353,10 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
           const orig = originalById.get(line.id);
           if (!orig) continue;
           const ordered = parseFloat(line.quantity_ordered);
-          const price = parseFloat(line.unit_price);
+          const price = parseUnitPriceForSave(line.unit_price);
           if (
             !numEq(orig.quantity_ordered, line.quantity_ordered) ||
-            !numEq(orig.unit_price, line.unit_price)
+            !unitPriceDraftEq(line.unit_price, orig.unit_price)
           ) {
             await updateItem({
               itemId: line.id,
@@ -356,6 +399,16 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
 
   const activeExistingCount = existingLines.filter((l) => !l.removed).length;
   const totalLineCount = activeExistingCount + pendingNewLines.length;
+  const linesMissingPriceCount = useMemo(() => {
+    let count = 0;
+    for (const line of existingLines) {
+      if (!line.removed && draftLineNeedsUnitPrice(line.unit_price)) count += 1;
+    }
+    for (const line of pendingNewLines) {
+      if (line.unit_price == null || line.unit_price <= 0) count += 1;
+    }
+    return count;
+  }, [existingLines, pendingNewLines]);
 
   return (
     <>
@@ -413,7 +466,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                   />
                 </div>
                 <div className="grid min-w-[5.5rem] flex-1 gap-1">
-                  <Label className="text-xs text-muted-foreground">Unit price</Label>
+                  <Label className="text-xs text-muted-foreground">Unit price (optional)</Label>
                   <StepNumberInput
                     min={0}
                     step={1}
@@ -429,7 +482,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                       role="tooltip"
                       className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md"
                     >
-                      Select item, qty and unit price to add
+                      Select item and qty to add (unit price optional)
                     </div>
                   ) : null}
                   <Button
@@ -465,7 +518,11 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums">
                             {line.quantity_ordered} {catalog?.unit ?? ''} ·{' '}
-                            {formatCurrency(line.unit_price)} each
+                            {line.unit_price != null ? (
+                              `${formatCurrency(line.unit_price)} each`
+                            ) : (
+                              <span className="text-amber-600 dark:text-amber-400">Set unit price</span>
+                            )}
                           </p>
                         </div>
                         <Button
@@ -498,6 +555,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                   No order items yet. Add at least one above.
                 </div>
               ) : (
+                <>
+                  {linesMissingPriceCount > 0 ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {linesMissingPriceCount === 1
+                        ? '1 item still needs a unit price — required before you can confirm order items.'
+                        : `${linesMissingPriceCount} items still need unit prices — required before you can confirm order items.`}
+                    </p>
+                  ) : null}
                 <div className="rounded-lg border border-border overflow-hidden">
                   <Table>
                     <TableHeader>
@@ -511,14 +576,24 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                     <TableBody>
                       {existingLines
                         .filter((l) => !l.removed)
-                        .map((line) => (
-                          <TableRow key={line.id}>
+                        .map((line) => {
+                          const needsPrice = draftLineNeedsUnitPrice(line.unit_price);
+                          return (
+                          <TableRow
+                            key={line.id}
+                            className={needsPrice ? 'bg-amber-50/60 dark:bg-amber-950/20' : undefined}
+                          >
                             <TableCell className="py-2">
                               <span className="text-sm font-medium">
                                 {line.item_name ?? `Item #${line.item_id}`}
                               </span>
                               {line.item_unit ? (
                                 <span className="ml-1 text-xs text-muted-foreground">{line.item_unit}</span>
+                              ) : null}
+                              {needsPrice ? (
+                                <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+                                  Set unit price
+                                </p>
                               ) : null}
                             </TableCell>
                             <TableCell className="py-2">
@@ -550,7 +625,11 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                                     )
                                   )
                                 }
-                                className="h-8 text-right text-sm bg-background"
+                                className={cn(
+                                  'h-8 text-right text-sm bg-background',
+                                  needsPrice &&
+                                    'border-amber-400/70 focus-visible:ring-amber-400/40 dark:border-amber-600/70'
+                                )}
                               />
                             </TableCell>
                             <TableCell className="py-2">
@@ -577,10 +656,12 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                        );
+                        })}
                     </TableBody>
                   </Table>
                 </div>
+                </>
               )}
             </div>
           </div>

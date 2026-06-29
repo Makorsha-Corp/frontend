@@ -8,8 +8,8 @@ export interface PurchaseOrderItem {
   item_unit: string | null;
   quantity_ordered: number;
   quantity_received: number;
-  unit_price: number;
-  line_subtotal: number;
+  unit_price: number | null;
+  line_subtotal: number | null;
   notes: string | null;
 }
 
@@ -38,6 +38,7 @@ export interface PurchaseOrder {
   order_completed?: boolean;
   voided: boolean;
   invoice_ever_linked: boolean;
+  paid: boolean;
   void_note: string | null;
   voided_at: string | null;
   voided_by: number | null;
@@ -140,7 +141,7 @@ export interface PurchaseOrderEvent {
 export interface CreatePurchaseOrderItem {
   item_id: number;
   quantity_ordered: number;
-  unit_price: number;
+  unit_price?: number | null;
   notes?: string | null;
 }
 
@@ -181,7 +182,7 @@ export interface UpdatePurchaseOrderItem {
 export interface PurchaseOrderItemSyncUpdate {
   id: number;
   quantity_ordered: number;
-  unit_price: number;
+  unit_price: number | null;
 }
 
 export interface PurchaseOrderItemSyncRequest {

@@ -119,7 +119,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const [manageTransfersOpen, setManageTransfersOpen] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
   const [editRouteOpen, setEditRouteOpen] = useState(false);
-  const [showConfirmEvents, setShowConfirmEvents] = useState(true);
+  const [showConfirmEvents, setShowConfirmEvents] = useState(false);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<TrScrollSection | null>(null);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 

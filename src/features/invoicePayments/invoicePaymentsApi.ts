@@ -2,6 +2,7 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import type { AppDispatch } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
+import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type {
   InvoicePayment,
   CreateInvoicePaymentRequest,
@@ -13,9 +14,11 @@ function invalidateInvoiceCache(dispatch: AppDispatch, invoiceId: number) {
   dispatch(
     accountInvoicesApi.util.invalidateTags([
       { type: 'AccountInvoice', id: invoiceId },
+      { type: 'InvoiceEvent', id: invoiceId },
       'AccountInvoice',
     ])
   );
+  dispatch(purchaseOrdersApi.util.invalidateTags(['PurchaseOrder']));
 }
 
 export const invoicePaymentsApi = createApi({

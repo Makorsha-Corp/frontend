@@ -1,9 +1,3 @@
-export type ThemeTransitionMode = 'wipe' | 'icon';
-
-export const THEME_TRANSITION_STORAGE_KEY = 'theme.transitionMode';
-
-export const DEFAULT_THEME_TRANSITION_MODE: ThemeTransitionMode = 'wipe';
-
 export interface ThemeTransitionOrigin {
   x: number;
   y: number;
@@ -11,11 +5,6 @@ export interface ThemeTransitionOrigin {
 
 export interface ThemeTransitionResult {
   animateIcon: boolean;
-}
-
-export function parseStoredTransitionMode(raw: string | null): ThemeTransitionMode {
-  if (raw === 'icon' || raw === 'toggle-icon') return 'icon';
-  return 'wipe';
 }
 
 export function prefersReducedMotion(): boolean {
@@ -56,11 +45,9 @@ function runWipe(
 
 export function runThemeTransition(
   applyTheme: () => void,
-  options?: { origin?: ThemeTransitionOrigin; mode?: ThemeTransitionMode }
+  options?: { origin?: ThemeTransitionOrigin }
 ): ThemeTransitionResult {
-  const mode = options?.mode ?? DEFAULT_THEME_TRANSITION_MODE;
-
-  if (prefersReducedMotion() || mode === 'icon') {
+  if (prefersReducedMotion()) {
     return runInstantWithIcon(applyTheme);
   }
 
@@ -72,12 +59,4 @@ export function originFromMouseEvent(
 ): ThemeTransitionOrigin | undefined {
   if (!event) return undefined;
   return { x: event.clientX, y: event.clientY };
-}
-
-export function getTransitionModeLabel(mode: ThemeTransitionMode): string {
-  return mode === 'wipe' ? 'Circular wipe' : 'Icon only';
-}
-
-export function getNextTransitionMode(mode: ThemeTransitionMode): ThemeTransitionMode {
-  return mode === 'wipe' ? 'icon' : 'wipe';
 }

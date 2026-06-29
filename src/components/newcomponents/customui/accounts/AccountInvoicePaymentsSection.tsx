@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +23,14 @@ import {
 import type { AccountInvoice } from '@/types/accountInvoice';
 import type { InvoicePayment } from '@/types/invoicePayment';
 import { formatInvoiceCurrency } from './accountInvoiceFormatters';
+import { INVOICE_EVENT_VISUALS } from './invoiceEventVisuals';
 import { cn } from '@/lib/utils';
+
+function formatPaymentDate(d: string): string {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const PAYMENT_ICON = INVOICE_EVENT_VISUALS.payment_recorded;
 
 interface AccountInvoicePaymentsSectionProps {
   invoice: AccountInvoice;
@@ -49,13 +58,19 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const [voidNote, setVoidNote] = useState('');
   const [voidAcknowledged, setVoidAcknowledged] = useState(false);
 
-  // Show voided toggle
-  const [showVoided, setShowVoided] = useState(false);
+  // Show voided toggle — expanded by default on voided invoices
+  const [showVoided, setShowVoided] = useState(
+    () => invoice.invoice_status === 'voided'
+  );
 
   const isConfirmed = invoice.invoice_status === 'confirmed';
   const isFinalized = isConfirmed;
   const isDraft = invoice.invoice_status === 'draft';
   const isVoided = invoice.invoice_status === 'voided';
+
+  useEffect(() => {
+    setShowVoided(invoice.invoice_status === 'voided');
+  }, [invoice.id, invoice.invoice_status]);
 
   const activePayments = payments.filter((p) => !p.is_voided);
   const voidedPayments = payments.filter((p) => p.is_voided);
@@ -114,124 +129,148 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
     }
   };
 
-  const canAddPayment = isFinalized && invoice.allow_payments;
+  const canAddPayment = isFinalized && invoice.allow_payments && !isVoided;
   const addPaymentDisabledReason = isDraft
     ? 'Invoice must be finalized before payments can be recorded'
-    : isVoided
-      ? 'Voided invoices cannot receive payments'
-      : !invoice.allow_payments
-        ? invoice.payment_locked_reason || 'Payments are locked for this invoice'
-        : null;
+    : !invoice.allow_payments
+      ? invoice.payment_locked_reason || 'Payments are locked for this invoice'
+      : null;
 
   return (
     <>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-card-foreground">Payments</p>
-          <div className="relative group">
-            <Button
-              size="sm"
-              onClick={canAddPayment ? openPaymentDialog : undefined}
-              disabled={!canAddPayment}
-              className={cn(!canAddPayment && 'opacity-50 cursor-not-allowed')}
-            >
-              <CreditCard className="mr-1.5 h-4 w-4" />
-              Make Payment
-            </Button>
-            {addPaymentDisabledReason && (
-              <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 w-56 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-                {addPaymentDisabledReason}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {isLoadingPayments ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading payments...
-          </div>
-        ) : activePayments.length === 0 && voidedPayments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {/* Active payments */}
-            {activePayments.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-md border border-border bg-background px-3 py-2.5 text-sm flex items-start justify-between gap-3"
-              >
-                <div className="min-w-0 space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="font-semibold text-card-foreground">
-                      {formatInvoiceCurrency(p.payment_amount)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    {p.payment_method && (
-                      <span className="text-muted-foreground capitalize">· {p.payment_method.replace('_', ' ')}</span>
-                    )}
+      <Card>
+        <CardHeader className="p-4 pb-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              Payments
+              <Badge variant="outline" className="ml-1 font-normal">
+                {activePayments.length}
+              </Badge>
+            </CardTitle>
+            {!isVoided && (
+              <div className="relative group shrink-0">
+                <Button
+                  size="sm"
+                  onClick={canAddPayment ? openPaymentDialog : undefined}
+                  disabled={!canAddPayment}
+                  className={cn(!canAddPayment && 'opacity-50 cursor-not-allowed')}
+                >
+                  <CreditCard className="mr-1.5 h-4 w-4" />
+                  Make Payment
+                </Button>
+                {addPaymentDisabledReason && (
+                  <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 w-56 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    {addPaymentDisabledReason}
                   </div>
-                  {p.payment_reference && (
-                    <p className="text-xs text-muted-foreground">Ref: {p.payment_reference}</p>
-                  )}
-                  {p.notes && (
-                    <p className="text-xs text-muted-foreground">{p.notes}</p>
-                  )}
-                </div>
-                {isFinalized && (
-                  <button
-                    type="button"
-                    onClick={() => openVoidDialog(p)}
-                    className="shrink-0 text-xs text-muted-foreground hover:text-destructive transition-colors pt-0.5"
-                    title="Void this payment"
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </button>
                 )}
               </div>
-            ))}
-
-            {/* Voided payments toggle */}
-            {voidedPayments.length > 0 && (
-              <div className="space-y-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowVoided((v) => !v)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-card-foreground transition-colors"
-                >
-                  {showVoided ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  {showVoided ? 'Hide' : 'Show'} {voidedPayments.length} voided payment{voidedPayments.length !== 1 ? 's' : ''}
-                </button>
-
-                {showVoided && voidedPayments.map((p) => (
-                  <div
-                    key={p.id}
-                    className="rounded-md border border-border bg-muted/20 px-3 py-2.5 text-sm opacity-60"
-                  >
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span className="font-semibold line-through text-muted-foreground">
-                        {formatInvoiceCurrency(p.payment_amount)}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950 px-2 py-0.5 text-[10px] font-medium text-red-600 dark:text-red-400">
-                        <XCircle className="h-2.5 w-2.5" />
-                        Voided
-                      </span>
-                    </div>
-                    {p.void_note && (
-                      <p className="text-xs text-muted-foreground mt-1">Reason: {p.void_note}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
             )}
           </div>
-        )}
-      </div>
+        </CardHeader>
+
+        <CardContent
+          className={cn(
+            'pt-0',
+            activePayments.length > 4 && 'max-h-[min(16rem,30vh)] overflow-y-auto'
+          )}
+        >
+          {isLoadingPayments ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading payments...
+            </div>
+          ) : activePayments.length === 0 && voidedPayments.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
+              <CreditCard className="mx-auto mb-1 h-6 w-6 text-muted-foreground/50" />
+              <p className="text-sm font-medium text-muted-foreground">No payments recorded yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activePayments.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                        PAYMENT_ICON.wrap
+                      )}
+                    >
+                      <CreditCard className={cn('h-4 w-4', PAYMENT_ICON.color)} />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="font-semibold text-card-foreground">
+                          {formatInvoiceCurrency(p.payment_amount)}
+                        </span>
+                        <span className="text-muted-foreground">{formatPaymentDate(p.payment_date)}</span>
+                        {p.payment_method && (
+                          <span className="text-muted-foreground capitalize">
+                            · {p.payment_method.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+                      {p.payment_reference && (
+                        <p className="text-xs text-muted-foreground">Ref: {p.payment_reference}</p>
+                      )}
+                      {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
+                    </div>
+                  </div>
+                  {isFinalized && (
+                    <button
+                      type="button"
+                      onClick={() => openVoidDialog(p)}
+                      className="shrink-0 pt-0.5 text-xs text-muted-foreground transition-colors hover:text-destructive"
+                      title="Void this payment"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {voidedPayments.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowVoided((v) => !v)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-card-foreground"
+                  >
+                    {showVoided ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {showVoided ? 'Hide' : 'Show'} {voidedPayments.length} voided payment
+                    {voidedPayments.length !== 1 ? 's' : ''}
+                  </button>
+
+                  {showVoided &&
+                    voidedPayments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm opacity-60"
+                      >
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="font-semibold text-muted-foreground line-through">
+                            {formatInvoiceCurrency(p.payment_amount)}
+                          </span>
+                          <span className="text-muted-foreground">{formatPaymentDate(p.payment_date)}</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-950 dark:text-red-400">
+                            <XCircle className="h-2.5 w-2.5" />
+                            Voided
+                          </span>
+                        </div>
+                        {p.void_note && (
+                          <p className="mt-1 text-xs text-muted-foreground">Reason: {p.void_note}</p>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── Make payment dialog ── */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>

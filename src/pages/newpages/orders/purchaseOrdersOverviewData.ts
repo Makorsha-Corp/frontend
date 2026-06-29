@@ -3,9 +3,9 @@ import type { Account } from '@/types/account';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import {
   factoryFromPurchase,
-  isCompletedStatusLabel,
   type OrderResolutionMaps,
 } from './ordersOverviewData';
+import { isPurchaseOrderFullyClosed } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
 
 export type InvoiceFilter = 'all' | 'invoiced' | 'not_invoiced' | 'outstanding_payment';
 export type DestinationTypeFilter = 'all' | 'storage' | 'machine' | 'project';
@@ -23,13 +23,9 @@ export interface PurchaseOrderFilters {
   showVoidedOrders: boolean;
 }
 
-/** Manually closed PO (Complete stage) or legacy completed-style status names. */
+/** Fully closed PO: Complete stage and invoice paid (hidden from default open list). */
 export function isPurchaseOrderComplete(order: PurchaseOrder): boolean {
-  if (order.order_completed) return true;
-  const name = order.current_status_name?.trim();
-  if (name === 'Complete') return true;
-  if (name) return isCompletedStatusLabel(name);
-  return false;
+  return isPurchaseOrderFullyClosed(order);
 }
 
 export interface PurchaseOrderSummaryStats {
@@ -86,7 +82,7 @@ export function filterPurchaseOrders(
   }
 
   if (!filters.showCompleteOrders) {
-    rows = rows.filter((o) => !isPurchaseOrderComplete(o));
+    rows = rows.filter((o) => !isPurchaseOrderFullyClosed(o));
   }
 
   if (!filters.showVoidedOrders) {
@@ -117,8 +113,7 @@ export function purchaseOrderSummaryStats(
     const amount = Number(o.total_amount ?? 0);
     totalValue += amount;
 
-    const label = statusById.get(o.current_status_id) ?? '';
-    if (!isCompletedStatusLabel(label)) {
+    if (!isPurchaseOrderFullyClosed(o)) {
       openCount += 1;
       openValue += amount;
     }

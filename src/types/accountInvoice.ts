@@ -116,7 +116,7 @@ export interface CreateAccountInvoiceRequest {
   invoice_number?: string;
   vendor_invoice_number?: string;
   invoice_date: string;
-  due_date?: string;
+  due_date?: string | null;
   description?: string;
   notes?: string;
   allow_payments?: boolean;
@@ -131,7 +131,7 @@ export interface UpdateAccountInvoiceRequest {
   invoice_number?: string;
   vendor_invoice_number?: string;
   invoice_date?: string;
-  due_date?: string;
+  due_date?: string | null;
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   description?: string;
   notes?: string;
