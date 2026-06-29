@@ -79,7 +79,7 @@ function itemsPreviewSubtitle(
   return undefined;
 }
 
-function collapsedLinesPreview(lines: InvoiceEventDisplayLine[]): string {
+export function collapsedLinesPreview(lines: InvoiceEventDisplayLine[]): string {
   const preview = itemsPreviewSubtitle(lines, lines.length);
   if (preview) return preview;
   const first = lines[0];

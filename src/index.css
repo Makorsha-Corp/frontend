@@ -215,6 +215,17 @@
   }
 }
 
+/* Theme toggle: keep wipe + icon spin when OS has animation effects off */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) {
+    animation: theme-wipe 0.45s ease-out forwards;
+  }
+
+  .theme-toggle-icon--animate {
+    animation: theme-icon-spin 0.4s ease;
+  }
+}
+
 /* Themed scrollbar - MANDATORY for all scrollable areas site-wide */
 * {
   scrollbar-width: thin;

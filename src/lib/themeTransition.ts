@@ -47,10 +47,7 @@ export function runThemeTransition(
   applyTheme: () => void,
   options?: { origin?: ThemeTransitionOrigin }
 ): ThemeTransitionResult {
-  if (prefersReducedMotion()) {
-    return runInstantWithIcon(applyTheme);
-  }
-
+  // Theme wipe always runs — intentional exception to prefers-reduced-motion (Windows animation effects off).
   return runWipe(applyTheme, options?.origin);
 }
 
