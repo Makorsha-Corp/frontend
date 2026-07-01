@@ -32,6 +32,8 @@ const BlockedActionButton: React.FC<BlockedActionButtonProps> = ({
   popoverAlign = 'end',
   blockedClassName,
   onClick,
+  onMouseEnter,
+  onMouseLeave,
   ...buttonProps
 }) => {
   const [hintOpen, setHintOpen] = useState(false);
@@ -55,6 +57,14 @@ const BlockedActionButton: React.FC<BlockedActionButtonProps> = ({
         <Button
           type="button"
           onClick={handleClick}
+          onMouseEnter={(event) => {
+            onMouseEnter?.(event);
+            if (showBlockedHint) setHintOpen(true);
+          }}
+          onMouseLeave={(event) => {
+            onMouseLeave?.(event);
+            if (showBlockedHint) setHintOpen(false);
+          }}
           disabled={isBusy || (disabled && !showBlockedHint)}
           className={cn(showBlockedHint && (blockedClassName ?? 'opacity-60'), className)}
           {...buttonProps}

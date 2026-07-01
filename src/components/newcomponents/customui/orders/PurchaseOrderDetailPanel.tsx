@@ -342,6 +342,22 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   const confirmReadiness = canConfirmPoInvoice(order, approvalSummary.met, linkedInvoiceStatus);
   const receivingReadiness = canRecordPoReceiving(linkedInvoiceStatus);
+  const orderComplete = isPurchaseOrderMarkedComplete(order);
+  const manageReceivingBlocked =
+    orderComplete || !receivingReadiness.ok || items.length === 0;
+  const manageReceivingHint = orderComplete
+    ? {
+        title: 'Order complete',
+        reason: 'Receiving cannot be changed after this order is marked complete.',
+      }
+    : !receivingReadiness.ok
+      ? {
+          title: 'Invoice not finalized',
+          reason: receivingReadiness.reason ?? 'Finalize the invoice before recording receiving',
+        }
+      : items.length === 0
+        ? { title: 'No items', reason: 'Add line items before recording receiving' }
+        : undefined;
   const effectiveAccountId = draft.account_id ?? order.account_id ?? null;
   const hasSupplier = effectiveAccountId != null;
   const hasSavedSupplier = order.account_id != null;
@@ -690,7 +706,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const subtotal = Number(order.subtotal ?? 0);
 
   const [receivingOpen, setReceivingOpen] = useState(false);
-  const openReceiving = () => setReceivingOpen(true);
+  const openReceiving = () => {
+    if (orderComplete) return;
+    setReceivingOpen(true);
+  };
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
@@ -1174,14 +1193,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   )}
                   onMouseEnter={dismissScrollHighlight}
                   onAction={openReceiving}
-                  blocked={!receivingReadiness.ok || items.length === 0}
-                  blockedHint={
-                    !receivingReadiness.ok
-                      ? { title: 'Invoice not finalized', reason: receivingReadiness.reason ?? 'Finalize the invoice before recording receiving' }
-                      : items.length === 0
-                        ? { title: 'No items', reason: 'Add line items before recording receiving' }
-                        : undefined
-                  }
+                  blocked={manageReceivingBlocked}
+                  blockedHint={manageReceivingHint}
                 >
                   <Truck className="h-4 w-4 mr-1" />
                   Manage receiving
