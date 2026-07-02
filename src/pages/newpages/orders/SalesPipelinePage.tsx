@@ -1,30 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useGetSalesOrdersQuery } from '@/features/salesOrders/salesOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import type { SalesOrder } from '@/types/salesOrder';
-import { ShoppingBag, Plus, Loader2, Search, LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, Plus, Loader2, Search } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import SalesOrderKanbanView from '@/components/newcomponents/customui/orders/SalesOrderKanbanView';
-import SalesOrderListView from '@/components/newcomponents/customui/orders/SalesOrderListView';
 import SalesOrderDetailModal from '@/components/newcomponents/customui/orders/SalesOrderDetailModal';
 import AddSalesOrderDialog from '@/components/newcomponents/customui/orders/AddSalesOrderDialog';
 import { API_LIMITS } from '@/constants/apiLimits';
-import type { SalesOrderKanbanColumn } from '@/components/newcomponents/customui/orders/salesOrderStatusConstants';
 
-const SalesOrdersPage: React.FC = () => {
+const SalesPipelinePage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderIdParam = searchParams.get('orderId');
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
-  const [statusFilter, setStatusFilter] = useState<SalesOrderKanbanColumn | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-  const { data: orders = [], isLoading } = useGetSalesOrdersQuery({
+  const { data: orders = [], isLoading, refetch } = useGetSalesOrdersQuery({
     skip: 0,
     limit: API_LIMITS.STRICT_100,
   });
@@ -33,27 +32,45 @@ const SalesOrdersPage: React.FC = () => {
     limit: API_LIMITS.STRICT_100,
   });
 
+  // Handle URL param orderId for auto-opening details
+  useEffect(() => {
+    if (orderIdParam && orders.length > 0) {
+      const found = orders.find((o) => o.id === Number(orderIdParam));
+      if (found) {
+        setSelectedOrder(found);
+        setModalOpen(true);
+      }
+    }
+  }, [orderIdParam, orders]);
+
   const handleOrderClick = (order: SalesOrder) => {
     setSelectedOrder(order);
     setModalOpen(true);
+    setSearchParams({ orderId: String(order.id) });
   };
 
   const handleModalClose = (open: boolean) => {
     setModalOpen(open);
-    if (!open) setSelectedOrder(null);
+    if (!open) {
+      setSelectedOrder(null);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('orderId');
+      setSearchParams(newParams);
+    }
   };
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <Toaster position="top-right" />
       <DashboardNavbar />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        <AppShellHeader sticky>
+          <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                <ShoppingBag className="h-5 w-5 text-brand-primary" />
+                <LayoutGrid className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Sales Orders</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">Sales Pipeline</h1>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative w-[220px]">
@@ -66,20 +83,8 @@ const SalesOrdersPage: React.FC = () => {
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'list')}>
-                <TabsList className={appShellHeaderControlClass}>
-                  <TabsTrigger value="kanban" className="gap-1.5 px-3">
-                    <LayoutGrid className="h-4 w-4" />
-                    Kanban
-                  </TabsTrigger>
-                  <TabsTrigger value="list" className="gap-1.5 px-3">
-                    <List className="h-4 w-4" />
-                    List
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
               <Button
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover text-white`}
                 onClick={() => setAddDialogOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -93,22 +98,13 @@ const SalesOrdersPage: React.FC = () => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1">
               <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-              <p className="text-sm text-muted-foreground">Loading orders...</p>
+              <p className="text-sm text-muted-foreground">Loading pipeline...</p>
             </div>
-          ) : viewMode === 'kanban' ? (
+          ) : (
             <SalesOrderKanbanView
               orders={orders}
               searchQuery={searchQuery}
               onOrderClick={handleOrderClick}
-            />
-          ) : (
-            <SalesOrderListView
-              orders={orders}
-              searchQuery={searchQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              onOrderClick={handleOrderClick}
-              selectedOrderId={selectedOrder?.id ?? null}
             />
           )}
         </div>
@@ -119,6 +115,7 @@ const SalesOrdersPage: React.FC = () => {
         onOpenChange={handleModalClose}
         order={selectedOrder}
         accounts={accounts}
+        onUpdated={refetch}
       />
 
       <AddSalesOrderDialog
@@ -126,12 +123,13 @@ const SalesOrdersPage: React.FC = () => {
         onOpenChange={setAddDialogOpen}
         accounts={accounts}
         onSuccess={(createdOrder) => {
-          setSelectedOrder(createdOrder as SalesOrder);
+          setSelectedOrder(createdOrder as unknown as SalesOrder);
           setModalOpen(true);
+          setSearchParams({ orderId: String(createdOrder.id) });
         }}
       />
     </div>
   );
 };
 
-export default SalesOrdersPage;
+export default SalesPipelinePage;

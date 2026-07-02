@@ -22,6 +22,7 @@ import {
   Sun,
   BarChart3,
   Cog,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -49,6 +50,7 @@ interface NavItem {
 export const SIDEBAR_COLLAPSED_KEY = 'erp-sidebar-collapsed';
 const FACTORIES_EXPANDED_SESSION_KEY = 'erp-navbar-factories-expanded';
 const ORDERS_EXPANDED_SESSION_KEY = 'erp-navbar-orders-expanded';
+const SALES_EXPANDED_SESSION_KEY = 'erp-navbar-sales-expanded';
 
 function getNavBackground(theme: 'light' | 'dark'): string {
   return theme === 'dark' ? 'hsl(var(--nav-background))' : 'hsl(var(--secondary))';
@@ -61,7 +63,8 @@ interface DashboardNavbarProps {
 const HOVER_ZONE_WIDTH = 56; // Wide enough to cover button + easy to trigger
 
 const FACTORIES_SUB_PATHS = ['/factories', '/storage', '/project', '/production'];
-const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/sales', '/orders/work'];
+const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/work'];
+const SALES_SUB_PATHS = ['/sales', '/sales/overview', '/sales/team', '/sales/pipeline'];
 
 function useMobileNavViewport() {
   const [isMobileNav, setIsMobileNav] = useState(
@@ -93,6 +96,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const [ordersExpanded, setOrdersExpanded] = useState(() => {
     if (typeof sessionStorage === 'undefined') return false;
     return sessionStorage.getItem(ORDERS_EXPANDED_SESSION_KEY) === 'true';
+  });
+  const [salesExpanded, setSalesExpanded] = useState(() => {
+    if (typeof sessionStorage === 'undefined') return false;
+    return sessionStorage.getItem(SALES_EXPANDED_SESSION_KEY) === 'true';
   });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -147,6 +154,17 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   }, [ordersExpanded]);
   const handleOrdersOpenChange = (open: boolean) => {
     setOrdersExpanded(open);
+  };
+
+  const isSalesActive = SALES_SUB_PATHS.some(
+    (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+  );
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(SALES_EXPANDED_SESSION_KEY, String(salesExpanded));
+  }, [salesExpanded]);
+  const handleSalesOpenChange = (open: boolean) => {
+    setSalesExpanded(open);
   };
 
   const isFactoriesActive = FACTORIES_SUB_PATHS.some(
@@ -500,9 +518,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       <Link to="/orders/expense">Expense Orders</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/orders/sales">Sales Orders</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
                       <Link to="/orders/work">Work Orders</Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -575,17 +590,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       </li>
                       <li>
                         <Link
-                          to="/orders/sales"
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/orders/sales')
-                              ? 'bg-brand-primary text-white'
-                              : navInactiveClass
-                            }`}
-                        >
-                          <span className="text-sm font-medium">Sales</span>
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
                           to="/orders/work"
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/orders/work')
                               ? 'bg-brand-primary text-white'
@@ -593,6 +597,94 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <span className="text-sm font-medium">Work Orders</span>
+                        </Link>
+                      </li>
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </li>
+
+            {/* Sales expandable section */}
+            <li>
+              {!isExpanded ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div
+                      className={`flex items-center justify-center w-full px-2 py-3 rounded-lg cursor-pointer ${isSalesActive
+                          ? 'bg-brand-primary text-white'
+                          : navInactiveClass
+                        }`}
+                      title="Sales"
+                    >
+                      <TrendingUp size={20} className="shrink-0" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="right" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link to="/sales/overview">Overview</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/sales/team">Team</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/sales/pipeline">Pipeline</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Collapsible open={salesExpanded} onOpenChange={handleSalesOpenChange}>
+                  <div
+                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all w-full ${isSalesActive
+                        ? 'bg-brand-primary text-white'
+                        : navInactiveClass
+                      }`}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-3 flex-1 min-w-0 text-left" title="Sales">
+                        <TrendingUp size={20} className="shrink-0" />
+                        <span className="font-medium flex-1 truncate">Sales</span>
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleTrigger asChild>
+                      <button className="shrink-0 p-1 text-white/80">
+                        {salesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CollapsibleContent>
+                    <ul className="mt-1 ml-4 pl-4 border-l border-white/20 dark:border-border space-y-1">
+                      <li>
+                        <Link
+                          to="/sales/overview"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/sales/overview')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <span className="text-sm font-medium">Overview</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/sales/team"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/sales/team')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <span className="text-sm font-medium">Team</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/sales/pipeline"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/sales/pipeline')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <span className="text-sm font-medium">Pipeline</span>
                         </Link>
                       </li>
                     </ul>

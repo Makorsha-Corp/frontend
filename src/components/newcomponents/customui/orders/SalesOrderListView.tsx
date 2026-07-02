@@ -5,6 +5,7 @@ import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import type { SalesOrder } from '@/types/salesOrder';
 import { getSalesOrderKanbanColumn, type SalesOrderKanbanColumn } from './salesOrderStatusConstants';
 import SalesOrderListRow from './SalesOrderListRow';
+import { List } from 'lucide-react';
 import {
   Select,
   SelectContent,
