@@ -8,8 +8,6 @@ export interface ExpenseOrderItem {
   unit: string | null;
   unit_price: number | null;
   line_subtotal: number | null;
-  cost_center_type: string | null;
-  cost_center_id: number | null;
   approved: boolean;
   notes: string | null;
 }
@@ -21,18 +19,13 @@ export interface ExpenseOrder {
   order_template_id: number | null;
   account_id: number | null;
   expense_category: string;
+  cost_center_id: number | null;
   expense_date: string;
   due_date: string | null;
   subtotal: number;
   total_amount: number;
-  current_status_id: number;
-  current_status_name?: string | null;
-  order_workflow_id: number | null;
   invoice_id: number | null;
   required_approvals: number | null;
-  details_confirmed: boolean;
-  items_confirmed: boolean;
-  invoice_confirmed: boolean;
   description: string | null;
   created_by: number;
   created_at: string;
@@ -44,6 +37,10 @@ export interface ExpenseOrder {
   completed_by: number | null;
   completed_at: string | null;
   order_completed?: boolean;
+  voided: boolean;
+  void_note: string | null;
+  voided_at: string | null;
+  voided_by: number | null;
 }
 
 export interface CreateExpenseOrderItem {
@@ -51,34 +48,34 @@ export interface CreateExpenseOrderItem {
   quantity?: number;
   unit?: string | null;
   unit_price?: number | null;
-  cost_center_type?: string | null;
-  cost_center_id?: number | null;
   notes?: string | null;
 }
 
 export interface CreateExpenseOrder {
   account_id?: number | null;
   expense_category: string;
+  cost_center_id?: number | null;
   expense_date?: string | null;
   due_date?: string | null;
   description?: string | null;
-  current_status_id?: number;
-  order_workflow_id?: number | null;
   items?: CreateExpenseOrderItem[];
+}
+
+export interface CreateExpenseOrderFromTemplate {
+  expense_date?: string | null;
+  due_date?: string | null;
+  description?: string | null;
 }
 
 export interface UpdateExpenseOrder {
   account_id?: number | null;
   expense_category?: string | null;
+  cost_center_id?: number | null;
   expense_date?: string | null;
   due_date?: string | null;
-  current_status_id?: number | null;
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
-  details_confirmed?: boolean | null;
-  items_confirmed?: boolean | null;
-  invoice_confirmed?: boolean | null;
 }
 
 export interface UpdateExpenseOrderItem {
@@ -86,8 +83,6 @@ export interface UpdateExpenseOrderItem {
   quantity?: number | null;
   unit?: string | null;
   unit_price?: number | null;
-  cost_center_type?: string | null;
-  cost_center_id?: number | null;
   approved?: boolean | null;
   notes?: string | null;
 }
@@ -98,13 +93,6 @@ export interface ListExpenseOrdersParams {
   expense_category?: string;
   account_id?: number;
   invoice_id?: number;
-}
-
-export type ExpenseOrderSection = 'details' | 'items' | 'invoice';
-
-export interface ExpenseOrderSectionConfirmRequest {
-  section: ExpenseOrderSection;
-  confirmed: boolean;
 }
 
 export interface ExpenseOrderApprover {

@@ -40,6 +40,7 @@ export interface PoApprovalsTopBarProps {
   myApproval?: PurchaseOrderApprover;
   approvalSectionsStatus: PoConfirmationsStatus;
   approvalWithdrawBlocked?: boolean;
+  approvalWithdrawBlockedReason?: string;
   isApproving: boolean;
   isUnapproving: boolean;
   highlighted?: boolean;
@@ -57,6 +58,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
   myApproval,
   approvalSectionsStatus,
   approvalWithdrawBlocked = false,
+  approvalWithdrawBlockedReason,
   isApproving,
   isUnapproving,
   highlighted = false,
@@ -181,6 +183,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
             blocked={!approvalSectionsStatus.allConfirmed}
             blockedStatus={approvalSectionsStatus}
             withdrawBlocked={approvalWithdrawBlocked}
+            withdrawBlockedReason={approvalWithdrawBlockedReason}
             isBusy={isApproving || isUnapproving}
             onToggle={onToggleMyApproval}
             popoverSide="bottom"

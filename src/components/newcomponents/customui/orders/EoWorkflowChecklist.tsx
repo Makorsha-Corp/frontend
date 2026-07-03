@@ -5,9 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Check, ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
 import { SectionConfirmIcon } from './PoSectionConfirmButton';
+import type { AccountInvoice } from '@/types/accountInvoice';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { ExpenseApprovalSummary } from '@/types/expenseOrder';
-import { getEoChecklistProgress, type EoScrollSection } from './expenseOrderMilestones';
+import {
+  getEoChecklistProgress,
+  paymentStatusLabel,
+  paymentStatusBadgeTone,
+  type EoScrollSection,
+} from './expenseOrderMilestones';
 
 type StepVisualState = 'complete' | 'active' | 'pending';
 
@@ -15,9 +21,7 @@ export interface EoWorkflowChecklistProps {
   order: ExpenseOrder;
   itemCount: number;
   approvalSummary: ExpenseApprovalSummary;
-  detailsConfirmed: boolean;
-  itemsConfirmed: boolean;
-  invoiceConfirmed: boolean;
+  linkedInvoice?: AccountInvoice | null;
   onScrollToSection: (section: EoScrollSection) => void;
   onMarkComplete?: () => void;
   isMarkingComplete?: boolean;
@@ -150,31 +154,31 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
   order,
   itemCount,
   approvalSummary,
-  detailsConfirmed,
-  itemsConfirmed,
-  invoiceConfirmed,
+  linkedInvoice,
   onScrollToSection,
   onMarkComplete,
   isMarkingComplete = false,
   className,
 }) => {
-  const progress = getEoChecklistProgress(order, itemCount, approvalSummary, {
-    details_confirmed: detailsConfirmed,
-    items_confirmed: itemsConfirmed,
-    invoice_confirmed: invoiceConfirmed,
-  });
+  const progress = getEoChecklistProgress(order, itemCount, approvalSummary, linkedInvoice);
   const { phase } = progress;
 
-  const invoiceDescription = !progress.hasInvoice
-    ? 'Create a draft invoice from this expense order'
-    : !progress.invoiceConfirmed
-      ? 'Finalize the invoice, then confirm the linked invoice section'
-      : 'Invoice confirmed on this order';
+  const invoiceBlockedDescription = !order.account_id
+    ? 'Set an account on this order so the invoice can be created automatically'
+    : !progress.hasItems
+      ? 'Add at least one expense line so the invoice can be created automatically'
+      : 'Invoice will be created automatically once approvals are met';
 
-  const renderCompletedPrepare = phase !== 'prepare';
-  const renderCompletedApprovals = ['invoice', 'mark_complete', 'done'].includes(phase) && progress.approvalsComplete;
-  const renderCompletedInvoice = ['mark_complete', 'done'].includes(phase) && progress.invoiceComplete;
-  const renderCompletedMark = phase === 'done';
+  const renderCompletedApprovals = ['invoice_blocked', 'mark_complete', 'payment', 'done'].includes(phase) && progress.approvalsComplete;
+  const renderCompletedInvoice = ['mark_complete', 'payment', 'done'].includes(phase) && progress.hasInvoice;
+  const renderCompletedMark = ['payment', 'done'].includes(phase);
+
+  const paymentDescription =
+    progress.invoicePaymentStatus === 'partial'
+      ? 'Partial payment recorded — pay the remaining invoice balance to mark this order as paid'
+      : progress.invoicePaymentStatus === 'overdue'
+        ? 'Payment is overdue — record the full invoice balance to mark this order as paid'
+        : 'Payment not finished — record the full invoice balance to mark this order as paid';
 
   return (
     <Card className={cn('flex flex-col h-fit', className)}>
@@ -186,13 +190,6 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
       </CardHeader>
       <CardContent className="flex-1 pt-0">
         <div className="space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
-          {renderCompletedPrepare && (
-            <CompletedStepRow
-              title="Confirm details & expenses"
-              badge={ratioBadge(progress.prepareRatio, 'green')}
-            />
-          )}
-
           {renderCompletedApprovals && (
             <CompletedStepRow
               title="Approvals"
@@ -201,47 +198,11 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
           )}
 
           {renderCompletedInvoice && (
-            <CompletedStepRow title="Invoice" badge={ratioBadge('Done', 'green')} />
+            <CompletedStepRow title="Invoice" badge={ratioBadge(progress.invoiceFinalized ? 'Finalized' : 'Draft', 'green')} />
           )}
 
           {renderCompletedMark && (
             <CompletedStepRow title="Mark complete" isLast={phase === 'done'} />
-          )}
-
-          {phase === 'prepare' && (
-            <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
-              <ChecklistStepHeader
-                state="active"
-                title="Confirm details & expenses"
-                description="Confirm order details and expense lines using the checkmarks on each card"
-                badge={ratioBadge(
-                  progress.prepareRatio,
-                  progress.prepareComplete ? 'green' : 'amber'
-                )}
-              />
-              <div className="ml-10 space-y-1">
-                {!progress.detailsConfirmed && (
-                  <PrepareSubRow
-                    label="Order details"
-                    done={false}
-                    hint={progress.hasDetails ? 'Ready to confirm' : 'Set category and date'}
-                    onClick={() => onScrollToSection('details')}
-                  />
-                )}
-                {!progress.itemsConfirmed && (
-                  <PrepareSubRow
-                    label="Expenses"
-                    done={false}
-                    hint={
-                      progress.hasItems
-                        ? `${itemCount} line${itemCount !== 1 ? 's' : ''}`
-                        : 'Add at least one expense'
-                    }
-                    onClick={() => onScrollToSection('items')}
-                  />
-                )}
-              </div>
-            </div>
           )}
 
           {phase === 'approval' && (
@@ -267,22 +228,19 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
             </div>
           )}
 
-          {phase === 'invoice' && (
+          {phase === 'invoice_blocked' && (
             <div className="space-y-3 border-b border-border/60 p-4 last:border-b-0">
               <ChecklistStepHeader
                 state="active"
-                title="Create & confirm invoice"
-                description={invoiceDescription}
-                badge={ratioBadge(
-                  progress.invoiceComplete ? 'Done' : progress.hasInvoice ? 'Draft' : 'None',
-                  progress.invoiceComplete ? 'green' : 'amber'
-                )}
+                title="Waiting on invoice"
+                description={invoiceBlockedDescription}
+                badge={ratioBadge('None', 'amber')}
               />
               <div className="ml-10 space-y-1">
                 <PrepareSubRow
                   label="Linked invoice"
-                  done={progress.invoiceComplete}
-                  hint={progress.hasInvoice ? (progress.invoiceConfirmed ? 'Confirmed' : 'Pending') : 'Not created'}
+                  done={false}
+                  hint="Not created"
                   onClick={() => onScrollToSection('invoice')}
                 />
               </div>
@@ -294,7 +252,7 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
               <ChecklistStepHeader
                 state="active"
                 title="Mark complete"
-                description="All steps are done. Close this expense order when ready."
+                description="Approvals are met and a draft invoice exists. Completing will finalize the invoice and close the order."
               />
               <div className="ml-10">
                 <Button
@@ -317,15 +275,38 @@ const EoWorkflowChecklist: React.FC<EoWorkflowChecklistProps> = ({
             </div>
           )}
 
+          {phase === 'payment' && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => onScrollToSection('invoice')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') onScrollToSection('invoice');
+              }}
+              className="cursor-pointer space-y-3 border-b border-border/60 p-4 last:border-b-0"
+            >
+              <ChecklistStepHeader
+                state="active"
+                title="Record payment"
+                description={paymentDescription}
+                badge={ratioBadge(
+                  paymentStatusLabel(progress.invoicePaymentStatus),
+                  paymentStatusBadgeTone(progress.invoicePaymentStatus)
+                )}
+              />
+            </div>
+          )}
+
           {phase === 'done' && (
             <div className="border-t border-border/60 bg-green-50/80 px-4 py-3 dark:bg-green-950/30">
               <p className="text-sm font-semibold text-green-800 dark:text-green-300">
                 Expense order is complete!
               </p>
               <p className="mt-0.5 text-xs text-green-700/90 dark:text-green-400/90">
+                Invoice confirmed, order closed, and payment recorded.
                 {order.completed_at
-                  ? `Completed ${new Date(order.completed_at).toLocaleDateString()}`
-                  : 'Invoice confirmed and order marked complete.'}
+                  ? ` Completed ${new Date(order.completed_at).toLocaleDateString()}.`
+                  : ''}
               </p>
             </div>
           )}

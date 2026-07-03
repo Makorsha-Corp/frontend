@@ -1,7 +1,5 @@
 import {
-  Check,
   CheckCircle2,
-  CircleDashed,
   Clock,
   FileText,
   History,
@@ -28,28 +26,20 @@ export const EO_EVENT_VISUALS: Record<string, EoEventVisual> = {
     wrap: 'bg-green-100 dark:bg-green-900/30',
     color: 'text-green-600 dark:text-green-400',
   },
-  details_confirmed: {
-    icon: Check,
-    wrap: 'bg-green-100 dark:bg-green-900/30',
-    color: 'text-green-600 dark:text-green-400',
-  },
-  details_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
-  items_confirmed: {
-    icon: Check,
-    wrap: 'bg-green-100 dark:bg-green-900/30',
-    color: 'text-green-600 dark:text-green-400',
-  },
-  items_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
-  invoice_confirmed: {
-    icon: Check,
-    wrap: 'bg-green-100 dark:bg-green-900/30',
-    color: 'text-green-600 dark:text-green-400',
-  },
-  invoice_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
   invoice_created: {
     icon: FileText,
     wrap: 'bg-sky-100 dark:bg-sky-900/30',
     color: 'text-sky-600 dark:text-sky-400',
+  },
+  invoice_autocreate_skipped: {
+    icon: Clock,
+    wrap: 'bg-amber-100 dark:bg-amber-900/30',
+    color: 'text-amber-600 dark:text-amber-400',
+  },
+  created_from_template: {
+    icon: History,
+    wrap: 'bg-brand-primary/10',
+    color: 'text-brand-primary',
   },
   item_added: {
     icon: PackagePlus,
@@ -89,18 +79,3 @@ export const EO_EVENT_VISUALS: Record<string, EoEventVisual> = {
   },
   default: { icon: History, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };
-
-export const EO_CONFIRM_EVENT_TYPES = new Set([
-  'details_confirmed',
-  'details_unconfirmed',
-  'items_confirmed',
-  'items_unconfirmed',
-  'invoice_confirmed',
-  'invoice_unconfirmed',
-  'approved',
-  'approval_withdrawn',
-  'approvals_reset',
-  'item_added',
-  'item_removed',
-  'item_updated',
-]);

@@ -1,9 +1,12 @@
 import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
 import type { Account } from '@/types/account';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { isCompletedStatusLabel } from './ordersOverviewData';
 import type { InvoiceFilter } from './purchaseOrdersOverviewData';
 import { expenseCategoryLabel } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
+import {
+  deriveExpenseOrderStageFromOrder,
+  EO_STAGE_FILTER_OPTIONS,
+} from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 
 export type { InvoiceFilter };
 
@@ -52,7 +55,11 @@ export function filterExpenseOrders(
 
   if (filters.statusIds.length > 0) {
     const ids = new Set(filters.statusIds.map((id) => Number(id)));
-    rows = rows.filter((o) => ids.has(o.current_status_id));
+    rows = rows.filter((o) => {
+      const stage = deriveExpenseOrderStageFromOrder(o);
+      const option = EO_STAGE_FILTER_OPTIONS.find((s) => s.name === stage);
+      return option != null && ids.has(option.id);
+    });
   }
 
   if (filters.accountId !== 'all') {
@@ -92,10 +99,7 @@ export function filterExpenseOrders(
   return rows;
 }
 
-export function expenseOrderSummaryStats(
-  orders: ExpenseOrder[],
-  statusById: Map<number, string>
-): ExpenseOrderSummaryStats {
+export function expenseOrderSummaryStats(orders: ExpenseOrder[]): ExpenseOrderSummaryStats {
   let totalValue = 0;
   let openCount = 0;
   let openValue = 0;
@@ -105,8 +109,7 @@ export function expenseOrderSummaryStats(
     const amount = Number(o.total_amount ?? 0);
     totalValue += amount;
 
-    const label = statusById.get(o.current_status_id) ?? '';
-    if (!isCompletedStatusLabel(label)) {
+    if (!isExpenseOrderComplete(o)) {
       openCount += 1;
       openValue += amount;
     }

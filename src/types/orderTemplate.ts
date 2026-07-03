@@ -19,6 +19,7 @@ export interface OrderTemplate {
   description: string | null;
   account_id: number | null;
   expense_category: string | null;
+  cost_center_id: number | null;
   is_recurring: boolean;
   recurrence_type: string | null;
   recurrence_interval: number | null;
@@ -53,6 +54,7 @@ export interface CreateOrderTemplate {
   description?: string | null;
   account_id?: number | null;
   expense_category?: string | null;
+  cost_center_id?: number | null;
   is_recurring?: boolean;
   recurrence_type?: string | null;
   recurrence_interval?: number | null;
@@ -72,6 +74,7 @@ export interface UpdateOrderTemplate {
   description?: string | null;
   account_id?: number | null;
   expense_category?: string | null;
+  cost_center_id?: number | null;
   is_recurring?: boolean | null;
   recurrence_type?: string | null;
   recurrence_interval?: number | null;

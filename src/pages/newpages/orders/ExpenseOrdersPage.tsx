@@ -26,18 +26,18 @@ import {
   useDeleteExpenseOrderMutation,
 } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
-import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { Receipt, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
+import { Receipt, Plus, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
+import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/orders/ManageExpenseTemplatesDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
 import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/ExpenseOrdersOverviewPanel';
 import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
 import {
-  EXPENSE_CATEGORIES,
+  ALLOCATION_TYPES,
 } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
@@ -46,7 +46,7 @@ import {
   isExpenseOrderComplete,
   type InvoiceFilter,
 } from './expenseOrdersOverviewData';
-import { statusesForEoWorkflowFilter } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
+import { EO_STAGE_FILTER_OPTIONS } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
 import {
   clearExpenseOrderFilterParams,
@@ -62,6 +62,7 @@ const ExpenseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'expense')
   );
@@ -75,13 +76,9 @@ const ExpenseOrdersPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.ACCOUNTS_LIST_MAX,
   });
-  const { data: statuses = [] } = useGetStatusesQuery({
-    skip: 0,
-    limit: API_LIMITS.STRICT_100,
-  });
   const [deleteOrder] = useDeleteExpenseOrderMutation();
 
-  const eoStatusOptions = useMemo(() => statusesForEoWorkflowFilter(statuses), [statuses]);
+  const eoStatusOptions = EO_STAGE_FILTER_OPTIONS;
 
   const urlFilters = useMemo(
     () => parseExpenseOrderParams(searchParams, eoStatusOptions),
@@ -97,8 +94,6 @@ const ExpenseOrdersPage: React.FC = () => {
     searchQuery,
     showCompleteOrders,
   } = urlFilters;
-
-  const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
 
   const commitExpenseFilters = useCallback(
     (patch: Partial<ExpenseOrderUrlFilters>) => {
@@ -140,8 +135,8 @@ const ExpenseOrdersPage: React.FC = () => {
   );
 
   const overviewStats = useMemo(
-    () => expenseOrderSummaryStats(filteredOrders, statusMap),
-    [filteredOrders, statusMap]
+    () => expenseOrderSummaryStats(filteredOrders),
+    [filteredOrders]
   );
 
   const mayTruncate = orders.length >= EO_LIST_LIMIT;
@@ -196,7 +191,6 @@ const ExpenseOrdersPage: React.FC = () => {
 
   const accountName = (id: number | null) =>
     id ? accounts.find((a) => a.id === id)?.name ?? `#${id}` : '—';
-  const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString() : '—';
 
@@ -369,7 +363,7 @@ const ExpenseOrdersPage: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
-                {EXPENSE_CATEGORIES.map((c) => (
+                {ALLOCATION_TYPES.map((c) => (
                   <SelectItem key={c.value} value={c.value}>
                     {c.label}
                   </SelectItem>
@@ -446,6 +440,7 @@ const ExpenseOrdersPage: React.FC = () => {
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
+            onManageTemplates={() => setManageTemplatesOpen(true)}
             accountName={accountName}
             formatCurrency={formatCurrency}
             formatDate={formatDate}
@@ -470,7 +465,6 @@ const ExpenseOrdersPage: React.FC = () => {
                 isLoading={isLoading}
                 mayTruncate={mayTruncate}
                 accountName={accountName}
-                statusLabel={statusLabel}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
                 onSelectOrder={(id) => setSelectedOrder(id)}
@@ -488,6 +482,8 @@ const ExpenseOrdersPage: React.FC = () => {
           setIsAddOpen(false);
         }}
       />
+
+      <ManageExpenseTemplatesDialog open={manageTemplatesOpen} onOpenChange={setManageTemplatesOpen} />
     </div>
   );
 };

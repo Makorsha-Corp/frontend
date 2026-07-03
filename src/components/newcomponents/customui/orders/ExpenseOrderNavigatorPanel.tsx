@@ -6,7 +6,7 @@ import type { ExpenseOrder } from '@/types/expenseOrder';
 import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
 import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
-import { Receipt, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
+import { Receipt, Plus, Loader2, SlidersHorizontal, LayoutTemplate } from 'lucide-react';
 
 export interface ExpenseOrderNavigatorPanelProps {
   filteredOrders: ExpenseOrder[];
@@ -22,6 +22,7 @@ export interface ExpenseOrderNavigatorPanelProps {
   onSelectOrder: (id: number) => void;
   onDeleteOrder?: (order: ExpenseOrder) => void;
   onAddOrder: () => void;
+  onManageTemplates: () => void;
   accountName: (id: number | null) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
@@ -42,6 +43,7 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
   onSelectOrder,
   onDeleteOrder,
   onAddOrder,
+  onManageTemplates,
   accountName,
   formatCurrency,
   formatDate,
@@ -78,6 +80,17 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
             </Label>
           </div>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onManageTemplates}
+          title="Manage Templates"
+          aria-label="Manage Templates"
+          className="shrink-0 h-8 w-8 border-border bg-background p-0"
+        >
+          <LayoutTemplate className="h-3.5 w-3.5" />
+        </Button>
         <Button
           type="button"
           variant="outline"
