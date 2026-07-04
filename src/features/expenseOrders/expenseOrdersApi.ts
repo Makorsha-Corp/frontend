@@ -1,6 +1,9 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
+import type { RootState } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { accountInvoicesApi } from '../accountInvoices/accountInvoicesApi';
+import {
+  invalidateInvoiceById,
+} from '@/features/cache/invalidateOrderInvoiceCache';
 import type {
   ExpenseOrder,
   ExpenseOrderItem,
@@ -18,7 +21,7 @@ import type {
 export const expenseOrdersApi = createApi({
   reducerPath: 'expenseOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'ExpenseOrderApprovers', 'ExpenseOrderEvents', 'Notification'],
+  tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'ExpenseOrderApprovers', 'ExpenseOrderEvents'],
   endpoints: (builder) => ({
     getExpenseOrders: builder.query<ExpenseOrder[], ListExpenseOrdersParams>({
       query: ({ skip = 0, limit = 100, expense_category, account_id, invoice_id } = {}) => {
@@ -58,7 +61,6 @@ export const expenseOrdersApi = createApi({
         'ExpenseOrder',
         { type: 'ExpenseOrderApprovers', id },
         { type: 'ExpenseOrderEvents', id },
-        'Notification',
       ],
     }),
     markExpenseOrderComplete: builder.mutation<ExpenseOrder, number>({
@@ -68,6 +70,16 @@ export const expenseOrdersApi = createApi({
         'ExpenseOrder',
         { type: 'ExpenseOrderEvents', id },
       ],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     voidExpenseOrder: builder.mutation<ExpenseOrder, { id: number; void_note: string }>({
       query: ({ id, void_note }) => ({ url: `expense-orders/${id}/void/`, method: 'POST', body: { void_note } }),
@@ -79,8 +91,10 @@ export const expenseOrdersApi = createApi({
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
-          await queryFulfilled;
-          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
         } catch {
           /* mutation failed */
         }
@@ -97,12 +111,13 @@ export const expenseOrdersApi = createApi({
         'ExpenseOrder',
         { type: 'ExpenseOrderItem', id: id },
         { type: 'ExpenseOrderEvents', id },
-        'Notification',
       ],
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
         try {
-          await queryFulfilled;
-          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
         } catch {
           /* mutation failed */
         }
@@ -121,7 +136,6 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, { eoId }) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
-        'Notification',
       ],
     }),
     removeExpenseOrderApprover: builder.mutation<void, { eoId: number; userId: number }>({
@@ -141,7 +155,6 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderEvents', id: eoId },
         { type: 'ExpenseOrder', id: eoId },
         'ExpenseOrder',
-        'Notification',
       ],
     }),
     unapproveExpenseOrder: builder.mutation<ExpenseOrderApprover, number>({
@@ -169,6 +182,19 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderEvents', id: eoId },
         'ExpenseOrder',
       ],
+      async onQueryStarted({ eoId }, { dispatch, queryFulfilled, getState }) {
+        try {
+          await queryFulfilled;
+          const cachedEo = expenseOrdersApi.endpoints.getExpenseOrderById.select(eoId)(
+            getState() as RootState
+          )?.data;
+          if (cachedEo?.invoice_id != null) {
+            invalidateInvoiceById(dispatch, cachedEo.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     updateExpenseOrderItem: builder.mutation<
       ExpenseOrderItem,
@@ -185,6 +211,20 @@ export const expenseOrdersApi = createApi({
             ]
           : []),
       ],
+      async onQueryStarted({ eoId }, { dispatch, queryFulfilled, getState }) {
+        if (eoId == null) return;
+        try {
+          await queryFulfilled;
+          const cachedEo = expenseOrdersApi.endpoints.getExpenseOrderById.select(eoId)(
+            getState() as RootState
+          )?.data;
+          if (cachedEo?.invoice_id != null) {
+            invalidateInvoiceById(dispatch, cachedEo.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     removeExpenseOrderItem: builder.mutation<void, { itemId: number; eoId: number }>({
       query: ({ itemId }) => ({ url: `expense-orders/items/${itemId}/`, method: 'DELETE' }),
@@ -194,6 +234,19 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderEvents', id: eoId },
         'ExpenseOrder',
       ],
+      async onQueryStarted({ eoId }, { dispatch, queryFulfilled, getState }) {
+        try {
+          await queryFulfilled;
+          const cachedEo = expenseOrdersApi.endpoints.getExpenseOrderById.select(eoId)(
+            getState() as RootState
+          )?.data;
+          if (cachedEo?.invoice_id != null) {
+            invalidateInvoiceById(dispatch, cachedEo.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
   }),
 });

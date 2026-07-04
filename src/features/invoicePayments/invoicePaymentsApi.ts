@@ -1,7 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { AppDispatch } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
+import { invalidateInvoiceById } from '@/features/cache/invalidateOrderInvoiceCache';
 import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type {
   InvoicePayment,
@@ -10,14 +10,8 @@ import type {
   ListInvoicePaymentsParams
 } from '@/types/invoicePayment';
 
-function invalidateInvoiceCache(dispatch: AppDispatch, invoiceId: number) {
-  dispatch(
-    accountInvoicesApi.util.invalidateTags([
-      { type: 'AccountInvoice', id: invoiceId },
-      { type: 'InvoiceEvent', id: invoiceId },
-      'AccountInvoice',
-    ])
-  );
+function invalidateInvoicePaymentCaches(dispatch: AppDispatch, invoiceId: number) {
+  invalidateInvoiceById(dispatch, invoiceId);
   dispatch(purchaseOrdersApi.util.invalidateTags(['PurchaseOrder']));
 }
 
@@ -55,7 +49,7 @@ export const invoicePaymentsApi = createApi({
       async onQueryStarted({ invoice_id }, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
-          invalidateInvoiceCache(dispatch, invoice_id);
+          invalidateInvoicePaymentCaches(dispatch, invoice_id);
         } catch {
           /* mutation failed */
         }
@@ -74,7 +68,7 @@ export const invoicePaymentsApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          invalidateInvoiceCache(dispatch, data.invoice_id);
+          invalidateInvoicePaymentCaches(dispatch, data.invoice_id);
         } catch {
           /* mutation failed */
         }
@@ -89,7 +83,7 @@ export const invoicePaymentsApi = createApi({
       async onQueryStarted(_paymentId, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          invalidateInvoiceCache(dispatch, data.invoice_id);
+          invalidateInvoicePaymentCaches(dispatch, data.invoice_id);
         } catch {
           /* mutation failed */
         }
@@ -105,7 +99,7 @@ export const invoicePaymentsApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          invalidateInvoiceCache(dispatch, data.invoice_id);
+          invalidateInvoicePaymentCaches(dispatch, data.invoice_id);
         } catch {
           /* mutation failed */
         }

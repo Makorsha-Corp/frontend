@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   CircleDashed,
   History,
+  ArrowLeftRight,
   Clock,
   Loader2,
   MessageSquare,
@@ -76,6 +77,9 @@ import {
 } from '@/components/newcomponents/customui/accounts/InvoiceLifecycleDialogs';
 import VoidPurchaseOrderDialog from './VoidPurchaseOrderDialog';
 import PoReceivingDialog from './PoReceivingDialog';
+import { PoItemLastOrderCell, PoItemLowestCell } from './PoItemPriceInsightLines';
+import PoOrderInsightDialog from './PoOrderInsightDialog';
+import AccountViewDialog from '@/components/newcomponents/customui/accounts/AccountViewDialog';
 import {
   useGetAccountInvoiceByIdQuery,
   useConfirmAccountInvoiceMutation,
@@ -86,11 +90,17 @@ import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import type { PurchaseOrder, UpdatePurchaseOrder } from '@/types/purchaseOrder';
+import type { ItemPriceInsightRow, PoItemLowestPriceMode } from '@/types/purchaseOrderItemInsights';
+import {
+  lowestPriceModeLabel,
+  nextLowestPriceMode,
+} from '@/types/purchaseOrderItemInsights';
 import {
   useUpdatePurchaseOrderMutation,
   useSetPurchaseOrderSectionConfirmMutation,
   useGetPurchaseOrderByIdQuery,
   useGetPurchaseOrderItemsQuery,
+  useGetPoItemPriceInsightsQuery,
   useGetPurchaseOrderApproversQuery,
   useAddPurchaseOrderApproverMutation,
   useRemovePurchaseOrderApproverMutation,
@@ -187,7 +197,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   onUpdated,
   showCompleteOrders = false,
 }) => {
-  const { data: orderDetail, refetch: refetchOrder } = useGetPurchaseOrderByIdQuery(orderFromList.id);
+  const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
   const order = orderDetail ?? orderFromList;
 
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
@@ -221,8 +231,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
+  const [lowestPriceMode, setLowestPriceMode] = useState<PoItemLowestPriceMode>('avg_supplier');
+  const [insightDialogOpen, setInsightDialogOpen] = useState(false);
+  const [insightDialogPoId, setInsightDialogPoId] = useState<number | null>(null);
+  const [accountViewOpen, setAccountViewOpen] = useState(false);
+  const [accountViewId, setAccountViewId] = useState<number | null>(null);
+  const [accountViewName, setAccountViewName] = useState<string | null>(null);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<
-    PoSectionConfirmKey | 'approvals' | 'finalize' | 'receiving' | null
+    PoSectionConfirmKey | 'approvals' | 'approve' | 'finalize' | 'receiving' | null
   >(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollHighlightGenerationRef = useRef(0);
@@ -237,12 +253,33 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
     skip: !workspace?.id,
   });
-  const { data: approversData, refetch: refetchApprovers } = useGetPurchaseOrderApproversQuery(order.id);
+  const { data: approversData } = useGetPurchaseOrderApproversQuery(order.id);
   const approvers = approversData?.approvers ?? [];
   const approvalSummary = approversData?.summary ?? { approved_count: 0, required: 0, met: true };
 
-  const { data: items = [] } = useGetPurchaseOrderItemsQuery(order.id);
-  const { data: events = [], refetch: refetchEvents } = useGetPurchaseOrderEventsQuery(order.id);
+  const {
+    data: items = [],
+    isLoading: itemsLoading,
+    isUninitialized: itemsUninitialized,
+  } = useGetPurchaseOrderItemsQuery(order.id);
+  const canLoadItemPriceInsights =
+    Boolean(order.id && workspace?.id && !itemsLoading && !itemsUninitialized && items.length > 0);
+  const {
+    data: itemPriceInsights,
+    isFetching: itemPriceInsightsLoading,
+    isError: itemPriceInsightsError,
+  } = useGetPoItemPriceInsightsQuery(order.id, {
+    skip: !canLoadItemPriceInsights,
+    refetchOnMountOrArgChange: true,
+  });
+  const insightsByItemId = useMemo(() => {
+    const map = new Map<number, ItemPriceInsightRow>();
+    for (const row of itemPriceInsights?.items ?? []) {
+      map.set(Number(row.item_id), row);
+    }
+    return map;
+  }, [itemPriceInsights]);
+  const { data: events = [] } = useGetPurchaseOrderEventsQuery(order.id);
   const [showConfirmEvents, setShowConfirmEvents] = useState(false);
 
   const filteredEvents = useMemo(
@@ -254,10 +291,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [removeApprover] = useRemovePurchaseOrderApproverMutation();
   const [approveOrder, { isLoading: isApproving }] = useApprovePurchaseOrderMutation();
   const [unapproveOrder, { isLoading: isUnapproving }] = useUnapprovePurchaseOrderMutation();
-
-  const refreshOrderData = useCallback(async () => {
-    await Promise.all([refetchOrder(), refetchEvents(), refetchApprovers()]);
-  }, [refetchOrder, refetchEvents, refetchApprovers]);
 
   // Show all assigned approvers in the header, approved first.
   const myApproval = currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
@@ -315,6 +348,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   useEffect(() => {
     setDraft(draftFromOrder(order));
     setMachineDisplayLine('');
+    setLowestPriceMode('avg_supplier');
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -472,6 +506,48 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     });
   };
 
+  const scrollToApproveButton = () => {
+    const generation = ++scrollHighlightGenerationRef.current;
+    const element = document.getElementById('po-approve-order-btn');
+
+    clearScrollHighlights();
+
+    void scrollToHighlightTarget({
+      container: scrollContainerRef.current,
+      element,
+      onScrollStart: () => {},
+      onScrollEnd: () => {
+        if (generation !== scrollHighlightGenerationRef.current) return;
+        setScrollHighlightTarget('approve');
+      },
+    });
+  };
+
+  const pendingLabelToSection = (label: string): PoSectionConfirmKey | null => {
+    switch (label) {
+      case 'Supplier':
+        return 'supplier';
+      case 'Order details':
+        return 'details';
+      case 'Items':
+        return 'items';
+      default:
+        return null;
+    }
+  };
+
+  const handleFinalizeBlocked = () => {
+    if (!approvalSummary.met) {
+      scrollToApproveButton();
+      return;
+    }
+    if (!confirmationsStatus.allConfirmed) {
+      const firstPending = confirmationsStatus.pendingLabels[0];
+      const section = firstPending ? pendingLabelToSection(firstPending) : null;
+      if (section) scrollToPoSection(section);
+    }
+  };
+
   const scrollToManageReceiving = () => {
     const generation = ++scrollHighlightGenerationRef.current;
     const element = document.getElementById('po-manage-receiving-btn');
@@ -523,7 +599,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       await confirmInvoice(order.invoice_id).unwrap();
       toast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmInvoiceOpen(false);
-      await refreshOrderData();
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -575,7 +650,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         'Invoice voided — re-confirm supplier and items to generate a new draft invoice'
       );
       setVoidInvoiceOpen(false);
-      await refreshOrderData();
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -664,9 +738,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       await setSectionConfirm({ poId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
       toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
-      if (nextConfirmed) {
-        await refreshOrderData();
-      }
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -716,6 +787,17 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const formatDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
+  const openInsightOrder = (purchaseOrderId: number) => {
+    setInsightDialogPoId(purchaseOrderId);
+    setInsightDialogOpen(true);
+  };
+
+  const openInsightAccount = (accountId: number, accountName: string | null) => {
+    setAccountViewId(accountId);
+    setAccountViewName(accountName);
+    setAccountViewOpen(true);
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
       <div className="flex flex-1 min-h-0">
@@ -752,6 +834,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           isApproving={isApproving}
           isUnapproving={isUnapproving}
           highlighted={scrollHighlightTarget === 'approvals'}
+          approveHighlighted={scrollHighlightTarget === 'approve'}
           onHighlightDismiss={dismissScrollHighlight}
           onManage={openManageApprovals}
           onToggleMyApproval={handleToggleMyApproval}
@@ -1106,6 +1189,22 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                       <TableRow className="bg-muted/50">
                         <TableHead className="py-2 w-12 text-center">#</TableHead>
                         <TableHead className="py-2">Item</TableHead>
+                        <TableHead className="py-2 w-36" data-testid="po-insights-col-last-order">
+                          Last order
+                        </TableHead>
+                        <TableHead className="py-2 w-36">
+                          <button
+                            type="button"
+                            data-testid="po-insights-col-lowest-toggle"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline cursor-pointer"
+                            onClick={() => setLowestPriceMode(nextLowestPriceMode(lowestPriceMode))}
+                            title="Click to change lowest-price comparison mode for all items"
+                            aria-label={`Lowest price comparison: ${lowestPriceModeLabel(lowestPriceMode)}. Click to cycle.`}
+                          >
+                            Lowest ({lowestPriceModeLabel(lowestPriceMode)})
+                            <ArrowLeftRight className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                          </button>
+                        </TableHead>
                         <TableHead className="py-2 text-right w-24">Ordered</TableHead>
                         {receivingReadiness.ok ? (
                           <TableHead className="py-2 text-right w-28">Received</TableHead>
@@ -1121,6 +1220,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                         const isComplete = received >= ordered;
                         const needsPrice =
                           !itemsConfirmed && purchaseOrderItemNeedsUnitPrice(item.unit_price);
+                        const insightRow = insightsByItemId.get(Number(item.item_id));
+                        const insightCellLoading =
+                          itemsLoading || (canLoadItemPriceInsights && itemPriceInsightsLoading);
                         return (
                           <TableRow
                             key={item.id}
@@ -1140,6 +1242,27 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                                   Set unit price
                                 </p>
                               ) : null}
+                            </TableCell>
+                            <TableCell className="py-2 align-top">
+                              <PoItemLastOrderCell
+                                row={insightRow}
+                                isLoading={insightCellLoading}
+                                isError={itemPriceInsightsError}
+                                formatCurrency={formatCurrency}
+                                onSelectOrder={openInsightOrder}
+                                onSelectAccount={openInsightAccount}
+                              />
+                            </TableCell>
+                            <TableCell className="py-2 align-top">
+                              <PoItemLowestCell
+                                row={insightRow}
+                                isLoading={insightCellLoading}
+                                isError={itemPriceInsightsError}
+                                lowestMode={lowestPriceMode}
+                                formatCurrency={formatCurrency}
+                                onSelectOrder={openInsightOrder}
+                                onSelectAccount={openInsightAccount}
+                              />
                             </TableCell>
                             <TableCell className="py-2 text-right text-sm">
                               {ordered} {item.item_unit ?? ''}
@@ -1198,6 +1321,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   onAction={openReceiving}
                   blocked={manageReceivingBlocked}
                   blockedHint={manageReceivingHint}
+                  blockedClassName="opacity-60 cursor-not-allowed"
+                  popoverSide="bottom"
+                  popoverAlign="start"
                 >
                   <Truck className="h-4 w-4 mr-1" />
                   Manage receiving
@@ -1263,6 +1389,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           hasActiveReceiving={items.some((i) => Number(i.quantity_received ?? 0) > 0)}
           highlightedTarget={scrollHighlightTarget}
           onHighlightDismiss={dismissScrollHighlight}
+          onFinalizeBlocked={handleFinalizeBlocked}
         />
 
         <DiscussionThread entityType="purchase_order" entityId={order.id} />
@@ -1424,6 +1551,19 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         onRemoveApprover={handleRemoveApprover}
         initialsOf={initialsOf}
         avatarColor={avatarColor}
+      />
+
+      <PoOrderInsightDialog
+        open={insightDialogOpen}
+        onOpenChange={setInsightDialogOpen}
+        purchaseOrderId={insightDialogPoId}
+      />
+
+      <AccountViewDialog
+        accountId={accountViewId}
+        open={accountViewOpen}
+        onOpenChange={setAccountViewOpen}
+        accountName={accountViewName}
       />
 
       <Dialog

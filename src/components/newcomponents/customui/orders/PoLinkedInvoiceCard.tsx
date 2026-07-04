@@ -45,8 +45,9 @@ export interface PoLinkedInvoiceCardProps {
   onVoidInvoice: () => void;
   onOpenFullView: () => void;
   hasActiveReceiving?: boolean;
-  highlightedTarget?: PoSectionConfirmKey | 'approvals' | 'finalize' | 'receiving' | null;
+  highlightedTarget?: PoSectionConfirmKey | 'approvals' | 'approve' | 'finalize' | 'receiving' | null;
   onHighlightDismiss?: () => void;
+  onFinalizeBlocked?: () => void;
 }
 
 const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
@@ -72,6 +73,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   hasActiveReceiving = false,
   highlightedTarget = null,
   onHighlightDismiss,
+  onFinalizeBlocked,
 }) => {
   const [voidedDialogOpen, setVoidedDialogOpen] = useState(false);
   const voidedInvoices = useMemo(() => getVoidedInvoicesFromPoEvents(events), [events]);
@@ -220,6 +222,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
                     }
                     isBusy={isConfirming}
                     onAction={onConfirmInvoice}
+                    onBlockedClick={onFinalizeBlocked}
                   >
                     <Check className="h-3.5 w-3.5 mr-1.5" />
                     Finalize Invoice

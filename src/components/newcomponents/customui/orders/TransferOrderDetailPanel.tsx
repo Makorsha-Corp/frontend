@@ -129,7 +129,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const { data: orderFresh } = useGetTransferOrderByIdQuery(orderProp.id);
   const order = orderFresh ?? orderProp;
 
-  const { data: items = [], isLoading: itemsLoading, refetch: refetchItems } =
+  const { data: items = [], isLoading: itemsLoading } =
     useGetTransferOrderItemsQuery(order.id);
   const { data: approversData } = useGetTransferOrderApproversQuery(order.id);
   const { data: apiEvents = [] } = useGetTransferOrderEventsQuery(order.id);
@@ -726,7 +726,6 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         onOpenChange={setManageTransfersOpen}
         toId={order.id}
         items={items}
-        onSaved={() => void refetchItems()}
       />
 
       <EditTransferOrderItemsDialog
@@ -734,7 +733,6 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         onOpenChange={setEditItemsOpen}
         toId={order.id}
         items={items}
-        onSaved={() => refetchItems()}
       />
 
       <EditTransferOrderRouteDialog

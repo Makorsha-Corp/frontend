@@ -120,9 +120,9 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const { data: orderFresh } = useGetExpenseOrderByIdQuery(orderProp.id);
   const order = orderFresh ?? orderProp;
 
-  const { data: items = [], isLoading: itemsLoading, refetch: refetchItems } =
+  const { data: items = [], isLoading: itemsLoading } =
     useGetExpenseOrderItemsQuery(order.id);
-  const { data: approversData, refetch: refetchApprovers } = useGetExpenseOrderApproversQuery(order.id);
+  const { data: approversData } = useGetExpenseOrderApproversQuery(order.id);
   const { data: apiEvents = [] } = useGetExpenseOrderEventsQuery(order.id);
   const { data: accounts = [] } = useGetAccountsQuery({
     skip: 0,
@@ -270,7 +270,6 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     try {
       await saveDraftIfDirty();
       if (hadApprovals) {
-        void refetchApprovers();
         toast.success('Changes saved — recorded approvals were reset');
       } else {
         toast.success('Changes saved');
@@ -748,9 +747,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         onOpenChange={setEditItemsOpen}
         eoId={order.id}
         items={items}
-        onSaved={async () => {
-          await refetchItems();
-          await refetchApprovers();
+        onSaved={() => {
           if (hadApprovalsBeforeEditRef.current) {
             toast('Expenses updated — recorded approvals were reset', { icon: '⚠️' });
           }

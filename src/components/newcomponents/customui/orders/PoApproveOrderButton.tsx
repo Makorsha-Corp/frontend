@@ -18,6 +18,8 @@ export interface PoApproveOrderButtonProps {
   approveLabel?: string;
   iconOnly?: boolean;
   popoverSide?: 'top' | 'right' | 'bottom' | 'left';
+  highlighted?: boolean;
+  onHighlightDismiss?: () => void;
 }
 
 const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
@@ -34,12 +36,15 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
   approveLabel = 'Approve',
   iconOnly = false,
   popoverSide = 'top',
+  highlighted = false,
+  onHighlightDismiss,
 }) => {
   const approveBlocked = !approved && blocked;
   const withdrawIsBlocked = approved && withdrawBlocked;
 
   return (
   <BlockedActionButton
+    id="po-approve-order-btn"
     size={size}
     variant={approved ? 'outline' : 'default'}
     blocked={approveBlocked || withdrawIsBlocked}
@@ -63,9 +68,13 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
     className={cn(
       !approved && !blocked && 'bg-brand-primary hover:bg-brand-primary-hover',
       withdrawIsBlocked && 'opacity-60',
+      highlighted && 'po-scroll-target-highlight',
       iconOnly && 'px-0',
       className
     )}
+    onMouseEnter={() => {
+      if (highlighted) onHighlightDismiss?.();
+    }}
     aria-label={approved ? withdrawLabel : approveLabel}
   >
     {approved ? <X className={cn('h-4 w-4', !iconOnly && 'mr-1')} /> : <Check className={cn('h-4 w-4', !iconOnly && 'mr-1')} />}

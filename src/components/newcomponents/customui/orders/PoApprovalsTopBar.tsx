@@ -44,6 +44,7 @@ export interface PoApprovalsTopBarProps {
   isApproving: boolean;
   isUnapproving: boolean;
   highlighted?: boolean;
+  approveHighlighted?: boolean;
   onHighlightDismiss?: () => void;
   onManage: () => void;
   onToggleMyApproval: () => void;
@@ -62,6 +63,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
   isApproving,
   isUnapproving,
   highlighted = false,
+  approveHighlighted = false,
   onHighlightDismiss,
   onManage,
   onToggleMyApproval,
@@ -187,6 +189,8 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
             isBusy={isApproving || isUnapproving}
             onToggle={onToggleMyApproval}
             popoverSide="bottom"
+            highlighted={approveHighlighted}
+            onHighlightDismiss={onHighlightDismiss}
           />
         )}
       </div>
