@@ -745,7 +745,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           currentUserId={currentUserId}
           myApproval={myApproval}
           approvalSectionsStatus={approvalSectionsStatus}
-          approvalWithdrawBlocked={linkedInvoice?.receiving_started === true}
+          approvalWithdrawBlocked={linkedInvoice?.receiving_started === true || isPoCompleted}
+          approvalWithdrawBlockedReason={
+            isPoCompleted ? 'Order is complete — approval cannot be withdrawn' : undefined
+          }
           isApproving={isApproving}
           isUnapproving={isUnapproving}
           highlighted={scrollHighlightTarget === 'approvals'}

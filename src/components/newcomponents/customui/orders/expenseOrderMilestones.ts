@@ -1,49 +1,27 @@
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { ExpenseApprovalSummary } from '@/types/expenseOrder';
+import type { AccountInvoice } from '@/types/accountInvoice';
 import type { Status } from '@/types/status';
 
 export type EoScrollSection = 'details' | 'items' | 'approvals' | 'invoice';
 
-export type EoChecklistPhase = 'prepare' | 'approval' | 'invoice' | 'mark_complete' | 'done';
+export type EoChecklistPhase = 'approval' | 'invoice_blocked' | 'mark_complete' | 'payment' | 'done';
 
-export const EO_STAGE_NAMES = ['Draft', 'Approved', 'Invoiced', 'Complete'] as const;
-export type EoStageName = (typeof EO_STAGE_NAMES)[number];
+export const EO_STAGE_NAMES = ['Draft', 'Invoiced', 'Complete'] as const;
+export type EoStageName = (typeof EO_STAGE_NAMES)[number] | 'Approved';
 
 /** EO orders considered in-flight on the overview hub deep link. */
-export const EO_SCOPE_OPEN_STATUS_NAMES = ['Approved', 'Invoiced'] as const;
+export const EO_SCOPE_OPEN_STATUS_NAMES = ['Draft', 'Invoiced'] as const;
 
-export function statusesForEoWorkflowFilter(statuses: Status[]): Status[] {
-  const byName = new Map(statuses.map((s) => [s.name, s]));
-  return EO_STAGE_NAMES.flatMap((name) => {
-    const row = byName.get(name);
-    return row ? [row] : [];
-  });
-}
-
-export interface EoSectionConfirmState {
-  details_confirmed: boolean;
-  items_confirmed: boolean;
-  invoice_confirmed: boolean;
-}
-
-export function sectionConfirmsFromOrder(order: ExpenseOrder): EoSectionConfirmState {
-  return {
-    details_confirmed: order.details_confirmed,
-    items_confirmed: order.items_confirmed,
-    invoice_confirmed: order.invoice_confirmed,
-  };
-}
+/** Synthetic stage rows for the list filter — no DB-backed status for expense orders anymore. */
+export const EO_STAGE_FILTER_OPTIONS: Status[] = [
+  { id: 1, name: 'Draft', comment: '' },
+  { id: 2, name: 'Invoiced', comment: '' },
+  { id: 3, name: 'Complete', comment: '' },
+];
 
 export function isExpenseOrderCompleted(order: ExpenseOrder): boolean {
   return Boolean(order.completed_at) || Boolean(order.order_completed);
-}
-
-export function isEoPrepareComplete(
-  order: ExpenseOrder,
-  sectionConfirms?: EoSectionConfirmState
-): boolean {
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
-  return confirms.details_confirmed && confirms.items_confirmed;
 }
 
 export function isEoApprovalsComplete(approvalSummary: ExpenseApprovalSummary): boolean {
@@ -51,41 +29,27 @@ export function isEoApprovalsComplete(approvalSummary: ExpenseApprovalSummary): 
   return approvalSummary.met && approvalSummary.approved_count > 0;
 }
 
-export function isEoInvoiceComplete(order: ExpenseOrder, sectionConfirms?: EoSectionConfirmState): boolean {
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
-  return Boolean(order.invoice_id) && confirms.invoice_confirmed;
-}
-
+/** Detail-panel-level stage: approval data is available here. */
 export function deriveExpenseOrderStage(
   order: ExpenseOrder,
-  approvalSummary: ExpenseApprovalSummary,
-  sectionConfirms?: EoSectionConfirmState
+  approvalSummary: ExpenseApprovalSummary
 ): EoStageName {
   if (isExpenseOrderCompleted(order)) return 'Complete';
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
-  if (confirms.invoice_confirmed && order.invoice_id) return 'Invoiced';
-  if (isEoPrepareComplete(order, confirms) && isEoApprovalsComplete(approvalSummary)) return 'Approved';
+  if (order.invoice_id != null) return 'Invoiced';
+  if (isEoApprovalsComplete(approvalSummary)) return 'Approved';
   return 'Draft';
 }
 
+/**
+ * List-level stage: no approval data available on the list payload. 'Approved' isn't
+ * reachable here — since the invoice now auto-creates once approvals are met, invoice_id
+ * being set is already a good proxy for "approved", so this is a deliberate 3-state
+ * simplification of the 4-state detail-panel stage.
+ */
 export function deriveExpenseOrderStageFromOrder(order: ExpenseOrder): EoStageName {
   if (isExpenseOrderCompleted(order)) return 'Complete';
-  if (order.invoice_confirmed && order.invoice_id) return 'Invoiced';
-  if (order.details_confirmed && order.items_confirmed) return 'Approved';
+  if (order.invoice_id != null) return 'Invoiced';
   return 'Draft';
-}
-
-export function getEoChecklistPhase(
-  prepareComplete: boolean,
-  approvalsComplete: boolean,
-  invoiceComplete: boolean,
-  orderCompleted: boolean
-): EoChecklistPhase {
-  if (orderCompleted) return 'done';
-  if (!prepareComplete) return 'prepare';
-  if (!approvalsComplete) return 'approval';
-  if (!invoiceComplete) return 'invoice';
-  return 'mark_complete';
 }
 
 export function eoStageBadgeClassName(stageName: EoStageName | string | null | undefined): string {
@@ -108,58 +72,75 @@ export interface EoChecklistProgress {
   phase: EoChecklistPhase;
   hasDetails: boolean;
   hasItems: boolean;
-  detailsConfirmed: boolean;
-  itemsConfirmed: boolean;
-  prepareComplete: boolean;
-  prepareRatio: string;
   approvalsComplete: boolean;
   approvalRatio: string;
-  invoiceComplete: boolean;
   hasInvoice: boolean;
-  invoiceConfirmed: boolean;
+  invoiceFinalized: boolean;
   orderCompleted: boolean;
+  invoicePaymentStatus: string | null | undefined;
+}
+
+export function getEoChecklistPhase(
+  approvalsComplete: boolean,
+  hasInvoice: boolean,
+  orderCompleted: boolean,
+  invoicePaymentStatus?: string | null
+): EoChecklistPhase {
+  if (orderCompleted) return invoicePaymentStatus === 'paid' ? 'done' : 'payment';
+  if (!approvalsComplete) return 'approval';
+  if (!hasInvoice) return 'invoice_blocked';
+  return 'mark_complete';
+}
+
+export function paymentStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case 'paid':
+      return 'Paid';
+    case 'partial':
+      return 'Partial';
+    case 'overdue':
+      return 'Overdue';
+    case 'unpaid':
+      return 'Not paid';
+    default:
+      return 'Not paid';
+  }
+}
+
+export function paymentStatusBadgeTone(
+  status: string | null | undefined
+): 'green' | 'amber' | 'muted' {
+  if (status === 'paid') return 'green';
+  if (status === 'partial' || status === 'overdue' || status === 'unpaid') return 'amber';
+  return 'muted';
 }
 
 export function getEoChecklistProgress(
   order: ExpenseOrder,
   itemCount: number,
   approvalSummary: ExpenseApprovalSummary,
-  sectionConfirms?: EoSectionConfirmState
+  linkedInvoice?: AccountInvoice | null
 ): EoChecklistProgress {
-  const confirms = sectionConfirms ?? sectionConfirmsFromOrder(order);
   const hasDetails = Boolean(order.expense_category && order.expense_date);
   const hasItems = itemCount > 0;
-  const detailsConfirmed = confirms.details_confirmed;
-  const itemsConfirmed = confirms.items_confirmed;
-  const prepareComplete = detailsConfirmed && itemsConfirmed;
-  const prepareDoneCount = (detailsConfirmed ? 1 : 0) + (itemsConfirmed ? 1 : 0);
   const approvalsComplete = isEoApprovalsComplete(approvalSummary);
   const hasInvoice = order.invoice_id != null;
-  const invoiceConfirmed = confirms.invoice_confirmed;
-  const invoiceComplete = isEoInvoiceComplete(order, confirms);
+  const invoiceFinalized = linkedInvoice?.invoice_status === 'confirmed';
   const orderCompleted = isExpenseOrderCompleted(order);
-  const stage = deriveExpenseOrderStage(order, approvalSummary, confirms);
-  const phase = getEoChecklistPhase(
-    prepareComplete,
-    approvalsComplete,
-    invoiceComplete,
-    orderCompleted
-  );
+  const invoicePaymentStatus = linkedInvoice?.payment_status;
+  const stage = deriveExpenseOrderStage(order, approvalSummary);
+  const phase = getEoChecklistPhase(approvalsComplete, hasInvoice, orderCompleted, invoicePaymentStatus);
 
   return {
     stage,
     phase,
     hasDetails,
     hasItems,
-    detailsConfirmed,
-    itemsConfirmed,
-    prepareComplete,
-    prepareRatio: `${prepareDoneCount}/2`,
     approvalsComplete,
     approvalRatio: `${approvalSummary.approved_count}/${approvalSummary.required}`,
-    invoiceComplete,
     hasInvoice,
-    invoiceConfirmed,
+    invoiceFinalized,
     orderCompleted,
+    invoicePaymentStatus,
   };
 }

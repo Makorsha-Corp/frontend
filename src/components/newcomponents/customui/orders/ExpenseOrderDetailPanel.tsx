@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,19 +26,18 @@ import {
   useGetExpenseOrderApproversQuery,
   useGetExpenseOrderEventsQuery,
   useUpdateExpenseOrderMutation,
-  useSetExpenseOrderSectionConfirmMutation,
   useMarkExpenseOrderCompleteMutation,
   useAddExpenseOrderApproverMutation,
   useRemoveExpenseOrderApproverMutation,
   useApproveExpenseOrderMutation,
   useUnapproveExpenseOrderMutation,
   useCreateInvoiceFromExpenseOrderMutation,
+  useVoidExpenseOrderMutation,
 } from '@/features/expenseOrders/expenseOrdersApi';
-import {
-  useConfirmAccountInvoiceMutation,
-  useGetAccountInvoiceByIdQuery,
-} from '@/features/accountInvoices/accountInvoicesApi';
+import { useGetAccountInvoiceByIdQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
+import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import type { ExpenseOrder } from '@/types/expenseOrder';
@@ -46,26 +45,23 @@ import type { ExpenseOrderApprover } from '@/types/expenseOrder';
 import {
   Receipt,
   Loader2,
-  MessageSquare,
-  Send,
   History,
-  Check,
   CheckCircle2,
   Clock,
-  CircleDashed,
   Pencil,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
-import { SectionConfirmActions } from './PoSectionConfirmButton';
 import EoApprovalsTopBar from './EoApprovalsTopBar';
 import ManageEoApprovalsDialog from './ManageEoApprovalsDialog';
 import EoWorkflowChecklist from './EoWorkflowChecklist';
 import EoLinkedInvoiceCard from './EoLinkedInvoiceCard';
 import EditExpenseOrderItemsDialog from './EditExpenseOrderItemsDialog';
+import VoidExpenseOrderDialog from './VoidExpenseOrderDialog';
 import EoEventLogRow from './EoEventLogRow';
 import {
   deriveExpenseOrderStage,
@@ -73,19 +69,11 @@ import {
   isExpenseOrderCompleted,
   type EoScrollSection,
 } from './expenseOrderMilestones';
+import { isEoDetailsReady, isEoItemsReady } from './expenseOrderReadiness';
 import {
-  getEoSectionConfirmReadiness,
-  eoSectionConfirmLabel,
-  type EoSectionConfirmKey,
-} from './expenseOrderSectionConfirms';
-import { EO_CONFIRM_EVENT_TYPES } from './expenseOrderEventVisuals';
-import {
-  EXPENSE_CATEGORIES,
-  expenseCategoryLabel,
+  ALLOCATION_TYPES,
+  type AllocationTypeValue,
 } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
-
-const confirmedSectionCardClass = 'border-muted-foreground/15 bg-muted/20';
-const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
 
 interface ExpenseOrderDetailPanelProps {
   order: ExpenseOrder;
@@ -95,7 +83,8 @@ interface ExpenseOrderDetailPanelProps {
 
 interface EoDraft {
   account_id: number | null;
-  expense_category: string;
+  expense_category: AllocationTypeValue;
+  cost_center_id: number | null;
   expense_date: string;
   due_date: string;
   description: string;
@@ -104,7 +93,8 @@ interface EoDraft {
 function draftFromOrder(order: ExpenseOrder): EoDraft {
   return {
     account_id: order.account_id,
-    expense_category: order.expense_category,
+    expense_category: (order.expense_category as AllocationTypeValue) || 'other',
+    cost_center_id: order.cost_center_id,
     expense_date: order.expense_date ?? '',
     due_date: order.due_date ?? '',
     description: order.description ?? '',
@@ -119,13 +109,10 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
-  const [showConfirmEvents, setShowConfirmEvents] = useState(false);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<EoScrollSection | null>(null);
-  const [confirmingSection, setConfirmingSection] = useState<EoSectionConfirmKey | null>(null);
-  const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
-  const [pendingUnconfirmSection, setPendingUnconfirmSection] = useState<EoSectionConfirmKey | null>(
-    null
-  );
+  const [markCompleteDialogOpen, setMarkCompleteDialogOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const hadApprovalsBeforeEditRef = useRef(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -141,6 +128,8 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     skip: 0,
     limit: API_LIMITS.ACCOUNTS_LIST_MAX,
   });
+  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
+  const { data: departments = [] } = useGetDepartmentsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
     skip: !workspace?.id,
   });
@@ -153,23 +142,19 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       : undefined;
 
   const [updateOrder, { isLoading: isUpdating }] = useUpdateExpenseOrderMutation();
-  const [setSectionConfirm] = useSetExpenseOrderSectionConfirmMutation();
   const [markComplete, { isLoading: isMarkingComplete }] = useMarkExpenseOrderCompleteMutation();
   const [addApprover] = useAddExpenseOrderApproverMutation();
   const [removeApprover] = useRemoveExpenseOrderApproverMutation();
   const [approveOrder] = useApproveExpenseOrderMutation();
   const [unapproveOrder] = useUnapproveExpenseOrderMutation();
   const [createInvoice, { isLoading: isCreatingInvoice }] = useCreateInvoiceFromExpenseOrderMutation();
-  const [confirmInvoice, { isLoading: isConfirmingInvoice }] = useConfirmAccountInvoiceMutation();
+  const [voidOrder, { isLoading: isVoiding }] = useVoidExpenseOrderMutation();
 
   const approvers: ExpenseOrderApprover[] = approversData?.approvers ?? [];
   const approvalSummary = approversData?.summary ?? { approved_count: 0, required: 0, met: true };
   const requiredApprovals =
     order.required_approvals != null ? String(order.required_approvals) : '';
 
-  const detailsConfirmed = order.details_confirmed;
-  const itemsConfirmed = order.items_confirmed;
-  const invoiceConfirmed = order.invoice_confirmed;
   const orderComplete = isExpenseOrderCompleted(order);
 
   const [draft, setDraft] = useState<EoDraft>(() => draftFromOrder(order));
@@ -180,17 +165,14 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const isDirty =
     draft.account_id !== order.account_id ||
     draft.expense_category !== order.expense_category ||
+    draft.cost_center_id !== order.cost_center_id ||
     draft.expense_date !== (order.expense_date ?? '') ||
     draft.due_date !== (order.due_date ?? '') ||
     draft.description !== (order.description ?? '');
 
   const stageName = deriveExpenseOrderStage(order, approvalSummary);
-
-  const filteredEvents = useMemo(
-    () =>
-      showConfirmEvents ? apiEvents : apiEvents.filter((e) => !EO_CONFIRM_EVENT_TYPES.has(e.event_type)),
-    [apiEvents, showConfirmEvents]
-  );
+  const detailsReadiness = isEoDetailsReady(order);
+  const itemsReadiness = isEoItemsReady(items);
 
   const myApproval =
     currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
@@ -202,6 +184,18 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const accountName = order.account_id
     ? accounts.find((a) => a.id === order.account_id)?.name ?? `#${order.account_id}`
     : null;
+
+  const allocationSummary = (() => {
+    if (order.expense_category === 'factory') {
+      const name = factories.find((f) => f.id === order.cost_center_id)?.name;
+      return `Factory${name ? `: ${name}` : ''}`;
+    }
+    if (order.expense_category === 'department') {
+      const name = departments.find((d) => d.id === order.cost_center_id)?.name;
+      return `Department${name ? `: ${name}` : ''}`;
+    }
+    return 'Other';
+  })();
 
   const formatCurrency = (v: number | null | undefined) =>
     v != null
@@ -239,6 +233,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       data: {
         account_id: draft.account_id,
         expense_category: draft.expense_category,
+        cost_center_id: draft.expense_category === 'other' ? null : draft.cost_center_id,
         expense_date: draft.expense_date || null,
         due_date: draft.due_date || null,
         description: draft.description.trim() || null,
@@ -246,67 +241,16 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     }).unwrap();
   };
 
-  const requestSectionConfirmToggle = (
-    section: EoSectionConfirmKey,
-    currentlyConfirmed: boolean
-  ) => {
-    if (!currentlyConfirmed) {
-      const readiness = getEoSectionConfirmReadiness(section, order, items, linkedInvoice);
-      if (!readiness.ok) {
-        toast.error(readiness.reason ?? 'Section not ready to confirm');
-        return;
-      }
-      void handleToggleSectionConfirm(section, true);
-      return;
-    }
-    setPendingUnconfirmSection(section);
-    setUnconfirmWarningOpen(true);
-  };
-
-  const handleConfirmSectionUnconfirm = () => {
-    if (!pendingUnconfirmSection) return;
-    const section = pendingUnconfirmSection;
-    setUnconfirmWarningOpen(false);
-    setPendingUnconfirmSection(null);
-    void handleToggleSectionConfirm(section, false);
-  };
-
-  const handleToggleSectionConfirm = async (
-    section: EoSectionConfirmKey,
-    nextConfirmed: boolean
-  ) => {
-    setConfirmingSection(section);
-    try {
-      if (nextConfirmed && section === 'details' && isDirty) {
-        await saveDraftIfDirty();
-      }
-      await setSectionConfirm({
-        id: order.id,
-        data: { section, confirmed: nextConfirmed },
-      }).unwrap();
-      toast.success(
-        nextConfirmed
-          ? `${eoSectionConfirmLabel(section)} confirmed`
-          : `${eoSectionConfirmLabel(section)} unconfirmed`
-      );
-      if (!nextConfirmed) {
-        void refetchApprovers();
-      }
-    } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update section');
-    } finally {
-      setConfirmingSection(null);
-    }
-  };
+  const requestMarkComplete = () => setMarkCompleteDialogOpen(true);
 
   const handleMarkComplete = async () => {
+    setMarkCompleteDialogOpen(false);
     try {
       await markComplete(order.id).unwrap();
       const hint = showCompleteOrders
         ? ''
         : ' Hidden from open orders list — enable Complete in the sidebar to see it there.';
-      toast.success(`Expense order marked complete${hint}`);
+      toast.success(`Expense order completed — invoice finalized.${hint}`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to mark complete');
@@ -314,9 +258,23 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   };
 
   const handleSave = async () => {
+    if (draft.expense_category !== 'other' && draft.cost_center_id == null) {
+      toast.error(`Select a ${draft.expense_category} for this expense order`);
+      return;
+    }
+    if (!draft.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+    const hadApprovals = approvalSummary.approved_count > 0;
     try {
       await saveDraftIfDirty();
-      toast.success('Changes saved');
+      if (hadApprovals) {
+        void refetchApprovers();
+        toast.success('Changes saved — recorded approvals were reset');
+      } else {
+        toast.success('Changes saved');
+      }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to save');
@@ -382,29 +340,37 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     }
   };
 
-  const handleFinalizeInvoice = async () => {
-    if (!order.invoice_id) return;
+  const handleVoidExpenseOrder = async (voidNote: string) => {
     try {
-      await confirmInvoice(order.invoice_id).unwrap();
-      toast.success('Invoice finalized');
+      await voidOrder({ id: order.id, void_note: voidNote }).unwrap();
+      toast.success(`Expense order ${order.expense_number} voided`);
+      setVoidOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to finalize invoice');
+      toast.error(e?.data?.detail || 'Failed to void expense order');
     }
   };
-
-  const invoiceSectionReadiness = getEoSectionConfirmReadiness('invoice', order, items, linkedInvoice);
-  const finalizeReadiness = order.invoice_id
-    ? { ok: linkedInvoice?.invoice_status === 'draft', reason: 'Invoice is already finalized' }
-    : { ok: false, reason: 'Create a draft invoice first' };
-
-  const detailsSectionLocked = detailsConfirmed || orderComplete;
-  const itemsSectionLocked = itemsConfirmed || orderComplete;
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-5xl px-6 py-6 space-y-4">
+          {order.voided && (
+            <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+                <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                  This expense order has been voided
+                </p>
+              </div>
+              {order.void_note && (
+                <p className="text-xs text-red-600 dark:text-red-400 pl-6">
+                  Reason: {order.void_note}
+                </p>
+              )}
+            </div>
+          )}
+
           <EoApprovalsTopBar
             approvers={approvers}
             approvalSummary={approvalSummary}
@@ -414,12 +380,23 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             onHighlightDismiss={dismissScrollHighlight}
             onManage={() => setManageApprovalsOpen(true)}
             onToggleMyApproval={handleToggleMyApproval}
+            isVoided={order.voided}
+            onVoidOrder={orderComplete ? undefined : () => setVoidOpen(true)}
+            withdrawBlocked={orderComplete}
           />
+
+          <div className={cn('space-y-4', order.voided && 'opacity-40 pointer-events-none select-none')}>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(280px,32%)] gap-4 items-start">
             <Card
               id="eo-section-details"
-              className={cn('scroll-mt-6', detailsSectionLocked && confirmedSectionCardClass)}
+              className={cn(
+                'scroll-mt-6',
+                scrollHighlightTarget === 'details' && 'po-scroll-target-highlight'
+              )}
+              onMouseEnter={() => {
+                if (scrollHighlightTarget === 'details') dismissScrollHighlight();
+              }}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
@@ -429,7 +406,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                       Order details
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {expenseCategoryLabel(order.expense_category)} · {order.expense_number}
+                      {allocationSummary} · {order.expense_number}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -439,47 +416,41 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     >
                       {stageName}
                     </Badge>
-                    <SectionConfirmActions
-                      id="eo-confirm-details"
-                      confirmed={detailsConfirmed}
-                      onToggle={() => requestSectionConfirmToggle('details', detailsConfirmed)}
-                      isLoading={confirmingSection === 'details'}
-                      label="order details"
-                      highlighted={scrollHighlightTarget === 'details'}
-                      onHighlightDismiss={dismissScrollHighlight}
-                    />
                   </div>
                 </div>
+                {!orderComplete && !detailsReadiness.ok && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{detailsReadiness.reason}</p>
+                )}
               </CardHeader>
-              <CardContent
-                className={cn('space-y-4', detailsSectionLocked && confirmedSectionContentClass)}
-              >
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Account</Label>
                     <AccountSelectSummaryButton
                       onClick={() => {
-                        if (!detailsSectionLocked) setAccountPickerOpen(true);
+                        if (!orderComplete) setAccountPickerOpen(true);
                       }}
                       ariaLabel="Select account"
                       selectedLine={accountName}
                       staleNumericId={draft.account_id != null ? String(draft.account_id) : null}
                       compactLabel
-                      className={detailsSectionLocked ? 'pointer-events-none opacity-60' : undefined}
+                      className={orderComplete ? 'pointer-events-none opacity-60' : undefined}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Category</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Attribute to</Label>
                     <Select
                       value={draft.expense_category}
-                      onValueChange={(v) => setDraft((d) => ({ ...d, expense_category: v }))}
-                      disabled={detailsSectionLocked}
+                      onValueChange={(v) =>
+                        setDraft((d) => ({ ...d, expense_category: v as AllocationTypeValue, cost_center_id: null }))
+                      }
+                      disabled={orderComplete}
                     >
                       <SelectTrigger className="bg-background">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {EXPENSE_CATEGORIES.map((c) => (
+                        {ALLOCATION_TYPES.map((c) => (
                           <SelectItem key={c.value} value={c.value}>
                             {c.label}
                           </SelectItem>
@@ -488,6 +459,33 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     </Select>
                   </div>
                 </div>
+
+                {draft.expense_category !== 'other' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                      {draft.expense_category === 'factory' ? 'Factory' : 'Department'}
+                    </Label>
+                    <Select
+                      value={draft.cost_center_id != null ? String(draft.cost_center_id) : 'none'}
+                      onValueChange={(v) =>
+                        setDraft((d) => ({ ...d, cost_center_id: v === 'none' ? null : Number(v) }))
+                      }
+                      disabled={orderComplete}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {(draft.expense_category === 'factory' ? factories : departments).map((o) => (
+                          <SelectItem key={o.id} value={String(o.id)}>
+                            {o.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
@@ -509,7 +507,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                         type="date"
                         value={draft.expense_date}
                         onChange={(e) => setDraft((d) => ({ ...d, expense_date: e.target.value }))}
-                        disabled={detailsSectionLocked}
+                        disabled={orderComplete}
                       />
                     )}
                   </div>
@@ -519,7 +517,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                       type="date"
                       value={draft.due_date}
                       onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))}
-                      disabled={detailsSectionLocked}
+                      disabled={orderComplete}
                     />
                   </div>
                 </div>
@@ -527,15 +525,15 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                 <div className="space-y-3 pt-2 border-t border-border">
                   <div className="space-y-1.5">
                     <label htmlFor="eo-description" className="text-xs font-medium text-muted-foreground">
-                      Description
+                      Description *
                     </label>
                     <Input
                       id="eo-description"
                       value={draft.description}
                       onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                      placeholder="Expense description..."
+                      placeholder="e.g. PC fix"
                       className="bg-background"
-                      disabled={detailsSectionLocked}
+                      disabled={orderComplete}
                     />
                   </div>
                 </div>
@@ -547,28 +545,27 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
               order={order}
               itemCount={items.length}
               approvalSummary={approvalSummary}
-              detailsConfirmed={detailsConfirmed}
-              itemsConfirmed={itemsConfirmed}
-              invoiceConfirmed={invoiceConfirmed}
+              linkedInvoice={linkedInvoice}
               onScrollToSection={scrollToSection}
-              onMarkComplete={handleMarkComplete}
+              onMarkComplete={requestMarkComplete}
               isMarkingComplete={isMarkingComplete}
             />
           </div>
 
           <Card
             id="eo-section-items"
-            className={cn('scroll-mt-6', itemsSectionLocked && confirmedSectionCardClass)}
+            className={cn(
+              'scroll-mt-6',
+              scrollHighlightTarget === 'items' && 'po-scroll-target-highlight'
+            )}
+            onMouseEnter={() => {
+              if (scrollHighlightTarget === 'items') dismissScrollHighlight();
+            }}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle
-                    className={cn(
-                      'text-base flex items-center gap-2',
-                      itemsSectionLocked && confirmedSectionContentClass
-                    )}
-                  >
+                  <CardTitle className="text-base flex items-center gap-2">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                     Expenses ({items.length})
                   </CardTitle>
@@ -584,25 +581,22 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={() => setEditItemsOpen(true)}
-                    disabled={itemsSectionLocked}
+                    onClick={() => {
+                      hadApprovalsBeforeEditRef.current = approvalSummary.approved_count > 0;
+                      setEditItemsOpen(true);
+                    }}
+                    disabled={orderComplete}
                   >
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     Edit expenses
                   </Button>
-                  <SectionConfirmActions
-                    id="eo-confirm-items"
-                    confirmed={itemsConfirmed}
-                    onToggle={() => requestSectionConfirmToggle('items', itemsConfirmed)}
-                    isLoading={confirmingSection === 'items'}
-                    label="expenses"
-                    highlighted={scrollHighlightTarget === 'items'}
-                    onHighlightDismiss={dismissScrollHighlight}
-                  />
                 </div>
               </div>
+              {!orderComplete && !itemsReadiness.ok && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{itemsReadiness.reason}</p>
+              )}
             </CardHeader>
-            <CardContent className={cn('p-0', itemsSectionLocked && confirmedSectionContentClass)}>
+            <CardContent className="p-0">
               {itemsLoading ? (
                 <p className="text-sm text-muted-foreground py-8 px-6">Loading expenses…</p>
               ) : items.length === 0 ? (
@@ -613,8 +607,11 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     size="sm"
                     variant="outline"
                     className="mt-3"
-                    onClick={() => setEditItemsOpen(true)}
-                    disabled={itemsSectionLocked}
+                    onClick={() => {
+                      hadApprovalsBeforeEditRef.current = approvalSummary.approved_count > 0;
+                      setEditItemsOpen(true);
+                    }}
+                    disabled={orderComplete}
                   >
                     Add expenses
                   </Button>
@@ -653,17 +650,9 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             invoice={linkedInvoice}
             events={apiEvents}
             accountName={accountName}
-            invoiceConfirmed={invoiceConfirmed}
-            confirmReadiness={invoiceSectionReadiness}
-            finalizeReadiness={finalizeReadiness}
+            approvalSummary={approvalSummary}
             isCreatingInvoice={isCreatingInvoice}
-            isConfirmingInvoice={isConfirmingInvoice}
-            isConfirmingSection={confirmingSection === 'invoice'}
             onCreateInvoice={handleCreateInvoice}
-            onFinalizeInvoice={handleFinalizeInvoice}
-            onToggleInvoiceConfirm={() =>
-              requestSectionConfirmToggle('invoice', invoiceConfirmed)
-            }
             highlighted={scrollHighlightTarget === 'invoice'}
             onHighlightDismiss={dismissScrollHighlight}
           />
@@ -678,28 +667,9 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     <History className="h-4 w-4 text-muted-foreground" />
                     Event Log
                     <Badge variant="outline" className="ml-1 font-normal">
-                      {filteredEvents.length}
+                      {apiEvents.length}
                     </Badge>
                   </CardTitle>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-7 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground',
-                      showConfirmEvents &&
-                        'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                    )}
-                    onClick={() => setShowConfirmEvents((v) => !v)}
-                    aria-pressed={showConfirmEvents}
-                  >
-                    {showConfirmEvents ? (
-                      <Check className="h-3.5 w-3.5" />
-                    ) : (
-                      <CircleDashed className="h-3.5 w-3.5" />
-                    )}
-                    Show confirms
-                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground shrink-0">
                   Created {formatDate(order.created_at)} · Updated{' '}
@@ -713,14 +683,9 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                   <History className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
                   <p className="text-sm font-medium text-muted-foreground">No activity yet</p>
                 </div>
-              ) : filteredEvents.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
-                  <CircleDashed className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
-                  <p className="text-sm font-medium text-muted-foreground">No events to show</p>
-                </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredEvents.map((event, idx) => (
+                  {apiEvents.map((event, idx) => (
                     <EoEventLogRow
                       key={event.id}
                       event={{
@@ -731,17 +696,18 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                         performer_name: event.performer_name,
                         metadata: event.metadata,
                       }}
-                      isLast={idx === filteredEvents.length - 1}
+                      isLast={idx === apiEvents.length - 1}
                     />
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
 
-      {isDirty && !detailsSectionLocked && (
+      {isDirty && !orderComplete && (
         <div className="shrink-0 border-t border-border bg-card px-6 py-3 flex items-center justify-end gap-3">
           <span className="mr-auto text-sm text-muted-foreground flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
@@ -782,7 +748,22 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         onOpenChange={setEditItemsOpen}
         eoId={order.id}
         items={items}
-        onSaved={() => void refetchItems()}
+        onSaved={async () => {
+          await refetchItems();
+          await refetchApprovers();
+          if (hadApprovalsBeforeEditRef.current) {
+            toast('Expenses updated — recorded approvals were reset', { icon: '⚠️' });
+          }
+        }}
+      />
+
+      <VoidExpenseOrderDialog
+        open={voidOpen}
+        onOpenChange={setVoidOpen}
+        onVoid={handleVoidExpenseOrder}
+        isVoiding={isVoiding}
+        eoNumber={order.expense_number}
+        hasDraftInvoice={linkedInvoice?.invoice_status === 'draft'}
       />
 
       <AccountSelectorDialog
@@ -797,34 +778,32 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         }
       />
 
-      <Dialog
-        open={unconfirmWarningOpen}
-        onOpenChange={(open) => {
-          setUnconfirmWarningOpen(open);
-          if (!open) setPendingUnconfirmSection(null);
-        }}
-      >
+      <Dialog open={markCompleteDialogOpen} onOpenChange={setMarkCompleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Unconfirm section?</DialogTitle>
+            <DialogTitle>Complete this expense order?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            All current expense approvals will be withdrawn. Approvers must approve the order again
-            after sections are re-confirmed.
+            This will confirm the linked invoice and complete the order, setting the invoice to
+            finalized status. This cannot be undone.
           </p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                setUnconfirmWarningOpen(false);
-                setPendingUnconfirmSection(null);
-              }}
+              onClick={() => setMarkCompleteDialogOpen(false)}
+              disabled={isMarkingComplete}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleConfirmSectionUnconfirm}>
-              Unconfirm
+            <Button
+              type="button"
+              onClick={handleMarkComplete}
+              disabled={isMarkingComplete}
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+            >
+              {isMarkingComplete && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm & Complete
             </Button>
           </DialogFooter>
         </DialogContent>

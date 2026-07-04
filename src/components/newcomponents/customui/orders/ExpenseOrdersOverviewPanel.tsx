@@ -4,10 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { ExpenseOrderSummaryStats } from '@/pages/newpages/orders/expenseOrdersOverviewData';
 import { expenseCategoryLabel } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
+import {
+  deriveExpenseOrderStageFromOrder,
+  eoStageBadgeClassName,
+} from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
 import { Receipt, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ExpenseOrdersOverviewPanelProps {
   orders: ExpenseOrder[];
@@ -15,7 +20,6 @@ interface ExpenseOrdersOverviewPanelProps {
   isLoading?: boolean;
   mayTruncate?: boolean;
   accountName: (id: number | null) => string;
-  statusLabel: (id: number) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
   onSelectOrder: (id: number) => void;
@@ -27,7 +31,6 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
   isLoading,
   mayTruncate,
   accountName,
-  statusLabel,
   formatCurrency,
   formatDate,
   onSelectOrder,
@@ -61,13 +64,16 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
         cell: (o) => accountName(o.account_id),
       },
       {
-        id: 'status',
-        header: 'Status',
-        cell: (o) => (
-          <Badge variant="secondary" className="text-xs">
-            {statusLabel(o.current_status_id)}
-          </Badge>
-        ),
+        id: 'stage',
+        header: 'Stage',
+        cell: (o) => {
+          const stage = deriveExpenseOrderStageFromOrder(o);
+          return (
+            <Badge variant="secondary" className={cn('text-xs', eoStageBadgeClassName(stage))}>
+              {stage}
+            </Badge>
+          );
+        },
       },
       {
         id: 'total',
@@ -88,17 +94,8 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
         cellClassName: 'text-muted-foreground',
         cell: (o) => formatDate(o.due_date),
       },
-      {
-        id: 'invoice',
-        header: 'Invoice',
-        cell: (o) => (
-          <Badge variant={o.invoice_id != null ? 'default' : 'outline'} className="text-xs">
-            {o.invoice_id != null ? 'Yes' : 'No'}
-          </Badge>
-        ),
-      },
     ],
-    [accountName, statusLabel, formatCurrency, formatDate]
+    [accountName, formatCurrency, formatDate]
   );
 
   if (isLoading) {

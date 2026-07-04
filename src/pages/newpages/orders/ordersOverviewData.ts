@@ -17,7 +17,10 @@ import type { FactorySection } from '@/types/factorySection';
 import type { Project } from '@/types/project';
 import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
 import { TR_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
-import { EO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
+import {
+  EO_SCOPE_OPEN_STATUS_NAMES,
+  deriveExpenseOrderStageFromOrder,
+} from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 
 export type OverviewOrderKind = 'purchase' | 'transfer' | 'expense' | 'sales' | 'work';
 
@@ -150,7 +153,7 @@ export function normalizeOrders(
       amount: Number(e.total_amount ?? 0),
       createdAt,
       reportDate: parseBusinessDay(e.expense_date, startOfDay(createdAt)),
-      statusLabel: statusName(statusById, e.current_status_id),
+      statusLabel: deriveExpenseOrderStageFromOrder(e),
       factoryId: null,
       displayDate: e.expense_date?.slice(0, 10) ?? format(createdAt, 'yyyy-MM-dd'),
       dueOrExpectedDate: e.due_date,

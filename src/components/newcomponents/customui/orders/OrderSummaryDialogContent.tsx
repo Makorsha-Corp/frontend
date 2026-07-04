@@ -23,6 +23,8 @@ import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { FileSearch, Loader2, Package, Receipt } from 'lucide-react';
+import { deriveExpenseOrderStageFromOrder, eoStageBadgeClassName } from './expenseOrderMilestones';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (value: number | null | undefined) =>
   value != null
@@ -340,8 +342,11 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
               {expenseOrder.expense_number}
             </p>
           </div>
-          <Badge variant="outline" className="shrink-0 capitalize">
-            {statusLabel(expenseOrder.current_status_id)}
+          <Badge
+            variant="outline"
+            className={cn('shrink-0', eoStageBadgeClassName(deriveExpenseOrderStageFromOrder(expenseOrder)))}
+          >
+            {deriveExpenseOrderStageFromOrder(expenseOrder)}
           </Badge>
         </div>
 

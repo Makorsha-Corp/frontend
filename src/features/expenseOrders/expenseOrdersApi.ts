@@ -5,11 +5,11 @@ import type {
   ExpenseOrder,
   ExpenseOrderItem,
   CreateExpenseOrder,
+  CreateExpenseOrderFromTemplate,
   UpdateExpenseOrder,
   CreateExpenseOrderItem,
   UpdateExpenseOrderItem,
   ListExpenseOrdersParams,
-  ExpenseOrderSectionConfirmRequest,
   ExpenseOrderApproversList,
   ExpenseOrderApprover,
   ExpenseOrderEvent,
@@ -40,25 +40,22 @@ export const expenseOrdersApi = createApi({
       query: (body) => ({ url: 'expense-orders/', method: 'POST', body }),
       invalidatesTags: ['ExpenseOrder'],
     }),
+    createExpenseOrderFromTemplate: builder.mutation<
+      ExpenseOrder,
+      { templateId: number; data: CreateExpenseOrderFromTemplate }
+    >({
+      query: ({ templateId, data }) => ({
+        url: `expense-orders/from-template/${templateId}/`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['ExpenseOrder'],
+    }),
     updateExpenseOrder: builder.mutation<ExpenseOrder, { id: number; data: UpdateExpenseOrder }>({
       query: ({ id, data }) => ({ url: `expense-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [
         { type: 'ExpenseOrder', id },
         'ExpenseOrder',
-        { type: 'ExpenseOrderEvents', id },
-      ],
-    }),
-    setExpenseOrderSectionConfirm: builder.mutation<
-      ExpenseOrder,
-      { id: number; data: ExpenseOrderSectionConfirmRequest }
-    >({
-      query: ({ id, data }) => ({
-        url: `expense-orders/${id}/section-confirm/`,
-        method: 'PATCH',
-        body: data,
-      }),
-      invalidatesTags: (_r, _e, { id }) => [
-        { type: 'ExpenseOrder', id },
         { type: 'ExpenseOrderApprovers', id },
         { type: 'ExpenseOrderEvents', id },
         'Notification',
@@ -71,6 +68,23 @@ export const expenseOrdersApi = createApi({
         'ExpenseOrder',
         { type: 'ExpenseOrderEvents', id },
       ],
+    }),
+    voidExpenseOrder: builder.mutation<ExpenseOrder, { id: number; void_note: string }>({
+      query: ({ id, void_note }) => ({ url: `expense-orders/${id}/void/`, method: 'POST', body: { void_note } }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'ExpenseOrder', id },
+        'ExpenseOrder',
+        { type: 'ExpenseOrderEvents', id },
+        { type: 'ExpenseOrderApprovers', id },
+      ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     deleteExpenseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `expense-orders/${id}/`, method: 'DELETE' }),
@@ -125,6 +139,9 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, eoId) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
+        { type: 'ExpenseOrder', id: eoId },
+        'ExpenseOrder',
+        'Notification',
       ],
     }),
     unapproveExpenseOrder: builder.mutation<ExpenseOrderApprover, number>({
@@ -132,6 +149,8 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, eoId) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
+        { type: 'ExpenseOrder', id: eoId },
+        'ExpenseOrder',
       ],
     }),
     getExpenseOrderEvents: builder.query<ExpenseOrderEvent[], number>({
@@ -146,6 +165,7 @@ export const expenseOrdersApi = createApi({
       query: ({ eoId, data }) => ({ url: `expense-orders/${eoId}/items/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { eoId }) => [
         { type: 'ExpenseOrderItem', id: eoId },
+        { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
         'ExpenseOrder',
       ],
@@ -158,13 +178,19 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, { eoId }) => [
         'ExpenseOrderItem',
         'ExpenseOrder',
-        ...(eoId != null ? [{ type: 'ExpenseOrderEvents' as const, id: eoId }] : []),
+        ...(eoId != null
+          ? [
+              { type: 'ExpenseOrderApprovers' as const, id: eoId },
+              { type: 'ExpenseOrderEvents' as const, id: eoId },
+            ]
+          : []),
       ],
     }),
     removeExpenseOrderItem: builder.mutation<void, { itemId: number; eoId: number }>({
       query: ({ itemId }) => ({ url: `expense-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: (_r, _e, { eoId }) => [
         { type: 'ExpenseOrderItem', id: eoId },
+        { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
         'ExpenseOrder',
       ],
@@ -176,9 +202,10 @@ export const {
   useGetExpenseOrdersQuery,
   useGetExpenseOrderByIdQuery,
   useCreateExpenseOrderMutation,
+  useCreateExpenseOrderFromTemplateMutation,
   useUpdateExpenseOrderMutation,
-  useSetExpenseOrderSectionConfirmMutation,
   useMarkExpenseOrderCompleteMutation,
+  useVoidExpenseOrderMutation,
   useDeleteExpenseOrderMutation,
   useCreateInvoiceFromExpenseOrderMutation,
   useGetExpenseOrderApproversQuery,

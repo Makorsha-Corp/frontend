@@ -1,18 +1,15 @@
-export const EXPENSE_CATEGORIES = [
-  { value: 'utilities', label: 'Utilities' },
-  { value: 'payroll', label: 'Payroll' },
-  { value: 'rent', label: 'Rent' },
-  { value: 'services', label: 'Services' },
-  { value: 'maintenance', label: 'Maintenance' },
+export const ALLOCATION_TYPES = [
+  { value: 'factory', label: 'Factory' },
+  { value: 'department', label: 'Department' },
   { value: 'other', label: 'Other' },
 ] as const;
 
-export type ExpenseCategoryValue = (typeof EXPENSE_CATEGORIES)[number]['value'];
+export type AllocationTypeValue = (typeof ALLOCATION_TYPES)[number]['value'];
 
-const CATEGORY_LABEL_BY_VALUE = new Map(
-  EXPENSE_CATEGORIES.map((c) => [c.value, c.label] as const)
+const ALLOCATION_LABEL_BY_VALUE = new Map(
+  ALLOCATION_TYPES.map((c) => [c.value, c.label] as const)
 );
 
 export function expenseCategoryLabel(value: string): string {
-  return CATEGORY_LABEL_BY_VALUE.get(value as ExpenseCategoryValue) ?? value;
+  return ALLOCATION_LABEL_BY_VALUE.get(value as AllocationTypeValue) ?? value;
 }
