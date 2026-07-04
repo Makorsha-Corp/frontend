@@ -28,7 +28,14 @@ export function getTestCredentials() {
   };
 }
 
+let cachedLogin: LoginResponse | null = null;
+let cachedLoginAt = 0;
+const LOGIN_CACHE_MS = 5 * 60 * 1000;
+
 export async function loginViaApi(request: APIRequestContext): Promise<LoginResponse> {
+  if (cachedLogin && Date.now() - cachedLoginAt < LOGIN_CACHE_MS) {
+    return cachedLogin;
+  }
   const { email, password } = getTestCredentials();
   const res = await request.post(`${apiURL}auth/login/`, {
     data: { email, password },
@@ -36,7 +43,9 @@ export async function loginViaApi(request: APIRequestContext): Promise<LoginResp
   if (!res.ok()) {
     throw new Error(`Login failed (${res.status()}): ${await res.text()}`);
   }
-  return res.json();
+  cachedLogin = await res.json();
+  cachedLoginAt = Date.now();
+  return cachedLogin;
 }
 
 export async function listWorkspaces(

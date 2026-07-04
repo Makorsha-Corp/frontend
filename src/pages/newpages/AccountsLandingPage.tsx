@@ -224,7 +224,8 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   };
 
   const handleEdit = (account: Account) => setEditingAccount(account);
-  const handleView = (account: Account) => navigate(`/accounts/${account.id}`);
+  const handleView = (account: Account) =>
+    navigate(`/accounts/${account.id}`, { state: { fromSection: selectedSection } });
   const handleDelete = async (account: Account) => {
     if (!window.confirm(`Deactivate "${account.name}"? This is a soft delete.`)) return;
     try {

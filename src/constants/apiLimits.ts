@@ -22,12 +22,6 @@ export const API_LIMITS = {
   INVOICES_HUB: 500,
 
   /**
-   * Account detail page: invoices sidebar uses `skip`/`limit` pagination (not a server cap).
-   * Totals row uses up to FLEXIBLE_1000 in one request; if an account exceeds that, totals may be partial.
-   */
-  ACCOUNT_INVOICE_PAGE_SIZE: 11,
-
-  /**
    * Accounts hub (aggregated + tag tabs), tag-scoped accounts list, Manage Accounts dialog.
    * Payable / Receivable hub tabs still load up to ACCOUNTS_LIST_MAX in one request (invoice join).
    */
@@ -36,6 +30,6 @@ export const API_LIMITS = {
   /** Common tight cap: items, sales_orders, statuses, ledgers, many project/production lists, etc. */
   STRICT_100: 100,
 
-  /** Common relaxed cap: purchase_orders, machines, factories, account_invoices max, etc. */
+  /** Common relaxed cap: purchase_orders, machines, factories, account_invoices max, account detail invoice navigator, etc. */
   FLEXIBLE_1000: 1000,
 } as const;

@@ -33,7 +33,7 @@ const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
 
   const accountName = accountNameProp ?? account?.name ?? null;
 
-  const handleViewOnAccount = () => {
+  const handleOpenWorkspace = () => {
     if (!accountId) return;
     onOpenChange(false);
     navigate(`/accounts/${accountId}`);
@@ -41,7 +41,7 @@ const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(52rem,94vw)] max-w-none flex-col overflow-hidden">
+      <DialogContent className="flex h-[72vh] max-h-[72vh] w-[min(52rem,94vw)] max-w-none flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -58,11 +58,12 @@ const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
           <Button
             type="button"
             className="bg-brand-primary hover:bg-brand-primary-hover"
-            onClick={handleViewOnAccount}
+            onClick={handleOpenWorkspace}
             disabled={!accountId}
+            data-testid="account-view-open-workspace"
           >
             <ExternalLink className="mr-2 h-4 w-4" />
-            View on Account
+            Open invoice workspace
           </Button>
         </DialogFooter>
       </DialogContent>

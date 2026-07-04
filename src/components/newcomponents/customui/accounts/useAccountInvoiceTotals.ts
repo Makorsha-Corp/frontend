@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
+import { useGetAccountInvoiceSummaryQuery } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import { aggregateAccountInvoiceTotals } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
-import { API_LIMITS } from '@/constants/apiLimits';
 
 export interface AccountInvoiceTotals {
   invoiced: number;
@@ -11,28 +9,27 @@ export interface AccountInvoiceTotals {
   capped: boolean;
 }
 
+/** @deprecated Prefer useGetAccountInvoiceSummaryQuery directly. */
 export function useAccountInvoiceTotals(accountId: number | null | undefined, enabled = true) {
-  const { data: invoices = [], isLoading } = useGetAccountInvoicesQuery(
-    { account_id: accountId!, skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+  const { data: summary, isLoading: summaryLoading } = useGetAccountInvoiceSummaryQuery(
+    { account_id: accountId! },
     { skip: !accountId || !enabled }
   );
 
-  const totals = useMemo<AccountInvoiceTotals>(() => {
-    const base = aggregateAccountInvoiceTotals(invoices);
-    return {
-      ...base,
-      invoiceCount: invoices.length,
-      capped: invoices.length >= API_LIMITS.FLEXIBLE_1000,
-    };
-  }, [invoices]);
-
-  const recentInvoices = useMemo(
-    () =>
-      [...invoices]
-        .sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime())
-        .slice(0, 5),
-    [invoices]
+  const { data: invoices = [], isLoading: listLoading } = useGetAccountInvoicesQuery(
+    { account_id: accountId!, skip: 0, limit: 5 },
+    { skip: !accountId || !enabled }
   );
 
-  return { totals, recentInvoices, isLoading };
+  const totals: AccountInvoiceTotals = {
+    invoiced: summary?.invoiced ?? 0,
+    paid: summary?.paid ?? 0,
+    outstanding: summary?.outstanding ?? 0,
+    invoiceCount: summary?.invoiceCount ?? 0,
+    capped: false,
+  };
+
+  const recentInvoices = invoices;
+
+  return { totals, recentInvoices, isLoading: summaryLoading || listLoading };
 }

@@ -7,11 +7,16 @@
  */
 import type { AppDispatch } from '@/app/store';
 import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
+import { accountsApi } from '@/features/accounts/accountsApi';
 import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { expenseOrdersApi } from '@/features/expenseOrders/expenseOrdersApi';
 import { transferOrdersApi } from '@/features/transferOrders/transferOrdersApi';
 import { salesOrdersApi } from '@/features/salesOrders/salesOrdersApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
+
+export function invalidateAccountInvoiceSummary(dispatch: AppDispatch, accountId: number): void {
+  dispatch(accountsApi.util.invalidateTags([{ type: 'AccountInvoiceSummary', id: accountId }]));
+}
 
 export function invalidateInvoiceById(dispatch: AppDispatch, invoiceId: number): void {
   dispatch(
@@ -108,9 +113,12 @@ export function invalidateLinkedOrderForInvoice(
 export function invalidateInvoiceAndLinkedOrder(
   dispatch: AppDispatch,
   invoiceId: number,
-  invoice?: Pick<AccountInvoice, 'order_id' | 'order_type'> | null,
+  invoice?: Pick<AccountInvoice, 'order_id' | 'order_type' | 'account_id'> | null,
   options?: { poId?: number | null }
 ): void {
   invalidateInvoiceById(dispatch, invoiceId);
+  if (invoice?.account_id != null) {
+    invalidateAccountInvoiceSummary(dispatch, invoice.account_id);
+  }
   invalidateLinkedOrderForInvoice(dispatch, invoice, options);
 }
