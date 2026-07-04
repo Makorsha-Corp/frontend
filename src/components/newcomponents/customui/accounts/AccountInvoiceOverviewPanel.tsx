@@ -5,9 +5,8 @@ import { useGetAccountInvoiceByIdQuery, useGetInvoiceEventsQuery } from '@/featu
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
 import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
-import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
+import AccountInvoiceSummaryCard from './AccountInvoiceSummaryCard';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
-import InvoiceDueDateField from './InvoiceDueDateField';
 import InvoiceEventLogCard from './InvoiceEventLogCard';
 import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
 
@@ -99,55 +98,11 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-card px-4 py-3">
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Invoice amount</p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
-              {formatInvoiceCurrency(invoice.invoice_amount)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Paid</p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
-              {formatInvoiceCurrency(invoice.paid_amount)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Outstanding</p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums text-card-foreground leading-tight">
-              {formatInvoiceCurrency(invoice.outstanding_amount)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Invoice Date</p>
-          <p className="mt-0.5 text-sm text-card-foreground">{formatInvoiceDate(invoice.invoice_date)}</p>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Due Date</p>
-          <InvoiceDueDateField invoice={invoice} readOnly={dueDateReadOnly} />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Type</p>
-          <p className="mt-0.5 text-sm capitalize text-card-foreground">{invoice.invoice_type}</p>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Payments</p>
-          <p
-            className={`mt-0.5 text-sm font-medium ${
-              invoice.allow_payments
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-amber-600 dark:text-amber-400'
-            }`}
-          >
-            {invoice.allow_payments ? 'Allowed' : 'Locked'}
-          </p>
-        </div>
-      </div>
+      <AccountInvoiceSummaryCard
+        invoice={invoice}
+        dueDateReadOnly={dueDateReadOnly}
+        showPaymentsField
+      />
 
       <AccountInvoicePaymentsSection invoice={invoice} />
 
