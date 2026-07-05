@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, Package } from 'lucide-react';
 import { useGetInvoiceItemsQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { formatInvoiceCurrency } from './accountInvoiceFormatters';
+import { INVOICE_DETAIL_SECTION_SHELL } from './AccountInvoiceSummaryCard';
 import { cn } from '@/lib/utils';
 
 interface InvoiceItemsTableProps {
@@ -11,7 +12,7 @@ interface InvoiceItemsTableProps {
 }
 
 const shellClass = (embedded: boolean) =>
-  embedded ? 'space-y-3' : 'rounded-md border border-border bg-muted/20 px-4 py-3 space-y-3';
+  embedded ? 'space-y-3' : cn(INVOICE_DETAIL_SECTION_SHELL, 'px-4 py-3 space-y-3');
 
 const InvoiceItemsTable: React.FC<InvoiceItemsTableProps> = ({ invoiceId, embedded = false }) => {
   const { data: items = [], isLoading } = useGetInvoiceItemsQuery(invoiceId);

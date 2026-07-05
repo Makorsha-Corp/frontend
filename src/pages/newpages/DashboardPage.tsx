@@ -44,7 +44,6 @@ const DashboardPage: React.FC = () => {
     recentOrders,
     workspacePulse,
     isLoading,
-    hasError,
     salesMayTruncate,
   } = useDashboardData();
 
@@ -83,11 +82,6 @@ const DashboardPage: React.FC = () => {
         </AppShellHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
-          {hasError && (
-            <p className="mb-4 text-sm text-destructive">
-              Some dashboard data could not be loaded. Check your connection and workspace access.
-            </p>
-          )}
           {salesMayTruncate && (
             <p className="mb-4 text-xs text-muted-foreground">
               Sales order counts may be truncated due to pagination limits.

@@ -11,7 +11,9 @@ import {
 } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetInvoicePaymentsByInvoiceQuery } from '@/features/invoicePayments/invoicePaymentsApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
-import AccountInvoiceSummaryCard from './AccountInvoiceSummaryCard';
+import AccountInvoiceSummaryCard, {
+  INVOICE_DETAIL_SECTION_SHELL,
+} from './AccountInvoiceSummaryCard';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
 import InvoiceEventLogCard from './InvoiceEventLogCard';
 import InvoiceItemsTable from './InvoiceItemsTable';
@@ -120,7 +122,9 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   return (
     <div className="space-y-4">
       {isDraft && (
-        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-4">
+        <div
+          className={`${INVOICE_DETAIL_SECTION_SHELL} px-4 py-3 flex items-center justify-between gap-4`}
+        >
           <div className="min-w-0">
             <p className="text-sm font-medium text-card-foreground">This invoice is a draft</p>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -165,7 +169,7 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
       <AccountInvoicePaymentsSection invoice={invoice} />
 
       {invoice.notes ? (
-        <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
+        <div className={`${INVOICE_DETAIL_SECTION_SHELL} px-4 py-3 text-sm`}>
           <span className="font-medium mr-2">Notes:</span>
           {invoice.notes}
         </div>

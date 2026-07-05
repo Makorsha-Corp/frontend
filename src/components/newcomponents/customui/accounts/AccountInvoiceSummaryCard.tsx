@@ -20,6 +20,10 @@ export interface AccountInvoiceSummaryCardProps {
 const VALUE_CLASS =
   'text-base font-semibold tabular-nums leading-tight text-card-foreground';
 
+/** Shared shell for invoice detail blocks (summary, items, notes, draft banner) */
+export const INVOICE_DETAIL_SECTION_SHELL =
+  'rounded-md border border-border bg-card shadow-sm';
+
 function SummaryCell({
   label,
   children,
@@ -61,8 +65,10 @@ const AccountInvoiceSummaryCard: React.FC<AccountInvoiceSummaryCardProps> = ({
   return (
     <div
       className={cn(
-        'rounded-md border border-border px-4 py-3.5',
-        surface === 'inset' ? 'surface-inset' : 'bg-card shadow-sm',
+        'px-4 py-3.5',
+        surface === 'inset'
+          ? 'rounded-md border border-border surface-inset'
+          : INVOICE_DETAIL_SECTION_SHELL,
         className
       )}
     >
