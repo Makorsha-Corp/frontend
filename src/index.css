@@ -94,6 +94,13 @@
   }
 }
 
+@layer components {
+  /* Nested surface inside bg-card dialogs (light: cream wash; dark: solid muted lift) */
+  .surface-inset {
+    @apply rounded-md border border-border bg-muted/20 dark:bg-muted;
+  }
+}
+
 /* View Transitions API — circular wipe from toggle origin */
 @keyframes theme-wipe {
   to {

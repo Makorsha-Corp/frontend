@@ -34,9 +34,13 @@ const PAYMENT_ICON = INVOICE_EVENT_VISUALS.payment_recorded;
 
 interface AccountInvoicePaymentsSectionProps {
   invoice: AccountInvoice;
+  embedded?: boolean;
 }
 
-const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps> = ({ invoice }) => {
+const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps> = ({
+  invoice,
+  embedded = false,
+}) => {
   const { data: payments = [], isLoading: isLoadingPayments } = useGetInvoicePaymentsByInvoiceQuery(
     { invoice_id: invoice.id, skip: 0, limit: 100 },
     { skip: !invoice.id }
@@ -138,7 +142,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
 
   return (
     <>
-      <Card>
+      <Card className={cn(embedded && 'border-0 bg-transparent shadow-none')}>
         <CardHeader className="p-4 pb-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <CardTitle className="flex items-center gap-2 text-base">

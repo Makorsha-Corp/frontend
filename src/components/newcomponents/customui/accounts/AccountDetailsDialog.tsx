@@ -45,15 +45,18 @@ const AccountDetailsDialog: React.FC<AccountDetailsDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-          {account ? <AccountContextPanel account={account} /> : null}
+          {account ? (
+            <div className="surface-inset px-4 py-4">
+              <AccountContextPanel account={account} />
+            </div>
+          ) : null}
         </div>
         <DialogFooter className="shrink-0 gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Close
           </Button>
           <Button
             type="button"
-            variant="outline"
             onClick={handleEdit}
             disabled={!account}
             data-testid="account-details-edit"

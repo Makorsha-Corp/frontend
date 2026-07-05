@@ -159,6 +159,12 @@ interface PoDraft {
 const confirmedSectionCardClass = 'border-muted-foreground/15 bg-muted/20';
 const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
 
+/** Detail tables inside section Cards — body rows match scroll canvas (`bg-background`) */
+const detailTableBodyRowClass =
+  'bg-background hover:bg-muted/40 dark:hover:bg-muted/30';
+
+const detailNestedTableShellClass = 'border border-border rounded-lg overflow-hidden';
+
 const CONFIRM_EVENT_TYPES = new Set([
   'supplier_confirmed',
   'supplier_unconfirmed',
@@ -1183,7 +1189,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                       : `${itemsMissingPriceCount} items still need unit prices — required before you can confirm order items.`}
                   </p>
                 ) : null}
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className={detailNestedTableShellClass}>
                 <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
@@ -1226,13 +1232,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                         return (
                           <TableRow
                             key={item.id}
-                            className={
-                              needsPrice
-                                ? 'bg-amber-50/60 dark:bg-amber-950/20'
-                                : receivingReadiness.ok && isComplete
-                                  ? 'bg-green-50/50 dark:bg-green-950/20'
-                                  : ''
-                            }
+                            className={cn(
+                              detailTableBodyRowClass,
+                              needsPrice && 'bg-amber-50/60 dark:bg-amber-950/20',
+                              !needsPrice &&
+                                receivingReadiness.ok &&
+                                isComplete &&
+                                'bg-green-50/50 dark:bg-green-950/20'
+                            )}
                           >
                             <TableCell className="py-2 text-center text-muted-foreground text-sm">{item.line_number}</TableCell>
                             <TableCell className="py-2">

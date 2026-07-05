@@ -77,13 +77,13 @@ const OrderPendingActions: React.FC<OrderPendingActionsProps> = ({
                     {section.count}
                   </span>
                 </div>
-                <div className="ml-8 space-y-1">
+                <div className="space-y-2">
                   {section.items.map((item) => (
                     <Button
                       key={item.id}
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-between h-auto py-1.5 px-2 text-left hover:bg-muted/50"
+                      className="w-full max-w-none justify-between h-auto py-2 px-2.5 text-left rounded-lg border border-border/60 bg-background hover:bg-muted/40 hover:text-foreground"
                       onClick={() => onSelectItem(item.id)}
                     >
                       <span className="text-sm truncate">
@@ -98,7 +98,7 @@ const OrderPendingActions: React.FC<OrderPendingActionsProps> = ({
                     </Button>
                   ))}
                   {section.count > section.items.length && (
-                    <p className="text-xs text-muted-foreground pl-2">
+                    <p className="text-xs text-muted-foreground">
                       +{section.count - section.items.length} more
                     </p>
                   )}

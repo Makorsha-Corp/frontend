@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Clock, Loader2, RotateCcw, XCircle } from 'lucide-react';
-import InvoiceLockedBadge from './InvoiceLockedBadge';
+import { CheckCircle2, Loader2, RotateCcw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InvoiceConfirmDialog, InvoiceVoidDialog } from './InvoiceLifecycleDialogs';
-import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
 import {
   useGetAccountInvoiceByIdQuery,
   useConfirmAccountInvoiceMutation,
@@ -13,17 +11,13 @@ import {
 } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetInvoicePaymentsByInvoiceQuery } from '@/features/invoicePayments/invoicePaymentsApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
-import { formatInvLabel } from './invoiceDisplayUtils';
-import { useLinkedOrderForInvoice } from './useLinkedOrderForInvoice';
 import AccountInvoiceSummaryCard from './AccountInvoiceSummaryCard';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
 import InvoiceEventLogCard from './InvoiceEventLogCard';
-import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
 import InvoiceItemsTable from './InvoiceItemsTable';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
 import toast from 'react-hot-toast';
-import { cn } from '@/lib/utils';
 
 export interface AccountInvoiceDetailPanelProps {
   invoiceId: number;
@@ -32,52 +26,12 @@ export interface AccountInvoiceDetailPanelProps {
   showOrderSummary?: boolean;
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  draft: {
-    label: 'Draft',
-    className: 'bg-muted text-muted-foreground border-border',
-    icon: Clock,
-  },
-  confirmed: {
-    label: 'Confirmed',
-    className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
-    icon: CheckCircle2,
-  },
-  voided: {
-    label: 'Voided',
-    className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800',
-    icon: XCircle,
-  },
-} as const;
-
-function InvoiceStatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
-  const Icon = config.icon;
-  return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold', config.className)}>
-      <Icon className="h-3 w-3" />
-      {config.label}
-    </span>
-  );
-}
-
-// ─── Main component ────────────────────────────────────────────────────────────
-
 const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   invoiceId,
   invoice: invoiceProp,
-  linkedOrderNumber: linkedOrderNumberProp,
-  showOrderSummary = true,
 }) => {
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
-
-  const { orderNumber: fetchedOrderNumber, isLoading: isOrderLoading } =
-    useLinkedOrderForInvoice(invoiceId, { skipExpenseLookup: linkedOrderNumberProp !== undefined });
-  const linkedOrderNumber =
-    linkedOrderNumberProp !== undefined ? linkedOrderNumberProp : fetchedOrderNumber;
 
   const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId);
 
@@ -131,8 +85,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
     }
   };
 
-
-
   const activePaymentCount = paymentsForCount.filter((p) => !p.is_voided).length;
 
   const voidedByName = useMemo(() => {
@@ -143,11 +95,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
     );
     return latest.performed_by_name;
   }, [events]);
-
-  const resolvedInvoice = fetchedInvoice ?? invoiceProp;
-  const linkedOrderId = resolvedInvoice?.order_id ?? null;
-  const linkedOrderType = resolvedInvoice?.order_type ?? null;
-
 
   if (isLoading && !invoice) {
     return (
@@ -170,37 +117,8 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const voidReadiness = canVoidPoInvoice(invoice.invoice_status, receivingStarted);
   const canRevertToDraft = isConfirmed && !receivingStarted && invoice.paid_amount === 0;
 
-
   return (
     <div className="space-y-4">
-
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 pr-2">
-          <p className="text-base font-semibold text-card-foreground">{formatInvLabel(invoice)}</p>
-          {invoice.vendor_invoice_number ? (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Supplier invoice #{invoice.vendor_invoice_number}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          {showOrderSummary ? (
-            <OrderDetailsSummary
-              invoice={invoice}
-              linkedOrderNumber={
-                linkedOrderNumberProp !== undefined ? linkedOrderNumberProp
-                  : isOrderLoading ? undefined : linkedOrderNumber
-              }
-            />
-          ) : null}
-          <InvoiceStatusBadge status={invoice.invoice_status} />
-          {isConfirmed && receivingStarted && <InvoiceLockedBadge />}
-          {isFinalized && <InvoicePaymentStatusBadge status={invoice.payment_status} />}
-        </div>
-      </div>
-
-      {/* ── Draft notice + Confirm action ── */}
       {isDraft && (
         <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
@@ -220,8 +138,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       )}
 
-
-      {/* ── Voided notice ── */}
       {isVoided && (
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
           <div className="flex items-center gap-2">
@@ -238,20 +154,16 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       )}
 
-      {/* ── Summary (amounts + metadata) ── */}
       <AccountInvoiceSummaryCard
         invoice={invoice}
         showPaymentsField={isConfirmed}
         amountsVoided={isVoided}
       />
 
-      {/* ── Invoice items ── */}
       <InvoiceItemsTable invoiceId={invoiceId} />
 
-      {/* ── Payments section ── */}
       <AccountInvoicePaymentsSection invoice={invoice} />
 
-      {/* ── Notes ── */}
       {invoice.notes ? (
         <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
           <span className="font-medium mr-2">Notes:</span>
@@ -259,12 +171,11 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       ) : null}
 
-      {/* ── Actions (revert to draft + void) ── */}
       {(isFinalized || canRevertToDraft) && (
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           {canRevertToDraft && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleRevert}
               disabled={isReverting}
@@ -279,9 +190,8 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
           )}
           {isFinalized && (
             <BlockedActionButton
-              variant="outline"
+              variant="destructive"
               size="sm"
-              className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
               blocked={!voidReadiness.ok}
               blockedHint={
                 !voidReadiness.ok
@@ -303,7 +213,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
         </div>
       )}
 
-      {/* ── Invoice logs ── */}
       <InvoiceEventLogCard events={events} invoice={invoice} />
 
       <InvoiceConfirmDialog

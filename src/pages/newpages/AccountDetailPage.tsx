@@ -10,13 +10,14 @@ import AppShellHeader, {
 import { Button } from '@/components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
-import { Users, Loader2, X } from 'lucide-react';
+import { Users, Loader2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import AccountDetailsDialog from '@/components/newcomponents/customui/accounts/AccountDetailsDialog';
 import AccountInvoiceDetailPanel from '@/components/newcomponents/customui/accounts/AccountInvoiceDetailPanel';
 import AccountInvoiceToolbar from '@/components/newcomponents/customui/accounts/AccountInvoiceToolbar';
 import AccountInvoiceNavigatorPanel from '@/components/newcomponents/customui/accounts/AccountInvoiceNavigatorPanel';
+import { formatInvLabel } from '@/components/newcomponents/customui/accounts/invoiceDisplayUtils';
 import { useAccountInvoiceWorkspace } from '@/hooks/useAccountInvoiceWorkspace';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 
@@ -73,22 +74,45 @@ const AccountDetailPage: React.FC = () => {
                     <Breadcrumb className="min-w-0 self-end">
                       <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
                         <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
-                          <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
-                            <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                          <button
+                            type="button"
+                            onClick={workspace.closeAccount}
+                            className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-label={`Back to accounts from ${account.name}`}
+                          >
+                            <ChevronLeft className="h-4 w-4 shrink-0" />
+                            <span className="truncate px-0.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
                               {account.name}
                             </span>
-                            <button
-                              type="button"
-                              onClick={workspace.closeAccount}
-                              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              aria-label="Close account"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </span>
+                          </button>
                         </BreadcrumbItem>
                       </BreadcrumbList>
                     </Breadcrumb>
+                    {workspace.selectedInvoiceFromList ? (
+                      <>
+                        <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+                        <Breadcrumb className="min-w-0 self-end">
+                          <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                            <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => workspace.selectInvoice(null)}
+                                className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label="Back to invoices"
+                              >
+                                <ChevronLeft className="h-4 w-4 shrink-0" />
+                                <span
+                                  className="truncate px-0.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground"
+                                  data-testid="account-invoice-header-label"
+                                >
+                                  {formatInvLabel(workspace.selectedInvoiceFromList)}
+                                </span>
+                              </button>
+                            </BreadcrumbItem>
+                          </BreadcrumbList>
+                        </Breadcrumb>
+                      </>
+                    ) : null}
                   </>
                 ) : null}
               </div>

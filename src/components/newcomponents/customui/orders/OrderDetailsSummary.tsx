@@ -36,23 +36,19 @@ import { Loader2 } from 'lucide-react';
 
 
 interface OrderDetailsSummaryProps {
-
   invoice: AccountInvoice;
-
   /** When known, shown on the badge before full order fetch completes. */
-
   linkedOrderNumber?: string | null;
-
+  /** Show PO-2026-009 as-is (no "Order #" prefix) — for compact list rows */
+  shortLabel?: boolean;
+  badgeClassName?: string;
 }
 
-
-
 const OrderDetailsSummary: React.FC<OrderDetailsSummaryProps> = ({
-
   invoice,
-
   linkedOrderNumber: linkedOrderNumberProp,
-
+  shortLabel = false,
+  badgeClassName,
 }) => {
 
   const [open, setOpen] = useState(false);
@@ -122,20 +118,23 @@ const OrderDetailsSummary: React.FC<OrderDetailsSummaryProps> = ({
 
 
 
+  const displayLabel =
+    badgeLabel == null
+      ? 'Order Summary'
+      : shortLabel
+        ? badgeLabel
+        : formatOrderLabel(badgeLabel);
+
   if (isLoading && !badgeLabel) {
-
     return (
-
-      <Badge variant="outline" className="gap-1 font-medium text-muted-foreground">
-
+      <Badge
+        variant="outline"
+        className={cn('gap-1 font-medium text-muted-foreground', badgeClassName)}
+      >
         <Loader2 className="h-3 w-3 animate-spin" />
-
-        Order…
-
+        {shortLabel ? '…' : 'Order…'}
       </Badge>
-
     );
-
   }
 
 
@@ -167,19 +166,13 @@ const OrderDetailsSummary: React.FC<OrderDetailsSummaryProps> = ({
       >
 
         <Badge
-
           className={cn(
-
             'cursor-pointer border-transparent bg-brand-primary font-medium text-primary-foreground',
-
-            'hover:bg-brand-primary-hover'
-
+            'hover:bg-brand-primary-hover',
+            badgeClassName
           )}
-
         >
-
-          {badgeLabel ? formatOrderLabel(badgeLabel) : 'Order Summary'}
-
+          {displayLabel}
         </Badge>
 
       </button>

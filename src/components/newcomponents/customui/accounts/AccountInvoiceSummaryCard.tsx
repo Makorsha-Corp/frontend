@@ -12,6 +12,8 @@ export interface AccountInvoiceSummaryCardProps {
   showPaymentsField?: boolean;
   /** Line-through on invoice amount when voided. */
   amountsVoided?: boolean;
+  /** card = white/card shell; inset = surface-inset (lighter block on dark canvas) */
+  surface?: 'card' | 'inset';
   className?: string;
 }
 
@@ -38,6 +40,7 @@ const AccountInvoiceSummaryCard: React.FC<AccountInvoiceSummaryCardProps> = ({
   dueDateReadOnly = false,
   showPaymentsField = true,
   amountsVoided = false,
+  surface = 'card',
   className,
 }) => {
   const paymentsValue = showPaymentsField ? (
@@ -56,7 +59,13 @@ const AccountInvoiceSummaryCard: React.FC<AccountInvoiceSummaryCardProps> = ({
   );
 
   return (
-    <div className={cn('rounded-md border border-border bg-card px-4 py-3.5', className)}>
+    <div
+      className={cn(
+        'rounded-md border border-border px-4 py-3.5',
+        surface === 'inset' ? 'surface-inset' : 'bg-card shadow-sm',
+        className
+      )}
+    >
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
         <SummaryCell label="Invoice date">
           <p className={VALUE_CLASS}>{formatInvoiceDate(invoice.invoice_date)}</p>

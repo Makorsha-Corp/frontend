@@ -65,7 +65,11 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-        <TransferOrderActivityFeed orders={orders} routeSubtext={routeSubtext} />
+        <TransferOrderActivityFeed
+          orders={orders}
+          routeSubtext={routeSubtext}
+          onSelectOrder={onSelectOrder}
+        />
         <TransferOrderPendingActions orders={orders} onSelectOrder={onSelectOrder} />
       </div>
     </div>

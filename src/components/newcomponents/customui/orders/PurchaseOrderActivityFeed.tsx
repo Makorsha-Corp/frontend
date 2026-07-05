@@ -8,6 +8,7 @@ interface PurchaseOrderActivityFeedProps {
   orders: PurchaseOrder[];
   accountName: (id: number) => string;
   statusLabel: (id: number) => string;
+  onSelectOrder?: (id: number) => void;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
   orders,
   accountName,
   statusLabel,
+  onSelectOrder,
   className,
 }) => {
   const activities = useMemo((): ActivityFeedItem[] => {
@@ -27,6 +29,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
         timestamp: parseApiDateTime(order.created_at) ?? new Date(0),
         description: `${order.po_number} created`,
         subtext: accountName(order.account_id),
+        targetId: order.id,
       });
 
       if (order.invoice_id != null) {
@@ -39,6 +42,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
           timestamp: invoiceTime,
           description: `${order.po_number} invoice linked`,
           subtext: order.current_status_name ?? statusLabel(order.current_status_id),
+          targetId: order.id,
         });
       }
     }
@@ -52,6 +56,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
       activities={activities}
       emptyMessage="No recent purchase order activity"
       className={className}
+      onSelectItem={onSelectOrder}
     />
   );
 };
