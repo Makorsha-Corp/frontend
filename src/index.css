@@ -1,4 +1,4 @@
-@import "./styles/marker-tokens.css";
+@import "../shared/marker-tokens.css";
 
 @tailwind base;
 @tailwind components;

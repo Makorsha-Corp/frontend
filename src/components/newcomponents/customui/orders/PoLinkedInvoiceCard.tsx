@@ -22,7 +22,7 @@ import type { PoLinkedInvoiceStatus, PoSectionConfirmKey } from './purchaseOrder
 import { canVoidPoInvoice } from './purchaseOrderMilestones';
 import PoVoidedInvoicesDialog from './PoVoidedInvoicesDialog';
 import { getVoidedInvoicesFromPoEvents } from './poVoidedInvoiceUtils';
-import { formatInvLabel } from '@/components/newcomponents/customui/accounts/invoiceDisplayUtils';
+import InvoiceSummaryBadge from '@/components/newcomponents/customui/accounts/InvoiceSummaryBadge';
 
 export interface PoLinkedInvoiceCardProps {
   invoiceId: number | null;
@@ -84,12 +84,6 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   const voidReadiness = canVoidPoInvoice(invoiceStatus, hasActiveReceiving);
   const navigate = useNavigate();
   const accountId = accountIdProp ?? invoice?.account_id ?? null;
-  const linkedInvoiceLabel =
-    invoiceId != null
-      ? invoice
-        ? formatInvLabel(invoice)
-        : `Inv #${invoiceId}`
-      : null;
 
   const handleViewInAccounts = () => {
     if (!accountId || invoiceId == null) return;
@@ -112,7 +106,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   const invoiceActionsBar = (actions: React.ReactNode) => (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-3 pt-1 border-t border-border/60',
+        'flex flex-wrap items-center gap-3 pt-1',
         voidedInvoices.length > 0 ? 'justify-between' : 'justify-end'
       )}
     >
@@ -127,12 +121,14 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2 min-w-0">
             <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">
-              Linked Invoice
-              {linkedInvoiceLabel ? (
-                <span className="font-normal text-muted-foreground"> · {linkedInvoiceLabel}</span>
-              ) : null}
-            </span>
+            <span className="truncate">Linked Invoice</span>
+            {invoiceId != null ? (
+              <InvoiceSummaryBadge
+                invoiceId={invoiceId}
+                invoice={invoice}
+                onClick={onOpenFullView}
+              />
+            ) : null}
           </CardTitle>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {isConfirmed && !hasActiveReceiving && (
@@ -186,6 +182,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
                 linkedOrderNumber={linkedOrderNumber}
                 showOrderSummary={false}
                 dueDateReadOnly={isFinalized}
+                showEventLog={false}
               />
             </div>
 

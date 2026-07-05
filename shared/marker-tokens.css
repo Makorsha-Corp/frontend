@@ -1,5 +1,5 @@
 /**
- * Marker design tokens (vendored from repo-root shared/marker-tokens.css for standalone frontend deploys).
+ * Shared Marker design tokens — synced from repo-root shared/ (see shared/README.md).
  * HSL components only (no hsl() wrapper) for use as hsl(var(--token)).
  */
 

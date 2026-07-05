@@ -85,7 +85,7 @@ function AccountInvoiceListRow({
         <div className="mt-1 flex items-center justify-between gap-2">
           <span className={cn(chipClass, 'capitalize')}>{invoice.invoice_type}</span>
           <span className="shrink-0 text-xs font-semibold tabular-nums text-card-foreground">
-            {formatInvoiceCurrency(invoice.outstanding_amount)}
+            {formatInvoiceCurrency(invoice.invoice_amount)}
           </span>
         </div>
       </button>

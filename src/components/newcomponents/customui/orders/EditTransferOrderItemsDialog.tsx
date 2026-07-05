@@ -32,6 +32,11 @@ import {
 } from '@/features/transferOrders/transferOrdersApi';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import { API_LIMITS } from '@/constants/apiLimits';
+import { cn } from '@/lib/utils';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -84,7 +89,15 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
   const [pendingNewLines, setPendingNewLines] = useState<PendingNewLine[]>([]);
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim());
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const { data: itemsList = [] } = useGetItemsQuery(
     { skip: 0, limit: API_LIMITS.STRICT_100 },
@@ -101,8 +114,28 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
       setPendingNewLines([]);
       setItemId('');
       setQty('');
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
     }
-  }, [open, items]);
+  }, [open, items, dismissAddButtonHighlight]);
+
+  useEffect(() => {
+    if (!hasUnaddedItemDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
+    }
+  }, [hasUnaddedItemDraft, dismissAddButtonHighlight]);
+
+  useEffect(() => {
+    if (!unaddedHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-unadded-hint-root]')) {
+        setUnaddedHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [unaddedHintOpen]);
 
   const activeExisting = existingLines.filter((l) => !l.removed);
   const totalLineCount = activeExisting.length + pendingNewLines.length;
@@ -118,7 +151,21 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
     });
   }, [existingLines, pendingNewLines, items]);
 
-  const canAddLineItem = itemId !== '' && Number(qty) > 0;
+  const usedItemIds = useMemo(() => {
+    const ids = new Set<number>();
+    existingLines.forEach((l) => {
+      if (!l.removed) ids.add(l.item_id);
+    });
+    pendingNewLines.forEach((l) => ids.add(l.item_id));
+    return ids;
+  }, [existingLines, pendingNewLines]);
+
+  const canAddLineItem = (() => {
+    if (!itemId.trim() || !qty.trim()) return false;
+    const iid = parseInt(itemId, 10);
+    const q = parseFloat(qty);
+    return !isNaN(iid) && !isNaN(q) && q > 0 && !usedItemIds.has(iid);
+  })();
 
   const handleAddLine = () => {
     if (!canAddLineItem) return;
@@ -137,9 +184,29 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
     ]);
     setItemId('');
     setQty('');
+    dismissAddButtonHighlight();
   };
 
   const handleSave = async () => {
+    if (
+      handleUnaddedItemDraftOnSubmit({
+        hasUnaddedItemDraft,
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+        clearDraft: () => {
+          setItemId('');
+          setQty('');
+        },
+      }) === 'blocked'
+    ) {
+      return;
+    }
+    if (!hasChanges && !hasUnaddedItemDraft) {
+      onOpenChange(false);
+      return;
+    }
+
     setIsSaving(true);
     try {
       for (const line of existingLines) {
@@ -215,20 +282,26 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                     className="h-9 bg-background"
                   />
                 </div>
-                <Button
-                  type="button"
-                  size="icon"
-                  className={
-                    canAddLineItem
-                      ? 'h-9 w-9 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
-                      : 'h-9 w-9 bg-neutral-400 text-neutral-100 cursor-not-allowed'
-                  }
-                  onClick={handleAddLine}
-                  disabled={!canAddLineItem}
-                  aria-label="Add line item"
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
+                <div className="relative shrink-0" data-add-item-hint-root>
+                  <Button
+                    type="button"
+                    size="icon"
+                    className={cn(
+                      canAddLineItem
+                        ? 'h-9 w-9 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
+                        : 'h-9 w-9 bg-neutral-400 text-neutral-100 cursor-not-allowed hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600',
+                      addButtonHighlighted && 'po-scroll-target-highlight'
+                    )}
+                    onClick={handleAddLine}
+                    onMouseEnter={() => {
+                      if (addButtonHighlighted) dismissAddButtonHighlight();
+                    }}
+                    disabled={!canAddLineItem}
+                    aria-label="Add line item"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -357,16 +430,26 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
               >
                 Cancel
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving || !hasChanges}
-                className="bg-brand-primary hover:bg-brand-primary-hover"
-              >
-                {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                Save items
-              </Button>
+              <div className="relative" data-unadded-hint-root>
+                {unaddedHintOpen ? (
+                  <div
+                    role="tooltip"
+                    className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                  >
+                    You have unadded order items — click ✓ to add them, or click Save again to continue without them
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={isSaving || (!hasChanges && !hasUnaddedItemDraft)}
+                  className="bg-brand-primary hover:bg-brand-primary-hover"
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                  Save items
+                </Button>
+              </div>
             </div>
           </DialogFooter>
         </DialogContent>

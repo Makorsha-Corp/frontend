@@ -105,6 +105,13 @@ const AccountInvoiceSummaryCard: React.FC<AccountInvoiceSummaryCardProps> = ({
           </SummaryCell>
         </div>
       </div>
+
+      {invoice.notes ? (
+        <div className="mt-4 border-t border-border/60 pt-4 text-sm text-card-foreground">
+          <p className="text-xs font-medium text-muted-foreground">Notes</p>
+          <p className="mt-1 whitespace-pre-wrap">{invoice.notes}</p>
+        </div>
+      ) : null}
     </div>
   );
 };

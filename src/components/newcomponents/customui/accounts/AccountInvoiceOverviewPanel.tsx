@@ -18,6 +18,8 @@ export interface AccountInvoiceOverviewPanelProps {
   showOrderSummary?: boolean;
   /** When true, due date is read-only (finalized invoice embedded on PO). */
   dueDateReadOnly?: boolean;
+  /** Event log card; hidden on PO/EO embedded invoice (shown in AccountInvoiceDialog). */
+  showEventLog?: boolean;
 }
 
 const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = ({
@@ -27,10 +29,13 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
   linkedOrderNumber: linkedOrderNumberProp,
   showOrderSummary = false,
   dueDateReadOnly = false,
+  showEventLog = true,
 }) => {
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
-  const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId);
+  const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId, {
+    skip: !showEventLog,
+  });
 
   const { data: account } = useGetAccountByIdQuery(invoice?.account_id ?? 0, {
     skip: !invoice?.account_id || accountNameProp !== undefined,
@@ -106,14 +111,7 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
 
       <AccountInvoicePaymentsSection invoice={invoice} />
 
-      <InvoiceEventLogCard events={events} invoice={invoice} />
-
-      {invoice.notes ? (
-        <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm">
-          <span className="font-medium mr-2">Notes:</span>
-          {invoice.notes}
-        </div>
-      ) : null}
+      {showEventLog ? <InvoiceEventLogCard events={events} invoice={invoice} /> : null}
     </div>
   );
 };

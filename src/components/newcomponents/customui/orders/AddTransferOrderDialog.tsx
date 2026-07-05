@@ -30,6 +30,11 @@ import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSe
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import { isSameTransferLocation } from '@/components/newcomponents/customui/orders/transferOrderRouteHelpers';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
+import { cn } from '@/lib/utils';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 const SOURCE_TYPES = [
   { value: 'storage', label: 'Storage (Factory)' },
@@ -79,6 +84,11 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim());
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const [createOrder, { isLoading }] = useCreateTransferOrderMutation();
   const globalFactory = useGlobalFactory();
@@ -206,6 +216,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     setDestMachinePickerOpen(false);
     setAddHintOpen(false);
     setUnaddedHintOpen(false);
+    dismissAddButtonHighlight();
     setEditingItemId(null);
   };
 
@@ -223,8 +234,11 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   }, [canAddLineItem]);
 
   useEffect(() => {
-    if (!hasUnaddedItemDraft) setUnaddedHintOpen(false);
-  }, [hasUnaddedItemDraft]);
+    if (!hasUnaddedItemDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
+    }
+  }, [hasUnaddedItemDraft, dismissAddButtonHighlight]);
 
   useEffect(() => {
     if (!unaddedHintOpen) return;
@@ -272,6 +286,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     setItemId('');
     setQty('');
     setAddHintOpen(false);
+    dismissAddButtonHighlight();
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -313,14 +328,19 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       toast.error('Destination must be different from source');
       return;
     }
-    if (hasUnaddedItemDraft) {
-      if (!unaddedHintOpen) {
-        setUnaddedHintOpen(true);
-        return;
-      }
-      setItemId('');
-      setQty('');
-      setUnaddedHintOpen(false);
+    if (
+      handleUnaddedItemDraftOnSubmit({
+        hasUnaddedItemDraft,
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+        clearDraft: () => {
+          setItemId('');
+          setQty('');
+        },
+      }) === 'blocked'
+    ) {
+      return;
     }
     if (items.length === 0) {
       toast.error('Add at least one transfer item');
@@ -419,12 +439,16 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
             <Button
               type="button"
               size="icon"
-              className={
+              className={cn(
                 canAddLineItem
                   ? 'h-10 w-10 bg-brand-primary text-primary-foreground hover:bg-brand-primary-hover'
-                  : 'h-10 w-10 cursor-not-allowed bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600'
-              }
+                  : 'h-10 w-10 cursor-not-allowed bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600',
+                addButtonHighlighted && 'po-scroll-target-highlight'
+              )}
               onClick={handleAddItemClick}
+              onMouseEnter={() => {
+                if (addButtonHighlighted) dismissAddButtonHighlight();
+              }}
               aria-label="Add line item"
               aria-expanded={addHintOpen && !canAddLineItem}
               aria-disabled={!canAddLineItem}

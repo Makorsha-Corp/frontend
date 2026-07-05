@@ -168,13 +168,6 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
 
       <AccountInvoicePaymentsSection invoice={invoice} />
 
-      {invoice.notes ? (
-        <div className={`${INVOICE_DETAIL_SECTION_SHELL} px-4 py-3 text-sm`}>
-          <span className="font-medium mr-2">Notes:</span>
-          {invoice.notes}
-        </div>
-      ) : null}
-
       {(isFinalized || canRevertToDraft) && (
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           {canRevertToDraft && (

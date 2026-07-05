@@ -3,7 +3,7 @@
  */
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import type { Item, CreateItemRequest, UpdateItemRequest, ListItemsParams } from '@/types/item';
+import type { Item, CreateItemRequest, UpdateItemRequest, ListItemsParams, SimilarItemsResponse, GetSimilarItemsParams } from '@/types/item';
 import type { ItemSummary } from '@/types/itemSummary';
 import type { GetItemOrdersParams, ItemOrdersListResponse } from '@/types/itemOrders';
 import { invalidateItemTags } from './invalidateItemTags';
@@ -59,6 +59,16 @@ export const itemsApi = createApi({
         return `items/${itemId}/orders/?${params.toString()}`;
       },
       providesTags: (result, error, { itemId }) => [{ type: 'ItemOrders', id: itemId }],
+    }),
+
+    getSimilarItems: builder.query<SimilarItemsResponse, GetSimilarItemsParams>({
+      query: ({ name, limit = 5 }) => {
+        const params = new URLSearchParams({
+          name,
+          limit: limit.toString(),
+        });
+        return `items/similar/?${params.toString()}`;
+      },
     }),
 
     // Create new item
@@ -131,6 +141,7 @@ export const {
   useGetItemByIdQuery,
   useGetItemSummaryQuery,
   useGetItemOrdersQuery,
+  useLazyGetSimilarItemsQuery,
   useCreateItemMutation,
   useUpdateItemMutation,
   useDeleteItemMutation,

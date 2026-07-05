@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ import {
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import { API_LIMITS } from '@/constants/apiLimits';
+import { cn } from '@/lib/utils';
+import { handleUnaddedItemDraftOnSubmit } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { Check, Trash2 } from 'lucide-react';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 
@@ -41,19 +43,57 @@ export interface MachineDialogItemsBlockProps {
   onLinesChange: React.Dispatch<React.SetStateAction<MachineItemDraft[]>>;
   /** Optional subtitle under “Machine items” */
   hint?: string;
+  addButtonHighlighted?: boolean;
+  onAddButtonHighlightDismiss?: () => void;
 }
 
-const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
-  lines,
-  onLinesChange,
-  hint,
-}) => {
+export type MachineDialogItemsBlockHandle = {
+  /** Call before parent submit. Returns true when submit should abort (unadded draft hint shown). */
+  prepareSubmit: (args: {
+    unaddedHintOpen: boolean;
+    setUnaddedHintOpen: (open: boolean) => void;
+    pulseAddButtonHighlight: () => void;
+  }) => boolean;
+};
+
+const MachineDialogItemsBlock = forwardRef<
+  MachineDialogItemsBlockHandle,
+  MachineDialogItemsBlockProps
+>(function MachineDialogItemsBlock(
+  { lines, onLinesChange, hint, addButtonHighlighted = false, onAddButtonHighlightDismiss },
+  ref
+) {
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [reqQty, setReqQty] = useState('');
   const [defectiveQty, setDefectiveQty] = useState('');
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
+
+  const hasUnaddedItemDraft = Boolean(
+    itemId.trim() || qty.trim() || reqQty.trim() || defectiveQty.trim()
+  );
+
+  const clearComposerDraft = () => {
+    setItemId('');
+    setQty('');
+    setReqQty('');
+    setDefectiveQty('');
+  };
+
+  useImperativeHandle(ref, () => ({
+    prepareSubmit: ({ unaddedHintOpen, setUnaddedHintOpen, pulseAddButtonHighlight }) => {
+      return (
+        handleUnaddedItemDraftOnSubmit({
+          hasUnaddedItemDraft,
+          unaddedHintOpen,
+          setUnaddedHintOpen,
+          pulseAddButtonHighlight,
+          clearDraft: clearComposerDraft,
+        }) === 'blocked'
+      );
+    },
+  }));
 
   const { data: itemsList = [], refetch: refetchItems } = useGetItemsQuery(
     { skip: 0, limit: API_LIMITS.STRICT_100 },
@@ -125,6 +165,7 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
     setReqQty('');
     setDefectiveQty('');
     setAddHintOpen(false);
+    onAddButtonHighlightDismiss?.();
   };
 
   const updateLine = (key: string, patch: Partial<Pick<MachineItemDraft, 'qty' | 'req_qty' | 'defective_qty'>>) => {
@@ -258,12 +299,16 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
                 <Button
                   type="button"
                   size="icon"
-                  className={
+                  className={cn(
                     canAddLineItem
                       ? 'h-10 w-10 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
-                      : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed'
-                  }
+                      : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed',
+                    addButtonHighlighted && 'po-scroll-target-highlight'
+                  )}
                   onClick={handleAddLineClick}
+                  onMouseEnter={() => {
+                    if (addButtonHighlighted) onAddButtonHighlightDismiss?.();
+                  }}
                   aria-label="Add line item"
                   aria-expanded={addHintOpen && !canAddLineItem}
                   aria-disabled={!canAddLineItem}
@@ -373,6 +418,6 @@ const MachineDialogItemsBlock: React.FC<MachineDialogItemsBlockProps> = ({
       <AddItemDialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen} onSuccess={handleCreateItemSuccess} />
     </>
   );
-};
+});
 
 export default MachineDialogItemsBlock;

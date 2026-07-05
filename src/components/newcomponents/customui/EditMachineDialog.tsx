@@ -27,7 +27,11 @@ import {
 } from '@/features/machineItems/machineItemsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
-import MachineDialogItemsBlock, { type MachineItemDraft } from '@/components/newcomponents/customui/MachineDialogItemsBlock';
+import MachineDialogItemsBlock, {
+  type MachineDialogItemsBlockHandle,
+  type MachineItemDraft,
+} from '@/components/newcomponents/customui/MachineDialogItemsBlock';
+import { useLineItemAddButtonHighlight } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import type { Machine } from '@/types/machine';
 import { API_LIMITS } from '@/constants/apiLimits';
 import toast from 'react-hot-toast';
@@ -58,9 +62,16 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   const [nextMaintenanceNote, setNextMaintenanceNote] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<MachineItemDraft[]>([]);
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
 
   const itemsInitRef = useRef(false);
   const snapshotRef = useRef<MachineItemDraft[]>([]);
+  const itemsBlockRef = useRef<MachineDialogItemsBlockHandle>(null);
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const [updateMachine, { isLoading: isUpdatingMachine }] = useUpdateMachineMutation();
   const [createMachineItem] = useCreateMachineItemMutation();
@@ -78,8 +89,21 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   useEffect(() => {
     if (!open) {
       itemsInitRef.current = false;
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
     }
-  }, [open]);
+  }, [open, dismissAddButtonHighlight]);
+
+  useEffect(() => {
+    if (!unaddedHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-unadded-hint-root]')) {
+        setUnaddedHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [unaddedHintOpen]);
 
   useEffect(() => {
     if (!open || !machine) return;
@@ -183,6 +207,16 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
 
     if (!sectionId) {
       toast.error('Factory section is required');
+      return;
+    }
+
+    if (
+      itemsBlockRef.current?.prepareSubmit({
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+      })
+    ) {
       return;
     }
 
@@ -345,7 +379,13 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
                   Loading machine items…
                 </div>
               ) : (
-                <MachineDialogItemsBlock lines={lines} onLinesChange={setLines} />
+                <MachineDialogItemsBlock
+                  ref={itemsBlockRef}
+                  lines={lines}
+                  onLinesChange={setLines}
+                  addButtonHighlighted={addButtonHighlighted}
+                  onAddButtonHighlightDismiss={dismissAddButtonHighlight}
+                />
               )}
             </div>
           </div>
@@ -354,20 +394,30 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-brand-primary hover:bg-brand-primary-hover"
-              disabled={isBusy || !name.trim() || !sectionId}
-            >
-              {isBusy ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isSavingItems ? 'Saving items…' : 'Saving…'}
-                </>
-              ) : (
-                'Save changes'
-              )}
-            </Button>
+            <div className="relative" data-unadded-hint-root>
+              {unaddedHintOpen ? (
+                <div
+                  role="tooltip"
+                  className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                >
+                  You have unadded items — click ✓ to add them, or click Save again to continue without them
+                </div>
+              ) : null}
+              <Button
+                type="submit"
+                className="bg-brand-primary hover:bg-brand-primary-hover"
+                disabled={isBusy || !name.trim() || !sectionId}
+              >
+                {isBusy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isSavingItems ? 'Saving items…' : 'Saving…'}
+                  </>
+                ) : (
+                  'Save changes'
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

@@ -98,7 +98,7 @@ const AccountOverviewPanel: React.FC<AccountOverviewPanelProps> = ({
                   </p>
                 </div>
                 <p className="shrink-0 font-medium tabular-nums">
-                  {formatInvoiceCurrency(inv.outstanding_amount)}
+                  {formatInvoiceCurrency(inv.invoice_amount)}
                 </p>
               </li>
             ))}
