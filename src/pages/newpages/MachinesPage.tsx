@@ -11,6 +11,8 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WorkOrdersPageContent from '@/pages/newpages/orders/WorkOrdersPageContent';
 import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
@@ -136,6 +138,17 @@ const MachinesPage: React.FC = () => {
   const machineIdParam = searchParams.get('machineId');
   const detailsParam = searchParams.get('details');
   const selectedFactoryId = factoryIdParam ? parseInt(factoryIdParam, 10) : selectedGlobalFactory?.id ?? null;
+
+  // Work orders live on machines — surfaced here as a tab rather than a separate page (for now).
+  const activeTab = searchParams.get('tab') === 'workOrders' ? 'workOrders' : 'machines';
+  const setActiveTab = (tab: 'machines' | 'workOrders') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'machines') next.delete('tab');
+      else next.set('tab', tab);
+      return next;
+    });
+  };
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
@@ -457,6 +470,25 @@ const MachinesPage: React.FC = () => {
     <div className="flex h-screen bg-background overflow-hidden">
       <DashboardNavbar />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'machines' | 'workOrders')}>
+            <TabsList>
+              <TabsTrigger value="machines" className="gap-1.5">
+                <Cog className="h-4 w-4" />
+                Machines
+              </TabsTrigger>
+              <TabsTrigger value="workOrders" className="gap-1.5">
+                <Wrench className="h-4 w-4" />
+                Work Orders
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {activeTab === 'workOrders' && <WorkOrdersPageContent />}
+
+        {activeTab === 'machines' && (
+        <>
         {/* Header */}
         <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -758,6 +790,8 @@ const MachinesPage: React.FC = () => {
             </div>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

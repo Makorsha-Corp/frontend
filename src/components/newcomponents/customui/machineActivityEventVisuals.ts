@@ -39,6 +39,13 @@ export const MACHINE_ACTIVITY_EVENT_VISUALS: Record<string, MachineActivityEvent
   ledger_reconciled: { icon: RotateCcw, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   purchase_received: { icon: ShoppingCart, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
   work_order_completed: { icon: ClipboardList, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
+  work_order_item_used: { icon: ClipboardList, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
+  item_installed: { icon: PackagePlus, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
+  item_replaced: { icon: PackagePlus, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
+  item_replaced_removed: { icon: PackageMinus, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400' },
+  item_borrowed_returned: { icon: RotateCcw, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+  consumption: { icon: PackageMinus, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400' },
+  consumption_reversed: { icon: RotateCcw, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   default: { icon: Pause, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };
 

@@ -199,7 +199,7 @@ export function normalizeOrders(
 
 export function isCompletedStatusLabel(label: string): boolean {
   const n = label.toLowerCase();
-  return /\b(complete|completed|closed|paid|received|delivered|fulfilled|done|cancelled|canceled)\b/.test(n);
+  return /\b(complete|completed|closed|paid|received|delivered|fulfilled|done|cancelled|canceled|voided)\b/.test(n);
 }
 
 const OPEN_STATUS_NAMES_BY_KIND: Record<OverviewOrderKind, readonly string[]> = {
@@ -213,9 +213,7 @@ const OPEN_STATUS_NAMES_BY_KIND: Record<OverviewOrderKind, readonly string[]> = 
 function isDraftStatusLabel(order: OverviewOrder): boolean {
   const n = order.statusLabel.trim().toLowerCase();
   if (n === 'draft') return true;
-  if (order.kind === 'work' && order.workStatus === 'PENDING_APPROVAL') return true;
   if ((order.kind === 'sales' || order.kind === 'work') && n === 'pending') return true;
-  if (order.kind === 'work' && n === 'pending approval') return true;
   return false;
 }
 
@@ -236,11 +234,11 @@ export function classifyOverviewOrderCounts(order: OverviewOrder): OverviewOrder
 }
 
 /**
- * WIP heuristic: work orders in PENDING_APPROVAL; other types use workflow status name
- * "Pending" or "Draft" only (not substring match).
+ * WIP heuristic: work orders still in DRAFT (not yet approved); other types use
+ * workflow status name "Pending" or "Draft" only (not substring match).
  */
 export function isPendingApprovalOrder(o: OverviewOrder): boolean {
-  if (o.kind === 'work' && o.workStatus === 'PENDING_APPROVAL') return true;
+  if (o.kind === 'work' && o.workStatus === 'DRAFT') return true;
   if (isCompletedStatusLabel(o.statusLabel)) return false;
   const n = o.statusLabel.trim().toLowerCase();
   return n === 'pending' || n === 'draft';

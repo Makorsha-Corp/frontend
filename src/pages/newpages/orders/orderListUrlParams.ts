@@ -443,6 +443,15 @@ export function expenseOrdersOpenHubSearch(): string {
   return statusSearchParam(EO_SCOPE_OPEN_STATUS_NAMES);
 }
 
+/** Work orders use their own status enum, not the shared statuses-table names. */
+export function workOrdersDraftHubSearch(): string {
+  return statusSearchParam(['DRAFT']);
+}
+
+export function workOrdersOpenHubSearch(): string {
+  return statusSearchParam(['IN_PROGRESS']);
+}
+
 /** URL search string for hub draft pill, or null when list page has no status URL sync. */
 export function hubDraftSearch(kind: OverviewOrderKind): string | null {
   switch (kind) {
@@ -452,6 +461,8 @@ export function hubDraftSearch(kind: OverviewOrderKind): string | null {
       return transferOrdersDraftHubSearch();
     case 'expense':
       return expenseOrdersDraftHubSearch();
+    case 'work':
+      return workOrdersDraftHubSearch();
     default:
       return null;
   }
@@ -466,6 +477,8 @@ export function hubOpenSearch(kind: OverviewOrderKind): string | null {
       return transferOrdersOpenHubSearch();
     case 'expense':
       return expenseOrdersOpenHubSearch();
+    case 'work':
+      return workOrdersOpenHubSearch();
     default:
       return null;
   }
