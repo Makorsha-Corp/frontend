@@ -25,6 +25,7 @@ export interface InvoicePayment {
   // Audit
   created_at: string;
   created_by: number | null;
+  created_by_name?: string | null;
 }
 
 export interface CreateInvoicePaymentRequest {

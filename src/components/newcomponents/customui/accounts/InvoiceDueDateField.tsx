@@ -7,6 +7,7 @@ import type { AccountInvoice } from '@/types/accountInvoice';
 import { formatInvoiceDate } from './accountInvoiceFormatters';
 import { InvoiceDueDateEditDialog } from './InvoiceLifecycleDialogs';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 function toDateInputValue(value: string | null | undefined): string {
   if (!value) return '';
@@ -17,9 +18,20 @@ export interface InvoiceDueDateFieldProps {
   invoice: AccountInvoice;
   /** When true, due date is display-only (e.g. finalized invoice on a PO). */
   readOnly?: boolean;
+  /** Nested under a summary card label — no extra top margin. */
+  compact?: boolean;
 }
 
-const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({ invoice, readOnly = false }) => {
+const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({
+  invoice,
+  readOnly = false,
+  compact = false,
+}) => {
+  const valueMargin = compact ? '' : 'mt-0.5';
+  const displayValueClass = cn(
+    'text-card-foreground',
+    compact ? 'text-base font-semibold tabular-nums leading-tight' : 'text-sm'
+  );
   const isDraft = invoice.invoice_status === 'draft';
   const isConfirmed = invoice.invoice_status === 'confirmed';
   const [draft, setDraft] = useState(() => toDateInputValue(invoice.due_date));
@@ -69,8 +81,8 @@ const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({ invoice, read
     if (isConfirmed && !readOnly) {
       return (
         <>
-          <div className="mt-0.5 flex items-center gap-2">
-            <p className="text-sm text-card-foreground">{formatInvoiceDate(invoice.due_date)}</p>
+          <div className={cn('flex items-center gap-2', valueMargin)}>
+            <p className={displayValueClass}>{formatInvoiceDate(invoice.due_date)}</p>
             <Button
               type="button"
               variant="outline"
@@ -97,19 +109,19 @@ const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({ invoice, read
     }
 
     return (
-      <p className="mt-0.5 text-sm text-card-foreground">{formatInvoiceDate(invoice.due_date)}</p>
+      <p className={cn(displayValueClass, valueMargin)}>{formatInvoiceDate(invoice.due_date)}</p>
     );
   }
 
   return (
-    <div className="relative mt-0.5 max-w-[11rem]">
+    <div className={cn('relative max-w-[11rem]', valueMargin)}>
       <Input
         type="date"
         value={draft}
         disabled={isLoading}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => void handleSave(draft)}
-        className="h-9 bg-background pr-8"
+        className={cn('h-9 bg-background pr-8', compact && 'text-base')}
         aria-label="Due date"
       />
       {isLoading ? (

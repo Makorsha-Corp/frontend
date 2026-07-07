@@ -29,6 +29,11 @@ import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSe
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
+import { cn } from '@/lib/utils';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -64,6 +69,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
   const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim() || unitPrice.trim());
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const [createOrder, { isLoading }] = useCreatePurchaseOrderMutation();
   const globalFactory = useGlobalFactory();
@@ -94,6 +104,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setMachinePickerOpen(false);
     setAddHintOpen(false);
     setUnaddedHintOpen(false);
+    dismissAddButtonHighlight();
     setEditingItemId(null);
   };
 
@@ -113,8 +124,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   }, [canAddLineItem]);
 
   useEffect(() => {
-    if (!hasUnaddedItemDraft) setUnaddedHintOpen(false);
-  }, [hasUnaddedItemDraft]);
+    if (!hasUnaddedItemDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
+    }
+  }, [hasUnaddedItemDraft, dismissAddButtonHighlight]);
 
   useEffect(() => {
     if (!unaddedHintOpen) return;
@@ -159,6 +173,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setQty('');
     setUnitPrice('');
     setAddHintOpen(false);
+    dismissAddButtonHighlight();
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -209,15 +224,20 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       toast.error('Select a destination');
       return;
     }
-    if (hasUnaddedItemDraft) {
-      if (!unaddedHintOpen) {
-        setUnaddedHintOpen(true);
-        return;
-      }
-      setItemId('');
-      setQty('');
-      setUnitPrice('');
-      setUnaddedHintOpen(false);
+    if (
+      handleUnaddedItemDraftOnSubmit({
+        hasUnaddedItemDraft,
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+        clearDraft: () => {
+          setItemId('');
+          setQty('');
+          setUnitPrice('');
+        },
+      }) === 'blocked'
+    ) {
+      return;
     }
     if (items.length === 0) {
       toast.error('Add at least one order item');
@@ -319,12 +339,16 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             <Button
               type="button"
               size="icon"
-              className={
+              className={cn(
                 canAddLineItem
                   ? 'h-10 w-10 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
-                  : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed'
-              }
+                  : 'h-10 w-10 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed',
+                addButtonHighlighted && 'po-scroll-target-highlight'
+              )}
               onClick={handleAddItemClick}
+              onMouseEnter={() => {
+                if (addButtonHighlighted) dismissAddButtonHighlight();
+              }}
               aria-label="Add line item"
               aria-expanded={addHintOpen && !canAddLineItem}
               aria-disabled={!canAddLineItem}

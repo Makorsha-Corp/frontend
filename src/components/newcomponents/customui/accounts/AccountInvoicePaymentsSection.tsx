@@ -30,13 +30,24 @@ function formatPaymentDate(d: string): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+const initialsOf = (name: string | null | undefined): string => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 const PAYMENT_ICON = INVOICE_EVENT_VISUALS.payment_recorded;
 
 interface AccountInvoicePaymentsSectionProps {
   invoice: AccountInvoice;
+  embedded?: boolean;
 }
 
-const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps> = ({ invoice }) => {
+const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps> = ({
+  invoice,
+  embedded = false,
+}) => {
   const { data: payments = [], isLoading: isLoadingPayments } = useGetInvoicePaymentsByInvoiceQuery(
     { invoice_id: invoice.id, skip: 0, limit: 100 },
     { skip: !invoice.id }
@@ -138,7 +149,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
 
   return (
     <>
-      <Card>
+      <Card className={cn(embedded && 'border-0 bg-transparent shadow-none')}>
         <CardHeader className="p-4 pb-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -217,13 +228,21 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
                         <p className="text-xs text-muted-foreground">Ref: {p.payment_reference}</p>
                       )}
                       {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
+                      {p.created_by_name ? (
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-primary text-[10px] font-semibold text-white">
+                            {initialsOf(p.created_by_name)}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{p.created_by_name}</span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   {isFinalized && (
                     <button
                       type="button"
                       onClick={() => openVoidDialog(p)}
-                      className="shrink-0 pt-0.5 text-xs text-muted-foreground transition-colors hover:text-destructive"
+                      className="shrink-0 pt-0.5 text-destructive transition-colors hover:text-destructive/80"
                       title="Void this payment"
                     >
                       <XCircle className="h-4 w-4" />

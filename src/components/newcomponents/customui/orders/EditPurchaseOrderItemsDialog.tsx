@@ -37,6 +37,10 @@ import type { Item } from '@/types/item';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import { cn } from '@/lib/utils';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -126,6 +130,11 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   const [isSaving, setIsSaving] = useState(false);
 
   const hasUnaddedItemDraft = Boolean(itemId.trim() || qty.trim() || unitPrice.trim());
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const { data: itemsList = [], refetch: refetchItems } = useGetItemsQuery(
     { skip: 0, limit: API_LIMITS.STRICT_100 },
@@ -145,12 +154,16 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
       setUnitPrice('');
       setAddHintOpen(false);
       setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
     }
-  }, [open, items, isSaving]);
+  }, [open, items, isSaving, dismissAddButtonHighlight]);
 
   useEffect(() => {
-    if (!hasUnaddedItemDraft) setUnaddedHintOpen(false);
-  }, [hasUnaddedItemDraft]);
+    if (!hasUnaddedItemDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
+    }
+  }, [hasUnaddedItemDraft, dismissAddButtonHighlight]);
 
   const originalById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
@@ -228,6 +241,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
     setQty('');
     setUnitPrice('');
     setAddHintOpen(false);
+    dismissAddButtonHighlight();
   };
 
   const validateLines = (): boolean => {
@@ -294,15 +308,20 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   }, [existingLines, pendingNewLines, originalById]);
 
   const handleSave = async () => {
-    if (hasUnaddedItemDraft) {
-      if (!unaddedHintOpen) {
-        setUnaddedHintOpen(true);
-        return;
-      }
-      setItemId('');
-      setQty('');
-      setUnitPrice('');
-      setUnaddedHintOpen(false);
+    if (
+      handleUnaddedItemDraftOnSubmit({
+        hasUnaddedItemDraft,
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+        clearDraft: () => {
+          setItemId('');
+          setQty('');
+          setUnitPrice('');
+        },
+      }) === 'blocked'
+    ) {
+      return;
     }
     if (!validateLines()) return;
     if (!hasChanges) {
@@ -488,12 +507,16 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                   <Button
                     type="button"
                     size="icon"
-                    className={
+                    className={cn(
                       canAddLineItem
                         ? 'h-9 w-9 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground'
-                        : 'h-9 w-9 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed'
-                    }
+                        : 'h-9 w-9 bg-neutral-400 text-neutral-100 hover:bg-neutral-400 dark:bg-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-600 cursor-not-allowed',
+                      addButtonHighlighted && 'po-scroll-target-highlight'
+                    )}
                     onClick={handleAddLineClick}
+                    onMouseEnter={() => {
+                      if (addButtonHighlighted) dismissAddButtonHighlight();
+                    }}
                     aria-label="Add line item"
                   >
                     <Check className="h-4 w-4" />

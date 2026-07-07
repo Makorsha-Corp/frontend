@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,11 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import {
   useSeedFactorySectionOnOpen,
 } from '@/hooks/useGlobalFactoryContext';
-import MachineDialogItemsBlock, { type MachineItemDraft } from '@/components/newcomponents/customui/MachineDialogItemsBlock';
+import MachineDialogItemsBlock, {
+  type MachineDialogItemsBlockHandle,
+  type MachineItemDraft,
+} from '@/components/newcomponents/customui/MachineDialogItemsBlock';
+import { useLineItemAddButtonHighlight } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -53,6 +57,13 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
   const [manufacturer, setManufacturer] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<MachineItemDraft[]>([]);
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+  const itemsBlockRef = useRef<MachineDialogItemsBlockHandle>(null);
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const { markFactoryEdited, markSectionEdited } = useSeedFactorySectionOnOpen({
     open,
@@ -82,6 +93,17 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
   const isBusy = isCreatingMachine || isSavingItems;
 
+  useEffect(() => {
+    if (!unaddedHintOpen) return;
+    const dismiss = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-unadded-hint-root]')) {
+        setUnaddedHintOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [unaddedHintOpen]);
+
   const reset = () => {
     const r = resetForm();
     setSelectedFactoryId(null);
@@ -91,6 +113,8 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     setManufacturer(r.manufacturer);
     setNote(r.note);
     setLines(r.lines);
+    setUnaddedHintOpen(false);
+    dismissAddButtonHighlight();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,6 +127,16 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
     if (!selectedSectionId) {
       toast.error('Factory section is required');
+      return;
+    }
+
+    if (
+      itemsBlockRef.current?.prepareSubmit({
+        unaddedHintOpen,
+        setUnaddedHintOpen,
+        pulseAddButtonHighlight,
+      })
+    ) {
       return;
     }
 
@@ -292,9 +326,12 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
             </div>
             <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
               <MachineDialogItemsBlock
+                ref={itemsBlockRef}
                 lines={lines}
                 onLinesChange={setLines}
                 hint="Optional. Each line is POSTed to machine-items after the machine exists."
+                addButtonHighlighted={addButtonHighlighted}
+                onAddButtonHighlightDismiss={dismissAddButtonHighlight}
               />
             </div>
           </div>
@@ -303,20 +340,30 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isBusy}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              className="bg-brand-primary hover:bg-brand-primary-hover"
-              disabled={isBusy || !name.trim() || !selectedFactoryId || !selectedSectionId}
-            >
-              {isBusy ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isSavingItems ? 'Saving items…' : 'Creating…'}
-                </>
-              ) : (
-                'Create Machine'
-              )}
-            </Button>
+            <div className="relative" data-unadded-hint-root>
+              {unaddedHintOpen ? (
+                <div
+                  role="tooltip"
+                  className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                >
+                  You have unadded items — click ✓ to add them, or click Create again to continue without them
+                </div>
+              ) : null}
+              <Button
+                type="submit"
+                className="bg-brand-primary hover:bg-brand-primary-hover"
+                disabled={isBusy || !name.trim() || !selectedFactoryId || !selectedSectionId}
+              >
+                {isBusy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isSavingItems ? 'Saving items…' : 'Creating…'}
+                  </>
+                ) : (
+                  'Create Machine'
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

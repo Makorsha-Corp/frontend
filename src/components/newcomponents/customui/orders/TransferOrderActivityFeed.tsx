@@ -7,12 +7,14 @@ import OrderActivityFeed, { type ActivityFeedItem } from './OrderActivityFeed';
 interface TransferOrderActivityFeedProps {
   orders: TransferOrder[];
   routeSubtext: (order: TransferOrder) => string;
+  onSelectOrder?: (id: number) => void;
   className?: string;
 }
 
 const TransferOrderActivityFeed: React.FC<TransferOrderActivityFeedProps> = ({
   orders,
   routeSubtext,
+  onSelectOrder,
   className,
 }) => {
   const activities = useMemo((): ActivityFeedItem[] => {
@@ -27,6 +29,7 @@ const TransferOrderActivityFeed: React.FC<TransferOrderActivityFeedProps> = ({
         timestamp: parseApiDateTime(order.created_at) ?? new Date(0),
         description: `${order.transfer_number} created`,
         subtext: route,
+        targetId: order.id,
       });
 
       if (order.completed_at) {
@@ -36,6 +39,7 @@ const TransferOrderActivityFeed: React.FC<TransferOrderActivityFeedProps> = ({
           timestamp: parseApiDateTime(order.completed_at) ?? new Date(0),
           description: `${order.transfer_number} completed`,
           subtext: route,
+          targetId: order.id,
         });
       }
     }
@@ -49,6 +53,7 @@ const TransferOrderActivityFeed: React.FC<TransferOrderActivityFeedProps> = ({
       activities={activities}
       emptyMessage="No recent transfer order activity"
       className={className}
+      onSelectItem={onSelectOrder}
     />
   );
 };

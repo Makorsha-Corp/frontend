@@ -106,3 +106,32 @@ export interface ListAccountsParams extends PaginationParams {
   search?: string;  // Search by account name
   tag_code?: string;  // Filter by tag code (supplier, vendor, client, utility, payroll)
 }
+
+/** Aggregate invoice totals from GET /accounts/{id}/invoice-summary/ */
+export interface AccountInvoiceSummaryApiResponse {
+  invoice_count: number;
+  invoiced_total: string;
+  paid_total: string;
+  outstanding_total: string;
+}
+
+export interface AccountInvoiceSummary {
+  invoiceCount: number;
+  invoiced: number;
+  paid: number;
+  outstanding: number;
+}
+
+export interface AccountInvoiceSummaryParams {
+  account_id: number;
+  invoice_type?: 'payable' | 'receivable';
+  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
+  invoice_status?: 'draft' | 'confirmed' | 'voided';
+  invoice_number_search?: string;
+  invoice_date_from?: string;
+  invoice_date_to?: string;
+  due_date_from?: string;
+  due_date_to?: string;
+  amount_min?: number;
+  amount_max?: number;
+}

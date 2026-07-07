@@ -1,0 +1,100 @@
+/**
+ * Shared Marker design tokens — synced from repo-root shared/ (see shared/README.md).
+ * HSL components only (no hsl() wrapper) for use as hsl(var(--token)).
+ */
+
+:root {
+  /* Page background - warm cream/offwhite */
+  --background: 45 25% 97%;
+  --foreground: 222.2 84% 4.9%;
+
+  /* Navbar background */
+  --nav-background: 250 27% 17%;
+
+  /* Cards - pure white (elevated from cream background) */
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  /* Purple/Lavender brand colors */
+  --primary: 266 45% 59%;
+  --primary-hover: 246 38% 66%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 250 27% 17%;
+  --secondary-foreground: 220 13% 95%;
+
+  --muted: 45 20% 94%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 276 9% 79%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent-light: 30 58% 93%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 45 20% 88%;
+  --input: 0 0% 100%;
+  --ring: 266 45% 59%;
+  --radius: 0.5rem;
+
+  /* Section headings */
+  --brand-heading: 250 27% 17%;
+
+  /* Homepage2 campus sky edge fallback (hex) */
+  --campus-sky-light: #7eb8d8;
+  --campus-sky-dark: #0a1628;
+
+  /* Chart colors */
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+}
+
+.dark {
+  /* Page background - dark purple */
+  --background: 250 27% 17%;
+  --foreground: 220 13% 95%;
+
+  /* Navbar background - darker for depth */
+  --nav-background: 250 27% 12%;
+
+  /* Cards - slightly lighter than background */
+  --card: 252 24% 21%;
+  --card-foreground: 220 13% 95%;
+
+  --popover: 252 24% 21%;
+  --popover-foreground: 220 13% 95%;
+
+  /* Purple/Lavender brand colors */
+  --primary: 266 45% 59%;
+  --primary-hover: 246 38% 66%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 250 27% 17%;
+  --secondary-foreground: 220 13% 95%;
+
+  --muted: 250 20% 28%;
+  --muted-foreground: 220 13% 70%;
+  --accent: 276 9% 79%;
+  --accent-foreground: 222.2 84% 4.9%;
+  --accent-light: 0 0% 100%;
+
+  --destructive: 0 63% 50%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 250 20% 28%;
+  --input: 252 20% 18%;
+  --ring: 266 45% 59%;
+
+  --brand-heading: 220 13% 95%;
+
+  /* Chart colors - dark mode */
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+}

@@ -66,3 +66,32 @@ export interface UpdateItemRequest {
 export interface ListItemsParams extends PaginationParams {
   search?: string;  // Search by item name
 }
+
+/** Match from GET /items/similar/ */
+export type SimilarItemMatchType = 'exact_normalized' | 'fuzzy';
+
+export interface SimilarItemMatch {
+  id: number;
+  name: string;
+  unit: string;
+  sku: string | null;
+  similarity_score: number;
+  match_type: SimilarItemMatchType;
+}
+
+export interface SimilarItemsResponse {
+  query: string;
+  normalized_query: string;
+  matches: SimilarItemMatch[];
+}
+
+export interface GetSimilarItemsParams {
+  name: string;
+  limit?: number;
+}
+
+/** Minimum normalized name length before similar-item lookup runs */
+export const ITEM_SIMILAR_NAME_MIN_LENGTH = 3;
+
+/** Mirror backend pg_trgm threshold */
+export const ITEM_SIMILARITY_THRESHOLD = 0.35;

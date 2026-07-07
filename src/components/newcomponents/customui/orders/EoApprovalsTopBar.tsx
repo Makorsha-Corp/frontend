@@ -47,7 +47,7 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
       id="eo-section-approvals"
       className={cn(
         ORDER_PANEL_HEADER_CLASS,
-        '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 bg-card/40 px-6 scroll-mt-6',
+        '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 px-6 scroll-mt-6',
         highlighted && 'po-scroll-target-highlight'
       )}
       onMouseEnter={() => {

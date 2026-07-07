@@ -5,18 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AccountInvoice, InvoiceEvent } from '@/types/accountInvoice';
 import InvoiceEventLogRow from './InvoiceEventLogRow';
 
+import { cn } from '@/lib/utils';
+
 interface InvoiceEventLogCardProps {
   events: InvoiceEvent[];
   invoice: AccountInvoice;
+  embedded?: boolean;
 }
 
 function formatDate(d: string | null | undefined): string {
   return d ? new Date(d).toLocaleDateString() : '—';
 }
 
-const InvoiceEventLogCard: React.FC<InvoiceEventLogCardProps> = ({ events, invoice }) => {
+const InvoiceEventLogCard: React.FC<InvoiceEventLogCardProps> = ({
+  events,
+  invoice,
+  embedded = false,
+}) => {
   return (
-    <Card className="flex max-h-[min(33.6rem,52.5vh)] flex-col overflow-hidden">
+    <Card
+      className={cn(
+        'flex max-h-[min(33.6rem,52.5vh)] flex-col overflow-hidden',
+        embedded && 'border-0 bg-transparent shadow-none'
+      )}
+    >
       <CardHeader className="shrink-0 p-4 pb-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <CardTitle className="flex items-center gap-2 text-base">

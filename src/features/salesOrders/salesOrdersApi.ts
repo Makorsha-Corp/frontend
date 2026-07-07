@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { accountInvoicesApi } from '@/features/accountInvoices/accountInvoicesApi';
+import { invalidateInvoiceById } from '@/features/cache/invalidateOrderInvoiceCache';
 import type { SalesOrder, CreateSalesOrderDTO, UpdateSalesOrderDTO } from '@/types/salesOrder';
 import type { SalesOrderItem, CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
@@ -18,7 +18,7 @@ export interface CreateSalesOrderWithItemsDTO {
 export const salesOrdersApi = createApi({
   reducerPath: 'salesOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['SalesOrder', 'SalesOrderItem', 'AccountInvoice'],
+  tagTypes: ['SalesOrder', 'SalesOrderItem'],
   endpoints: (builder) => ({
     getSalesOrders: builder.query<SalesOrder[], ListSalesOrdersParams>({
       query: ({ skip = 0, limit = 100 } = {}) => {
@@ -54,8 +54,8 @@ export const salesOrdersApi = createApi({
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          if (data.invoice_id != null || data.is_invoiced) {
-            dispatch(accountInvoicesApi.util.invalidateTags(['AccountInvoice']));
+          if (data.invoice_id != null) {
+            invalidateInvoiceById(dispatch, data.invoice_id);
           }
         } catch {
           /* mutation failed */
@@ -64,11 +64,17 @@ export const salesOrdersApi = createApi({
     }),
     createInvoiceFromSalesOrder: builder.mutation<SalesOrder, number>({
       query: (id) => ({ url: `sales-orders/${id}/create-invoice`, method: 'POST' }),
-      invalidatesTags: (_r, _e, id) => [
-        { type: 'SalesOrder', id },
-        'SalesOrder',
-        'AccountInvoice',
-      ],
+      invalidatesTags: (_r, _e, id) => [{ type: 'SalesOrder', id }, 'SalesOrder'],
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     getSalesOrderItems: builder.query<SalesOrderItem[], number>({
       query: (orderId) => `sales-orders/${orderId}/items/`,

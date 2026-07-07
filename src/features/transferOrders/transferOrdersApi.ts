@@ -17,7 +17,7 @@ import { purchaseOrdersApi } from '../purchaseOrders/purchaseOrdersApi';
 export const transferOrdersApi = createApi({
   reducerPath: 'transferOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['TransferOrder', 'TransferOrderItem', 'TransferOrderApprovers', 'TransferOrderEvents', 'Notification'],
+  tagTypes: ['TransferOrder', 'TransferOrderItem', 'TransferOrderApprovers', 'TransferOrderEvents'],
   endpoints: (builder) => ({
     getTransferOrders: builder.query<TransferOrder[], ListTransferOrdersParams>({
       query: ({ skip = 0, limit = 100 } = {}) => {
@@ -66,6 +66,7 @@ export const transferOrdersApi = createApi({
         { type: 'TransferOrder', id },
         'TransferOrder',
         { type: 'TransferOrderEvents', id },
+        { type: 'TransferOrderItem', id },
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
@@ -101,7 +102,6 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, { toId }) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
-        'Notification',
       ],
     }),
     removeTransferOrderApprover: builder.mutation<void, { toId: number; userId: number }>({
@@ -119,6 +119,8 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, toId) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
+        { type: 'TransferOrder', id: toId },
+        'TransferOrder',
       ],
     }),
     unapproveTransferOrder: builder.mutation<TransferOrderApprover, number>({
@@ -126,6 +128,8 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, toId) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
+        { type: 'TransferOrder', id: toId },
+        'TransferOrder',
       ],
     }),
     getTransferOrderEvents: builder.query<TransferOrderEvent[], number>({
@@ -155,6 +159,8 @@ export const transferOrdersApi = createApi({
       query: ({ itemId, data }) => ({ url: `transfer-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { toId }) => [
         'TransferOrderItem',
+        { type: 'TransferOrder', id: toId },
+        'TransferOrder',
         ...(toId != null ? [{ type: 'TransferOrderEvents' as const, id: toId }] : []),
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {

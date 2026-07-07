@@ -78,6 +78,7 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
           orders={orders}
           accountName={accountName}
           statusLabel={statusLabel}
+          onSelectOrder={onSelectOrder}
         />
         <PurchaseOrderPendingActions
           orders={orders}

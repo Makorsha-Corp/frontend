@@ -15,6 +15,7 @@ export interface BlockedActionButtonProps extends ButtonProps {
   blockedHint?: BlockedActionHint;
   isBusy?: boolean;
   onAction: () => void;
+  onBlockedClick?: () => void;
   popoverSide?: 'top' | 'right' | 'bottom' | 'left';
   popoverAlign?: 'start' | 'center' | 'end';
   blockedClassName?: string;
@@ -25,6 +26,7 @@ const BlockedActionButton: React.FC<BlockedActionButtonProps> = ({
   blockedHint,
   isBusy = false,
   onAction,
+  onBlockedClick,
   children,
   className,
   disabled,
@@ -44,6 +46,7 @@ const BlockedActionButton: React.FC<BlockedActionButtonProps> = ({
     if (event.defaultPrevented) return;
     if (isBusy || disabled) return;
     if (showBlockedHint) {
+      onBlockedClick?.();
       setHintOpen(true);
       return;
     }

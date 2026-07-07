@@ -2,17 +2,24 @@ import React from 'react';
 import { Loader2, Package } from 'lucide-react';
 import { useGetInvoiceItemsQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { formatInvoiceCurrency } from './accountInvoiceFormatters';
+import { INVOICE_DETAIL_SECTION_SHELL } from './AccountInvoiceSummaryCard';
+import { cn } from '@/lib/utils';
 
 interface InvoiceItemsTableProps {
   invoiceId: number;
+  /** No outer box — parent provides Card or bordered shell */
+  embedded?: boolean;
 }
 
-const InvoiceItemsTable: React.FC<InvoiceItemsTableProps> = ({ invoiceId }) => {
+const shellClass = (embedded: boolean) =>
+  embedded ? 'space-y-3' : cn(INVOICE_DETAIL_SECTION_SHELL, 'px-4 py-3 space-y-3');
+
+const InvoiceItemsTable: React.FC<InvoiceItemsTableProps> = ({ invoiceId, embedded = false }) => {
   const { data: items = [], isLoading } = useGetInvoiceItemsQuery(invoiceId);
 
   if (isLoading) {
     return (
-      <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
+      <div className={cn(shellClass(embedded))}>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading items…
@@ -23,7 +30,7 @@ const InvoiceItemsTable: React.FC<InvoiceItemsTableProps> = ({ invoiceId }) => {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
+      <div className={cn(shellClass(embedded))}>
         <p className="text-sm text-muted-foreground">No items recorded for this invoice.</p>
       </div>
     );
@@ -32,7 +39,7 @@ const InvoiceItemsTable: React.FC<InvoiceItemsTableProps> = ({ invoiceId }) => {
   const total = items.reduce((sum, item) => sum + Number(item.line_subtotal), 0);
 
   return (
-    <div className="rounded-md border border-border bg-muted/20 px-4 py-3 space-y-3">
+    <div className={cn(shellClass(embedded))}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
           <Package className="h-3.5 w-3.5" />

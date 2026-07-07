@@ -4,6 +4,8 @@ Vite + React + TypeScript. **Project conventions, API URLs, and progress logs** 
 
 **Local dev**: `npm install` → `npm run dev` (see `CLAUDE.md` for `VITE_API_URL` / workspace header).
 
+**Shared tokens**: `frontend/shared/` (same files as repo-root `shared/`). After editing root `shared/`, run `node ../scripts/sync-shared.mjs` from the workspace root. CSS: `src/index.css` imports `../shared/marker-tokens.css`. JS: `@shared/…` alias in `vite.config.ts`.
+
 ---
 
 # React + Vite

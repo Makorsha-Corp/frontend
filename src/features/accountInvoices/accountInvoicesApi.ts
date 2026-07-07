@@ -1,5 +1,10 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
+import type { AppDispatch } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import {
+  invalidateInvoiceAndLinkedOrder,
+  invalidateInvoiceById,
+} from '@/features/cache/invalidateOrderInvoiceCache';
 import type {
   AccountInvoice,
   AccountInvoiceApiResponse,
@@ -21,10 +26,19 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
   outstanding_amount: toNumber(invoice.outstanding_amount),
 });
 
+async function invalidateAfterInvoiceMutation(
+  dispatch: AppDispatch,
+  invoiceId: number,
+  invoice: AccountInvoice | undefined,
+  options?: { poId?: number | null }
+): Promise<void> {
+  invalidateInvoiceAndLinkedOrder(dispatch, invoiceId, invoice, options);
+}
+
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['AccountInvoice', 'InvoiceItem', 'InvoiceEvent', 'Notification'],
+  tagTypes: ['AccountInvoice', 'InvoiceItem', 'InvoiceEvent'],
   endpoints: (builder) => ({
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({
       query: ({
@@ -89,6 +103,14 @@ export const accountInvoicesApi = createApi({
         { type: 'InvoiceEvent', id },
         'AccountInvoice',
       ],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateInvoiceById(dispatch, id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     deleteAccountInvoice: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
@@ -96,7 +118,15 @@ export const accountInvoicesApi = createApi({
         method: 'DELETE',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: ['AccountInvoice', 'PurchaseOrder', 'PurchaseOrderItem', 'ActiveOrders'],
+      invalidatesTags: ['AccountInvoice'],
+      async onQueryStarted(_invoiceId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          await invalidateAfterInvoiceMutation(dispatch, data.id, data);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     getInvoiceStatusHistory: builder.query<InvoiceStatusEntry[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/status-history/`,
@@ -111,14 +141,25 @@ export const accountInvoicesApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'AccountInvoice', id },
         'AccountInvoice',
-        'PurchaseOrder',
-        'PurchaseOrderItem',
-        'PurchaseOrderEvents',
-        'ActiveOrders',
         { type: 'InvoiceItem', id },
         { type: 'InvoiceEvent', id },
-        'Notification',
       ],
+      async onQueryStarted(invoiceId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          await invalidateAfterInvoiceMutation(dispatch, invoiceId, data);
+          if (data.order_type === 'purchase_order' && data.order_id != null) {
+            const { purchaseOrdersApi } = await import('@/features/purchaseOrders/purchaseOrdersApi');
+            dispatch(
+              purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', data.order_id, (draft) => {
+                draft.invoice_confirmed = true;
+              })
+            );
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     voidAccountInvoice: builder.mutation<
       AccountInvoice,
@@ -130,35 +171,13 @@ export const accountInvoicesApi = createApi({
         body: { void_note },
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (result, error, { id, poId }) => {
-        const tags: Array<
-          | 'AccountInvoice'
-          | 'PurchaseOrder'
-          | 'PurchaseOrderItem'
-          | 'PurchaseOrderEvents'
-          | 'PurchaseOrderApprovers'
-          | 'ActiveOrders'
-          | { type: 'AccountInvoice'; id: number }
-          | { type: 'PurchaseOrder'; id: number }
-          | { type: 'PurchaseOrderEvents'; id: number }
-          | { type: 'InvoiceEvent'; id: number }
-        > = [
-          { type: 'AccountInvoice', id },
-          'AccountInvoice',
-          'PurchaseOrder',
-          'PurchaseOrderItem',
-          'PurchaseOrderEvents',
-          'PurchaseOrderApprovers',
-          'ActiveOrders',
-          { type: 'InvoiceEvent', id },
-        ];
-        if (poId != null) {
-          tags.push({ type: 'PurchaseOrder', id: poId });
-          tags.push({ type: 'PurchaseOrderEvents', id: poId });
-        }
-        return tags;
-      },
-      async onQueryStarted({ poId }, { dispatch, queryFulfilled }) {
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'AccountInvoice', id },
+        'AccountInvoice',
+        { type: 'InvoiceItem', id },
+        { type: 'InvoiceEvent', id },
+      ],
+      async onQueryStarted({ id, poId }, { dispatch, queryFulfilled }) {
         let patchUndo: { undo: () => void } | undefined;
         if (poId != null) {
           const { purchaseOrdersApi } = await import('@/features/purchaseOrders/purchaseOrdersApi');
@@ -172,27 +191,8 @@ export const accountInvoicesApi = createApi({
           );
         }
         try {
-          await queryFulfilled;
-          if (poId != null) {
-            const { purchaseOrdersApi } = await import('@/features/purchaseOrders/purchaseOrdersApi');
-            await Promise.all([
-              dispatch(
-                purchaseOrdersApi.endpoints.getPurchaseOrderById.initiate(poId, {
-                  forceRefetch: true,
-                })
-              ),
-              dispatch(
-                purchaseOrdersApi.endpoints.getPurchaseOrderEvents.initiate(poId, {
-                  forceRefetch: true,
-                })
-              ),
-              dispatch(
-                purchaseOrdersApi.endpoints.getPurchaseOrderApprovers.initiate(poId, {
-                  forceRefetch: true,
-                })
-              ),
-            ]);
-          }
+          const { data } = await queryFulfilled;
+          await invalidateAfterInvoiceMutation(dispatch, id, data, { poId });
         } catch {
           patchUndo?.undo();
         }
@@ -217,6 +217,14 @@ export const accountInvoicesApi = createApi({
         'AccountInvoice',
         { type: 'InvoiceEvent', id },
       ],
+      async onQueryStarted(invoiceId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          await invalidateAfterInvoiceMutation(dispatch, invoiceId, data);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     resyncInvoiceItems: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
@@ -230,6 +238,14 @@ export const accountInvoicesApi = createApi({
         { type: 'InvoiceItem', id },
         { type: 'InvoiceEvent', id },
       ],
+      async onQueryStarted(invoiceId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          await invalidateAfterInvoiceMutation(dispatch, invoiceId, data);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
   }),
 });
