@@ -14,7 +14,6 @@ interface WorkOrdersOverviewPanelProps {
   isLoading?: boolean;
   mayTruncate?: boolean;
   statusLabel: (status: WorkOrder['status']) => string;
-  workTypeLabel: (type: WorkOrder['work_type']) => string;
   priorityLabel: (priority: WorkOrder['priority']) => string;
   factoryName: (id: number) => string;
   machineName: (id: number | null) => string;
@@ -29,7 +28,6 @@ const WorkOrdersOverviewPanel: React.FC<WorkOrdersOverviewPanelProps> = ({
   isLoading,
   mayTruncate,
   statusLabel,
-  workTypeLabel,
   priorityLabel,
   factoryName,
   machineName,
@@ -72,10 +70,10 @@ const WorkOrdersOverviewPanel: React.FC<WorkOrdersOverviewPanelProps> = ({
         ),
       },
       {
-        id: 'work_type',
+        id: 'work_order_type',
         header: 'Type',
         cellClassName: 'max-w-[100px] truncate text-muted-foreground',
-        cell: (o) => workTypeLabel(o.work_type),
+        cell: (o) => o.work_order_type_name ?? '—',
       },
       {
         id: 'priority',
@@ -109,7 +107,7 @@ const WorkOrdersOverviewPanel: React.FC<WorkOrdersOverviewPanelProps> = ({
         cell: (o) => formatCurrency(o.cost),
       },
     ],
-    [statusLabel, workTypeLabel, priorityLabel, factoryName, machineName, formatDate, formatCurrency]
+    [statusLabel, priorityLabel, factoryName, machineName, formatDate, formatCurrency]
   );
 
   if (isLoading) {

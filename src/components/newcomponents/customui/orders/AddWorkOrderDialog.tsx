@@ -16,19 +16,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateWorkOrderMutation } from '@/features/workOrders/workOrdersApi';
+import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
-import type { WorkType, WorkOrderPriority } from '@/types/workOrder';
+import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
+import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
+import type { WorkOrderPriority } from '@/types/workOrder';
 import {
   WORK_ORDER_PRIORITIES,
-  WORK_TYPES,
   priorityLabel,
-  workTypeLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
+import { API_LIMITS } from '@/constants/apiLimits';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
+
+type TargetValue = 'none' | `machine:${number}` | `component:${number}`;
 
 interface AddWorkOrderDialogProps {
   open: boolean;
@@ -37,12 +41,13 @@ interface AddWorkOrderDialogProps {
 }
 
 const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenChange, onSuccess }) => {
-  const [workType, setWorkType] = useState<WorkType>('MAINTENANCE');
+  const [workOrderTypeId, setWorkOrderTypeId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<WorkOrderPriority>('MEDIUM');
   const [factoryId, setFactoryId] = useState<string>('');
-  const [machineId, setMachineId] = useState<string>('__none__');
+  const [target, setTarget] = useState<TargetValue>('none');
+  const [accountId, setAccountId] = useState<string>('__none__');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [cost, setCost] = useState('');
@@ -50,23 +55,33 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
 
   const [createOrder, { isLoading }] = useCreateWorkOrderMutation();
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
+  const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 }, { skip: !open });
   const { data: sections = [] } = useGetFactorySectionsQuery(
     { factory_id: factoryId ? parseInt(factoryId, 10) : 0, limit: 100 },
     { skip: !open || !factoryId }
   );
   const { data: allMachines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 }, { skip: !open });
+  const { data: projectComponents = [] } = useGetProjectComponentsQuery(
+    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: !open }
+  );
+  const { data: accounts = [] } = useGetAccountsQuery(
+    { skip: 0, limit: API_LIMITS.ACCOUNTS_LIST_MAX },
+    { skip: !open }
+  );
 
   const sectionIds = new Set(sections.map((s) => s.id));
   const machinesForFactory = allMachines.filter((m) => sectionIds.has(m.factory_section_id));
 
   const reset = () => {
-    setWorkType('MAINTENANCE');
+    setWorkOrderTypeId('');
     setTitle('');
     setDescription('');
     setPriority('MEDIUM');
     setFactoryId('');
-    setMachineId('__none__');
+    setTarget('none');
+    setAccountId('__none__');
     setStartDate('');
     setEndDate('');
     setCost('');
@@ -84,15 +99,24 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
       toast.error('Enter a title');
       return;
     }
+    if (!workOrderTypeId) {
+      toast.error('Select a work order type');
+      return;
+    }
+
+    const [targetKind, targetId] = target === 'none' ? [null, null] : target.split(':');
 
     try {
       const result = await createOrder({
-        work_type: workType,
+        work_order_type_id: Number(workOrderTypeId),
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
         factory_id: fid,
-        machine_id: machineId && machineId !== '__none__' ? parseInt(machineId, 10) : undefined,
+        machine_id: targetKind === 'machine' ? Number(targetId) : undefined,
+        project_component_id: targetKind === 'component' ? Number(targetId) : undefined,
+        uses_inventory: true,
+        account_id: accountId !== '__none__' ? parseInt(accountId, 10) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
         cost: cost ? parseFloat(cost) : undefined,
@@ -120,15 +144,16 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Work order title" required />
           </div>
           <div>
-            <Label>Work type</Label>
-            <Select value={workType} onValueChange={(v) => setWorkType(v as WorkType)}>
+            <Label>Work type *</Label>
+            <Select value={workOrderTypeId || '__none__'} onValueChange={(v) => setWorkOrderTypeId(v === '__none__' ? '' : v)}>
               <SelectTrigger className="mt-1">
-                <SelectValue />
+                <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                {WORK_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {workTypeLabel(t)}
+                <SelectItem value="__none__">Select type…</SelectItem>
+                {workOrderTypes.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    {t.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -160,7 +185,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
               onValueChange={(v) => {
                 markFactoryEdited();
                 setFactoryId(v === '__none__' ? '' : v);
-                setMachineId('__none__');
+                setTarget('none');
               }}
               required
             >
@@ -178,20 +203,44 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
             </Select>
           </div>
           <div>
-            <Label>Machine</Label>
-            <Select value={machineId} onValueChange={setMachineId}>
+            <Label>Target</Label>
+            <Select value={target} onValueChange={(v) => setTarget(v as TargetValue)}>
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select machine (optional)" />
+                <SelectValue placeholder="What is this work for? (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="none">No target (general work)</SelectItem>
                 {machinesForFactory.map((m) => (
-                  <SelectItem key={m.id} value={m.id.toString()}>
-                    {m.name}
+                  <SelectItem key={`machine:${m.id}`} value={`machine:${m.id}`}>
+                    Machine: {m.name}
+                  </SelectItem>
+                ))}
+                {projectComponents.map((c) => (
+                  <SelectItem key={`component:${c.id}`} value={`component:${c.id}`}>
+                    Component: {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Billed account</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Internal / free (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Internal / free</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Set this if an external account is doing the work and should be invoiced.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

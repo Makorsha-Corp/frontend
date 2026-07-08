@@ -37,7 +37,7 @@ const WorkOrderListRow: React.FC<WorkOrderListRowProps> = ({
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
         <span>{formatDate(order.start_date ?? order.created_at)}</span>
         <span>•</span>
-        <span>{order.work_type}</span>
+        <span>{order.work_order_type_name ?? '—'}</span>
         <span>•</span>
         <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
       </div>
