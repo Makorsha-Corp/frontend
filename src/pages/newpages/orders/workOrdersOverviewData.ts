@@ -1,13 +1,14 @@
 import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
-import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/workOrder';
+import type { WorkOrder, WorkOrderPriority, WorkOrderStatus, WorkType } from '@/types/workOrder';
 import {
   isWorkOrderOpen,
   priorityLabel,
   workOrderStatusLabel,
+  workTypeLabel,
 } from './workOrderConstants';
 
 export type WorkOrderStatusFilter = 'all' | WorkOrderStatus;
-export type WorkTypeFilter = 'all' | number;
+export type WorkTypeFilter = 'all' | WorkType;
 export type WorkOrderPriorityFilter = 'all' | WorkOrderPriority;
 
 export interface WorkOrderLabelContext {
@@ -57,7 +58,7 @@ export function filterWorkOrders(
   }
 
   if (filters.workType !== 'all') {
-    rows = rows.filter((o) => o.work_order_type_id === filters.workType);
+    rows = rows.filter((o) => o.work_type === filters.workType);
   }
 
   if (filters.priority !== 'all') {
@@ -84,7 +85,7 @@ export function filterWorkOrders(
         o.title?.toLowerCase().includes(q) ||
         (o.assigned_to?.toLowerCase().includes(q) ?? false) ||
         workOrderStatusLabel(o.status).toLowerCase().includes(q) ||
-        (o.work_order_type_name?.toLowerCase().includes(q) ?? false) ||
+        workTypeLabel(o.work_type).toLowerCase().includes(q) ||
         priorityLabel(o.priority).toLowerCase().includes(q) ||
         factory.includes(q) ||
         machine.includes(q)
@@ -104,7 +105,7 @@ export function workOrderSummaryStats(orders: WorkOrder[]): WorkOrderSummaryStat
     if (isWorkOrderOpen(o.status)) {
       openCount += 1;
     }
-    if (o.status === 'DRAFT') {
+    if (o.status === 'PENDING_APPROVAL') {
       pendingApprovalCount += 1;
     }
     totalCost += Number(o.cost ?? 0);

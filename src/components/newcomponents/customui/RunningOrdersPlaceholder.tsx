@@ -32,16 +32,7 @@ function orderHref(row: ActiveOrderRow): string {
   if (row.order_kind === 'purchase') {
     return `/orders/purchase?orderId=${row.id}`;
   }
-  if (row.order_kind === 'work') {
-    return `/orders/work?orderId=${row.id}`;
-  }
   return `/orders/transfer?orderId=${row.id}`;
-}
-
-function kindShortLabel(kind: ActiveOrderRow['order_kind']): string {
-  if (kind === 'purchase') return 'PO';
-  if (kind === 'work') return 'WO';
-  return 'TR';
 }
 
 /**
@@ -90,7 +81,7 @@ export const ActiveOrdersPanel: React.FC<ActiveOrdersPanelProps> = ({
           <div className="min-h-[122px]">
             <ul className="min-h-0 max-h-[min(280px,45vh)] overflow-y-auto divide-y divide-border/40 rounded-md border border-border/60 bg-transparent">
               {data.map((row) => {
-                const kindShort = kindShortLabel(row.order_kind);
+                const kindShort = row.order_kind === 'purchase' ? 'PO' : 'TR';
                 const statusLabel = row.status_name ?? `#${row.current_status_id}`;
                 return (
                   <li key={`${row.order_kind}-${row.id}`}>
@@ -149,8 +140,8 @@ export const ActiveOrdersPanel: React.FC<ActiveOrdersPanelProps> = ({
               )}
             >
               {data.map((row) => {
-                const amount = row.order_kind !== 'transfer' ? formatAmount(row.total_amount) : null;
-                const kindShort = kindShortLabel(row.order_kind);
+                const amount = row.order_kind === 'purchase' ? formatAmount(row.total_amount) : null;
+                const kindShort = row.order_kind === 'purchase' ? 'PO' : 'TR';
                 const statusLabel = row.status_name ?? `#${row.current_status_id}`;
 
                 return (

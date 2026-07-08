@@ -517,6 +517,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     <DropdownMenuItem asChild>
                       <Link to="/orders/expense">Expense Orders</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/orders/work">Work Orders</Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
@@ -583,6 +586,17 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <span className="text-sm font-medium">Expense</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/orders/work"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/orders/work')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <span className="text-sm font-medium">Work Orders</span>
                         </Link>
                       </li>
                     </ul>

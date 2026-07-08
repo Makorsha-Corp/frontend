@@ -22,17 +22,12 @@ const emptyRow = (label: string): CountsByTypeRow => ({
 const hubPillClass =
   'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40';
 
-// Work orders now live inside the Machine detail view as quick actions rather than
-// through a standalone creation flow — drop the tile from the hub grid but keep 'work'
-// in ORDER_TYPE_HUB itself so path/label lookups elsewhere (e.g. recent activity) still work.
-const HUB_TILES = ORDER_TYPE_HUB.filter((h) => h.id !== 'work');
-
 const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
   const countMap = new Map(countsByType.map((r) => [r.type, r]));
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-      {HUB_TILES.map((hub) => {
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      {ORDER_TYPE_HUB.map((hub) => {
         const row = countMap.get(hub.label) ?? emptyRow(hub.label);
         const Icon = hub.icon;
         const hasDraftOrOpen = row.draftCount > 0 || row.openCount > 0;

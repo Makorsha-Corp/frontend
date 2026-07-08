@@ -234,16 +234,14 @@ export interface ListPurchaseOrdersParams {
   invoice_id?: number;
 }
 
-export type ActiveOrderKind = 'purchase' | 'transfer' | 'work';
+export type ActiveOrderKind = 'purchase' | 'transfer';
 
 export interface ActiveOrderRow {
   order_kind: ActiveOrderKind;
   id: number;
   number: string;
   summary: string | null;
-  // Work orders don't use the generic statuses table — this is null for them,
-  // with status_name carrying their plain status label instead.
-  current_status_id: number | null;
+  current_status_id: number;
   status_name: string | null;
   created_at: string;
   total_amount: string | null;

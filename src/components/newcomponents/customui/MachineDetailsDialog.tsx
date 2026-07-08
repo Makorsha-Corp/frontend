@@ -46,11 +46,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddMachineItemDialog from './AddMachineItemDialog';
+import AddMachineMaintenanceLogDialog from './AddMachineMaintenanceLogDialog';
 import MachineActivityEventLogRow from './MachineActivityEventLogRow';
-import MachineActivityWorkOrderGroupRow from './MachineActivityWorkOrderGroupRow';
-import { groupMachineActivityEvents } from './machineActivityGrouping';
 import ActiveOrdersPanel from './RunningOrdersPlaceholder';
-import MachineWorkOrderQuickActions from './orders/MachineWorkOrderQuickActions';
 import { useDeleteMachineMaintenanceLogMutation } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
 import { cn } from '@/lib/utils';
 import {
@@ -87,6 +85,7 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
   onMachineUpdated,
 }) => {
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [isAddMaintenanceLogOpen, setIsAddMaintenanceLogOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState({ qty: '', req_qty: '', defective_qty: '' });
 
@@ -112,7 +111,6 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
     { machine_id: machine?.id ?? 0, skip: 0, limit: 100 },
     { skip: !machine?.id || !open }
   );
-  const groupedActivityEvents = useMemo(() => groupMachineActivityEvents(activityEvents), [activityEvents]);
 
   const { data: machineItems } = useGetMachineItemsQuery(
     { machine_id: machine?.id ?? 0, skip: 0, limit: 100 },
@@ -498,21 +496,6 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
 
             <Separator />
 
-            {/* Work orders */}
-            <Card className="border-border shadow-none">
-              <CardHeader className="space-y-0 p-4 pb-2">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold leading-none">
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                  Work Orders
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-4 pt-2">
-                <MachineWorkOrderQuickActions machine={machine} />
-              </CardContent>
-            </Card>
-
-            <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
-
             {/* Event log */}
             <Card className="flex max-h-[min(32rem,50vh)] flex-col overflow-hidden border-border shadow-none">
               <CardHeader className="shrink-0 space-y-0 p-4 pb-2">
@@ -526,6 +509,15 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                       </Badge>
                     )}
                   </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink-0 text-xs"
+                    onClick={() => setIsAddMaintenanceLogOpen(true)}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Add Maintenance Log
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 overflow-y-auto p-0 px-4 pb-4">
@@ -540,28 +532,20 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {groupedActivityEvents.map((item, idx) => {
-                      const isLast = idx === groupedActivityEvents.length - 1;
-                      return item.kind === 'work_order_group' ? (
-                        <MachineActivityWorkOrderGroupRow
-                          key={`wo-${item.workOrderId}`}
-                          workOrderId={item.workOrderId}
-                          events={item.events}
-                          isLast={isLast}
-                        />
-                      ) : (
-                        <MachineActivityEventLogRow
-                          key={item.event.id}
-                          event={item.event}
-                          isLast={isLast}
-                          onDeleteMaintenance={handleDeleteMaintenanceLog}
-                        />
-                      );
-                    })}
+                    {activityEvents.map((event, idx) => (
+                      <MachineActivityEventLogRow
+                        key={event.id}
+                        event={event}
+                        isLast={idx === activityEvents.length - 1}
+                        onDeleteMaintenance={handleDeleteMaintenanceLog}
+                      />
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
           </div>
         </TooltipProvider>
 
@@ -571,6 +555,13 @@ const MachineDetailsDialog: React.FC<MachineDetailsDialogProps> = ({
           machineId={machine.id}
           machineName={machine.name}
           existingItemIds={(machineItems ?? []).map((mi) => mi.item_id)}
+          onSuccess={onMachineUpdated}
+        />
+        <AddMachineMaintenanceLogDialog
+          open={isAddMaintenanceLogOpen}
+          onOpenChange={setIsAddMaintenanceLogOpen}
+          machineId={machine.id}
+          machineName={machine.name}
           onSuccess={onMachineUpdated}
         />
       </DialogContent>

@@ -29,8 +29,6 @@ import { productionApi } from '@/features/production/productionApi';
 import { inventoryApi } from '@/features/inventory/inventoryApi';
 import { productsApi } from '@/features/products/productsApi';
 import { workOrdersApi } from '@/features/workOrders/workOrdersApi';
-import { workOrderTypesApi } from '@/features/workOrderTypes/workOrderTypesApi';
-import { workOrderTemplatesApi } from '@/features/workOrderTemplates/workOrderTemplatesApi';
 import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { transferOrdersApi } from '@/features/transferOrders/transferOrdersApi';
 import { expenseOrdersApi } from '@/features/expenseOrders/expenseOrdersApi';
@@ -71,8 +69,6 @@ export const store = configureStore({
     [inventoryApi.reducerPath]: inventoryApi.reducer,
     [productsApi.reducerPath]: productsApi.reducer,
     [workOrdersApi.reducerPath]: workOrdersApi.reducer,
-    [workOrderTypesApi.reducerPath]: workOrderTypesApi.reducer,
-    [workOrderTemplatesApi.reducerPath]: workOrderTemplatesApi.reducer,
     [purchaseOrdersApi.reducerPath]: purchaseOrdersApi.reducer,
     [transferOrdersApi.reducerPath]: transferOrdersApi.reducer,
     [expenseOrdersApi.reducerPath]: expenseOrdersApi.reducer,
@@ -112,8 +108,6 @@ export const store = configureStore({
       inventoryApi.middleware,
       productsApi.middleware,
       workOrdersApi.middleware,
-      workOrderTypesApi.middleware,
-      workOrderTemplatesApi.middleware,
       purchaseOrdersApi.middleware,
       transferOrdersApi.middleware,
       expenseOrdersApi.middleware,
