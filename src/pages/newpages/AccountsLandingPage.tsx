@@ -20,10 +20,9 @@ import {
 import { useGetAccountsQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import type { Account } from '@/types/account';
+import type { AccountInvoice } from '@/types/accountInvoice';
 import {
   Users,
-  Zap,
-  Wallet,
   Search,
   Plus,
   Loader2,
@@ -31,41 +30,112 @@ import {
   Trash2,
   ArrowDownLeft,
   ArrowUpRight,
-  AlertCircle,
-  PieChart,
-  FileText,
   ChevronLeft,
   ChevronRight,
+  LayoutDashboard,
 } from 'lucide-react';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
+import AccountsHubSectionCard from '@/components/newcomponents/customui/accounts/AccountsHubSectionCard';
 import { isOpenInvoiceBalance } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 const SECTION_CONFIG = [
-  { path: 'aggregated', label: 'Aggregated', icon: PieChart, kind: 'all' as const, tagCode: null },
-  { path: 'payable', label: 'Payable', icon: ArrowDownLeft, kind: 'open_payable' as const, tagCode: null },
-  { path: 'receivable', label: 'Receivable', icon: ArrowUpRight, kind: 'open_receivable' as const, tagCode: null },
-  { path: 'utilities', label: 'Utilities', icon: Zap, kind: 'tag' as const, tagCode: 'utility' as const },
-  { path: 'payroll', label: 'Payroll', icon: Wallet, kind: 'tag' as const, tagCode: 'payroll' as const },
+  { path: 'overview', label: 'Overview', icon: LayoutDashboard, kind: 'all_accounts' as const },
+  { path: 'payable', label: 'Payable', icon: ArrowDownLeft, kind: 'open_payable' as const },
+  { path: 'receivable', label: 'Receivable', icon: ArrowUpRight, kind: 'open_receivable' as const },
 ] as const;
 
-type SectionPath = (typeof SECTION_CONFIG)[number]['path'];
+export type AccountsHubSectionPath = (typeof SECTION_CONFIG)[number]['path'];
 
-function singularAddLabel(section: SectionPath): string {
-  if (section === 'utilities') return 'utility account';
-  if (section === 'payroll') return 'payroll account';
-  return 'account';
+type AccountInvoiceRollupEntry = {
+  payableOutstanding: number;
+  receivableOutstanding: number;
+  openPayableCount: number;
+  openReceivableCount: number;
+  hasOverduePayable: boolean;
+  hasOverdueReceivable: boolean;
+};
+
+const EMPTY_ROLLUP: AccountInvoiceRollupEntry = {
+  payableOutstanding: 0,
+  receivableOutstanding: 0,
+  openPayableCount: 0,
+  openReceivableCount: 0,
+  hasOverduePayable: false,
+  hasOverdueReceivable: false,
+};
+
+function buildAccountInvoiceRollup(
+  payableInvoices: AccountInvoice[],
+  receivableInvoices: AccountInvoice[]
+): Map<number, AccountInvoiceRollupEntry> {
+  const map = new Map<number, AccountInvoiceRollupEntry>();
+
+  const ensure = (accountId: number) => {
+    let entry = map.get(accountId);
+    if (!entry) {
+      entry = { ...EMPTY_ROLLUP };
+      map.set(accountId, entry);
+    }
+    return entry;
+  };
+
+  for (const inv of payableInvoices) {
+    const entry = ensure(inv.account_id);
+    if (isOpenInvoiceBalance(inv)) {
+      entry.payableOutstanding += inv.outstanding_amount;
+      entry.openPayableCount += 1;
+    }
+    if (inv.invoice_status !== 'voided' && inv.payment_status === 'overdue') {
+      entry.hasOverduePayable = true;
+    }
+  }
+
+  for (const inv of receivableInvoices) {
+    const entry = ensure(inv.account_id);
+    if (isOpenInvoiceBalance(inv)) {
+      entry.receivableOutstanding += inv.outstanding_amount;
+      entry.openReceivableCount += 1;
+    }
+    if (inv.invoice_status !== 'voided' && inv.payment_status === 'overdue') {
+      entry.hasOverdueReceivable = true;
+    }
+  }
+
+  return map;
 }
 
-const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initialSection }) => {
-  const [selectedSection, setSelectedSection] = useState<SectionPath>(initialSection ?? 'aggregated');
+function computeSectionInvoiceMetrics(invoices: AccountInvoice[], listedAccountIds: Set<number>) {
+  const inList = (accountId: number) => listedAccountIds.has(accountId);
+  const openInvoices = invoices.filter(
+    (inv) => isOpenInvoiceBalance(inv) && inList(inv.account_id)
+  );
+  return {
+    outstanding: openInvoices.reduce((sum, inv) => sum + inv.outstanding_amount, 0),
+    openInvoiceCount: openInvoices.length,
+    overdueCount: invoices.filter(
+      (inv) =>
+        inv.invoice_status !== 'voided' &&
+        inv.payment_status === 'overdue' &&
+        inList(inv.account_id)
+    ).length,
+  };
+}
+
+const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }> = ({
+  initialSection,
+}) => {
+  const [selectedSection, setSelectedSection] = useState<AccountsHubSectionPath>(
+    initialSection ?? 'overview'
+  );
 
   useEffect(() => {
     if (initialSection) setSelectedSection(initialSection);
   }, [initialSection]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
@@ -74,38 +144,24 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const navigate = useNavigate();
 
   const activeConfig = SECTION_CONFIG.find((s) => s.path === selectedSection)!;
-  const isAggregated = selectedSection === 'aggregated';
+  const isAllAccounts = activeConfig.kind === 'all_accounts';
   const isOpenReceivable = activeConfig.kind === 'open_receivable';
   const isOpenPayable = activeConfig.kind === 'open_payable';
-  const isTagTab = activeConfig.kind === 'tag';
 
-  /** Payable/Receivable intersect loaded accounts with open invoices; needs one full account window. */
-  const useAccountPagination = isAggregated || isTagTab;
-  const tagCodeForQuery = activeConfig.kind === 'tag' ? activeConfig.tagCode : undefined;
-
-  const accountsQueryParams = useMemo(() => {
-    const search = searchQuery || undefined;
-    if (isOpenReceivable || isOpenPayable) {
-      return {
-        skip: 0,
-        limit: API_LIMITS.ACCOUNTS_LIST_MAX,
-        search,
-        tag_code: tagCodeForQuery,
-      };
-    }
-    return {
-      skip: accountPage * API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
-      limit: API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
-      search,
-      tag_code: tagCodeForQuery,
-    };
-  }, [accountPage, isOpenPayable, isOpenReceivable, searchQuery, tagCodeForQuery]);
+  const accountsQueryParams = useMemo(
+    () => ({
+      skip: 0,
+      limit: API_LIMITS.ACCOUNTS_LIST_MAX,
+      search: searchQuery || undefined,
+    }),
+    [searchQuery]
+  );
 
   useEffect(() => {
     setAccountPage(0);
-  }, [selectedSection, searchQuery, tagCodeForQuery]);
+  }, [selectedSection, searchQuery]);
 
-  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(accountsQueryParams, { skip: false });
+  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(accountsQueryParams);
 
   const { data: payableInvoices = [] } = useGetAccountInvoicesQuery(
     { skip: 0, limit: API_LIMITS.INVOICES_HUB, invoice_type: 'payable' },
@@ -139,86 +195,82 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const displayedAccounts = useMemo(() => {
     if (isOpenReceivable) return accounts.filter((a) => receivableOpenAccountIds.has(a.id));
     if (isOpenPayable) return accounts.filter((a) => payableOpenAccountIds.has(a.id));
+    if (isAllAccounts) return accounts;
     return accounts;
-  }, [accounts, isOpenReceivable, isOpenPayable, receivableOpenAccountIds, payableOpenAccountIds]);
+  }, [
+    accounts,
+    isAllAccounts,
+    isOpenReceivable,
+    isOpenPayable,
+    receivableOpenAccountIds,
+    payableOpenAccountIds,
+  ]);
 
   const hubPageSize = API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
 
-  /** Server-paged tabs: one API page. Payable/Receivable: client slice of full filtered list (same page size). */
   const accountsRowsForTable = useMemo(() => {
-    if (isOpenReceivable || isOpenPayable) {
-      const start = accountPage * hubPageSize;
-      return displayedAccounts.slice(start, start + hubPageSize);
-    }
-    return displayedAccounts;
-  }, [displayedAccounts, accountPage, isOpenReceivable, isOpenPayable, hubPageSize]);
+    const start = accountPage * hubPageSize;
+    return displayedAccounts.slice(start, start + hubPageSize);
+  }, [displayedAccounts, accountPage, hubPageSize]);
 
   const maxClientAccountPage = useMemo(() => {
-    if (!isOpenReceivable && !isOpenPayable) return 0;
     if (displayedAccounts.length === 0) return 0;
     return Math.max(0, Math.ceil(displayedAccounts.length / hubPageSize) - 1);
-  }, [displayedAccounts.length, isOpenReceivable, isOpenPayable, hubPageSize]);
+  }, [displayedAccounts.length, hubPageSize]);
 
   useEffect(() => {
-    if (!isOpenReceivable && !isOpenPayable) return;
     if (accountPage > maxClientAccountPage) {
       setAccountPage(maxClientAccountPage);
     }
-  }, [accountPage, maxClientAccountPage, isOpenReceivable, isOpenPayable]);
+  }, [accountPage, maxClientAccountPage]);
 
-  const displayedAccountIds = useMemo(
-    () => new Set(displayedAccounts.map((a) => a.id)),
-    [displayedAccounts]
+  const payableListedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => payableOpenAccountIds.has(a.id)).map((a) => a.id)),
+    [accounts, payableOpenAccountIds]
   );
 
-  /** Financial rollups for account rows currently in the table (matches AccountInvoice.account_id). */
-  const scopedToTable = useMemo(() => {
-    const inView = (accountId: number) => displayedAccountIds.has(accountId);
-    const openPayableInv = payableInvoices.filter(
-      (inv) => isOpenInvoiceBalance(inv) && inView(inv.account_id)
-    );
-    const openRecvInv = receivableInvoices.filter(
-      (inv) => isOpenInvoiceBalance(inv) && inView(inv.account_id)
-    );
-    const lineOutstanding = (inv: (typeof payableInvoices)[number]) => inv.outstanding_amount;
-    return {
-      payableOutstanding: openPayableInv.reduce((s, inv) => s + lineOutstanding(inv), 0),
-      receivableOutstanding: openRecvInv.reduce((s, inv) => s + lineOutstanding(inv), 0),
-      openPayableInvoiceCount: openPayableInv.length,
-      openReceivableInvoiceCount: openRecvInv.length,
-      overduePayableCount: payableInvoices.filter(
-        (inv) =>
-          inv.invoice_status !== 'voided' &&
-          inv.payment_status === 'overdue' &&
-          inView(inv.account_id)
-      ).length,
-      overdueReceivableCount: receivableInvoices.filter(
-        (inv) =>
-          inv.invoice_status !== 'voided' &&
-          inv.payment_status === 'overdue' &&
-          inView(inv.account_id)
-      ).length,
-    };
-  }, [displayedAccountIds, payableInvoices, receivableInvoices]);
+  const receivableListedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => receivableOpenAccountIds.has(a.id)).map((a) => a.id)),
+    [accounts, receivableOpenAccountIds]
+  );
 
-  const overview = useMemo(() => {
-    const payableOutstanding = payableInvoices
-      .filter((inv) => isOpenInvoiceBalance(inv))
-      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
-    const receivableOutstanding = receivableInvoices
-      .filter((inv) => isOpenInvoiceBalance(inv))
-      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
-    const aggregateNet = receivableOutstanding - payableOutstanding;
-    return {
-      payableOutstanding,
-      receivableOutstanding,
-      aggregateNet,
-    };
-  }, [payableInvoices, receivableInvoices]);
+  const payableSectionMetrics = useMemo(
+    () => computeSectionInvoiceMetrics(payableInvoices, payableListedAccountIds),
+    [payableInvoices, payableListedAccountIds]
+  );
+
+  const receivableSectionMetrics = useMemo(
+    () => computeSectionInvoiceMetrics(receivableInvoices, receivableListedAccountIds),
+    [receivableInvoices, receivableListedAccountIds]
+  );
+
+  const accountInvoiceRollup = useMemo(
+    () => buildAccountInvoiceRollup(payableInvoices, receivableInvoices),
+    [payableInvoices, receivableInvoices]
+  );
+
+  const overviewPopulationMetrics = useMemo(() => {
+    let withOpenPayable = 0;
+    let withOpenReceivable = 0;
+    let withNoOpenBalance = 0;
+    for (const acc of accounts) {
+      const rollup = accountInvoiceRollup.get(acc.id) ?? EMPTY_ROLLUP;
+      const hasPayable = rollup.payableOutstanding > 0;
+      const hasReceivable = rollup.receivableOutstanding > 0;
+      if (hasPayable) withOpenPayable += 1;
+      if (hasReceivable) withOpenReceivable += 1;
+      if (!hasPayable && !hasReceivable) withNoOpenBalance += 1;
+    }
+    return { withOpenPayable, withOpenReceivable, withNoOpenBalance };
+  }, [accounts, accountInvoiceRollup]);
+
+  const searchPlaceholder = isAllAccounts
+    ? 'Search accounts...'
+    : `Search ${activeConfig.label.toLowerCase()}...`;
 
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
 
-  const handleSectionSelect = (path: SectionPath) => {
+  const handleSectionSelect = (path: AccountsHubSectionPath) => {
     setSelectedSection(path);
     navigate(`/accounts/${path}`, { replace: true });
   };
@@ -240,24 +292,51 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 
-  const singularLabel = singularAddLabel(selectedSection);
-  const addDialogDefaultTag = activeConfig.kind === 'tag' ? activeConfig.tagCode : undefined;
+  const getRollup = (accountId: number) => accountInvoiceRollup.get(accountId) ?? EMPTY_ROLLUP;
+
+  const formatOpenBalancesSummary = (accountId: number) => {
+    const rollup = getRollup(accountId);
+    const parts: string[] = [];
+    if (rollup.payableOutstanding > 0) parts.push(`Pay ${formatCurrency(rollup.payableOutstanding)}`);
+    if (rollup.receivableOutstanding > 0) parts.push(`Recv ${formatCurrency(rollup.receivableOutstanding)}`);
+    return parts.length > 0 ? parts.join(' · ') : '-';
+  };
+
+  const renderAccountTags = (acc: Account) => {
+    const tags = acc.account_tags ?? [];
+    if (tags.length === 0) return <span className="text-muted-foreground">-</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {tags.map((tag) => (
+          <span
+            key={tag.id}
+            className="rounded px-1.5 py-0.5 text-[11px] font-medium"
+            style={{
+              backgroundColor: tag.color ? `${tag.color}20` : undefined,
+              color: tag.color || undefined,
+            }}
+          >
+            {tag.name}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const tableSectionHint = isAllAccounts
+    ? 'Overview'
+    : isOpenPayable
+      ? 'open payable balances'
+      : 'open receivable balances';
 
   const getContactSummary = (acc: Account) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
   const getAddressSummary = (acc: Account) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
   const showAccountsPager =
-    !isLoading &&
-    !error &&
-    ((useAccountPagination && accounts.length > 0) ||
-      ((isOpenReceivable || isOpenPayable) && displayedAccounts.length > 0));
+    !isLoading && !error && displayedAccounts.length > 0;
 
-  const canAccountsPrev =
-    (useAccountPagination || isOpenReceivable || isOpenPayable) && accountPage > 0;
-
-  const canAccountsNext =
-    (useAccountPagination && accounts.length === hubPageSize) ||
-    ((isOpenReceivable || isOpenPayable) && (accountPage + 1) * hubPageSize < displayedAccounts.length);
+  const canAccountsPrev = accountPage > 0;
+  const canAccountsNext = (accountPage + 1) * hubPageSize < displayedAccounts.length;
 
   const emptyFiltered =
     !isLoading &&
@@ -291,411 +370,284 @@ const AccountsLandingPage: React.FC<{ initialSection?: SectionPath }> = ({ initi
                 className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add {singularLabel}
+                Add account
               </Button>
             </div>
           </div>
         </AppShellHeader>
 
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-8 gap-6 bg-background">
-          <div className="flex flex-nowrap gap-2 overflow-x-auto shrink-0">
-            {SECTION_CONFIG.map(({ path, label, icon: Icon }) => {
-              const isSelected = selectedSection === path;
-              return (
-                <button
-                  key={path}
-                  type="button"
-                  onClick={() => handleSectionSelect(path)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all shrink-0 ${
-                    isSelected
-                      ? 'border-brand-primary bg-brand-primary/10 dark:bg-brand-primary/20'
-                      : 'border-border hover:border-brand-primary/30 hover:bg-muted/50'
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${isSelected ? 'text-brand-primary' : 'text-muted-foreground'}`} />
-                  <span className={`text-sm font-medium ${isSelected ? 'text-brand-primary' : 'text-card-foreground'}`}>
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
+          <div
+            className="grid shrink-0 grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            role="tablist"
+            aria-label="Accounts sections"
+          >
+            <AccountsHubSectionCard
+              title="All accounts"
+              icon={LayoutDashboard}
+              iconContainerClassName="bg-muted"
+              iconClassName="text-muted-foreground"
+              tintClassName="bg-muted/[0.15] dark:bg-muted/[0.25]"
+              value={accounts.length}
+              subtitle="Full catalog · search applies"
+              details={[
+                { label: 'With open payable', value: overviewPopulationMetrics.withOpenPayable },
+                { label: 'With open receivable', value: overviewPopulationMetrics.withOpenReceivable },
+                { label: 'No open balance', value: overviewPopulationMetrics.withNoOpenBalance },
+              ]}
+              selected={selectedSection === 'overview'}
+              onClick={() => handleSectionSelect('overview')}
+            />
+            <AccountsHubSectionCard
+              title="Accounts Payable"
+              icon={ArrowDownLeft}
+              iconContainerClassName="bg-amber-500/10"
+              iconClassName="text-amber-600 dark:text-amber-400"
+              tintClassName="bg-amber-500/[0.03] dark:bg-amber-500/[0.06]"
+              value={formatCurrency(payableSectionMetrics.outstanding)}
+              subtitle="Accounts with open payables"
+              details={[
+                { label: 'Accounts in list', value: payableListedAccountIds.size },
+                { label: 'Open invoices', value: payableSectionMetrics.openInvoiceCount },
+                { label: 'Overdue', value: payableSectionMetrics.overdueCount },
+              ]}
+              selected={selectedSection === 'payable'}
+              onClick={() => handleSectionSelect('payable')}
+            />
+            <AccountsHubSectionCard
+              title="Accounts Receivable"
+              icon={ArrowUpRight}
+              iconContainerClassName="bg-emerald-500/10"
+              iconClassName="text-emerald-600 dark:text-emerald-400"
+              tintClassName="bg-emerald-500/[0.03] dark:bg-emerald-500/[0.06]"
+              value={formatCurrency(receivableSectionMetrics.outstanding)}
+              subtitle="Accounts with open receivables"
+              details={[
+                { label: 'Accounts in list', value: receivableListedAccountIds.size },
+                { label: 'Open invoices', value: receivableSectionMetrics.openInvoiceCount },
+                { label: 'Overdue', value: receivableSectionMetrics.overdueCount },
+              ]}
+              selected={selectedSection === 'receivable'}
+              onClick={() => handleSectionSelect('receivable')}
+            />
           </div>
 
-          <div className="shrink-0">
-            <p className="text-sm text-muted-foreground mb-3">
-              {isAggregated
-                ? 'Workspace totals (open balances on loaded invoices)'
-                : isOpenPayable
-                  ? 'Payable · open balances for accounts listed below'
-                  : isOpenReceivable
-                    ? 'Receivable · open balances for accounts listed below'
-                    : isTagTab
-                      ? `${activeConfig.label} · open invoice exposure for accounts in the table`
-                      : 'Financial overview'}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {isAggregated ? (
-                <>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowDownLeft className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+          <div className="flex min-h-0 flex-1 flex-col min-w-0">
+                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
+                  <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {!isLoading && (
+                          <span className="font-medium">
+                            {displayedAccounts.length}{' '}
+                            {displayedAccounts.length === 1 ? 'account' : 'accounts'}
+                            {showAccountsPager ? ` · page ${accountPage + 1}` : ''}
+                            {displayedAccounts.length > 0 ? ` · ${tableSectionHint}` : ''}
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Accounts Payable</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(overview.payableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Open payable invoices (loaded)</p>
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-[200px] min-w-[140px]">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                          <Input
+                            type="text"
+                            placeholder={searchPlaceholder}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-9 pl-10"
+                          />
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-auto">
+                      {isLoading ? (
+                        <div className="flex min-h-full items-center justify-center py-16">
+                          <Loader2 className="h-12 w-12 animate-spin text-brand-primary" />
+                        </div>
+                      ) : error ? (
+                        <div className="flex min-h-full items-center justify-center py-16 text-center text-destructive">
+                          Failed to load accounts.
+                        </div>
+                      ) : accounts.length === 0 ? (
+                        <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
+                          <div className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full bg-brand-primary/10">
+                            <Users className="h-10 w-10 text-brand-primary" />
+                          </div>
+                          <h3 className="mb-2 text-lg font-semibold text-card-foreground">
+                            No accounts yet
+                          </h3>
+                          <p className="mb-4 text-muted-foreground">Add your first account.</p>
+                          <Button
+                            onClick={() => setIsAddDialogOpen(true)}
+                            className="bg-brand-primary hover:bg-brand-primary-hover"
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add account
+                          </Button>
+                        </div>
+                      ) : emptyFiltered ? (
+                        <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
+                          <h3 className="mb-2 text-lg font-semibold text-card-foreground">
+                            No accounts in this view
+                          </h3>
+                          <p className="mx-auto max-w-lg text-sm text-muted-foreground">
+                            No accounts here have open {isOpenReceivable ? 'receivable' : 'payable'} invoices right now.
+                            Try another section or open an account from an invoice.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="min-h-full">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50">
+                                <TableHead className="w-[60px]">ID</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Contact Details</TableHead>
+                                <TableHead>Address</TableHead>
+                                {isAllAccounts ? (
+                                  <>
+                                    <TableHead>Tags</TableHead>
+                                    <TableHead>Open balances</TableHead>
+                                  </>
+                                ) : null}
+                                {isOpenPayable ? (
+                                  <>
+                                    <TableHead className="text-right">Open payable</TableHead>
+                                    <TableHead className="text-right">Open invoices</TableHead>
+                                  </>
+                                ) : null}
+                                {isOpenReceivable ? (
+                                  <>
+                                    <TableHead className="text-right">Open receivable</TableHead>
+                                    <TableHead className="text-right">Open invoices</TableHead>
+                                  </>
+                                ) : null}
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {accountsRowsForTable.map((acc) => {
+                                const rollup = getRollup(acc.id);
+                                return (
+                                <TableRow
+                                  key={acc.id}
+                                  className="cursor-pointer hover:bg-muted/30"
+                                  onClick={() => handleView(acc)}
+                                >
+                                  <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
+                                  <TableCell className="font-medium">{acc.name}</TableCell>
+                                  <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
+                                  <TableCell>{getContactSummary(acc)}</TableCell>
+                                  <TableCell>{getAddressSummary(acc)}</TableCell>
+                                  {isAllAccounts ? (
+                                    <>
+                                      <TableCell>{renderAccountTags(acc)}</TableCell>
+                                      <TableCell className="text-sm tabular-nums">
+                                        {formatOpenBalancesSummary(acc.id)}
+                                      </TableCell>
+                                    </>
+                                  ) : null}
+                                  {isOpenPayable ? (
+                                    <>
+                                      <TableCell className="text-right tabular-nums">
+                                        {rollup.payableOutstanding > 0
+                                          ? formatCurrency(rollup.payableOutstanding)
+                                          : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right tabular-nums">
+                                        {rollup.openPayableCount > 0 ? rollup.openPayableCount : '-'}
+                                      </TableCell>
+                                    </>
+                                  ) : null}
+                                  {isOpenReceivable ? (
+                                    <>
+                                      <TableCell className="text-right tabular-nums">
+                                        {rollup.receivableOutstanding > 0
+                                          ? formatCurrency(rollup.receivableOutstanding)
+                                          : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right tabular-nums">
+                                        {rollup.openReceivableCount > 0 ? rollup.openReceivableCount : '-'}
+                                      </TableCell>
+                                    </>
+                                  ) : null}
+                                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="mr-1 h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
+                                            onClick={() => handleEdit(acc)}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Edit</TooltipContent>
+                                      </Tooltip>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleDelete(acc)}
+                                            disabled={isDeleting}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Deactivate</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </TableCell>
+                                </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                    {showAccountsPager ? (
+                      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2"
+                          disabled={!canAccountsPrev}
+                          onClick={() => setAccountPage((p) => Math.max(0, p - 1))}
+                          aria-label="Previous accounts page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {hubPageSize} per page
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2"
+                          disabled={!canAccountsNext}
+                          onClick={() => setAccountPage((p) => p + 1)}
+                          aria-label="Next accounts page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Accounts Receivable</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(overview.receivableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Open receivable invoices (loaded)</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-brand-primary/10 rounded-lg flex items-center justify-center">
-                        <PieChart className="h-6 w-6 text-brand-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Net (AR − AP)</p>
-                        <p className={`text-xl font-semibold ${overview.aggregateNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {formatCurrency(overview.aggregateNet)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {overview.aggregateNet >= 0 ? 'Net receivable' : 'Net payable'}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : isOpenPayable ? (
-                <>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowDownLeft className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Outstanding payables</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(scopedToTable.payableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">You owe · listed accounts only</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Open payable invoices</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {scopedToTable.openPayableInvoiceCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Unpaid / partial / overdue</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-destructive" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Overdue payables</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {scopedToTable.overduePayableCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Payable invoices past due · listed accounts</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : isOpenReceivable ? (
-                <>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Outstanding receivables</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(scopedToTable.receivableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Owed to you · listed accounts only</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Open receivable invoices</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {scopedToTable.openReceivableInvoiceCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Unpaid / partial / overdue</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-destructive" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Overdue receivables</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {scopedToTable.overdueReceivableCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Receivable invoices past due · listed accounts</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowDownLeft className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Payables · these accounts</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(scopedToTable.payableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Open payable invoices (loaded)</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                        <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Receivables · these accounts</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {formatCurrency(scopedToTable.receivableOutstanding)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Open receivable invoices (loaded)</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border bg-card">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                        <AlertCircle className="h-6 w-6 text-destructive" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Overdue · these accounts</p>
-                        <p className="text-xl font-semibold text-card-foreground">
-                          {scopedToTable.overduePayableCount + scopedToTable.overdueReceivableCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {displayedAccounts.length} {displayedAccounts.length === 1 ? 'account' : 'accounts'} in table
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
+                    ) : null}
+                  </CardContent>
+                </Card>
             </div>
-          </div>
-
-          <div className="flex flex-1 min-h-0 flex-col min-w-0">
-            <Card className="shadow-sm bg-card border-border flex flex-1 min-h-0 flex-col overflow-hidden">
-              <CardContent className="p-0 flex flex-1 min-h-0 flex-col overflow-hidden">
-                <div className="shrink-0 border-b border-border px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {!isLoading && (
-                      <span className="font-medium">
-                        {displayedAccounts.length}{' '}
-                        {displayedAccounts.length === 1 ? 'account' : 'accounts'}
-                        {showAccountsPager ? ` · page ${accountPage + 1}` : ''}
-                        {!isAggregated && !isOpenReceivable && !isOpenPayable ? ` · ${activeConfig.label}` : ''}
-                        {(isOpenReceivable || isOpenPayable) && displayedAccounts.length > 0
-                          ? ` · ${activeConfig.label}`
-                          : ''}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-[200px] min-w-[140px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                      <Input
-                        type="text"
-                        placeholder={
-                          isAggregated
-                            ? 'Search accounts...'
-                            : `Search ${activeConfig.label.toLowerCase()}...`
-                        }
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 h-9"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-auto">
-                  {isLoading ? (
-                    <div className="flex min-h-full items-center justify-center py-16">
-                      <Loader2 className="h-12 w-12 animate-spin text-brand-primary" />
-                    </div>
-                  ) : error ? (
-                    <div className="flex min-h-full items-center justify-center py-16 text-center text-destructive">
-                      Failed to load accounts.
-                    </div>
-                  ) : accounts.length === 0 ? (
-                    <div className="flex min-h-full flex-col items-center justify-center py-16 text-center px-4">
-                      <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-primary/10 rounded-full mb-4">
-                        <Users className="h-10 w-10 text-brand-primary" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                        No {isAggregated ? 'accounts' : activeConfig.label} yet
-                      </h3>
-                      <p className="text-muted-foreground mb-4">Add your first {singularLabel}.</p>
-                      <Button
-                        onClick={() => setIsAddDialogOpen(true)}
-                        className="bg-brand-primary hover:bg-brand-primary-hover"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add {singularLabel}
-                      </Button>
-                    </div>
-                  ) : emptyFiltered ? (
-                    <div className="flex min-h-full flex-col items-center justify-center py-16 text-center px-4">
-                      <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                        No accounts in this view
-                      </h3>
-                      <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-                        No accounts here have open {isOpenReceivable ? 'receivable' : 'payable'} invoices right now. Try
-                        the Aggregated tab or open an account from an invoice.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="min-h-full">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/50">
-                            <TableHead className="w-[60px]">ID</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Code</TableHead>
-                            <TableHead>Contact Details</TableHead>
-                            <TableHead>Address</TableHead>
-                            <TableHead className="text-right w-[100px]">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {accountsRowsForTable.map((acc) => (
-                            <TableRow
-                            key={acc.id}
-                            className="hover:bg-muted/30 cursor-pointer"
-                            onClick={() => handleView(acc)}
-                            >
-                              <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
-                              <TableCell className="font-medium">{acc.name}</TableCell>
-                              <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
-                              <TableCell>{getContactSummary(acc)}</TableCell>
-                              <TableCell>{getAddressSummary(acc)}</TableCell>
-                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 mr-1 text-brand-primary hover:bg-brand-primary/10"
-                                        onClick={() => handleEdit(acc)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Edit</TooltipContent>
-                                  </Tooltip>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDelete(acc)}
-                                        disabled={isDeleting}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Deactivate</TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </div>
-                {showAccountsPager ? (
-                  <div className="shrink-0 flex items-center justify-between gap-2 border-t border-border px-4 py-2 bg-muted/20">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2"
-                      disabled={!canAccountsPrev}
-                      onClick={() => setAccountPage((p) => Math.max(0, p - 1))}
-                      aria-label="Previous accounts page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {hubPageSize} per page
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2"
-                      disabled={!canAccountsNext}
-                      onClick={() => setAccountPage((p) => p + 1)}
-                      aria-label="Next accounts page"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
 
-      <AddAccountDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        defaultTagCode={addDialogDefaultTag}
-      />
+      <AddAccountDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
       <EditAccountDialog
         open={!!editingAccount}
         onOpenChange={(open) => !open && setEditingAccount(null)}

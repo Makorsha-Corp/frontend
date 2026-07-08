@@ -146,7 +146,7 @@ const DashboardPage: React.FC = () => {
                   title="Net AR − AP"
                   value={formatSignedCurrency(kpis.netArAp)}
                   icon={<DollarSign size={24} />}
-                  href="/accounts/aggregated"
+                  href="/accounts/overview"
                   footer={
                     kpis.overdueInvoiceCount > 0
                       ? `${kpis.overdueInvoiceCount} overdue invoice${kpis.overdueInvoiceCount === 1 ? '' : 's'}`

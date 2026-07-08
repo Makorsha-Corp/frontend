@@ -18,12 +18,7 @@ export type AccountInvoiceStatusFilter =
   | 'overdue'
   | 'voided';
 
-export type AccountHubSection =
-  | 'aggregated'
-  | 'payable'
-  | 'receivable'
-  | 'utilities'
-  | 'payroll';
+export type AccountHubSection = 'overview' | 'payable' | 'receivable';
 
 function defaultTypeFromContext(context: string | null): AccountInvoiceTypeFilter {
   if (context === 'payable') return 'payable';
@@ -253,8 +248,8 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
   }, []);
 
   const accountsHubPath = useMemo(() => {
-    if (hubContext && hubContext !== 'aggregated') return `/accounts/${hubContext}`;
-    return '/accounts';
+    if (hubContext) return `/accounts/${hubContext}`;
+    return '/accounts/payable';
   }, [hubContext]);
 
   const closeAccount = useCallback(() => {
