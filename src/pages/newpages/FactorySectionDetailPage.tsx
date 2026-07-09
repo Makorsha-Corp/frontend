@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useParams, Link } from 'react-router-dom';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
@@ -22,9 +22,7 @@ import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList,
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
-import MachineDetailCard, {
-  type MachineFullDetailsIntent,
-} from '@/components/newcomponents/customui/MachineDetailCard';
+import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import {
   brandIconGlyphClass,
@@ -44,7 +42,6 @@ const FactorySectionDetailPage: React.FC = () => {
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
-  const [fullDetailsIntent, setFullDetailsIntent] = useState<MachineFullDetailsIntent | null>(null);
 
   const factoryId = id ? parseInt(id, 10) : null;
   const sectionIdNum = sectionId ? parseInt(sectionId, 10) : null;
@@ -83,13 +80,6 @@ const FactorySectionDetailPage: React.FC = () => {
     }).length;
   }, [machines]);
 
-  const clearFullDetailsIntent = useCallback(() => setFullDetailsIntent(null), []);
-
-  const openMachineFullDetails = useCallback((id: number) => {
-    setSelectedMachineId(id);
-    setFullDetailsIntent({ id });
-  }, []);
-
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
     try {
@@ -117,7 +107,7 @@ const FactorySectionDetailPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <DashboardNavbar />
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {/* Header */}
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -293,7 +283,7 @@ const FactorySectionDetailPage: React.FC = () => {
             </Card>
 
             {/* Two-panel layout: machines list + detail */}
-            <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
+            <div className="flex-1 min-h-0 min-w-0 flex gap-6 overflow-hidden">
             {/* Left: Machines list */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <Card className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-sm bg-card border-border">
@@ -324,14 +314,13 @@ const FactorySectionDetailPage: React.FC = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                       {machines.map((m) => (
                         <MachineListCardWithLatest
                           key={m.id}
                           machine={m}
                           selected={selectedMachineId === m.id}
                           onSelect={() => setSelectedMachineId(m.id)}
-                          onExpandDetails={() => openMachineFullDetails(m.id)}
                         />
                       ))}
                     </div>
@@ -341,11 +330,9 @@ const FactorySectionDetailPage: React.FC = () => {
             </div>
 
             {/* Right: Machine detail */}
-            <div className="w-[400px] shrink-0 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-[0_0_35%] min-w-0 max-w-[48rem] min-h-0 flex flex-col overflow-hidden">
               <MachineDetailCard
                 machine={selectedMachine}
-                fullDetailsIntent={fullDetailsIntent}
-                onFullDetailsIntentConsumed={clearFullDetailsIntent}
                 onMachineUpdated={() => {}}
                 onEditRequest={() => setIsEditMachineOpen(true)}
                 onDeactivateRequest={
