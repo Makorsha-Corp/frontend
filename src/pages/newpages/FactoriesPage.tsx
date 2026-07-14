@@ -398,8 +398,9 @@ const FactoriesPage: React.FC = () => {
 
   const overviewDueRows: DueStatusRow[] = React.useMemo(() => {
     return overviewDueMachines.map((m) => {
-        const section = sectionById.get(m.factory_section_id);
-        const factory = section ? factoryById.get(section.factory_id) : undefined;
+        const section = m.factory_section_id != null ? sectionById.get(m.factory_section_id) : undefined;
+        const factory = factoryById.get(m.factory_id);
+        const sectionLabel = section?.name ?? m.factory_section_name ?? 'Unassigned';
         const dateLabel = m.next_maintenance_schedule
           ? new Date(m.next_maintenance_schedule).toLocaleDateString(undefined, {
               month: 'short',
@@ -411,8 +412,10 @@ const FactoriesPage: React.FC = () => {
           id: m.id,
           name: m.name,
           dateLabel,
-          contextLabel: `${factory?.abbreviation ?? 'Factory'} · ${section?.name ?? `Section ${m.factory_section_id}`}`,
-          href: section ? `/factories/${section.factory_id}/sections/${section.id}` : '/factories',
+          contextLabel: `${factory?.abbreviation ?? 'Factory'} · ${sectionLabel}`,
+          href: section
+            ? `/factories/${section.factory_id}/sections/${section.id}`
+            : `/factories/${m.factory_id}`,
         };
       });
   }, [overviewDueMachines, sectionById, factoryById]);

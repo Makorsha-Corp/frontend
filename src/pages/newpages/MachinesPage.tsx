@@ -301,6 +301,7 @@ const MachinesPage: React.FC = () => {
     {
       skip: 0,
       limit: 1000,
+      factory_id: factoryId,
       factory_section_id: sectionIdNum || undefined,
       search: activeFilters.search || undefined,
       is_running:
@@ -326,50 +327,40 @@ const MachinesPage: React.FC = () => {
 
   const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
-  const factorySectionIds = React.useMemo(() => new Set(sections.map((s) => s.id)), [sections]);
-
-  const filteredMachines = React.useMemo(() => {
-    if (!machines) return [];
-    if (sectionIdNum) return machines;
-    if (!selectedFactoryId) return machines;
-    return machines.filter((m) => factorySectionIds.has(m.factory_section_id));
-  }, [machines, sectionIdNum, selectedFactoryId, factorySectionIds]);
-
-  const allSectionsById = React.useMemo(
-    () => new Map(allSections.map((s) => [s.id, s])),
-    [allSections]
-  );
-
   const effectiveFilteredMachines = React.useMemo(() => {
-    let list = filteredMachines;
+    let list = machines ?? [];
     if (activeFilters.factory_ids.length > 0) {
       const allowedFactoryIds = new Set(activeFilters.factory_ids);
-      list = list.filter((m) => {
-        const sec = allSectionsById.get(m.factory_section_id);
-        return !!sec && allowedFactoryIds.has(sec.factory_id);
-      });
+      list = list.filter((m) => allowedFactoryIds.has(m.factory_id));
     }
     if (activeFilters.section_ids.length > 0) {
       const allowedSectionIds = new Set(activeFilters.section_ids);
-      list = list.filter((m) => allowedSectionIds.has(m.factory_section_id));
+      list = list.filter((m) => m.factory_section_id != null && allowedSectionIds.has(m.factory_section_id));
     }
     return list;
-  }, [filteredMachines, activeFilters.factory_ids, activeFilters.section_ids, allSectionsById]);
+  }, [machines, activeFilters.factory_ids, activeFilters.section_ids]);
 
   const machinesGroupedBySection = React.useMemo(() => {
     if (!factory || sectionIdNum) return [];
-    const grouped = new Map<number, Machine[]>();
+    const grouped = new Map<number | 'unassigned', Machine[]>();
     for (const machine of effectiveFilteredMachines) {
-      const current = grouped.get(machine.factory_section_id) ?? [];
+      const key = machine.factory_section_id ?? 'unassigned';
+      const current = grouped.get(key) ?? [];
       current.push(machine);
-      grouped.set(machine.factory_section_id, current);
+      grouped.set(key, current);
     }
-    return sections
+    const groups = sections
       .map((s) => ({
-        section: s,
+        key: s.id as number | 'unassigned',
+        label: s.name,
         machines: (grouped.get(s.id) ?? []).sort((a, b) => a.id - b.id),
       }))
       .filter((g) => g.machines.length > 0);
+    const unassignedMachines = (grouped.get('unassigned') ?? []).sort((a, b) => a.id - b.id);
+    if (unassignedMachines.length > 0) {
+      groups.push({ key: 'unassigned', label: 'Unassigned', machines: unassignedMachines });
+    }
+    return groups;
   }, [factory, sectionIdNum, effectiveFilteredMachines, sections]);
 
   const machinesGroupedByFactorySection = React.useMemo(() => {
@@ -377,27 +368,37 @@ const MachinesPage: React.FC = () => {
     const sectionById = new Map(allSections.map((s) => [s.id, s]));
     const factoryById = new Map(factories.map((f) => [f.id, f]));
 
-    const factoryMap = new Map<number, Map<number, Machine[]>>();
+    const factoryMap = new Map<number, { bySection: Map<number, Machine[]>; unassigned: Machine[] }>();
     for (const machine of effectiveFilteredMachines) {
-      const sec = sectionById.get(machine.factory_section_id);
-      if (!sec) continue;
-      const sectionMap = factoryMap.get(sec.factory_id) ?? new Map<number, Machine[]>();
-      const list = sectionMap.get(sec.id) ?? [];
-      list.push(machine);
-      sectionMap.set(sec.id, list);
-      factoryMap.set(sec.factory_id, sectionMap);
+      const entry =
+        factoryMap.get(machine.factory_id) ?? { bySection: new Map<number, Machine[]>(), unassigned: [] };
+      if (machine.factory_section_id != null) {
+        const list = entry.bySection.get(machine.factory_section_id) ?? [];
+        list.push(machine);
+        entry.bySection.set(machine.factory_section_id, list);
+      } else {
+        entry.unassigned.push(machine);
+      }
+      factoryMap.set(machine.factory_id, entry);
     }
 
     return Array.from(factoryMap.entries())
-      .map(([factoryIdKey, sectionMap]) => {
+      .map(([factoryIdKey, entry]) => {
         const factoryData = factoryById.get(factoryIdKey);
-        const sectionsData = Array.from(sectionMap.entries())
+        const sectionsData = Array.from(entry.bySection.entries())
           .map(([sectionKey, machinesInSection]) => ({
-            section: sectionById.get(sectionKey),
+            key: sectionKey as number | 'unassigned',
+            label: sectionById.get(sectionKey)?.name ?? 'Unknown section',
             machines: machinesInSection.sort((a, b) => a.id - b.id),
           }))
-          .filter((g) => g.section)
-          .sort((a, b) => (a.section?.name ?? '').localeCompare(b.section?.name ?? ''));
+          .sort((a, b) => a.label.localeCompare(b.label));
+        if (entry.unassigned.length > 0) {
+          sectionsData.push({
+            key: 'unassigned',
+            label: 'Unassigned',
+            machines: entry.unassigned.sort((a, b) => a.id - b.id),
+          });
+        }
         return { factory: factoryData, sections: sectionsData };
       })
       .filter((g) => g.factory && g.sections.length > 0)
@@ -702,11 +703,11 @@ const MachinesPage: React.FC = () => {
                     </div>
                   ) : factory && !sectionIdNum ? (
                     <div className="space-y-5">
-                      {machinesGroupedBySection.map(({ section: sec, machines: secMachines }) => (
-                        <div key={sec.id} className="space-y-3">
+                      {machinesGroupedBySection.map(({ key, label, machines: secMachines }) => (
+                        <div key={key} className="space-y-3">
                           <div className={machineSectionHeaderClass}>
                             <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
-                            <p className="text-base font-semibold text-card-foreground">{sec.name}</p>
+                            <p className="text-base font-semibold text-card-foreground">{label}</p>
                             <span className="text-xs text-muted-foreground/90 tabular-nums">
                               {secMachines.length} machine{secMachines.length === 1 ? '' : 's'}
                             </span>
@@ -730,11 +731,11 @@ const MachinesPage: React.FC = () => {
                       {machinesGroupedByFactorySection.map((group) => (
                         <div key={group.factory!.id} className="space-y-5">
                           {group.sections.map((secGroup) => (
-                            <div key={secGroup.section!.id} className="space-y-3">
+                            <div key={secGroup.key} className="space-y-3">
                               <div className={machineSectionHeaderClass}>
                                 <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
                                 <p className="text-base font-semibold text-card-foreground">
-                                  {group.factory!.name} ({group.factory!.abbreviation}) - {secGroup.section!.name}
+                                  {group.factory!.name} ({group.factory!.abbreviation}) - {secGroup.label}
                                 </p>
                                 <span className="text-xs text-muted-foreground/80 tabular-nums">
                                   {secGroup.machines.length}

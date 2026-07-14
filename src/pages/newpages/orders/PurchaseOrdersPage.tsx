@@ -29,7 +29,6 @@ import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
@@ -98,10 +97,6 @@ const PurchaseOrdersPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
-  const { data: factorySections = [] } = useGetFactorySectionsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
   const { data: projects = [] } = useGetProjectsQuery({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
@@ -142,10 +137,10 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const resolutionMaps = useMemo(
     () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
+      machineIdToFactoryId: buildMachineIdToFactoryId(machines),
       projectIdToFactoryId: buildProjectIdToFactoryId(projects),
     }),
-    [machines, factorySections, projects]
+    [machines, projects]
   );
 
   const filterOpts = useMemo(

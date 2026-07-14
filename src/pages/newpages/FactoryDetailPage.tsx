@@ -175,11 +175,9 @@ const FactoryDetailPage: React.FC = () => {
     { skip: !factoryId || isNaN(factoryId) }
   );
 
-  const sectionIdSet = React.useMemo(() => new Set(sections.map((s) => s.id)), [sections]);
-
   const factoryMachines = React.useMemo(
-    () => workspaceMachines.filter((m) => sectionIdSet.has(m.factory_section_id)),
-    [workspaceMachines, sectionIdSet]
+    () => workspaceMachines.filter((m) => m.factory_id === factoryId),
+    [workspaceMachines, factoryId]
   );
 
   const sectionNameById = React.useMemo(() => {
@@ -191,6 +189,7 @@ const FactoryDetailPage: React.FC = () => {
   const machineCountBySectionId = React.useMemo(() => {
     const m = new Map<number, number>();
     factoryMachines.forEach((mach) => {
+      if (mach.factory_section_id == null) return;
       m.set(mach.factory_section_id, (m.get(mach.factory_section_id) ?? 0) + 1);
     });
     return m;

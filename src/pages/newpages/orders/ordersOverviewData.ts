@@ -13,7 +13,6 @@ import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { SalesOrder } from '@/types/salesOrder';
 import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
 import type { Machine } from '@/types/machine';
-import type { FactorySection } from '@/types/factorySection';
 import type { Project } from '@/types/project';
 import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
 import { TR_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
@@ -30,17 +29,8 @@ export interface OrderResolutionMaps {
   projectIdToFactoryId: Map<number, number>;
 }
 
-export function buildMachineIdToFactoryId(
-  machines: Machine[],
-  sections: FactorySection[]
-): Map<number, number> {
-  const sectionToFactory = new Map(sections.map((s) => [s.id, s.factory_id]));
-  const out = new Map<number, number>();
-  for (const m of machines) {
-    const fid = sectionToFactory.get(m.factory_section_id);
-    if (fid != null) out.set(m.id, fid);
-  }
-  return out;
+export function buildMachineIdToFactoryId(machines: Machine[]): Map<number, number> {
+  return new Map(machines.map((m) => [m.id, m.factory_id]));
 }
 
 export function buildProjectIdToFactoryId(projects: Project[]): Map<number, number> {

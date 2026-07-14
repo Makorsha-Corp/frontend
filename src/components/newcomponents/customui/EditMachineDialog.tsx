@@ -55,6 +55,7 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   onSuccess,
 }) => {
   const [name, setName] = useState('');
+  const [factoryId, setFactoryId] = useState<number | undefined>();
   const [sectionId, setSectionId] = useState<number | undefined>();
   const [modelNumber, setModelNumber] = useState('');
   const [manufacturer, setManufacturer] = useState('');
@@ -79,8 +80,11 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   const [deleteMachineItem] = useDeleteMachineItemMutation();
   const [isSavingItems, setIsSavingItems] = useState(false);
 
-  const { data: factories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
-  const { data: sections } = useGetFactorySectionsQuery({ skip: 0, limit: 100 }, { skip: !open });
+  const { data: factories, isLoading: factoriesLoading } = useGetFactoriesQuery({ skip: 0, limit: 500 }, { skip: !open });
+  const { data: sections = [], isLoading: sectionsLoading } = useGetFactorySectionsQuery(
+    factoryId ? { factory_id: factoryId, limit: 500 } : { skip: 0, limit: 0 },
+    { skip: !open || !factoryId }
+  );
   const { data: machineItems = [], isLoading: itemsLoading } = useGetMachineItemsQuery(
     { skip: 0, limit: API_LIMITS.STRICT_100, machine_id: machine?.id ?? 0 },
     { skip: !open || !machine }
@@ -114,7 +118,8 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   useEffect(() => {
     if (machine && open) {
       setName(machine.name);
-      setSectionId(machine.factory_section_id);
+      setFactoryId(machine.factory_id);
+      setSectionId(machine.factory_section_id ?? undefined);
       setModelNumber(machine.model_number ?? '');
       setManufacturer(machine.manufacturer ?? '');
       setNextMaintenanceSchedule(
@@ -142,12 +147,6 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
       itemsInitRef.current = true;
     }
   }, [open, machine?.id, itemsLoading, machineItems, machine]);
-
-  const sectionFactoryId = sections?.find((s) => s.id === sectionId)?.factory_id;
-
-  const sectionsForFactory = (sections ?? []).filter(
-    (s) => !sectionFactoryId || s.factory_id === sectionFactoryId
-  );
 
   const isBusy = isUpdatingMachine || isSavingItems;
 
@@ -205,8 +204,8 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
       return;
     }
 
-    if (!sectionId) {
-      toast.error('Factory section is required');
+    if (!factoryId) {
+      toast.error('Factory is required');
       return;
     }
 
@@ -225,7 +224,8 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
         id: machine.id,
         data: {
           name: name.trim(),
-          factory_section_id: sectionId,
+          factory_id: factoryId,
+          factory_section_id: sectionId ?? null,
           model_number: modelNumber.trim() || undefined,
           manufacturer: manufacturer.trim() || undefined,
           next_maintenance_schedule: nextMaintenanceSchedule || undefined,
@@ -271,21 +271,54 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="edit-section">
-          Factory Section <span className="text-red-500">*</span>
+        <Label htmlFor="edit-factory">
+          Factory <span className="text-red-500">*</span>
         </Label>
+        <Select
+          value={factoryId?.toString() ?? '__none__'}
+          onValueChange={(v) => {
+            const id = v === '__none__' ? undefined : parseInt(v, 10);
+            setFactoryId(id);
+            setSectionId(undefined);
+          }}
+        >
+          <SelectTrigger id="edit-factory" className="bg-background">
+            <SelectValue placeholder={factoriesLoading ? 'Loading factories...' : 'Select a factory'} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Select a factory…</SelectItem>
+            {(factories ?? []).map((f) => (
+              <SelectItem key={f.id} value={f.id.toString()}>
+                {f.name} ({f.abbreviation})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="edit-section">Factory Section</Label>
         <Select
           value={sectionId?.toString() ?? '__none__'}
           onValueChange={(v) => setSectionId(v === '__none__' ? undefined : parseInt(v, 10))}
+          disabled={!factoryId || sectionsLoading}
         >
-          <SelectTrigger className="bg-background">
-            <SelectValue placeholder="Select section" />
+          <SelectTrigger id="edit-section" className="bg-background">
+            <SelectValue
+              placeholder={
+                !factoryId
+                  ? 'Choose a factory first'
+                  : sectionsLoading
+                    ? 'Loading sections...'
+                    : 'No section (optional)'
+              }
+            />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Select section</SelectItem>
-            {sectionsForFactory.map((s) => (
+            <SelectItem value="__none__">No section</SelectItem>
+            {sections.map((s) => (
               <SelectItem key={s.id} value={s.id.toString()}>
-                {(factories ?? []).find((f) => f.id === s.factory_id)?.name ?? 'Unknown'} / {s.name}
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -406,7 +439,7 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
               <Button
                 type="submit"
                 className="bg-brand-primary hover:bg-brand-primary-hover"
-                disabled={isBusy || !name.trim() || !sectionId}
+                disabled={isBusy || !name.trim() || !factoryId}
               >
                 {isBusy ? (
                   <>

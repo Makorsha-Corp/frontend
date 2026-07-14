@@ -55,8 +55,8 @@ export interface ItemSummaryMachinePlacement {
   machine_name: string;
   factory_id: number;
   factory_name: string;
-  factory_section_id: number;
-  factory_section_name: string;
+  factory_section_id: number | null;
+  factory_section_name: string | null;
   qty: number;
   req_qty: number | null;
   defective_qty: number | null;

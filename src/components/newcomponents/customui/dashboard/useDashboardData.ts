@@ -76,14 +76,9 @@ function filterProjectsByFactory(projects: Project[], factoryId: number | null):
   return projects.filter((p) => p.factory_id === factoryId);
 }
 
-function filterMachinesByFactory(
-  machines: Machine[],
-  sections: FactorySection[],
-  factoryId: number | null
-): Machine[] {
+function filterMachinesByFactory(machines: Machine[], factoryId: number | null): Machine[] {
   if (factoryId == null) return machines;
-  const sectionIds = new Set(sections.filter((s) => s.factory_id === factoryId).map((s) => s.id));
-  return machines.filter((m) => sectionIds.has(m.factory_section_id));
+  return machines.filter((m) => m.factory_id === factoryId);
 }
 
 function isOrderOverdue(order: OverviewOrder, now: Date): boolean {
@@ -192,16 +187,19 @@ function buildAttentionItems(
     if (!machine.next_maintenance_schedule) continue;
     const d = new Date(machine.next_maintenance_schedule);
     if (Number.isNaN(d.getTime()) || d > maintenanceHorizon) continue;
-    const section = sectionById.get(machine.factory_section_id);
+    const section = machine.factory_section_id != null ? sectionById.get(machine.factory_section_id) : undefined;
+    const sectionLabel = section?.name ?? machine.factory_section_name;
     items.push({
       id: `machine-${machine.id}`,
       kind: 'maintenance',
       title: machine.name,
-      subtitle: section
-        ? `${section.name} · ${machine.next_maintenance_schedule.slice(0, 10)}`
+      subtitle: sectionLabel
+        ? `${sectionLabel} · ${machine.next_maintenance_schedule.slice(0, 10)}`
         : machine.next_maintenance_schedule.slice(0, 10),
       sortKey: d.getTime(),
-      href: section ? `/factories/${section.factory_id}/sections/${section.id}` : '/factories',
+      href: section
+        ? `/factories/${section.factory_id}/sections/${section.id}`
+        : `/factories/${machine.factory_id}`,
     });
   }
 
@@ -350,8 +348,8 @@ export function useDashboardData() {
   );
 
   const machinesScoped = useMemo(
-    () => filterMachinesByFactory(machines, factorySections, factoryId),
-    [machines, factorySections, factoryId]
+    () => filterMachinesByFactory(machines, factoryId),
+    [machines, factoryId]
   );
 
   const lineIdsForFactory = useMemo(() => {

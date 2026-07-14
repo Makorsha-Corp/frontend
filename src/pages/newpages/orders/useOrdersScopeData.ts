@@ -64,10 +64,10 @@ export function useOrdersScopeData() {
 
   const resolutionMaps = useMemo(
     () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
+      machineIdToFactoryId: buildMachineIdToFactoryId(machines),
       projectIdToFactoryId: buildProjectIdToFactoryId(projects),
     }),
-    [machines, factorySections, projects]
+    [machines, projects]
   );
 
   const allNormalized: OverviewOrder[] = useMemo(

@@ -7,7 +7,9 @@ export interface Machine {
   workspace_id: number;
   name: string;
   is_running: boolean;
-  factory_section_id: number;
+  factory_id: number;
+  factory_section_id: number | null;
+  factory_section_name: string | null;
 
   // Metadata
   model_number: string | null;
@@ -34,7 +36,8 @@ export interface Machine {
 
 export interface CreateMachineRequest {
   name: string;
-  factory_section_id: number;
+  factory_id: number;
+  factory_section_id?: number | null;
   model_number?: string;
   manufacturer?: string;
   next_maintenance_schedule?: string;
@@ -44,7 +47,8 @@ export interface CreateMachineRequest {
 
 export interface UpdateMachineRequest {
   name?: string;
-  factory_section_id?: number;
+  factory_id?: number;
+  factory_section_id?: number | null;
   model_number?: string;
   manufacturer?: string;
   next_maintenance_schedule?: string;
@@ -55,6 +59,7 @@ export interface UpdateMachineRequest {
 export interface ListMachinesParams {
   skip?: number;
   limit?: number;
+  factory_id?: number;
   factory_section_id?: number;
   is_running?: boolean;
   search?: string;

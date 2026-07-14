@@ -125,8 +125,8 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
       return;
     }
 
-    if (!selectedSectionId) {
-      toast.error('Factory section is required');
+    if (!selectedFactoryId) {
+      toast.error('Factory is required');
       return;
     }
 
@@ -143,7 +143,8 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     try {
       const created = await createMachine({
         name: name.trim(),
-        factory_section_id: selectedSectionId,
+        factory_id: selectedFactoryId,
+        factory_section_id: selectedSectionId ?? undefined,
         model_number: modelNumber.trim() || undefined,
         manufacturer: manufacturer.trim() || undefined,
         note: note.trim() || undefined,
@@ -221,9 +222,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="machine-section">
-          Factory Section <span className="text-red-500">*</span>
-        </Label>
+        <Label htmlFor="machine-section">Factory Section</Label>
         <Select
           value={selectedSectionId ? String(selectedSectionId) : '__none__'}
           onValueChange={(v) => {
@@ -239,12 +238,12 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
                   ? 'Choose a factory first'
                   : sectionsLoading
                     ? 'Loading sections...'
-                    : 'Select a section'
+                    : 'No section (optional)'
               }
             />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Select a section…</SelectItem>
+            <SelectItem value="__none__">No section</SelectItem>
             {sections.map((s) => (
               <SelectItem key={s.id} value={String(s.id)}>
                 {s.name}
@@ -315,7 +314,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
         <DialogHeader className="shrink-0 space-y-1 text-left">
           <DialogTitle className="text-brand-heading">Add New Machine</DialogTitle>
           <DialogDescription>
-            Choose a section, then add machine details. Optional catalog lines on the right are saved after the machine is created.
+            Choose a factory, then add machine details. Optional catalog lines on the right are saved after the machine is created.
           </DialogDescription>
         </DialogHeader>
 
@@ -352,7 +351,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
               <Button
                 type="submit"
                 className="bg-brand-primary hover:bg-brand-primary-hover"
-                disabled={isBusy || !name.trim() || !selectedFactoryId || !selectedSectionId}
+                disabled={isBusy || !name.trim() || !selectedFactoryId}
               >
                 {isBusy ? (
                   <>

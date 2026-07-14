@@ -28,7 +28,6 @@ import {
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
 import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
@@ -100,10 +99,6 @@ const TransferOrdersPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
-  const { data: factorySections = [] } = useGetFactorySectionsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
   const { data: projects = [] } = useGetProjectsQuery({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
@@ -140,10 +135,10 @@ const TransferOrdersPage: React.FC = () => {
 
   const resolutionMaps = useMemo(
     () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines, factorySections),
+      machineIdToFactoryId: buildMachineIdToFactoryId(machines),
       projectIdToFactoryId: buildProjectIdToFactoryId(projects),
     }),
-    [machines, factorySections, projects]
+    [machines, projects]
   );
 
   const labelCtx: TransferLocationLabelContext = useMemo(
