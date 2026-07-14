@@ -63,12 +63,14 @@ const App: React.FC = () => {
               <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
               <Route path="/machines" element={<MachinesPage />} />
               <Route path="/items" element={<ItemsPage />} />
-              <Route path="/accounts" element={<AccountsLandingPage />} />
-              <Route path="/accounts/aggregated" element={<AccountsLandingPage initialSection="aggregated" />} />
+              <Route path="/accounts" element={<Navigate to="/accounts/overview" replace />} />
+              <Route path="/accounts/overview" element={<AccountsLandingPage initialSection="overview" />} />
               <Route path="/accounts/payable" element={<AccountsLandingPage initialSection="payable" />} />
               <Route path="/accounts/receivable" element={<AccountsLandingPage initialSection="receivable" />} />
-              <Route path="/accounts/utilities" element={<AccountsLandingPage initialSection="utilities" />} />
-              <Route path="/accounts/payroll" element={<AccountsLandingPage initialSection="payroll" />} />
+              <Route path="/accounts/self" element={<Navigate to="/accounts/overview" replace />} />
+              <Route path="/accounts/aggregated" element={<Navigate to="/accounts/overview" replace />} />
+              <Route path="/accounts/utilities" element={<Navigate to="/accounts/payable" replace />} />
+              <Route path="/accounts/payroll" element={<Navigate to="/accounts/payable" replace />} />
               <Route path="/accounts/suppliers" element={<Navigate to="/accounts/payable" replace />} />
               <Route path="/accounts/vendors" element={<Navigate to="/accounts/payable" replace />} />
               <Route path="/accounts/customers" element={<Navigate to="/accounts/receivable" replace />} />

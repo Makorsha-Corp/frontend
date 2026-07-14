@@ -24,9 +24,7 @@ import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFa
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
-import MachineDetailCard, {
-  type MachineFullDetailsIntent,
-} from '@/components/newcomponents/customui/MachineDetailCard';
+import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
 import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
@@ -155,7 +153,6 @@ const MachinesPage: React.FC = () => {
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
-  const [fullDetailsIntent, setFullDetailsIntent] = useState<MachineFullDetailsIntent | null>(null);
   const activeFilters = React.useMemo(
     () => parseMachineFiltersFromParams(searchParams),
     [searchParams]
@@ -176,27 +173,17 @@ const MachinesPage: React.FC = () => {
     }, { replace: true });
   }, [setSearchParams]);
 
-  const clearFullDetailsIntent = useCallback(() => setFullDetailsIntent(null), []);
-
-  const openMachineFullDetails = useCallback(
-    (id: number) => {
-      handleSelectMachine(id);
-      setFullDetailsIntent({ id });
-    },
-    [handleSelectMachine]
-  );
-
   useEffect(() => {
     if (detailsParam !== '1' || !machineIdParam) return;
     const id = parseInt(machineIdParam, 10);
     if (!Number.isFinite(id)) return;
-    openMachineFullDetails(id);
+    handleSelectMachine(id);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('details');
       return next;
     }, { replace: true });
-  }, [detailsParam, machineIdParam, openMachineFullDetails, setSearchParams]);
+  }, [detailsParam, machineIdParam, handleSelectMachine, setSearchParams]);
 
   const writeFiltersToParams = (
     prev: URLSearchParams,
@@ -470,7 +457,7 @@ const MachinesPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <DashboardNavbar />
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'machines' | 'workOrders')}>
             <TabsList>
@@ -588,7 +575,7 @@ const MachinesPage: React.FC = () => {
             <p className="text-muted-foreground">Loading workspace machines...</p>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden p-8">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-hidden p-8">
             <Card className="shrink-0 border-border bg-card shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
@@ -678,7 +665,7 @@ const MachinesPage: React.FC = () => {
             </Card>
 
             {/* Two-panel layout: machines list + detail */}
-            <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
+            <div className="flex-1 min-h-0 min-w-0 flex gap-6 overflow-hidden">
             {/* Left: Machines list */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <Card className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-sm bg-card border-border">
@@ -712,14 +699,13 @@ const MachinesPage: React.FC = () => {
                               {secMachines.length} machine{secMachines.length === 1 ? '' : 's'}
                             </span>
                           </div>
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                             {secMachines.map((m) => (
                               <MachineListCardWithLatest
                                 key={m.id}
                                 machine={m}
                                 selected={selectedMachineId === m.id}
                                 onSelect={() => handleSelectMachine(m.id)}
-                                onExpandDetails={() => openMachineFullDetails(m.id)}
                               />
                             ))}
                           </div>
@@ -741,14 +727,13 @@ const MachinesPage: React.FC = () => {
                                   {secGroup.machines.length}
                                 </span>
                               </div>
-                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                                 {secGroup.machines.map((m) => (
                                   <MachineListCardWithLatest
                                     key={m.id}
                                     machine={m}
                                     selected={selectedMachineId === m.id}
                                     onSelect={() => handleSelectMachine(m.id)}
-                                    onExpandDetails={() => openMachineFullDetails(m.id)}
                                   />
                                 ))}
                               </div>
@@ -758,14 +743,13 @@ const MachinesPage: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 xl:gap-5">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                       {effectiveFilteredMachines.map((m) => (
                         <MachineListCardWithLatest
                           key={m.id}
                           machine={m}
                           selected={selectedMachineId === m.id}
                           onSelect={() => handleSelectMachine(m.id)}
-                          onExpandDetails={() => openMachineFullDetails(m.id)}
                         />
                       ))}
                     </div>
@@ -775,11 +759,9 @@ const MachinesPage: React.FC = () => {
             </div>
 
             {/* Right: Machine detail */}
-            <div className="w-[400px] shrink-0 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-[0_0_35%] min-w-0 max-w-[48rem] min-h-0 flex flex-col overflow-hidden">
               <MachineDetailCard
                 machine={selectedMachine}
-                fullDetailsIntent={fullDetailsIntent}
-                onFullDetailsIntentConsumed={clearFullDetailsIntent}
                 onMachineUpdated={() => {}}
                 onEditRequest={() => setIsEditMachineOpen(true)}
                 onDeactivateRequest={

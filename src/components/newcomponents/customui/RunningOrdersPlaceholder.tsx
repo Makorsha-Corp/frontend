@@ -44,6 +44,17 @@ function kindShortLabel(kind: ActiveOrderRow['order_kind']): string {
   return 'TR';
 }
 
+function activeOrdersErrorMessage(error: unknown): string {
+  const e = error as { status?: string | number; data?: { detail?: string } };
+  if (e?.status === 'FETCH_ERROR') {
+    return 'Cannot reach API — is the backend running on http://localhost:8000?';
+  }
+  if (typeof e?.data?.detail === 'string' && e.data.detail.trim()) {
+    return e.data.detail;
+  }
+  return 'Failed to load orders.';
+}
+
 /**
  * Active (non-completed) orders for a machine, factory storage, or project component.
  * Data: GET /purchase-orders/active/
@@ -79,7 +90,7 @@ export const ActiveOrdersPanel: React.FC<ActiveOrdersPanelProps> = ({
           </div>
         ) : isError ? (
           <div className="flex min-h-[122px] items-center rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            {(error as { data?: { detail?: string } })?.data?.detail ?? 'Failed to load orders.'}
+            {activeOrdersErrorMessage(error)}
           </div>
         ) : data.length === 0 ? (
           <div className="flex min-h-[122px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 py-8 px-3 text-center">
@@ -134,7 +145,7 @@ export const ActiveOrdersPanel: React.FC<ActiveOrdersPanelProps> = ({
             </div>
           ) : isError ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {(error as { data?: { detail?: string } })?.data?.detail ?? 'Failed to load orders.'}
+              {activeOrdersErrorMessage(error)}
             </div>
           ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 px-2 text-center text-muted-foreground">

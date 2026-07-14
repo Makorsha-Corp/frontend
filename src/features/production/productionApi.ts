@@ -7,9 +7,11 @@ import type {
   ProductionLine, CreateProductionLineDTO, UpdateProductionLineDTO,
   ProductionFormula, CreateProductionFormulaDTO, UpdateProductionFormulaDTO,
   ProductionFormulaItem, CreateProductionFormulaItemDTO, UpdateProductionFormulaItemDTO,
+  ProductionFormulaStage, CreateProductionFormulaStageDTO, UpdateProductionFormulaStageDTO,
   ProductionBatch, CreateProductionBatchDTO, UpdateProductionBatchDTO,
   StartBatchDTO, CompleteBatchDTO, CancelBatchDTO,
   ProductionBatchItem, CreateProductionBatchItemDTO, UpdateProductionBatchItemDTO,
+  ProductionBatchStageLog, CreateProductionBatchStageLogDTO, UpdateProductionBatchStageLogDTO,
 } from '@/types/production';
 
 export interface ListProductionLinesParams {
@@ -36,7 +38,7 @@ export interface ListProductionBatchesParams {
 export const productionApi = createApi({
   reducerPath: 'productionApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'ProductionBatch', 'BatchItem'],
+  tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'FormulaStage', 'ProductionBatch', 'BatchItem', 'BatchStageLog'],
   endpoints: (builder) => ({
     // ─── Production Lines ────────────────────────────────────────
 
@@ -151,6 +153,36 @@ export const productionApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['FormulaItem'],
+    }),
+
+    // ─── Formula Stages ──────────────────────────────────────────
+
+    getFormulaStages: builder.query<ProductionFormulaStage[], number>({
+      query: (formulaId) => `production-formulas/${formulaId}/stages/`,
+      providesTags: (result, error, formulaId) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+    }),
+    addFormulaStage: builder.mutation<ProductionFormulaStage, { formulaId: number; data: CreateProductionFormulaStageDTO }>({
+      query: ({ formulaId, data }) => ({
+        url: `production-formulas/${formulaId}/stages/`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+    }),
+    updateFormulaStage: builder.mutation<ProductionFormulaStage, { id: number; formulaId: number; data: UpdateProductionFormulaStageDTO }>({
+      query: ({ id, data }) => ({
+        url: `production-formulas/stages/${id}/`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+    }),
+    removeFormulaStage: builder.mutation<void, { id: number; formulaId: number }>({
+      query: ({ id }) => ({
+        url: `production-formulas/stages/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
     }),
 
     // ─── Production Batches ──────────────────────────────────────
@@ -277,6 +309,29 @@ export const productionApi = createApi({
       }),
       invalidatesTags: ['BatchItem', 'ProductionBatch'],
     }),
+
+    // ─── Batch Stage Logs ────────────────────────────────────────
+
+    getBatchStageLogs: builder.query<ProductionBatchStageLog[], number>({
+      query: (batchId) => `production-batches/${batchId}/stage-logs/`,
+      providesTags: (result, error, batchId) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+    }),
+    addBatchStageLog: builder.mutation<ProductionBatchStageLog, { batchId: number; data: CreateProductionBatchStageLogDTO }>({
+      query: ({ batchId, data }) => ({
+        url: `production-batches/${batchId}/stage-logs/`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+    }),
+    updateBatchStageLog: builder.mutation<ProductionBatchStageLog, { id: number; batchId: number; data: UpdateProductionBatchStageLogDTO }>({
+      query: ({ id, data }) => ({
+        url: `production-batches/stage-logs/${id}/`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+    }),
   }),
 });
 
@@ -298,6 +353,10 @@ export const {
   useAddFormulaItemMutation,
   useUpdateFormulaItemMutation,
   useRemoveFormulaItemMutation,
+  useGetFormulaStagesQuery,
+  useAddFormulaStageMutation,
+  useUpdateFormulaStageMutation,
+  useRemoveFormulaStageMutation,
   // Batches
   useGetProductionBatchesQuery,
   useGetProductionBatchByIdQuery,
@@ -313,4 +372,7 @@ export const {
   useAddBatchItemMutation,
   useUpdateBatchItemMutation,
   useRemoveBatchItemMutation,
+  useGetBatchStageLogsQuery,
+  useAddBatchStageLogMutation,
+  useUpdateBatchStageLogMutation,
 } = productionApi;

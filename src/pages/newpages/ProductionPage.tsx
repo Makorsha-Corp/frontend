@@ -1192,6 +1192,7 @@ const ProductionPage: React.FC = () => {
             if (!open) setSelectedFormulaId(null);
           }}
           formula={selectedFormula}
+          lines={linesForFactory}
           items={items}
           getItemName={getItemName}
           onEditRequest={() => {

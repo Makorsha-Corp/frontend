@@ -260,7 +260,7 @@ export function useDashboardData() {
   const { data: allBatchesRaw = [], isLoading: loadAllBatches, isError: errAllBatches } =
     useGetProductionBatchesQuery({
       skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
+      limit: API_LIMITS.STRICT_100,
     });
 
   const { data: payableInvoices = [], isLoading: loadPayable, isError: errPayable } =

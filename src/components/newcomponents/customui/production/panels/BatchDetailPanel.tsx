@@ -26,17 +26,22 @@ import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import {
   useGetProductionBatchByIdQuery,
   useGetBatchItemsQuery,
+  useGetBatchStageLogsQuery,
+  useGetFormulaStagesQuery,
   useAddBatchItemMutation,
   useUpdateBatchItemMutation,
   useRemoveBatchItemMutation,
   useUpdateProductionBatchMutation,
   useDeleteProductionBatchMutation,
 } from '@/features/production/productionApi';
+import BatchStageLogDialog from '@/components/newcomponents/customui/production/BatchStageLogDialog';
 import type {
   ProductionLine,
   ProductionFormula,
   ProductionBatch,
   ProductionBatchItem,
+  ProductionBatchStageLog,
+  BatchStageLogStatus,
   ItemRole,
 } from '@/types/production';
 import {
@@ -49,6 +54,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  ClipboardList,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -58,6 +64,14 @@ import {
   BATCH_ROLE_BADGE_LABEL,
   formatOptionalPercent,
 } from '../productionPageUtils';
+
+const STAGE_LOG_STATUS_BADGE: Record<BatchStageLogStatus, string> = {
+  pending: 'bg-muted text-muted-foreground',
+  in_progress: 'bg-blue-500/15 text-blue-800 dark:text-blue-200',
+  completed: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
+  skipped: 'bg-amber-500/10 text-amber-900/80 line-through dark:text-amber-100',
+};
+
 interface BatchDetailPanelProps {
   batchId: number;
   lines: ProductionLine[];
@@ -102,6 +116,17 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     data: batchItems = [],
     isLoading: loadingItems,
   } = useGetBatchItemsQuery({ batchId }, { skip: !batchId });
+  const { data: stageLogsRaw = [], isLoading: loadingStageLogs } = useGetBatchStageLogsQuery(batchId, {
+    skip: !batchId,
+  });
+  const stageLogs = useMemo(
+    () => [...stageLogsRaw].sort((a, b) => a.stage_order - b.stage_order || a.id - b.id),
+    [stageLogsRaw]
+  );
+  const formulaIdForStages = batch?.formula_id ?? undefined;
+  const { data: formulaStages = [] } = useGetFormulaStagesQuery(formulaIdForStages!, {
+    skip: !formulaIdForStages,
+  });
   const [addBatchItem, { isLoading: isAddingItem }] = useAddBatchItemMutation();
   const [updateBatchItem] = useUpdateBatchItemMutation();
   const [removeBatchItem] = useRemoveBatchItemMutation();
@@ -137,6 +162,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     waste: true,
     byproduct: true,
   });
+  const [stageLogDialogOpen, setStageLogDialogOpen] = useState(false);
+  const [editingStageLog, setEditingStageLog] = useState<ProductionBatchStageLog | null>(null);
 
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
   const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
@@ -173,6 +200,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   }, [byRole]);
 
   const canMutateItems = batch && (batch.status === 'draft' || batch.status === 'in_progress');
+  const canLogStages = batch && batch.status !== 'cancelled';
   const canEditActuals = batch?.status === 'in_progress';
   const canEditBatch = batch?.status === 'draft' || batch?.status === 'in_progress';
 
@@ -348,6 +376,126 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   }
 
   const efficiencyDisplay = formatOptionalPercent(batch.efficiency_percentage);
+
+  const getExpectedStageOutput = (log: ProductionBatchStageLog): number | null => {
+    if (log.formula_stage_id) {
+      const tpl = formulaStages.find((s) => s.id === log.formula_stage_id);
+      if (tpl?.expected_output_quantity != null) return tpl.expected_output_quantity;
+    }
+    return null;
+  };
+
+  const openNewStageLog = () => {
+    setEditingStageLog(null);
+    setStageLogDialogOpen(true);
+  };
+
+  const openEditStageLog = (log: ProductionBatchStageLog) => {
+    setEditingStageLog(log);
+    setStageLogDialogOpen(true);
+  };
+
+  const stageTimelineBlock = (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage timeline</p>
+          <p className="text-xs text-muted-foreground">Manual logs — audit only; inventory posts on batch start/complete.</p>
+        </div>
+        {canLogStages && (
+          <Button type="button" size="sm" variant="outline" onClick={openNewStageLog}>
+            <ClipboardList className="mr-1 h-4 w-4" />
+            Log stage
+          </Button>
+        )}
+      </div>
+      {loadingStageLogs ? (
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
+        </div>
+      ) : stageLogs.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+          {batch.formula_id
+            ? 'Pending stage logs appear when batch is created from a formula with stages.'
+            : 'No stage logs — add ad-hoc stages as production runs.'}
+        </p>
+      ) : (
+        <ol className="relative space-y-0 border-l border-border/80 pl-4">
+          {stageLogs.map((log, idx) => {
+            const expectedOut = getExpectedStageOutput(log);
+            const loggedOut = log.output_quantity;
+            const efficiencyHint =
+              expectedOut != null && loggedOut != null && expectedOut > 0
+                ? `${Math.round((loggedOut / expectedOut) * 100)}% of expected`
+                : null;
+            const stageLine = log.production_line_id
+              ? lines.find((l) => l.id === log.production_line_id)?.name
+              : null;
+            return (
+              <li key={log.id} className="relative pb-4 last:pb-0">
+                <span
+                  className={cn(
+                    'absolute -left-[1.35rem] top-1 flex h-3 w-3 rounded-full ring-2 ring-background',
+                    log.status === 'completed'
+                      ? 'bg-emerald-500'
+                      : log.status === 'in_progress'
+                        ? 'bg-blue-500'
+                        : log.status === 'skipped'
+                          ? 'bg-amber-400'
+                          : 'bg-muted-foreground/40'
+                  )}
+                />
+                <button
+                  type="button"
+                  className="w-full rounded-md border border-border/60 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/25"
+                  onClick={() => canLogStages && openEditStageLog(log)}
+                  disabled={!canLogStages}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">{log.stage_name}</span>
+                    <Badge className={cn('text-[10px] capitalize', STAGE_LOG_STATUS_BADGE[log.status])}>
+                      {log.status.replace('_', ' ')}
+                    </Badge>
+                    {idx > 0 && log.input_quantity != null && (
+                      <span className="text-xs text-muted-foreground">in {log.input_quantity}</span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    {stageLine && <span>Line: {stageLine}</span>}
+                    {log.started_at && (
+                      <span>Started {new Date(log.started_at).toLocaleString()}</span>
+                    )}
+                    {log.completed_at && (
+                      <span>Done {new Date(log.completed_at).toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs tabular-nums">
+                    {loggedOut != null && (
+                      <span>
+                        Out: <span className="font-medium text-foreground">{loggedOut}</span>
+                        {expectedOut != null && (
+                          <span className="text-muted-foreground"> / {expectedOut} exp</span>
+                        )}
+                      </span>
+                    )}
+                    {log.waste_quantity != null && log.waste_quantity > 0 && (
+                      <span className="text-amber-800 dark:text-amber-100">Waste: {log.waste_quantity}</span>
+                    )}
+                    {efficiencyHint && (
+                      <span className="text-emerald-700 dark:text-emerald-300">{efficiencyHint}</span>
+                    )}
+                  </div>
+                  {log.notes?.trim() && (
+                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{log.notes}</p>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
 
   const linesBlock = (
     <div className="flex min-h-0 flex-col">
@@ -719,6 +867,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-1 pr-2 md:pr-5">
       {summaryBlock}
       <Separator />
+      {stageTimelineBlock}
+      <Separator />
       {linesBlock}
     </div>
   );
@@ -764,6 +914,20 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           </div>
         </CardContent>
       </Card>
+      <BatchStageLogDialog
+        open={stageLogDialogOpen}
+        onOpenChange={(open) => {
+          setStageLogDialogOpen(open);
+          if (!open) setEditingStageLog(null);
+        }}
+        batchId={batchId}
+        lines={lines}
+        log={editingStageLog}
+        formulaStages={formulaStages}
+        defaultStageOrder={
+          stageLogs.length > 0 ? Math.max(...stageLogs.map((l) => l.stage_order)) + 1 : 0
+        }
+      />
     </>
   );
 };

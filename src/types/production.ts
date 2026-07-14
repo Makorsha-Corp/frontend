@@ -103,6 +103,97 @@ export interface UpdateProductionFormulaItemDTO {
   tolerance_percentage?: number;
 }
 
+// ─── Production Formula Stage ───────────────────────────────────────
+
+export interface ProductionFormulaStage {
+  id: number;
+  workspace_id: number;
+  formula_id: number;
+  stage_order: number;
+  name: string;
+  production_line_id: number | null;
+  machine_id: number | null;
+  expected_duration_minutes: number | null;
+  expected_output_quantity: number | null;
+  expected_output_item_id: number | null;
+  notes: string | null;
+}
+
+export interface CreateProductionFormulaStageDTO {
+  formula_id: number;
+  stage_order: number;
+  name: string;
+  production_line_id?: number;
+  machine_id?: number;
+  expected_duration_minutes?: number;
+  expected_output_quantity?: number;
+  expected_output_item_id?: number;
+  notes?: string;
+}
+
+export interface UpdateProductionFormulaStageDTO {
+  name?: string;
+  stage_order?: number;
+  production_line_id?: number | null;
+  machine_id?: number | null;
+  expected_duration_minutes?: number | null;
+  expected_output_quantity?: number | null;
+  expected_output_item_id?: number | null;
+  notes?: string | null;
+}
+
+// ─── Production Batch Stage Log ─────────────────────────────────────
+
+export type BatchStageLogStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
+
+export interface ProductionBatchStageLog {
+  id: number;
+  workspace_id: number;
+  batch_id: number;
+  formula_stage_id: number | null;
+  stage_name: string;
+  stage_order: number;
+  production_line_id: number | null;
+  status: BatchStageLogStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  input_quantity: number | null;
+  output_quantity: number | null;
+  waste_quantity: number | null;
+  notes: string | null;
+  logged_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateProductionBatchStageLogDTO {
+  batch_id: number;
+  formula_stage_id?: number;
+  stage_name: string;
+  stage_order?: number;
+  production_line_id?: number;
+  status?: BatchStageLogStatus;
+  started_at?: string;
+  completed_at?: string;
+  input_quantity?: number;
+  output_quantity?: number;
+  waste_quantity?: number;
+  notes?: string;
+}
+
+export interface UpdateProductionBatchStageLogDTO {
+  stage_name?: string;
+  stage_order?: number;
+  production_line_id?: number | null;
+  status?: BatchStageLogStatus;
+  started_at?: string | null;
+  completed_at?: string | null;
+  input_quantity?: number | null;
+  output_quantity?: number | null;
+  waste_quantity?: number | null;
+  notes?: string | null;
+}
+
 // ─── Production Batch ───────────────────────────────────────────────
 
 export interface ProductionBatch {
