@@ -39,6 +39,7 @@ import { statusesApi } from '@/features/statuses/statusesApi';
 import { ordersOverviewApi } from '@/features/orders/ordersOverviewApi';
 import { discussionsApi } from '@/features/discussions/discussionsApi';
 import { notificationsApi } from '@/features/notifications/notificationsApi';
+import { paymentsApi } from '@/features/payments/paymentsApi';
 
 export const store = configureStore({
   reducer: {
@@ -81,6 +82,7 @@ export const store = configureStore({
     [ordersOverviewApi.reducerPath]: ordersOverviewApi.reducer,
     [discussionsApi.reducerPath]: discussionsApi.reducer,
     [notificationsApi.reducerPath]: notificationsApi.reducer,
+    [paymentsApi.reducerPath]: paymentsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -122,6 +124,7 @@ export const store = configureStore({
       ordersOverviewApi.middleware,
       discussionsApi.middleware,
       notificationsApi.middleware,
+      paymentsApi.middleware,
     ),
 });
 

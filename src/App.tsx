@@ -32,6 +32,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
 import BusinessLensWizardPage from "./pages/newpages/BusinessLensWizardPage";
 import ManagementPage from "./pages/newpages/ManagementPage";
+import BillingTrialPage from "./pages/newpages/BillingTrialPage";
 import RequireAuth from "./components/newcomponents/customui/RequireAuth";
 import RequireWorkspace from "./components/newcomponents/customui/RequireWorkspace";
 
@@ -90,6 +91,7 @@ const App: React.FC = () => {
               <Route path="/orders/sales" element={<Navigate to="/sales/overview" replace />} />
               <Route path="/orders/work" element={<WorkOrdersPage />} />
               <Route path="/management" element={<ManagementPage />} />
+              <Route path="/billing/trial" element={<BillingTrialPage />} />
               <Route path="/storage" element={<StoragePage />} />
               <Route path="/businesslens" element={<BusinessLensPage />} />
               <Route path="/businesslens/:templateId" element={<BusinessLensWizardPage />} />

@@ -23,6 +23,7 @@ import {
   BarChart3,
   Cog,
   TrendingUp,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -141,7 +142,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     { name: 'Accounts', icon: <Users size={20} />, path: '/accounts' },
     { name: 'BusinessLens', icon: <BarChart3 size={20} />, path: '/businesslens' },
     ...(workspace?.role === 'owner'
-      ? [{ name: 'Management', icon: <Settings size={20} />, path: '/management' }]
+      ? [
+          { name: 'Management', icon: <Settings size={20} />, path: '/management' },
+          { name: 'Billing', icon: <CreditCard size={20} />, path: '/billing/trial' },
+        ]
       : []),
   ];
 
