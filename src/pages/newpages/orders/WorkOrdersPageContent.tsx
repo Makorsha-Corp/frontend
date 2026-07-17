@@ -10,7 +10,6 @@ import {
 import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import type { WorkOrder } from '@/types/workOrder';
 import { Wrench, Plus, Search, PanelLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -84,16 +83,12 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
-  const { data: factorySections = [] } = useGetFactorySectionsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
   const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const [deleteOrder] = useDeleteWorkOrderMutation();
 
   const machineIdToFactoryId = useMemo(
-    () => buildMachineIdToFactoryId(machines, factorySections),
-    [machines, factorySections]
+    () => buildMachineIdToFactoryId(machines),
+    [machines]
   );
 
   const machinesForFactory = useMemo(() => {

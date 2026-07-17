@@ -42,6 +42,8 @@ export const machinesApi = createApi({
 
         limit = 100,
 
+        factory_id,
+
         factory_section_id,
 
         is_running,
@@ -67,6 +69,12 @@ export const machinesApi = createApi({
         params.append('skip', skip.toString());
 
         params.append('limit', limit.toString());
+
+        if (factory_id) {
+
+          params.append('factory_id', factory_id.toString());
+
+        }
 
         if (factory_section_id) {
 

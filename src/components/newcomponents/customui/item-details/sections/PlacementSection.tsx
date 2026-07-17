@@ -189,7 +189,7 @@ export function PlacementSection({
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {row.factory_id > 0 && row.factory_section_id > 0 ? (
+                      {row.factory_id > 0 && row.factory_section_id != null && row.factory_section_id > 0 ? (
                         <EntityLink
                           to={buildFactorySectionHref(row.factory_id, row.factory_section_id)}
                           onNavigate={onNavigate}
@@ -197,7 +197,7 @@ export function PlacementSection({
                           {row.factory_section_name}
                         </EntityLink>
                       ) : (
-                        row.factory_section_name
+                        row.factory_section_name ?? 'Unassigned'
                       )}
                     </td>
                     <td className="px-3 py-2">

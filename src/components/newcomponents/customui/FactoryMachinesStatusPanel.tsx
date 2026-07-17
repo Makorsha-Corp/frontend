@@ -66,13 +66,19 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
               year: 'numeric',
             })
           : '—';
-        const sectionName = sectionNameById.get(m.factory_section_id) ?? `Section ${m.factory_section_id}`;
+        const sectionName =
+          m.factory_section_id != null
+            ? sectionNameById.get(m.factory_section_id) ?? m.factory_section_name ?? `Section ${m.factory_section_id}`
+            : 'Unassigned';
         return {
           id: m.id,
           name: m.name,
           dateLabel: d,
           contextLabel: sectionName,
-          href: `/factories/${factoryId}/sections/${m.factory_section_id}`,
+          href:
+            m.factory_section_id != null
+              ? `/factories/${factoryId}/sections/${m.factory_section_id}`
+              : `/factories/${factoryId}`,
         };
       }),
     [maintenanceRows, sectionNameById, factoryId]

@@ -33,7 +33,6 @@ import {
   useGetWorkOrderTemplateApproversQuery,
   useCreateWorkOrderTemplateMutation,
 } from '@/features/workOrderTemplates/workOrderTemplatesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
@@ -129,7 +128,6 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
   const { workspace } = useAppSelector((s) => s.auth);
   const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: workOrderTemplates = [] } = useGetWorkOrderTemplatesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000, is_active: true }, { skip: !open });
-  const { data: factorySections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
@@ -149,7 +147,7 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
     Number(selectedTemplateId), { skip: !selectedTemplateId || !selectedTemplate?.requires_approval }
   );
 
-  const machineFactoryId = factorySections.find((s) => s.id === machine.factory_section_id)?.factory_id ?? null;
+  const machineFactoryId = machine.factory_id;
 
   const itemSelectorFactoryId =
     draftLine.sourceType === 'storage' && draftLine.sourceId

@@ -223,11 +223,9 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
   const { data: sections = [] } = useGetFactorySectionsQuery({ factory_id: factoryId, limit: 500 });
   const { data: workspaceMachines = [], isLoading: machinesLoading } = useGetMachinesQuery({ skip: 0, limit: 1000 });
 
-  const sectionIdSet = React.useMemo(() => new Set(sections.map((s) => s.id)), [sections]);
-
   const factoryMachines = React.useMemo(
-    () => workspaceMachines.filter((m) => sectionIdSet.has(m.factory_section_id)),
-    [workspaceMachines, sectionIdSet]
+    () => workspaceMachines.filter((m) => m.factory_id === factoryId),
+    [workspaceMachines, factoryId]
   );
 
   const sectionNameById = React.useMemo(() => {
@@ -246,6 +244,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     factoryMachines.forEach((m) => {
+      if (m.factory_section_id == null) return;
       const stats = statsMap.get(m.factory_section_id);
       if (stats) {
         stats.total++;

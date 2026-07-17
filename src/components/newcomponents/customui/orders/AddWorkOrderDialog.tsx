@@ -18,7 +18,6 @@ import {
 import { useCreateWorkOrderMutation } from '@/features/workOrders/workOrdersApi';
 import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
@@ -57,10 +56,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
   const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 }, { skip: !open });
-  const { data: sections = [] } = useGetFactorySectionsQuery(
-    { factory_id: factoryId ? parseInt(factoryId, 10) : 0, limit: 100 },
-    { skip: !open || !factoryId }
-  );
   const { data: allMachines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 }, { skip: !open });
   const { data: projectComponents = [] } = useGetProjectComponentsQuery(
     { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
@@ -71,8 +66,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
     { skip: !open }
   );
 
-  const sectionIds = new Set(sections.map((s) => s.id));
-  const machinesForFactory = allMachines.filter((m) => sectionIds.has(m.factory_section_id));
+  const machinesForFactory = allMachines.filter((m) => m.factory_id === (factoryId ? parseInt(factoryId, 10) : -1));
 
   const reset = () => {
     setWorkOrderTypeId('');
