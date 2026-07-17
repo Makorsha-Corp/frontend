@@ -1,18 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   useGetWorkOrdersQuery,
   useDeleteWorkOrderMutation,
@@ -22,15 +12,17 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import type { WorkOrder } from '@/types/workOrder';
-import { Wrench, Plus, Search, CalendarIcon, PanelLeft } from 'lucide-react';
+import { Wrench, Plus, Search, PanelLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
 import WorkOrdersOverviewPanel from '@/components/newcomponents/customui/orders/WorkOrdersOverviewPanel';
 import WorkOrderNavigatorPanel from '@/components/newcomponents/customui/orders/WorkOrderNavigatorPanel';
 import AddWorkOrderDialog from '@/components/newcomponents/customui/orders/AddWorkOrderDialog';
+import MaintenanceWizardDialog from '@/components/newcomponents/customui/orders/MaintenanceWizardDialog';
+import WorkOrdersFilterStrip from '@/components/newcomponents/customui/orders/WorkOrdersFilterStrip';
+import { useWorkOrdersFilters } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
-  WORK_ORDER_PRIORITIES,
   WORK_ORDER_STATUS_OPTIONS,
   priorityLabel,
   workOrderStatusLabel,
@@ -47,25 +39,38 @@ import { buildMachineIdToFactoryId } from './ordersOverviewData';
 
 const WO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
+export interface WorkOrdersPageContentProps {
+  embedded?: boolean;
+  initialOrderId?: number | null;
+}
+
 /**
  * The full Work Orders browsing experience (header, filters, navigator, detail panel).
- * Extracted from the standalone page so it can also be embedded as a tab inside the
- * Machines page — work orders live on machines, so this is its natural home.
  */
-const WorkOrdersPageContent: React.FC = () => {
+const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
+  embedded = false,
+  initialOrderId = null,
+}) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(initialOrderId);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [advancedWizardOpen, setAdvancedWizardOpen] = useState(false);
+  const [advancedMachineId, setAdvancedMachineId] = useState<number | null>(null);
   const [navigatorOpen, setNavigatorOpen] = useState(false);
-
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [statusFilter, setStatusFilter] = useState<WorkOrderStatusFilter>('all');
   const [hubStatusScope, setHubStatusScope] = useState<string[] | null>(null);
-  const [workTypeFilter, setWorkTypeFilter] = useState<WorkTypeFilter>('all');
-  const [priorityFilter, setPriorityFilter] = useState<WorkOrderPriorityFilter>('all');
-  const [factoryFilter, setFactoryFilter] = useState<string>('all');
-  const [machineFilter, setMachineFilter] = useState<string>('all');
+
+  const {
+    filters,
+    setDateScope,
+    setSheetDate,
+    setFactoryFilter,
+    setSectionFilter,
+    setMachineFilter,
+    setStatusFilter,
+    setWorkTypeFilter,
+    setPriorityFilter,
+    setSearchQuery,
+  } = useWorkOrdersFilters();
 
   const { data: orders = [], isLoading } = useGetWorkOrdersQuery({
     skip: 0,
@@ -92,10 +97,10 @@ const WorkOrdersPageContent: React.FC = () => {
   );
 
   const machinesForFactory = useMemo(() => {
-    if (factoryFilter === 'all') return machines;
-    const fid = Number(factoryFilter);
+    if (filters.factoryFilter === 'all') return machines;
+    const fid = Number(filters.factoryFilter);
     return machines.filter((m) => machineIdToFactoryId.get(m.id) === fid);
-  }, [machines, factoryFilter, machineIdToFactoryId]);
+  }, [machines, filters.factoryFilter, machineIdToFactoryId]);
 
   const labelCtx: WorkOrderLabelContext = useMemo(
     () => ({
@@ -108,25 +113,16 @@ const WorkOrdersPageContent: React.FC = () => {
 
   const filterOpts = useMemo(
     () => ({
-      from: dateRange.from,
-      to: dateRange.to,
-      status: statusFilter,
-      workType: workTypeFilter,
-      priority: priorityFilter,
-      factoryId: factoryFilter,
-      machineId: machineFilter,
-      searchQuery,
+      from: filters.dateRange.from,
+      to: filters.dateRange.to,
+      status: filters.statusFilter,
+      workType: filters.workTypeFilter,
+      priority: filters.priorityFilter,
+      factoryId: filters.factoryFilter,
+      machineId: filters.machineFilter,
+      searchQuery: filters.searchQuery,
     }),
-    [
-      dateRange.from,
-      dateRange.to,
-      statusFilter,
-      workTypeFilter,
-      priorityFilter,
-      factoryFilter,
-      machineFilter,
-      searchQuery,
-    ]
+    [filters],
   );
 
   const filteredOrders = useMemo(() => {
@@ -144,6 +140,10 @@ const WorkOrdersPageContent: React.FC = () => {
     orders.find((o) => o.id === selectedOrderId) ??
     null;
   const selectedOrderFromUrl = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (initialOrderId != null) setSelectedOrderId(initialOrderId);
+  }, [initialOrderId]);
 
   useEffect(() => {
     if (!selectedOrderFromUrl) return;
@@ -196,15 +196,15 @@ const WorkOrdersPageContent: React.FC = () => {
       : '—';
 
   const hasActiveFilters =
-    dateRange.from != null ||
-    dateRange.to != null ||
-    statusFilter !== 'all' ||
-    workTypeFilter !== 'all' ||
-    priorityFilter !== 'all' ||
-    factoryFilter !== 'all' ||
-    machineFilter !== 'all' ||
+    filters.dateRange.from != null ||
+    filters.dateRange.to != null ||
+    filters.statusFilter !== 'all' ||
+    filters.workTypeFilter !== 'all' ||
+    filters.priorityFilter !== 'all' ||
+    filters.factoryFilter !== 'all' ||
+    filters.machineFilter !== 'all' ||
     hubStatusScope != null ||
-    searchQuery.trim().length > 0;
+    filters.searchQuery.trim().length > 0;
 
   const handleDelete = async (o: WorkOrder) => {
     if (!window.confirm(`Delete work order ${o.work_order_number}?`)) return;
@@ -218,45 +218,67 @@ const WorkOrdersPageContent: React.FC = () => {
     }
   };
 
-  const handleFactoryChange = (value: string) => {
-    setFactoryFilter(value);
-    setMachineFilter('all');
+  const advancedMachine = advancedMachineId
+    ? machines.find((m) => m.id === advancedMachineId) ?? null
+    : null;
+
+  const openAdvancedMaintenance = () => {
+    const mid =
+      filters.machineFilter !== 'all'
+        ? Number(filters.machineFilter)
+        : machines[0]?.id ?? null;
+    if (!mid) {
+      toast.error('Select a machine for advanced maintenance');
+      return;
+    }
+    setAdvancedMachineId(mid);
+    setAdvancedWizardOpen(true);
   };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <AppShellHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-              <Wrench className="h-5 w-5 text-brand-primary" />
+      {!embedded && (
+        <AppShellHeader>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
+                <Wrench className="h-5 w-5 text-brand-primary" />
+              </div>
+              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
+                Work Orders
+              </h1>
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-              Work Orders
-            </h1>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search by WO# or title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-              />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative w-[220px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Search by WO# or title..."
+                  value={filters.searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openAdvancedMaintenance}
+                className={appShellHeaderControlClass}
+              >
+                Advanced maintenance
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsAddOpen(true)}
+                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Work Order
+              </Button>
             </div>
-            <Button
-              type="button"
-              onClick={() => setIsAddOpen(true)}
-              className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Work Order
-            </Button>
           </div>
-        </div>
-      </AppShellHeader>
+        </AppShellHeader>
+      )}
 
       <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
         <Button
@@ -282,116 +304,52 @@ const WorkOrdersPageContent: React.FC = () => {
 
         <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.from ? (
-                dateRange.to ? (
-                  `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
-                ) : (
-                  format(dateRange.from, 'MMM d')
-                )
-              ) : (
-                'All dates'
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={(r) => setDateRange({ from: r?.from, to: r?.to })}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v as WorkOrderStatusFilter);
+        <WorkOrdersFilterStrip
+          showHubFilters
+          dateScope={filters.dateScope}
+          sheetDate={filters.sheetDate}
+          onDateScopeChange={setDateScope}
+          onSheetDateChange={setSheetDate}
+          statusFilter={filters.statusFilter}
+          workTypeFilter={filters.workTypeFilter}
+          priorityFilter={filters.priorityFilter}
+          factoryFilter={filters.factoryFilter}
+          sectionFilter={filters.sectionFilter}
+          machineFilter={filters.machineFilter}
+          searchQuery={filters.searchQuery}
+          onStatusChange={(v) => {
+            setStatusFilter(v);
             setHubStatusScope(null);
           }}
-        >
-          <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {WORK_ORDER_STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onWorkTypeChange={setWorkTypeFilter}
+          onPriorityChange={setPriorityFilter}
+          onFactoryChange={setFactoryFilter}
+          onSectionChange={setSectionFilter}
+          onMachineChange={setMachineFilter}
+          onSearchChange={setSearchQuery}
+          factories={factories}
+          sections={factorySections}
+          machines={machines}
+          workOrderTypes={workOrderTypes}
+          className="border-0 bg-transparent p-0 flex-1"
+        />
 
-        <Select
-          value={workTypeFilter === 'all' ? 'all' : String(workTypeFilter)}
-          onValueChange={(v) => setWorkTypeFilter(v === 'all' ? 'all' : Number(v))}
-        >
-          <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {workOrderTypes.map((t) => (
-              <SelectItem key={t.id} value={String(t.id)}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={priorityFilter}
-          onValueChange={(v) => setPriorityFilter(v as WorkOrderPriorityFilter)}
-        >
-          <SelectTrigger className="w-[120px] h-9 border-border bg-background text-sm">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All priorities</SelectItem>
-            {WORK_ORDER_PRIORITIES.map((p) => (
-              <SelectItem key={p} value={p}>
-                {priorityLabel(p)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={factoryFilter} onValueChange={handleFactoryChange}>
-          <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-            <SelectValue placeholder="Factory" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All factories</SelectItem>
-            {factories.map((f) => (
-              <SelectItem key={f.id} value={String(f.id)}>
-                {f.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={machineFilter} onValueChange={setMachineFilter}>
-          <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-            <SelectValue placeholder="Machine" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All machines</SelectItem>
-            {machinesForFactory.map((m) => (
-              <SelectItem key={m.id} value={String(m.id)}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {embedded && (
+          <>
+            <Button type="button" variant="outline" size="sm" onClick={openAdvancedMaintenance}>
+              Advanced
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              onClick={() => setIsAddOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
@@ -441,6 +399,18 @@ const WorkOrdersPageContent: React.FC = () => {
           setIsAddOpen(false);
         }}
       />
+
+      {advancedMachine && (
+        <MaintenanceWizardDialog
+          open={advancedWizardOpen}
+          onOpenChange={setAdvancedWizardOpen}
+          machine={advancedMachine}
+          onCreated={(id) => {
+            setAdvancedWizardOpen(false);
+            setSelectedOrder(id);
+          }}
+        />
+      )}
     </div>
   );
 };

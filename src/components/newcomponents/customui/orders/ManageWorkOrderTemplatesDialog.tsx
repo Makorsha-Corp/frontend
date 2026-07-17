@@ -189,7 +189,14 @@ const ManageWorkOrderTemplatesDialog: React.FC<ManageWorkOrderTemplatesDialogPro
         </DialogContent>
       </Dialog>
 
-      <CreateEditWorkOrderTemplateDialog open={editorOpen} onOpenChange={setEditorOpen} template={editingTemplate} />
+      <CreateEditWorkOrderTemplateDialog
+        open={editorOpen}
+        onOpenChange={(next) => {
+          setEditorOpen(next);
+          if (!next) setEditingTemplate(null);
+        }}
+        template={editingTemplate}
+      />
     </>
   );
 };

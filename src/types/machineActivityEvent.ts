@@ -52,4 +52,7 @@ export interface ListMachineActivityParams {
   machine_id: number;
   skip?: number;
   limit?: number;
+  from_date?: string;
+  to_date?: string;
+  event_type?: string;
 }

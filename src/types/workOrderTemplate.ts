@@ -28,6 +28,13 @@ export interface WorkOrderTemplate {
   requires_approval: boolean;
   notes: string | null;
   is_active: boolean;
+  is_recurring: boolean;
+  recurrence_type: string | null;
+  recurrence_day: number | null;
+  next_generation_date: string | null;
+  auto_generate: boolean;
+  default_factory_section_id: number | null;
+  default_machine_id: number | null;
   created_by: number | null;
   created_at: string;
   updated_by: number | null;
@@ -40,6 +47,7 @@ export interface WorkOrderTemplateApprover {
   work_order_template_id: number;
   user_id: number;
   user_name: string | null;
+  approver_slot: string | null;
 }
 
 export interface CreateWorkOrderTemplateItem {
@@ -63,6 +71,13 @@ export interface CreateWorkOrderTemplate {
   notes?: string;
   items?: CreateWorkOrderTemplateItem[];
   approver_user_ids?: number[];
+  is_recurring?: boolean;
+  recurrence_type?: string | null;
+  recurrence_day?: number | null;
+  next_generation_date?: string | null;
+  auto_generate?: boolean;
+  default_factory_section_id?: number | null;
+  default_machine_id?: number | null;
 }
 
 export interface UpdateWorkOrderTemplate {
@@ -78,6 +93,13 @@ export interface UpdateWorkOrderTemplate {
   notes?: string;
   is_active?: boolean;
   approver_user_ids?: number[];
+  is_recurring?: boolean;
+  recurrence_type?: string | null;
+  recurrence_day?: number | null;
+  next_generation_date?: string | null;
+  auto_generate?: boolean;
+  default_factory_section_id?: number | null;
+  default_machine_id?: number | null;
 }
 
 export interface UpdateWorkOrderTemplateItem {
@@ -99,4 +121,11 @@ export interface CreateWorkOrderFromTemplate {
   title?: string;
   description?: string;
   assigned_to?: string;
+  start_date?: string;
+}
+
+export interface GenerateWorkOrderDraftsRequest {
+  target_date: string;
+  factory_section_id?: number;
+  factory_id?: number;
 }

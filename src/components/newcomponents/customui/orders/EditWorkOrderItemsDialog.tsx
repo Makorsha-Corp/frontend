@@ -35,6 +35,7 @@ import {
 } from '@/features/workOrders/workOrdersApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi';
 import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType } from '@/types/workOrder';
@@ -42,6 +43,18 @@ import { WORK_ORDER_ITEM_ACTION_OPTIONS, WORK_ORDER_ITEM_ACTION_EXPLAINER } from
 import { API_LIMITS } from '@/constants/apiLimits';
 import { AlertTriangle, Loader2, Lock, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
+import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
+
+function formatItemDisplayLabel(selection: ItemSelection): string {
+  const base = selection.itemUnit
+    ? `${selection.itemName} (${selection.itemUnit})`
+    : selection.itemName;
+  if (selection.selectionSource === 'storage' && selection.availableQty != null) {
+    return `${base} · ${selection.availableQty} on hand`;
+  }
+  return base;
+}
 
 export interface EditWorkOrderItemsDialogProps {
   open: boolean;
@@ -76,9 +89,13 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const [replacedItemId, setReplacedItemId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
+  const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
 
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
+  const { data: sections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: machineItems = [] } = useGetMachineItemsQuery(
     { machine_id: machineId ?? 0, limit: API_LIMITS.FLEXIBLE_1000 },
@@ -108,7 +125,39 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   }, [open, defaultSourceType]);
 
   const usedItemIds = useMemo(() => new Set(items.map((i) => i.item_id)), [items]);
-  const availableItems = itemsList.filter((i) => !usedItemIds.has(i.id));
+
+  const itemSelectorFactoryId =
+    usesInventory && sourceType === 'storage' && sourceId ? Number(sourceId) : undefined;
+
+  const itemPickerInitialTab =
+    usesInventory && sourceType === 'storage' && sourceId ? ('storage' as const) : ('catalog' as const);
+
+  const itemDisplayLabel = (id: string) =>
+    itemLabels[id] ??
+    (() => {
+      const item = itemsList.find((i) => String(i.id) === id);
+      return item ? (item.unit ? `${item.name} (${item.unit})` : item.name) : null;
+    })();
+
+  const handleItemSelect = (selection: ItemSelection) => {
+    const id = String(selection.itemId);
+    if (itemPickerTarget === 'item' && usedItemIds.has(selection.itemId)) {
+      toast.error('Item already on this order');
+      return;
+    }
+    const label = formatItemDisplayLabel(selection);
+    setItemLabels((prev) => ({ ...prev, [id]: label }));
+    if (itemPickerTarget === 'replaced') {
+      setReplacedItemId(id);
+    } else {
+      setItemId(id);
+    }
+  };
+
+  const openItemPicker = (target: 'item' | 'replaced') => {
+    setItemPickerTarget(target);
+    setItemPickerOpen(true);
+  };
 
   const canAdd = (() => {
     if (!itemId.trim() || !qty.trim()) return false;
@@ -188,7 +237,8 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[70vh] max-h-[70vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
           <DialogTitle>Edit items</DialogTitle>
@@ -202,18 +252,13 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="grid gap-1">
                 <Label className="text-xs text-muted-foreground">Item *</Label>
-                <Select value={itemId} onValueChange={setItemId}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select item..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableItems.map((i) => (
-                      <SelectItem key={i.id} value={String(i.id)}>
-                        {i.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ItemSelectSummaryButton
+                  ariaLabel="Select item"
+                  selectedLabel={itemId ? itemDisplayLabel(itemId) : null}
+                  staleNumericId={itemId || null}
+                  compactLabel
+                  onClick={() => openItemPicker('item')}
+                />
               </div>
               <div className="grid gap-1">
                 <Label className="text-xs text-muted-foreground">Qty</Label>
@@ -240,7 +285,11 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                       type="button"
                       variant={actionType === opt.value ? 'default' : 'outline'}
                       size="sm"
-                      className="bg-background"
+                      className={
+                        actionType === opt.value
+                          ? 'bg-brand-primary hover:bg-brand-primary-hover'
+                          : undefined
+                      }
                       onClick={() => setActionType(opt.value)}
                     >
                       {opt.label}
@@ -302,18 +351,12 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
             {usesInventory && machineId && actionType === 'REPLACE' && (
               <div className="grid gap-1">
                 <Label className="text-xs text-muted-foreground">Item being replaced (currently on this machine)</Label>
-                <Select value={replacedItemId} onValueChange={setReplacedItemId}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select item..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {itemsList.map((i) => (
-                      <SelectItem key={i.id} value={String(i.id)}>
-                        {i.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ItemSelectSummaryButton
+                  ariaLabel="Select item being replaced"
+                  selectedLabel={replacedItemId ? itemDisplayLabel(replacedItemId) : null}
+                  staleNumericId={replacedItemId || null}
+                  onClick={() => openItemPicker('replaced')}
+                />
                 {replacedItemId && (
                   <p className="text-xs text-muted-foreground">Currently on this machine: {replacedItemOnHandQty}</p>
                 )}
@@ -425,6 +468,25 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      <ItemSelectorDialog
+        open={itemPickerOpen}
+        onOpenChange={setItemPickerOpen}
+        onSelect={handleItemSelect}
+        factoryId={itemSelectorFactoryId}
+        initialTab={itemPickerTarget === 'item' ? itemPickerInitialTab : 'catalog'}
+        selectedItemId={
+          itemPickerTarget === 'replaced'
+            ? replacedItemId
+              ? Number(replacedItemId)
+              : undefined
+            : itemId
+              ? Number(itemId)
+              : undefined
+        }
+        title={itemPickerTarget === 'replaced' ? 'Select item being replaced' : 'Select item'}
+      />
+    </>
   );
 };
 

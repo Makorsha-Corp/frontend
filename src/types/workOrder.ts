@@ -22,6 +22,7 @@ export interface WorkOrder {
   factory_id: number;
   machine_id: number | null;
   project_component_id: number | null;
+  work_order_template_id: number | null;
   start_date: string | null;
   end_date: string | null;
   uses_inventory: boolean;
@@ -170,6 +171,7 @@ export interface WorkOrderApprover {
   user_position: string | null;
   assigned_by: number | null;
   assigned_at: string;
+  approver_slot: string | null;
   approved: boolean;
   approved_at: string | null;
 }

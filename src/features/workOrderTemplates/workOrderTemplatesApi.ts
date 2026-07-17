@@ -9,7 +9,9 @@ import type {
   CreateWorkOrderTemplateItem,
   UpdateWorkOrderTemplateItem,
   ListWorkOrderTemplatesParams,
+  GenerateWorkOrderDraftsRequest,
 } from '@/types/workOrderTemplate';
+import type { WorkOrder } from '@/types/workOrder';
 
 export const workOrderTemplatesApi = createApi({
   reducerPath: 'workOrderTemplatesApi',
@@ -69,6 +71,14 @@ export const workOrderTemplatesApi = createApi({
       query: (tplId) => `work-order-templates/${tplId}/approvers/`,
       providesTags: (_r, _e, tplId) => [{ type: 'WorkOrderTemplateApprover', id: tplId }],
     }),
+    generateWorkOrderDrafts: builder.mutation<WorkOrder[], GenerateWorkOrderDraftsRequest>({
+      query: (body) => ({
+        url: 'work-order-templates/generate-drafts/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['WorkOrder', 'WorkOrderTemplate'],
+    }),
   }),
 });
 
@@ -84,4 +94,5 @@ export const {
   useUpdateWorkOrderTemplateItemMutation,
   useRemoveWorkOrderTemplateItemMutation,
   useGetWorkOrderTemplateApproversQuery,
+  useGenerateWorkOrderDraftsMutation,
 } = workOrderTemplatesApi;

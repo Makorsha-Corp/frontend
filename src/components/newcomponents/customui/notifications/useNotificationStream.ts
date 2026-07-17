@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import type { RootState } from '@/app/store';
+import { authApi } from '@/features/auth/authApi';
+import { logout, setTokens } from '@/features/auth/authSlice';
 import { notificationsApi } from '@/features/notifications/notificationsApi';
-import { readEventStream } from './sseClient';
+import { readEventStream, SseOpenError } from './sseClient';
 
 const MAX_RETRY_MS = 30_000;
 
@@ -17,6 +19,7 @@ export interface UseNotificationStreamOptions {
 
 export function useNotificationStream(options?: UseNotificationStreamOptions): boolean {
   const dispatch = useDispatch();
+  const store = useStore<RootState>();
   const token = useSelector((state: RootState) => state.auth.token);
   const workspaceId = useSelector((state: RootState) => state.auth.workspace?.id);
   const [streamConnected, setStreamConnected] = useState(false);
@@ -25,7 +28,10 @@ export function useNotificationStream(options?: UseNotificationStreamOptions): b
   onNotificationRef.current = options?.onNotification;
 
   useEffect(() => {
-    if (!token || workspaceId == null) {
+    const authToken = store.getState().auth.token;
+    const wsId = store.getState().auth.workspace?.id;
+
+    if (!authToken || wsId == null) {
       setStreamConnected(false);
       return;
     }
@@ -42,18 +48,51 @@ export function useNotificationStream(options?: UseNotificationStreamOptions): b
       retryDelayRef.current = Math.min(retryDelayRef.current * 2, MAX_RETRY_MS);
     };
 
+    const tryRefreshToken = async (): Promise<boolean> => {
+      const refreshToken = store.getState().auth.refreshToken;
+      if (!refreshToken) {
+        dispatch(logout());
+        return false;
+      }
+
+      try {
+        const data = await dispatch(
+          authApi.endpoints.refreshToken.initiate({ refresh_token: refreshToken })
+        ).unwrap();
+
+        dispatch(
+          setTokens({
+            token: data.access_token,
+            refreshToken: data.refresh_token,
+          })
+        );
+        retryDelayRef.current = 1000;
+        return true;
+      } catch {
+        dispatch(logout());
+        return false;
+      }
+    };
+
     const connect = async () => {
       if (cancelled) return;
 
-      try {
-        setStreamConnected(true);
-        retryDelayRef.current = 1000;
+      const currentToken = store.getState().auth.token;
+      const currentWorkspaceId = store.getState().auth.workspace?.id;
+      if (!currentToken || currentWorkspaceId == null) return;
 
+      try {
         await readEventStream(streamUrl(), {
           signal: abort.signal,
           headers: {
-            Authorization: `Bearer ${token}`,
-            'X-Workspace-ID': String(workspaceId),
+            Authorization: `Bearer ${currentToken}`,
+            'X-Workspace-ID': String(currentWorkspaceId),
+          },
+          onOpen: () => {
+            if (!cancelled) {
+              setStreamConnected(true);
+              retryDelayRef.current = 1000;
+            }
           },
           onMessage: (message) => {
             if (message.event === 'notification') {
@@ -74,9 +113,17 @@ export function useNotificationStream(options?: UseNotificationStreamOptions): b
         if (!abort.signal.aborted && !cancelled) {
           scheduleReconnect();
         }
-      } catch {
+      } catch (error) {
         if (abort.signal.aborted || cancelled) return;
         setStreamConnected(false);
+
+        if (error instanceof SseOpenError && error.status === 401) {
+          const refreshed = await tryRefreshToken();
+          // Fresh token triggers a new effect run; don't retry with stale bearer.
+          if (refreshed) return;
+          return;
+        }
+
         scheduleReconnect();
       }
     };
@@ -89,7 +136,7 @@ export function useNotificationStream(options?: UseNotificationStreamOptions): b
       abort.abort();
       setStreamConnected(false);
     };
-  }, [token, workspaceId, dispatch]);
+  }, [token, workspaceId, dispatch, store]);
 
   return streamConnected;
 }

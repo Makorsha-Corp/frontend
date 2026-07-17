@@ -214,13 +214,19 @@ export const machinesApi = createApi({
 
     getMachineActivityEvents: builder.query<MachineActivityEvent[], ListMachineActivityParams>({
 
-      query: ({ machine_id, skip = 0, limit = 100 }) => {
+      query: ({ machine_id, skip = 0, limit = 100, from_date, to_date, event_type }) => {
 
         const params = new URLSearchParams();
 
         params.append('skip', skip.toString());
 
         params.append('limit', limit.toString());
+
+        if (from_date) params.append('from_date', from_date);
+
+        if (to_date) params.append('to_date', to_date);
+
+        if (event_type) params.append('event_type', event_type);
 
         return `machines/${machine_id}/activity/?${params.toString()}`;
 

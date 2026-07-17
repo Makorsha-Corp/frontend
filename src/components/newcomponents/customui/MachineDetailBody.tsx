@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -92,9 +99,20 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
   const [updateMachineItem] = useUpdateMachineItemMutation();
   const [deleteMachineItem] = useDeleteMachineItemMutation();
 
+  const [activityFrom, setActivityFrom] = useState('');
+  const [activityTo, setActivityTo] = useState('');
+  const [activityType, setActivityType] = useState('all');
+
   const { data: activityEvents = [], isLoading: activityLoading } = useGetMachineActivityEventsQuery(
-    { machine_id: machine.id, skip: 0, limit: 100 },
-    { skip: !machine.id }
+    {
+      machine_id: machine.id,
+      skip: 0,
+      limit: 100,
+      from_date: activityFrom || undefined,
+      to_date: activityTo || undefined,
+      event_type: activityType !== 'all' ? activityType : undefined,
+    },
+    { skip: !machine.id },
   );
   const groupedActivityEvents = useMemo(() => groupMachineActivityEvents(activityEvents), [activityEvents]);
 
@@ -560,6 +578,34 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
                   </Badge>
                 )}
               </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="date"
+                  value={activityFrom}
+                  onChange={(e) => setActivityFrom(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="From date"
+                />
+                <Input
+                  type="date"
+                  value={activityTo}
+                  onChange={(e) => setActivityTo(e.target.value)}
+                  className="h-8 w-[130px] text-xs"
+                  aria-label="To date"
+                />
+                <Select value={activityType} onValueChange={setActivityType}>
+                  <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    <SelectItem value="status_updated">Status</SelectItem>
+                    <SelectItem value="maintenance_logged">Maintenance</SelectItem>
+                    <SelectItem value="work_order_completed">Work order</SelectItem>
+                    <SelectItem value="item_added">Inventory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto p-0 px-4 pb-4">

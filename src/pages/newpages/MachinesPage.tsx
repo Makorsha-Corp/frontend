@@ -12,7 +12,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import WorkOrdersPageContent from '@/pages/newpages/orders/WorkOrdersPageContent';
+import WorkOrdersTabContent from '@/pages/newpages/orders/WorkOrdersTabContent';
 import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
@@ -136,6 +136,9 @@ const MachinesPage: React.FC = () => {
   const machineIdParam = searchParams.get('machineId');
   const detailsParam = searchParams.get('details');
   const selectedFactoryId = factoryIdParam ? parseInt(factoryIdParam, 10) : selectedGlobalFactory?.id ?? null;
+
+  const woMachineParam = searchParams.get('woMachine');
+  const sheetMachineId = woMachineParam ? parseInt(woMachineParam, 10) : null;
 
   // Work orders live on machines — surfaced here as a tab rather than a separate page (for now).
   const activeTab = searchParams.get('tab') === 'workOrders' ? 'workOrders' : 'machines';
@@ -472,7 +475,11 @@ const MachinesPage: React.FC = () => {
           </Tabs>
         </div>
 
-        {activeTab === 'workOrders' && <WorkOrdersPageContent />}
+        {activeTab === 'workOrders' && (
+          <WorkOrdersTabContent
+            sheetMachineId={Number.isFinite(sheetMachineId) ? sheetMachineId : null}
+          />
+        )}
 
         {activeTab === 'machines' && (
         <>

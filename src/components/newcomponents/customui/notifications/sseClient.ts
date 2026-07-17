@@ -3,6 +3,16 @@ export interface SseMessage {
   data: string;
 }
 
+export class SseOpenError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`SSE open failed: ${status}`);
+    this.name = 'SseOpenError';
+    this.status = status;
+  }
+}
+
 /**
  * Read an SSE stream via fetch (supports Authorization headers unlike EventSource).
  */
@@ -12,6 +22,7 @@ export async function readEventStream(
     headers: Record<string, string>;
     signal: AbortSignal;
     onMessage: (message: SseMessage) => void;
+    onOpen?: () => void;
   }
 ): Promise<void> {
   const response = await fetch(url, {
@@ -23,8 +34,10 @@ export async function readEventStream(
   });
 
   if (!response.ok) {
-    throw new Error(`SSE open failed: ${response.status}`);
+    throw new SseOpenError(response.status);
   }
+
+  options.onOpen?.();
 
   const reader = response.body?.getReader();
   if (!reader) {

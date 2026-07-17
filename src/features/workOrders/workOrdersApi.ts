@@ -14,7 +14,8 @@ import type {
   WorkOrderEvent,
   WorkOrderCompleteRequest,
 } from '../../types/workOrder';
-import type { CreateWorkOrderFromTemplate } from '../../types/workOrderTemplate';
+import type { CreateWorkOrderFromTemplate, GenerateWorkOrderDraftsRequest } from '../../types/workOrderTemplate';
+import type { WorkOrderSheetBundle, WorkOrderSheetEntryRequest, ListWorkOrderSheetParams } from '../../types/workOrderSheet';
 
 export const workOrdersApi = createApi({
   reducerPath: 'workOrdersApi',
@@ -54,6 +55,27 @@ export const workOrdersApi = createApi({
         body: data,
       }),
       invalidatesTags: ['WorkOrder'],
+    }),
+    getWorkOrdersSheet: builder.query<WorkOrderSheetBundle[], ListWorkOrderSheetParams>({
+      query: ({ factory_id, machine_id, start_date_from, start_date_to, skip = 0, limit = 1000 } = {}) => {
+        const params = new URLSearchParams();
+        params.append('skip', String(skip));
+        params.append('limit', String(limit));
+        if (factory_id) params.append('factory_id', String(factory_id));
+        if (machine_id) params.append('machine_id', String(machine_id));
+        if (start_date_from) params.append('start_date_from', start_date_from);
+        if (start_date_to) params.append('start_date_to', start_date_to);
+        return `work-orders/sheet/?${params.toString()}`;
+      },
+      providesTags: ['WorkOrder', 'WorkOrderItem'],
+    }),
+    createWorkOrderSheetEntry: builder.mutation<WorkOrder, WorkOrderSheetEntryRequest>({
+      query: (body) => ({
+        url: 'work-orders/sheet-entry/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['WorkOrder', 'WorkOrderItem'],
     }),
     updateWorkOrder: builder.mutation<WorkOrder, { id: number; data: UpdateWorkOrderRequest }>({
       query: ({ id, data }) => ({
@@ -233,6 +255,8 @@ export const {
   useGetWorkOrderByIdQuery,
   useCreateWorkOrderMutation,
   useCreateWorkOrderFromTemplateMutation,
+  useGetWorkOrdersSheetQuery,
+  useCreateWorkOrderSheetEntryMutation,
   useUpdateWorkOrderMutation,
   useStartWorkOrderMutation,
   useCompleteWorkOrderMutation,

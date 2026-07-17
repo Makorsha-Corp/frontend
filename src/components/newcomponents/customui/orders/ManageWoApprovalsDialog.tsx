@@ -28,10 +28,12 @@ export interface ManageWoApprovalsDialogProps {
   onOpenChange: (open: boolean) => void;
   approvers: WorkOrderApprover[];
   assignableMembers: WorkspaceMember[];
-  requiredApprovals: string;
-  onRequiredApprovalsChange: (value: string) => void;
   onAddApprover: (userId: number) => void;
   onRemoveApprover: (userId: number) => void;
+  /** Pre-create flows (sheet entry) — no required count or approval status. */
+  draftMode?: boolean;
+  requiredApprovals?: string;
+  onRequiredApprovalsChange?: (value: string) => void;
 }
 
 const ManageWoApprovalsDialog: React.FC<ManageWoApprovalsDialogProps> = ({
@@ -39,40 +41,49 @@ const ManageWoApprovalsDialog: React.FC<ManageWoApprovalsDialogProps> = ({
   onOpenChange,
   approvers,
   assignableMembers,
-  requiredApprovals,
+  requiredApprovals = '',
   onRequiredApprovalsChange,
   onAddApprover,
   onRemoveApprover,
+  draftMode = false,
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(42rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+    <DialogContent
+      className={cn(
+        'flex w-[min(42rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none',
+        draftMode ? 'max-h-[min(52vh,28rem)]' : 'h-[66vh] max-h-[66vh]',
+      )}
+    >
       <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4">
         <DialogTitle className="flex items-center gap-2 text-base">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          Manage work order approvals
+          {draftMode ? 'Assign approvers' : 'Manage work order approvals'}
         </DialogTitle>
         <DialogDescription>
-          Add workspace members as approvers and set how many approvals are required. With no
-          approvers assigned, this order does not require approval.
+          {draftMode
+            ? 'Add workspace members who must approve this maintenance entry. With no approvers assigned, approval is not required.'
+            : 'Add workspace members as approvers and set how many approvals are required. With no approvers assigned, this order does not require approval.'}
         </DialogDescription>
       </DialogHeader>
 
       <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-6 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="wo-required-approvals" className="text-sm text-muted-foreground">
-            Required approvals
-          </Label>
-          <Input
-            id="wo-required-approvals"
-            type="number"
-            min={0}
-            max={approvers.length || undefined}
-            placeholder="All assigned"
-            value={requiredApprovals}
-            onChange={(e) => onRequiredApprovalsChange(e.target.value)}
-            className="h-9 w-28"
-          />
-        </div>
+        {!draftMode && onRequiredApprovalsChange && (
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="wo-required-approvals" className="text-sm text-muted-foreground">
+              Required approvals
+            </Label>
+            <Input
+              id="wo-required-approvals"
+              type="number"
+              min={0}
+              max={approvers.length || undefined}
+              placeholder="All assigned"
+              value={requiredApprovals}
+              onChange={(e) => onRequiredApprovalsChange(e.target.value)}
+              className="h-9 w-28"
+            />
+          </div>
+        )}
 
         {assignableMembers.length > 0 && (
           <div className="flex items-center gap-2">
@@ -112,7 +123,7 @@ const ManageWoApprovalsDialog: React.FC<ManageWoApprovalsDialogProps> = ({
                     <div
                       className={cn(
                         'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
-                        a.approved ? avatarColor(a.user_id) : 'bg-muted-foreground/40'
+                        !draftMode && a.approved ? avatarColor(a.user_id) : 'bg-muted-foreground/40',
                       )}
                     >
                       {initialsOf(a.user_name)}
@@ -127,17 +138,18 @@ const ManageWoApprovalsDialog: React.FC<ManageWoApprovalsDialogProps> = ({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    {a.approved ? (
-                      <Badge variant="outline" className="gap-1 text-green-600 border-green-600/30">
-                        <Check className="h-3 w-3" />
-                        Approved
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        Pending
-                      </Badge>
-                    )}
+                    {!draftMode &&
+                      (a.approved ? (
+                        <Badge variant="outline" className="gap-1 text-green-600 border-green-600/30">
+                          <Check className="h-3 w-3" />
+                          Approved
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Pending
+                        </Badge>
+                      ))}
                     <Button
                       type="button"
                       variant="ghost"

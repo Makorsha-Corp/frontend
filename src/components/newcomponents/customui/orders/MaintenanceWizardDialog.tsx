@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -51,9 +50,21 @@ import {
   WORK_ORDER_PRIORITIES,
   priorityLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { Loader2, Plus, AlertTriangle, Trash2, BookmarkPlus, ListChecks } from 'lucide-react';
+import { Loader2, Plus, AlertTriangle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import ManageWorkOrderTemplatesDialog from './ManageWorkOrderTemplatesDialog';
+import WorkOrderTemplateSelector from './WorkOrderTemplateSelector';
+import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
+import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
+
+function formatItemDisplayLabel(selection: ItemSelection): string {
+  const base = selection.itemUnit
+    ? `${selection.itemName} (${selection.itemUnit})`
+    : selection.itemName;
+  if (selection.selectionSource === 'storage' && selection.availableQty != null) {
+    return `${base} · ${selection.availableQty} on hand`;
+  }
+  return base;
+}
 
 export interface MaintenanceWizardDialogProps {
   open: boolean;
@@ -82,9 +93,6 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 }) => {
   // Template
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
-  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
-  const [saveTemplateName, setSaveTemplateName] = useState('');
 
   // Type
   const [typeId, setTypeId] = useState('');
@@ -114,7 +122,9 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
   const [assignedTo, setAssignedTo] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
+  const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
 
   const { workspace } = useAppSelector((s) => s.auth);
   const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
@@ -141,6 +151,14 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 
   const machineFactoryId = factorySections.find((s) => s.id === machine.factory_section_id)?.factory_id ?? null;
 
+  const itemSelectorFactoryId =
+    draftLine.sourceType === 'storage' && draftLine.sourceId
+      ? Number(draftLine.sourceId)
+      : undefined;
+
+  const itemPickerInitialTab =
+    draftLine.sourceType === 'storage' && draftLine.sourceId ? ('storage' as const) : ('catalog' as const);
+
   const replacedItemOnHandQty = draftLine.replacedItemId
     ? machineItems.find((mi) => mi.item_id === Number(draftLine.replacedItemId))?.qty ?? 0
     : 0;
@@ -149,9 +167,9 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 
   const [createType, { isLoading: isCreatingTypeSaving }] = useCreateWorkOrderTypeMutation();
   const [createOrder] = useCreateWorkOrderMutation();
+  const [createTemplate] = useCreateWorkOrderTemplateMutation();
   const [addItem] = useAddWorkOrderItemMutation();
   const [addApprover] = useAddWorkOrderApproverMutation();
-  const [createTemplate] = useCreateWorkOrderTemplateMutation();
 
   const resetForm = () => {
     setSelectedTemplateId('');
@@ -173,8 +191,6 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
     setPriority('MEDIUM');
     setDescription('');
     setAssignedTo('');
-    setSaveTemplateOpen(false);
-    setSaveTemplateName('');
   };
 
   useEffect(() => {
@@ -280,7 +296,28 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
     setPartLines((prev) => prev.filter((l) => l.key !== key));
   };
 
-  const itemName = (id: string) => items.find((i) => String(i.id) === id)?.name ?? `Item #${id}`;
+  const itemName = (id: string) =>
+    itemLabels[id] ??
+    (() => {
+      const item = items.find((i) => String(i.id) === id);
+      return item ? (item.unit ? `${item.name} (${item.unit})` : item.name) : `Item #${id}`;
+    })();
+
+  const handleItemSelect = (selection: ItemSelection) => {
+    const label = formatItemDisplayLabel(selection);
+    const id = String(selection.itemId);
+    setItemLabels((prev) => ({ ...prev, [id]: label }));
+    if (itemPickerTarget === 'replaced') {
+      setDraftLine((d) => ({ ...d, replacedItemId: id }));
+    } else {
+      setDraftLine((d) => ({ ...d, itemId: id }));
+    }
+  };
+
+  const openItemPicker = (target: 'item' | 'replaced') => {
+    setItemPickerTarget(target);
+    setItemPickerOpen(true);
+  };
 
   const canSubmit = (() => {
     if (!typeId) return false;
@@ -291,51 +328,35 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
     return true;
   })();
 
-  const buildTemplatePayload = () => ({
-    work_order_type_id: Number(typeId),
-    priority,
-    assigned_to: assignedTo.trim() || undefined,
-    uses_inventory: needsParts === 'yes',
-    account_id: billTo === 'external' ? Number(accountId) : undefined,
-    cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
-    requires_approval: needsApproval === 'yes',
-    description: description.trim() || undefined,
-    items:
-      needsParts === 'yes'
-        ? partLines.map((l) => ({
-            item_id: Number(l.itemId),
-            quantity: Number(l.quantity),
-            action_type: l.actionType,
-            replaced_item_id: l.actionType === 'REPLACE' ? Number(l.replacedItemId) : undefined,
-          }))
-        : undefined,
-    approver_user_ids: needsApproval === 'yes' ? approverIds : undefined,
-  });
-
-  const handleSaveTemplate = async () => {
-    if (!saveTemplateName.trim()) {
-      toast.error('Name this template');
-      return;
-    }
+  const handleSaveTemplate = async (name: string) => {
     if (!typeId) {
-      toast.error('Pick a work order type first');
-      return;
+      toast.error('Pick work order type first');
+      throw new Error('missing type');
     }
-    setIsSavingTemplate(true);
-    try {
-      await createTemplate({
-        template_name: saveTemplateName.trim(),
-        ...buildTemplatePayload(),
-      }).unwrap();
-      toast.success('Template saved');
-      setSaveTemplateOpen(false);
-      setSaveTemplateName('');
-    } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save template');
-    } finally {
-      setIsSavingTemplate(false);
-    }
+    await createTemplate({
+      template_name: name.trim(),
+      work_order_type_id: Number(typeId),
+      priority,
+      assigned_to: assignedTo.trim() || undefined,
+      uses_inventory: needsParts === 'yes',
+      account_id: billTo === 'external' ? Number(accountId) : undefined,
+      cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
+      requires_approval: needsApproval === 'yes',
+      approver_user_ids: needsApproval === 'yes' ? approverIds : undefined,
+      description: description.trim() || undefined,
+      default_factory_section_id: machine.factory_section_id,
+      default_machine_id: machine.id,
+      items:
+        needsParts === 'yes' && partLines.length > 0
+          ? partLines.map((l) => ({
+              item_id: Number(l.itemId),
+              quantity: Number(l.quantity),
+              action_type: l.actionType,
+              replaced_item_id: l.actionType === 'REPLACE' ? Number(l.replacedItemId) : undefined,
+            }))
+          : undefined,
+    }).unwrap();
+    toast.success('Template saved');
   };
 
   const handleSubmit = async () => {
@@ -396,7 +417,8 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[min(42rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
           <DialogTitle>Maintenance — {machine.name}</DialogTitle>
@@ -404,34 +426,21 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-6">
-          {/* Template */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Start from a template</Label>
-              <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setManageTemplatesOpen(true)}>
-                <ListChecks className="h-3.5 w-3.5" />
-                Manage templates
-              </Button>
-            </div>
-            <Select value={selectedTemplateId || '__none__'} onValueChange={(v) => setSelectedTemplateId(v === '__none__' ? '' : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="No template — start from scratch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">No template — start from scratch</SelectItem>
-                {workOrderTemplates.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.template_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedTemplate && (
-              <p className="text-xs text-muted-foreground">
-                Prefilled from "{selectedTemplate.template_name}" — review and adjust anything below before creating.
-              </p>
-            )}
-          </div>
+          <WorkOrderTemplateSelector
+            label="Start from a template"
+            value={selectedTemplateId}
+            onValueChange={(v) => setSelectedTemplateId(v === '__none__' ? '' : v)}
+            templates={workOrderTemplates}
+            showHint
+            dialogTitle="Start from a template"
+            dialogDescription="Pick a preset to prefill this form, or save your current fields as a template."
+            onSaveFromForm={handleSaveTemplate}
+            canSaveFromForm={Boolean(typeId)}
+            defaultSectionId={machine.factory_section_id}
+            defaultMachineId={machine.id}
+            machines={machines}
+            sections={factorySections}
+          />
 
           <Separator />
 
@@ -520,7 +529,11 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
                           type="button"
                           variant={draftLine.actionType === opt.value ? 'default' : 'outline'}
                           size="sm"
-                          className="bg-background"
+                          className={
+                            draftLine.actionType === opt.value
+                              ? 'bg-brand-primary hover:bg-brand-primary-hover'
+                              : undefined
+                          }
                           onClick={() => setDraftLine((d) => ({ ...d, actionType: opt.value }))}
                         >
                           {opt.label}
@@ -584,18 +597,13 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
                       <Label className="text-xs text-muted-foreground">
                         {draftLine.actionType === 'REPLACE' ? 'New item' : 'Item'}
                       </Label>
-                      <Select value={draftLine.itemId} onValueChange={(v) => setDraftLine((d) => ({ ...d, itemId: v }))}>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select item..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {items.map((i) => (
-                            <SelectItem key={i.id} value={String(i.id)}>
-                              {i.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <ItemSelectSummaryButton
+                        ariaLabel={draftLine.actionType === 'REPLACE' ? 'Select new item' : 'Select item'}
+                        selectedLabel={draftLine.itemId ? itemName(draftLine.itemId) : null}
+                        staleNumericId={draftLine.itemId || null}
+                        compactLabel
+                        onClick={() => openItemPicker('item')}
+                      />
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Quantity</Label>
@@ -611,21 +619,12 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
                   {draftLine.actionType === 'REPLACE' && (
                     <div className="grid gap-1">
                       <Label className="text-xs text-muted-foreground">Item being replaced (currently on this machine)</Label>
-                      <Select
-                        value={draftLine.replacedItemId}
-                        onValueChange={(v) => setDraftLine((d) => ({ ...d, replacedItemId: v }))}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select item..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {items.map((i) => (
-                            <SelectItem key={i.id} value={String(i.id)}>
-                              {i.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <ItemSelectSummaryButton
+                        ariaLabel="Select item being replaced"
+                        selectedLabel={draftLine.replacedItemId ? itemName(draftLine.replacedItemId) : null}
+                        staleNumericId={draftLine.replacedItemId || null}
+                        onClick={() => openItemPicker('replaced')}
+                      />
                       {draftLine.replacedItemId && (
                         <p className="text-xs text-muted-foreground">Currently on this machine: {replacedItemOnHandQty}</p>
                       )}
@@ -768,46 +767,33 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
           </div>
         </div>
 
-        <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border px-6 py-4 sm:justify-between">
-          <Popover open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="gap-1.5">
-                <BookmarkPlus className="h-4 w-4" />
-                Save as template
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72" align="start">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Template name</Label>
-                <Input
-                  autoFocus
-                  value={saveTemplateName}
-                  onChange={(e) => setSaveTemplateName(e.target.value)}
-                  placeholder="e.g. Monthly Oil Change"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full bg-brand-primary hover:bg-brand-primary-hover"
-                  disabled={!saveTemplateName.trim() || isSavingTemplate}
-                  onClick={handleSaveTemplate}
-                >
-                  {isSavingTemplate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save template
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-
+        <DialogFooter className="shrink-0 flex-row items-center justify-end gap-2 border-t border-border px-6 py-4">
           <Button type="button" disabled={!canSubmit || isSubmitting} onClick={handleSubmit} className="bg-brand-primary hover:bg-brand-primary-hover">
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create work order
           </Button>
         </DialogFooter>
       </DialogContent>
-
-      <ManageWorkOrderTemplatesDialog open={manageTemplatesOpen} onOpenChange={setManageTemplatesOpen} />
     </Dialog>
+
+      <ItemSelectorDialog
+        open={itemPickerOpen}
+        onOpenChange={setItemPickerOpen}
+        onSelect={handleItemSelect}
+        factoryId={itemSelectorFactoryId}
+        initialTab={itemPickerInitialTab}
+        selectedItemId={
+          itemPickerTarget === 'replaced'
+            ? draftLine.replacedItemId
+              ? Number(draftLine.replacedItemId)
+              : undefined
+            : draftLine.itemId
+              ? Number(draftLine.itemId)
+              : undefined
+        }
+        title={itemPickerTarget === 'replaced' ? 'Select item being replaced' : 'Select item'}
+      />
+    </>
   );
 };
 

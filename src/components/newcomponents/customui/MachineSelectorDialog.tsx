@@ -22,14 +22,11 @@ import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySe
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { cn } from '@/lib/utils';
-import {
-  getMachineVisualKind,
-  getMachineStatusLabel,
-  machineListTopBarClass,
-  machineSelectorTileClass,
-  machineSelectorSubtextClass,
-} from '@/lib/machineVisualStatus';
+import MachineSelectorTile, {
+  activeMachines,
+  filterAndSortMachines,
+  MachineSelectorFooterStatus,
+} from '@/components/newcomponents/customui/MachineSelectorTile';
 import { Loader2, Search } from 'lucide-react';
 import { resolveFactoryId, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
@@ -62,52 +59,6 @@ export interface MachineSelectorDialogProps {
   title?: string;
   description?: string;
 }
-
-const activeMachines = (list: Machine[] | undefined) =>
-  (list ?? []).filter((m) => m.is_active && !m.is_deleted);
-
-const MachineSelectorTile: React.FC<{
-  machine: Machine;
-  isHighlighted: boolean;
-  onPick: () => void;
-}> = ({ machine: m, isHighlighted, onPick }) => {
-  const kind = getMachineVisualKind(m);
-  const label = getMachineStatusLabel(m);
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={isHighlighted}
-      onClick={onPick}
-      className={cn(
-        'flex min-h-[4.75rem] flex-col rounded-md border bg-card text-left shadow-sm outline-none transition-colors',
-        'hover:border-brand-primary/50 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        machineSelectorTileClass(kind, isHighlighted)
-      )}
-    >
-      <div className={cn('h-2 shrink-0 rounded-t-md', machineListTopBarClass[kind])} aria-hidden />
-      <div className="flex flex-1 flex-col justify-center gap-0.5 px-2.5 py-2">
-        <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{m.name}</span>
-        <span
-          className={cn('text-[10px] font-semibold uppercase tracking-wide', machineSelectorSubtextClass[kind])}
-        >
-          {label}
-        </span>
-      </div>
-    </button>
-  );
-};
-
-const MachineSelectorFooterStatus: React.FC<{ machine: Machine }> = ({ machine }) => {
-  const kind = getMachineVisualKind(machine);
-  const label = getMachineStatusLabel(machine);
-  return (
-    <>
-      Selected: <span className="font-medium text-foreground">{machine.name}</span>
-      <span className={cn('font-medium', machineSelectorSubtextClass[kind])}> · {label}</span>
-    </>
-  );
-};
 
 const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   open,
@@ -159,22 +110,10 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const machines = useMemo(() => {
-    const list = activeMachines(machinesRaw);
-    const q = search.trim().toLowerCase();
-    const filtered = q
-      ? list.filter(
-          (m) =>
-            m.name.toLowerCase().includes(q) ||
-            (m.model_number && m.model_number.toLowerCase().includes(q)) ||
-            (m.manufacturer && m.manufacturer.toLowerCase().includes(q))
-        )
-      : list;
-    return [...filtered].sort((a, b) => {
-      if (a.is_running !== b.is_running) return a.is_running ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-  }, [machinesRaw, search]);
+  const machines = useMemo(
+    () => filterAndSortMachines(activeMachines(machinesRaw), search),
+    [machinesRaw, search],
+  );
 
   const confirmSelection = () => {
     if (!highlighted || factoryId == null || sectionId == null) return;
@@ -316,7 +255,9 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
         <DialogFooter className="flex shrink-0 flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {highlighted ? (
-              <MachineSelectorFooterStatus machine={highlighted} />
+              <>
+                Selected: <MachineSelectorFooterStatus machine={highlighted} />
+              </>
             ) : (
               <>Click a machine to highlight it, then confirm below.</>
             )}
