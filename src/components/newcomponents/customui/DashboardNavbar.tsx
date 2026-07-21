@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
+  CalendarDays,
   Factory,
   Users,
   ShoppingCart,
@@ -321,6 +322,20 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               >
                 <LayoutDashboard size={20} />
                 {isExpanded && <span className="font-medium">Overview</span>}
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                to="/calendar"
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/calendar')
+                    ? 'bg-brand-primary text-white'
+                    : navInactiveClass
+                  } ${!isExpanded ? 'justify-center' : ''}`}
+                title={!isExpanded ? 'Calendar' : ''}
+              >
+                <CalendarDays size={20} />
+                {isExpanded && <span className="font-medium">Calendar</span>}
               </Link>
             </li>
 

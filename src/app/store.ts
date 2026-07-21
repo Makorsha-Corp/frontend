@@ -41,6 +41,7 @@ import { ordersOverviewApi } from '@/features/orders/ordersOverviewApi';
 import { discussionsApi } from '@/features/discussions/discussionsApi';
 import { notificationsApi } from '@/features/notifications/notificationsApi';
 import { paymentsApi } from '@/features/payments/paymentsApi';
+import { calendarApi } from '@/features/calendar/calendarApi';
 
 export const store = configureStore({
   reducer: {
@@ -85,6 +86,7 @@ export const store = configureStore({
     [discussionsApi.reducerPath]: discussionsApi.reducer,
     [notificationsApi.reducerPath]: notificationsApi.reducer,
     [paymentsApi.reducerPath]: paymentsApi.reducer,
+    [calendarApi.reducerPath]: calendarApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -128,6 +130,7 @@ export const store = configureStore({
       discussionsApi.middleware,
       notificationsApi.middleware,
       paymentsApi.middleware,
+      calendarApi.middleware,
     ),
 });
 

@@ -27,6 +27,7 @@ import WorkOrdersPage from "./pages/newpages/orders/WorkOrdersPage";
 import ProjectsPage from "./pages/newpages/ProjectsPage";
 import ProductionPage from "./pages/newpages/ProductionPage";
 import LedgersPage from "./pages/newpages/LedgersPage";
+import CalendarPage from "./pages/newpages/calendar/CalendarPage";
 
 import { ThemeProvider } from "./context/ThemeContext";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
@@ -59,6 +60,7 @@ const App: React.FC = () => {
             {/* Requires auth + workspace */}
             <Route element={<RequireWorkspace />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/factories" element={<FactoriesPage />} />
               <Route path="/factories/:id" element={<FactoryDetailPage />} />
               <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
