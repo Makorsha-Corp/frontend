@@ -14,6 +14,7 @@ import type { WorkspaceMember } from '@/types/workspace';
 export interface SheetLogEntryFooterProps {
   sheetDate: string;
   factoryId: number | null;
+  factoryLabel?: string | null;
   sectionId: number | null;
   machines: Machine[];
   workOrderTypes: WorkOrderType[];
@@ -34,6 +35,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
     {
       sheetDate,
       factoryId,
+      factoryLabel,
       sectionId,
       machines,
       workOrderTypes,
@@ -50,32 +52,38 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
     },
     ref,
   ) => {
-    const canLog = factoryId != null && sectionId != null;
-    const isDisabled = disabled || !canLog;
+    const canAdd = factoryId != null;
+    const isDisabled = disabled || !canAdd;
     const dateLabel = format(parseISO(sheetDate), 'dd.MM.yyyy (EEE)');
+    const scopeLabel = factoryLabel ?? (canAdd ? 'Factory selected' : 'Select factory');
 
     return (
       <Collapsible open={open} onOpenChange={onOpenChange}>
         <div
           ref={ref}
-          className={cn('relative z-30 shrink-0 overflow-visible border-t border-border bg-card', className)}
+          className={cn(
+            'relative z-30 shrink-0 overflow-visible border-t-2 border-brand-primary/20 bg-muted/30',
+            className,
+          )}
         >
           <CollapsibleTrigger asChild>
             <button
               type="button"
               className={cn(
                 'flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors',
-                'hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-                open && 'border-b border-border/60 bg-muted/20',
+                'hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                open && 'border-b border-border/60 bg-muted/40',
               )}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <Plus className="h-4 w-4 shrink-0 text-brand-primary" />
-                <span className="text-sm font-medium text-foreground">Log entry</span>
-                <span className="truncate text-xs text-muted-foreground">{dateLabel}</span>
+                <span className="text-sm font-medium text-foreground">Add work</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {scopeLabel} · {dateLabel}
+                </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                {open ? 'Collapse' : canLog ? 'Expand to log' : 'Select factory & section'}
+                {open ? 'Collapse' : canAdd ? 'Expand to add' : 'Select factory'}
                 {open ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
@@ -86,9 +94,9 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
           </CollapsibleTrigger>
 
           <CollapsibleContent className="overflow-visible">
-            {!canLog ? (
+            {!canAdd ? (
               <div className="border-t border-border/60 px-4 py-3 text-center text-sm text-muted-foreground">
-                Select a factory and section to log maintenance entries.
+                Select a factory to add work entries.
               </div>
             ) : (
               <div className="flex min-h-0 flex-col overflow-visible border-t border-border/60">
@@ -107,6 +115,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
                   defaultMachineId={defaultMachineId}
                   showGenerateDay={false}
                   showFooterHeader={false}
+                  showWorkDate
                   disabled={isDisabled}
                   onSuccess={() => {
                     onSuccess?.();

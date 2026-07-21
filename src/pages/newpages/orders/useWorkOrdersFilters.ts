@@ -5,10 +5,17 @@ import type { WorkOrderPriorityFilter, WorkOrderStatusFilter, WorkTypeFilter } f
 
 export type SheetDateScope = 'day' | 'week' | 'month';
 export type SheetRowFlow = 'modal-edit' | 'side-panel' | 'preview';
+export type WorkOrdersLayoutMode = 'list' | 'week';
+
+function parseLayoutMode(raw: string | null): WorkOrdersLayoutMode {
+  return raw === 'week' ? 'week' : 'list';
+}
 
 export interface WorkOrdersFilterState {
   dateScope: SheetDateScope;
+  /** Empty string = no date filter (show all matching orders in list mode). */
   sheetDate: string;
+  hasDateFilter: boolean;
   dateRange: { from?: Date; to?: Date };
   statusFilter: WorkOrderStatusFilter;
   workTypeFilter: WorkTypeFilter;
@@ -35,8 +42,10 @@ export function useWorkOrdersFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const dateScope = parseSheetDateScope(searchParams.get('woDateScope'));
+  const layoutMode = parseLayoutMode(searchParams.get('woLayout'));
   const sheetRowFlow = parseSheetRowFlow(searchParams.get('sheetRowFlow'));
-  const sheetDate = searchParams.get('woDate') ?? todayIso();
+  const sheetDate = searchParams.get('woDate') ?? '';
+  const hasDateFilter = sheetDate.length > 0;
   const factoryFilter = searchParams.get('woFactory') ?? 'all';
   const sectionFilter = searchParams.get('woSection') ?? 'all';
   const machineFilter = searchParams.get('woMachine') ?? 'all';
@@ -48,6 +57,7 @@ export function useWorkOrdersFilters() {
   const searchQuery = searchParams.get('woSearch') ?? '';
 
   const dateRange = useMemo(() => {
+    if (!hasDateFilter) return {};
     const base = parseISO(sheetDate);
     if (dateScope === 'month') {
       return { from: startOfMonth(base), to: endOfMonth(base) };
@@ -59,7 +69,7 @@ export function useWorkOrdersFilters() {
     }
     const day = startOfDay(base);
     return { from: day, to: endOfDay(day) };
-  }, [dateScope, sheetDate]);
+  }, [dateScope, sheetDate, hasDateFilter]);
 
   const patchParams = useCallback(
     (patch: Record<string, string | null>) => {
@@ -77,9 +87,26 @@ export function useWorkOrdersFilters() {
 
   const setDateScope = (scope: SheetDateScope) =>
     patchParams({ woDateScope: scope === 'week' ? null : scope });
+  const setLayoutMode = (mode: WorkOrdersLayoutMode) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (mode === 'list') {
+        next.delete('woLayout');
+        next.delete('woDate');
+        next.delete('woDateScope');
+      } else {
+        next.set('woLayout', 'week');
+        if (!prev.get('woDate')) {
+          next.set('woDate', todayIso());
+        }
+      }
+      return next;
+    });
+  };
   const setSheetRowFlow = (flow: SheetRowFlow) =>
     patchParams({ sheetRowFlow: flow === 'modal-edit' ? null : flow });
-  const setSheetDate = (iso: string) => patchParams({ woDate: iso });
+  const setSheetDate = (iso: string) => patchParams({ woDate: iso.trim() ? iso : null });
+  const clearSheetDate = () => patchParams({ woDate: null });
   const setFactoryFilter = (value: string) =>
     patchParams({ woFactory: value === 'all' ? null : value, woMachine: null });
   const setSectionFilter = (value: string) =>
@@ -96,6 +123,7 @@ export function useWorkOrdersFilters() {
   const filters: WorkOrdersFilterState = {
     dateScope,
     sheetDate,
+    hasDateFilter,
     dateRange,
     statusFilter,
     workTypeFilter,
@@ -111,12 +139,15 @@ export function useWorkOrdersFilters() {
 
   return {
     filters,
+    layoutMode,
     sheetRowFlow,
     apiDateFrom,
     apiDateTo,
     setDateScope,
+    setLayoutMode,
     setSheetRowFlow,
     setSheetDate,
+    clearSheetDate,
     setFactoryFilter,
     setSectionFilter,
     setMachineFilter,

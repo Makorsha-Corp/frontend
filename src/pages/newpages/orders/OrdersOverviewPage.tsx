@@ -4,8 +4,12 @@ import { CalendarIcon, LayoutDashboard, Loader2 } from 'lucide-react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
-  appShellHeaderLoweredSelectorClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
+  appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
+import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -19,6 +23,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import HubTypeCards from '@/components/newcomponents/customui/orders/overview/variants/hubs/HubTypeCards';
 import OrdersOverviewPageBody from '@/components/newcomponents/customui/orders/overview/OrdersOverviewPageBody';
 import { useOrdersOverviewPage } from './useOrdersOverviewPage';
+import {
+  factoryFilterToSlice,
+  sliceToFactoryFilter,
+} from '@/lib/machinesLocationFilterAdapters';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 
 const OrdersOverviewPage: React.FC = () => {
   const {
@@ -47,37 +56,33 @@ const OrdersOverviewPage: React.FC = () => {
     setFactoryFilter(factoryId === factoryFilter ? 'all' : factoryId);
   };
 
+  const factoryLocationValue = factoryFilterToSlice(factoryFilter);
+
+  const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
+    if (slice.factory_ids === undefined) return;
+    setFactoryFilter(sliceToFactoryFilter({ factory_ids: slice.factory_ids, section_ids: [] }));
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <DashboardNavbar />
       <div className="flex-1 min-w-0">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className="flex min-w-0 flex-col gap-1 shrink-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                    <LayoutDashboard className="h-5 w-5 text-brand-primary" />
-                  </div>
-                  <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                    Orders Overview
-                  </h1>
-                </div>
+            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
+              <div className={appShellHeaderIconTileClass}>
+                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
               </div>
-              <div className="hidden h-6 w-px bg-border sm:block self-center" />
-              <Select value={factoryFilter} onValueChange={setFactoryFilter}>
-                <SelectTrigger className={`w-[130px] ${appShellHeaderLoweredSelectorClass}`}>
-                  <SelectValue placeholder="Factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All factories</SelectItem>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={String(f.id)}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <h1 className={appShellHeaderTitleClass}>Orders Overview</h1>
+              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <MachinesInlineLocationFilters
+                which="factories"
+                variant="toolbar"
+                value={factoryLocationValue}
+                onChange={handleFactoryLocationChange}
+                factories={factories}
+                sections={[]}
+              />
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Popover>

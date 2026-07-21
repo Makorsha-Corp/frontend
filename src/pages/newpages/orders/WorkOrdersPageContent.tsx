@@ -9,6 +9,7 @@ import {
 } from '@/features/workOrders/workOrdersApi';
 import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { WorkOrder } from '@/types/workOrder';
 import { Wrench, Plus, Search, PanelLeft } from 'lucide-react';
@@ -76,6 +77,10 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
     limit: WO_LIST_LIMIT,
   });
   const { data: factories = [] } = useGetFactoriesQuery({
+    skip: 0,
+    limit: API_LIMITS.FLEXIBLE_1000,
+  });
+  const { data: sections = [] } = useGetFactorySectionsQuery({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
@@ -323,7 +328,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
           onMachineChange={setMachineFilter}
           onSearchChange={setSearchQuery}
           factories={factories}
-          sections={factorySections}
+          sections={sections}
           machines={machines}
           workOrderTypes={workOrderTypes}
           className="border-0 bg-transparent p-0 flex-1"

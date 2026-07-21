@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -302,26 +308,19 @@ const PurchaseOrdersPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className="flex min-w-0 items-center gap-3 shrink-0">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
-                  aria-hidden
-                >
-                  <ShoppingCart className="h-5 w-5 text-brand-primary" />
-                </div>
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                  Purchase Orders
-                </h1>
+            <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
+              <div className={appShellHeaderIconTileClass}>
+                <ShoppingCart className="h-5 w-5 text-brand-primary" />
               </div>
+              <h1 className={appShellHeaderTitleClass}>Purchase Orders</h1>
               {selectedOrder && (
                 <>
-                  <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-                  <Breadcrumb className="min-w-0 self-end">
-                    <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                  <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+                  <Breadcrumb className="min-w-0">
+                    <BreadcrumbList className="items-center text-card-foreground dark:text-foreground">
                       <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
                         <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
-                          <span className="truncate px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                          <span className="truncate px-1.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
                             {selectedOrder.po_number}
                           </span>
                           <button

@@ -67,7 +67,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   initialFactoryId,
   initialSectionId,
   title = 'Select machine',
-  description = 'Choose a factory and section, then pick a machine. Green = running, yellow = maintenance, red = not running (idle/off).',
+  description = 'Choose a factory (section optional), then pick a machine. Green = running, yellow = maintenance, red = not running (idle/off).',
 }) => {
   const [factoryId, setFactoryId] = useState<number | undefined>();
   const [sectionId, setSectionId] = useState<number | undefined>();
@@ -89,9 +89,10 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
     {
       skip: 0,
       limit: API_LIMITS.FLEXIBLE_1000,
+      factory_id: factoryId,
       factory_section_id: sectionId,
     },
-    { skip: !open || !sectionId }
+    { skip: !open || !factoryId }
   );
 
   useEffect(() => {
@@ -116,12 +117,17 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
   );
 
   const confirmSelection = () => {
-    if (!highlighted || factoryId == null || sectionId == null) return;
+    if (!highlighted || factoryId == null) return;
     const factory = factories.find((f) => f.id === factoryId);
-    const section = sections.find((s) => s.id === sectionId);
+    const section = sectionId != null ? sections.find((s) => s.id === sectionId) : undefined;
+    const machineSectionName = highlighted.factory_section_name?.trim();
     onSelect(highlighted, {
       factoryAbbreviation: factory?.abbreviation?.trim() || '—',
-      sectionAbbreviation: section ? deriveSectionAbbreviation(section.name) : '—',
+      sectionAbbreviation: section
+        ? deriveSectionAbbreviation(section.name)
+        : machineSectionName
+          ? deriveSectionAbbreviation(machineSectionName)
+          : '—',
       machineName: highlighted.name,
     });
     onOpenChange(false);
@@ -171,7 +177,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Factory section *</Label>
+              <Label>Factory section</Label>
               <Select
                 value={sectionId?.toString() ?? '__none__'}
                 onValueChange={handleSectionChange}
@@ -184,12 +190,12 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
                         ? 'Choose a factory first'
                         : sectionsLoading
                           ? 'Loading…'
-                          : 'Select section…'
+                          : 'All sections'
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Select section…</SelectItem>
+                  <SelectItem value="__none__">All sections</SelectItem>
                   {sections.map((s) => (
                     <SelectItem key={s.id} value={s.id.toString()}>
                       {s.name}
@@ -201,9 +207,9 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
           </div>
 
           <div className="relative min-h-0 flex-1">
-            {!sectionId ? (
+            {!factoryId ? (
               <div className="flex h-full min-h-[7rem] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 px-2 text-center text-sm text-muted-foreground">
-                Select a factory and section to load machines.
+                Select a factory to load machines.
               </div>
             ) : machinesLoading ? (
               <div className="flex h-full min-h-[7rem] items-center justify-center gap-2 text-muted-foreground">
@@ -228,13 +234,13 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
                 <div className="max-h-[min(200px,32dvh)] overflow-y-auto rounded-lg border border-border bg-muted/10 p-2 sm:p-3">
                   {machines.length === 0 ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                      No machines in this section{search.trim() ? ' match your search' : ''}.
+                      No machines in this factory{sectionId ? ' section' : ''}{search.trim() ? ' match your search' : ''}.
                     </p>
                   ) : (
                     <div
                       className="grid grid-cols-2 gap-1.5 sm:gap-2"
                       role="listbox"
-                      aria-label="Machines in section"
+                      aria-label="Machines in factory"
                     >
                       {machines.map((m) => (
                         <MachineSelectorTile
@@ -269,7 +275,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
             <Button
               type="button"
               className="bg-brand-primary hover:bg-brand-primary-hover"
-              disabled={!highlighted || factoryId == null || sectionId == null}
+              disabled={!highlighted || factoryId == null}
               onClick={confirmSelection}
             >
               Select machine

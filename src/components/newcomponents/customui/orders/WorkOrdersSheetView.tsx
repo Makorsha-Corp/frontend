@@ -34,6 +34,7 @@ import { useAppSelector } from '@/app/hooks';
 import type { WorkOrder } from '@/types/workOrder';
 import toast from 'react-hot-toast';
 
+/** @deprecated Legacy sheet view — use WorkOrdersUnifiedView */
 export interface WorkOrdersSheetViewProps {
   defaultMachineId?: number | null;
   onSelectWorkOrder?: (id: number) => void;
@@ -125,9 +126,22 @@ const WorkOrdersSheetView: React.FC<WorkOrdersSheetViewProps> = ({
   const accountName = (id: number | null) =>
     id ? accounts.find((a) => a.id === id)?.name ?? null : null;
 
+  const sheetLabelCtx = useMemo(
+    () => ({
+      factoryName: (id: number) => factories.find((f) => f.id === id)?.name ?? `Factory #${id}`,
+      sectionName: (machineId: number | null) => {
+        if (!machineId) return null;
+        const machine = machines.find((m) => m.id === machineId);
+        if (!machine?.factory_section_id) return null;
+        return sections.find((s) => s.id === machine.factory_section_id)?.name ?? null;
+      },
+    }),
+    [factories, machines, sections],
+  );
+
   const rows = useMemo(
-    () => flattenSheetBundles(bundles, machineName, accountName),
-    [bundles, machines, accounts],
+    () => flattenSheetBundles(bundles, machineName, accountName, sheetLabelCtx),
+    [bundles, machines, accounts, sheetLabelCtx],
   );
 
   const orderById = useMemo(() => {
@@ -163,7 +177,7 @@ const WorkOrdersSheetView: React.FC<WorkOrdersSheetViewProps> = ({
     ? machineIdToFactoryId.get(defaultMachineId) ?? null
     : null);
 
-  const showStageDay = sectionId != null;
+  const showStageDay = resolvedFactoryId != null;
 
   const footerRef = useRef<HTMLDivElement>(null);
 
@@ -244,8 +258,6 @@ const WorkOrdersSheetView: React.FC<WorkOrdersSheetViewProps> = ({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <WorkOrdersFilterStrip
         showHubFilters={false}
-        sheetRowFlow={sheetRowFlow}
-        onSheetRowFlowChange={setSheetRowFlow}
         dateScope={filters.dateScope}
         sheetDate={filters.sheetDate}
         onDateScopeChange={setDateScope}

@@ -29,9 +29,13 @@ export interface OrdersOverviewTableProps<T extends { id: number | string }> {
   onRowClick: (row: T) => void;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
+  emptyActions?: React.ReactNode;
   className?: string;
+  cardClassName?: string;
   headerActions?: React.ReactNode;
   titleAddon?: React.ReactNode;
+  hideHeader?: boolean;
+  getRowClassName?: (row: T) => string;
 }
 
 function alignClass(align?: OrdersTableColumnAlign): string {
@@ -48,40 +52,46 @@ function OrdersOverviewTable<T extends { id: number | string }>({
   onRowClick,
   emptyMessage = 'No orders match these filters.',
   emptyIcon,
+  emptyActions,
   className,
+  cardClassName,
   headerActions,
   titleAddon,
+  hideHeader = false,
+  getRowClassName,
 }: OrdersOverviewTableProps<T>) {
   const hasToolbar = Boolean(headerActions || titleAddon);
 
   return (
-    <Card className={cn('border-border', className)}>
-      {hasToolbar ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <CardTitle className="text-base font-semibold leading-none">{title}</CardTitle>
-            {titleAddon}
+    <Card className={cn('border-border', cardClassName, className)}>
+      {!hideHeader &&
+        (hasToolbar ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <CardTitle className="text-base font-semibold leading-none">{title}</CardTitle>
+              {titleAddon}
+            </div>
+            {headerActions ? (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">{headerActions}</div>
+            ) : null}
           </div>
-          {headerActions ? (
-            <div className="flex flex-wrap items-center gap-2 shrink-0">{headerActions}</div>
-          ) : null}
-        </div>
-      ) : (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">{title}</CardTitle>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-        </CardHeader>
-      )}
+        ) : (
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">{title}</CardTitle>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+          </CardHeader>
+        ))}
       <CardContent className="p-0 pb-4">
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-muted-foreground">
             {emptyIcon}
             <p className="text-sm text-center">{emptyMessage}</p>
+            {emptyActions ? <div className="mt-4 flex flex-wrap justify-center gap-2">{emptyActions}</div> : null}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="max-h-full overflow-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
                   {columns.map((col) => (
                     <TableHead
@@ -97,7 +107,7 @@ function OrdersOverviewTable<T extends { id: number | string }>({
                 {rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={cn('cursor-pointer hover:bg-muted/50', getRowClassName?.(row))}
                     onClick={() => onRowClick(row)}
                   >
                     {columns.map((col) => (

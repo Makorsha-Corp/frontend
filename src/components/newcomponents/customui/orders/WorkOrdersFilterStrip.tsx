@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import {
   WORK_ORDER_PRIORITIES,
@@ -22,7 +22,10 @@ import type { WorkOrderType } from '@/types/workOrderType';
 import type { Factory } from '@/types/factory';
 import type { FactorySection } from '@/types/factorySection';
 import type { Machine } from '@/types/machine';
-import type { SheetDateScope, SheetRowFlow } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import type {
+  SheetDateScope,
+  WorkOrdersLayoutMode,
+} from '@/pages/newpages/orders/useWorkOrdersFilters';
 import type {
   WorkOrderPriorityFilter,
   WorkOrderStatusFilter,
@@ -55,13 +58,11 @@ export interface WorkOrdersFilterStripProps {
   machines: Machine[];
   workOrderTypes: WorkOrderType[];
   className?: string;
-  /** Sheet-only: primary log entry action */
-  showLogEntry?: boolean;
-  logEntryDisabled?: boolean;
-  onLogEntry?: () => void;
-  /** Sheet-only: row interaction flow switcher */
-  sheetRowFlow?: SheetRowFlow;
-  onSheetRowFlowChange?: (flow: SheetRowFlow) => void;
+  layoutMode?: WorkOrdersLayoutMode;
+  onLayoutModeChange?: (mode: WorkOrdersLayoutMode) => void;
+  /** Calendar week layout always shows dates; list mode hides them unless a date filter is active. */
+  showDateFilters?: boolean;
+  onClearSheetDate?: () => void;
 }
 
 const WorkOrdersFilterStrip: React.FC<WorkOrdersFilterStripProps> = ({
@@ -89,11 +90,10 @@ const WorkOrdersFilterStrip: React.FC<WorkOrdersFilterStripProps> = ({
   machines,
   workOrderTypes,
   className,
-  showLogEntry,
-  logEntryDisabled,
-  onLogEntry,
-  sheetRowFlow,
-  onSheetRowFlowChange,
+  layoutMode,
+  onLayoutModeChange,
+  showDateFilters = true,
+  onClearSheetDate,
 }) => {
   const sectionsForFactory =
     factoryFilter === 'all'
@@ -109,40 +109,74 @@ const WorkOrdersFilterStrip: React.FC<WorkOrdersFilterStripProps> = ({
     return true;
   });
 
-  const parsedDate = sheetDate ? new Date(`${sheetDate}T12:00:00`) : new Date();
+  const parsedDate = sheetDate ? new Date(`${sheetDate}T12:00:00`) : undefined;
 
   return (
     <div className={cn('shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2', className)}>
-      <Select value={dateScope} onValueChange={(v) => onDateScopeChange(v as SheetDateScope)}>
-        <SelectTrigger className="w-[100px] h-9 border-border bg-background text-sm">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="day">Day</SelectItem>
-          <SelectItem value="week">Week</SelectItem>
-          <SelectItem value="month">Month</SelectItem>
-        </SelectContent>
-      </Select>
+      {onLayoutModeChange && (
+        <Select
+          value={layoutMode ?? 'list'}
+          onValueChange={(v) => onLayoutModeChange(v as WorkOrdersLayoutMode)}
+        >
+          <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="list">List</SelectItem>
+            <SelectItem value="week">Calendar week</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
 
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn('min-w-[160px] justify-start border-border bg-background', appShellHeaderControlClass)}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {format(parsedDate, 'dd.MM.yyyy')}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={parsedDate}
-            onSelect={(d) => d && onSheetDateChange(format(d, 'yyyy-MM-dd'))}
-          />
-        </PopoverContent>
-      </Popover>
+      {showDateFilters && (
+        <>
+          <Select value={dateScope} onValueChange={(v) => onDateScopeChange(v as SheetDateScope)}>
+            <SelectTrigger className="w-[100px] h-9 border-border bg-background text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Day</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn('min-w-[160px] justify-start border-border bg-background', appShellHeaderControlClass)}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {parsedDate ? format(parsedDate, 'dd.MM.yyyy') : 'All dates'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={parsedDate}
+                onSelect={(d) => {
+                  if (d) onSheetDateChange(format(d, 'yyyy-MM-dd'));
+                }}
+              />
+              {sheetDate && onClearSheetDate && (
+                <div className="border-t border-border p-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={onClearSheetDate}
+                  >
+                    Clear date filter
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
 
       <Select value={factoryFilter} onValueChange={onFactoryChange}>
         <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
@@ -239,33 +273,6 @@ const WorkOrdersFilterStrip: React.FC<WorkOrdersFilterStripProps> = ({
             placeholder="Search WO# or title..."
             className="w-[180px] h-9 border-border bg-background text-sm"
           />
-        </>
-      )}
-
-      {showLogEntry && (
-        <>
-          {onSheetRowFlowChange && sheetRowFlow && (
-            <Select value={sheetRowFlow} onValueChange={(v) => onSheetRowFlowChange(v as SheetRowFlow)}>
-              <SelectTrigger className="h-9 w-[130px] border-border bg-background text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="modal-edit">Modal edit</SelectItem>
-                <SelectItem value="side-panel">Side panel</SelectItem>
-                <SelectItem value="preview">Preview</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            className="h-9 bg-brand-primary hover:bg-brand-primary-hover"
-            disabled={logEntryDisabled}
-            onClick={onLogEntry}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Log entry
-          </Button>
         </>
       )}
     </div>

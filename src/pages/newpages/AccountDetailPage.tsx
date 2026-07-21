@@ -5,6 +5,7 @@ import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
@@ -54,25 +55,23 @@ const AccountDetailPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-                <div className={`${appShellHeaderLeftGroupClass} shrink-0`}>
-                  <div className={appShellHeaderIconTileClass}>
-                    <Users className="h-5 w-5 text-brand-primary" />
-                  </div>
-                  <h1 className={appShellHeaderTitleClass}>
-                    <Link
-                      to={workspace.accountsHubPath}
-                      className="hover:text-brand-primary transition-colors"
-                    >
-                      Accounts
-                    </Link>
-                  </h1>
+              <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
+                <div className={appShellHeaderIconTileClass}>
+                  <Users className="h-5 w-5 text-brand-primary" />
                 </div>
+                <h1 className={appShellHeaderTitleClass}>
+                  <Link
+                    to={workspace.accountsHubPath}
+                    className="hover:text-brand-primary transition-colors"
+                  >
+                    Accounts
+                  </Link>
+                </h1>
                 {account ? (
                   <>
-                    <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-                    <Breadcrumb className="min-w-0 self-end">
-                      <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                    <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+                    <Breadcrumb className="min-w-0">
+                      <BreadcrumbList className="items-center text-card-foreground dark:text-foreground">
                         <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
                           <button
                             type="button"
@@ -81,7 +80,7 @@ const AccountDetailPage: React.FC = () => {
                             aria-label={`Back to accounts from ${account.name}`}
                           >
                             <ChevronLeft className="h-4 w-4 shrink-0" />
-                            <span className="truncate px-0.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
+                            <span className="truncate px-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
                               {account.name}
                             </span>
                           </button>
@@ -90,9 +89,9 @@ const AccountDetailPage: React.FC = () => {
                     </Breadcrumb>
                     {workspace.selectedInvoiceFromList ? (
                       <>
-                        <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-                        <Breadcrumb className="min-w-0 self-end">
-                          <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
+                        <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+                        <Breadcrumb className="min-w-0">
+                          <BreadcrumbList className="items-center text-card-foreground dark:text-foreground">
                             <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
                               <button
                                 type="button"
@@ -102,7 +101,7 @@ const AccountDetailPage: React.FC = () => {
                               >
                                 <ChevronLeft className="h-4 w-4 shrink-0" />
                                 <span
-                                  className="truncate px-0.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground"
+                                  className="truncate px-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground"
                                   data-testid="account-invoice-header-label"
                                 >
                                   {formatInvLabel(workspace.selectedInvoiceFromList)}

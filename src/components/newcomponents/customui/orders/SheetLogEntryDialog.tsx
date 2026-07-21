@@ -57,7 +57,7 @@ const SheetLogEntryDialog: React.FC<SheetLogEntryDialogProps> = ({
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>
-            {isEdit ? 'Edit maintenance entry' : 'Log maintenance entry'}
+            {isEdit ? 'Edit work entry' : 'Add work'}
             <span className="ml-2 text-sm font-normal text-muted-foreground">{dateLabel}</span>
           </DialogTitle>
         </DialogHeader>
@@ -77,6 +77,7 @@ const SheetLogEntryDialog: React.FC<SheetLogEntryDialogProps> = ({
             members={members}
             defaultMachineId={defaultMachineId}
             showGenerateDay={false}
+            showWorkDate={!isEdit}
             onCancel={() => onOpenChange(false)}
             onSuccess={() => {
               onSuccess?.();

@@ -17,6 +17,7 @@ export interface MachineSelectSummaryButtonProps {
    */
   compactLabel?: boolean;
   className?: string;
+  disabled?: boolean;
 }
 
 const baseClassName =
@@ -29,11 +30,18 @@ export function MachineSelectSummaryButton({
   staleNumericId,
   compactLabel = false,
   className,
+  disabled = false,
 }: MachineSelectSummaryButtonProps) {
   const emptyLabel = compactLabel ? EMPTY_LABEL_COMPACT : EMPTY_LABEL_FULL;
 
   return (
-    <button type="button" onClick={onClick} aria-label={ariaLabel} className={cn(baseClassName, className)}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      className={cn(baseClassName, 'disabled:cursor-not-allowed disabled:opacity-50', className)}
+    >
       {selectedLine ? (
         <span className="text-foreground">{selectedLine}</span>
       ) : staleNumericId ? (

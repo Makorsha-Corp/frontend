@@ -61,7 +61,8 @@ interface DashboardNavbarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-const HOVER_ZONE_WIDTH = 56; // Wide enough to cover button + easy to trigger
+const HOVER_ZONE_WIDTH = 56; // Wide enough for button + easy reach once expanded
+const HOVER_EDGE_WIDTH = 8; // Narrow strip for hover detect — must not block main content clicks
 
 const FACTORIES_SUB_PATHS = ['/factories', '/storage', '/project', '/production'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/work'];
@@ -234,37 +235,50 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
       />
       {/* Hover zone - right edge, contains button so hover persists when clicking */}
       {!isMobileNav ? (
-      <div
-        className="absolute top-0 bottom-0 z-20"
-        style={{
-          left: '100%',
-          width: HOVER_ZONE_WIDTH,
-          marginLeft: -12, // Overlap sidebar so easier to trigger
-        }}
-        onMouseEnter={() => setIsHoveringEdge(true)}
-        onMouseLeave={() => setIsHoveringEdge(false)}
-      >
-        {/* Ripple shape = expand/collapse button (appears on hover), starts at navbar edge */}
-        <button
-          onClick={handleToggleCollapse}
-          className={`absolute left-[12px] top-1/2 -translate-y-1/2 z-30 w-24 h-32 flex items-center justify-start pl-3 border-r border-border/35 dark:border-border/50 shadow-md origin-left cursor-pointer transition-all backface-hidden backdrop-blur-md bg-background/15 dark:bg-background/10 hover:bg-brand-primary/15 dark:hover:bg-brand-primary/25 ${isHoveringEdge
-              ? 'opacity-100 scale-[0.7] pointer-events-auto visible duration-200 ease-out'
-              : `opacity-0 scale-0 pointer-events-none duration-150 ease-in ${isButtonMounted ? '' : 'invisible'}`
-            }`}
-          style={{
-            ...navBackgroundStyle,
-            marginLeft: -1,
-            WebkitClipPath: 'ellipse(55% 50% at 0% 50%)',
-            clipPath: 'ellipse(55% 50% at 0% 50%)',
-            filter: 'drop-shadow(0 0 1px hsl(var(--border)))',
-          }}
-          title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-        >
-          <span className="flex items-center justify-center text-white/90">
-            {isExpanded ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
-          </span>
-        </button>
-      </div>
+        <>
+          {/* Narrow edge — hover detect only; avoids blocking clicks in main content (e.g. detail Back). */}
+          <div
+            className="absolute top-0 bottom-0 z-20 pointer-events-auto"
+            style={{
+              left: '100%',
+              width: HOVER_EDGE_WIDTH,
+              marginLeft: -Math.floor(HOVER_EDGE_WIDTH / 2),
+            }}
+            onMouseEnter={() => setIsHoveringEdge(true)}
+          />
+          <div
+            className={cn(
+              'absolute top-0 bottom-0 z-20',
+              isHoveringEdge ? 'pointer-events-auto' : 'pointer-events-none',
+            )}
+            style={{
+              left: '100%',
+              width: HOVER_ZONE_WIDTH,
+              marginLeft: -12,
+            }}
+            onMouseLeave={() => setIsHoveringEdge(false)}
+          >
+            <button
+              onClick={handleToggleCollapse}
+              className={`absolute left-[12px] top-1/2 -translate-y-1/2 z-30 w-24 h-32 flex items-center justify-start pl-3 border-r border-border/35 dark:border-border/50 shadow-md origin-left cursor-pointer transition-all backface-hidden backdrop-blur-md bg-background/15 dark:bg-background/10 hover:bg-brand-primary/15 dark:hover:bg-brand-primary/25 ${isHoveringEdge
+                  ? 'opacity-100 scale-[0.7] pointer-events-auto visible duration-200 ease-out'
+                  : `opacity-0 scale-0 pointer-events-none duration-150 ease-in ${isButtonMounted ? '' : 'invisible'}`
+                }`}
+              style={{
+                ...navBackgroundStyle,
+                marginLeft: -1,
+                WebkitClipPath: 'ellipse(55% 50% at 0% 50%)',
+                clipPath: 'ellipse(55% 50% at 0% 50%)',
+                filter: 'drop-shadow(0 0 1px hsl(var(--border)))',
+              }}
+              title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <span className="flex items-center justify-center text-white/90">
+                {isExpanded ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
+              </span>
+            </button>
+          </div>
+        </>
       ) : null}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">

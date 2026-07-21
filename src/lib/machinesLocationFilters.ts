@@ -56,6 +56,24 @@ export function selectAllSections(slice: MachinesLocationFilterSlice): MachinesL
   return { ...slice, section_ids: [] };
 }
 
+/** Select exactly one factory (single-select toolbar pages). */
+export function selectSingleFactory(
+  slice: MachinesLocationFilterSlice,
+  id: number,
+  allFactoryIds: number[],
+  sections: Array<{ id: number; factory_id: number }>,
+): MachinesLocationFilterSlice {
+  return pruneSectionsAfterFactoryChange(slice, [id], allFactoryIds, sections);
+}
+
+/** Select exactly one section (single-select toolbar pages). */
+export function selectSingleSection(
+  slice: MachinesLocationFilterSlice,
+  id: number,
+): MachinesLocationFilterSlice {
+  return { ...slice, section_ids: [id] };
+}
+
 export function computeToggleFactory(
   slice: MachinesLocationFilterSlice,
   id: number,

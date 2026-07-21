@@ -3,11 +3,12 @@ import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
   appShellHeaderControlClass,
-  appShellHeaderLoweredSelectorClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
+import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,15 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import {
   useGetProjectsQuery,
@@ -74,6 +66,11 @@ import {
   type ProjectLayoutMode,
 } from '@/components/newcomponents/customui/projects/projectLayoutModes';
 import { PROJECT_STATUSES } from '@/components/newcomponents/customui/projects/projectsPageUtils';
+import {
+  singleFactoryToSlice,
+  sliceToSingleFactoryId,
+} from '@/lib/machinesLocationFilterAdapters';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
@@ -185,19 +182,15 @@ const ProjectsPage: React.FC = () => {
     return workspaceMembers.filter((m) => m.status === 'active' && !memberIds.has(m.user_id));
   }, [workspaceMembers, projectMembers]);
 
-  const selectedFactory = useMemo(
-    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
-    [factoryId, factories]
-  );
-  const factorySelectorLabel = useMemo(() => {
-    if (selectedFactory) return selectedFactory.name;
-    if (factories.length === 1) return factories[0].name;
-    return `All factories (${factories.length})`;
-  }, [selectedFactory, factories]);
+  const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
 
-  const handleFactoryChange = (value: string) => {
-    const id = value === 'all' ? null : parseInt(value, 10);
-    setFactoryId(id);
+  const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
+    if (slice.factory_ids === undefined) return;
+    const nextId = sliceToSingleFactoryId({
+      factory_ids: slice.factory_ids,
+      section_ids: [],
+    });
+    setFactoryId(nextId);
     setSelectedProjectId(null);
     setSelectedProjectData(null);
     setSelectedComponentId(null);
@@ -375,48 +368,15 @@ const ProjectsPage: React.FC = () => {
                 <FolderKanban className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>Projects</h1>
-              <div className="hidden h-6 w-px bg-border sm:block" />
-              <Breadcrumb className="min-w-0 self-end">
-                <BreadcrumbList className="text-card-foreground dark:text-foreground">
-                  <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" className={appShellHeaderLoweredSelectorClass}>
-                          <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
-                        align="start"
-                      >
-                        <DropdownMenuLabel>Factories</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          className={factoryId == null ? 'bg-accent/70' : ''}
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            handleFactoryChange('all');
-                          }}
-                        >
-                          All factories
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {factories.map((f) => (
-                          <DropdownMenuItem
-                            key={f.id}
-                            className={factoryId === f.id ? 'bg-accent/70' : ''}
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              handleFactoryChange(f.id.toString());
-                            }}
-                          >
-                            {f.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <MachinesInlineLocationFilters
+                which="factories"
+                variant="toolbar"
+                value={factoryLocationValue}
+                onChange={handleFactoryLocationChange}
+                factories={factories}
+                sections={[]}
+              />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <ProjectLayoutSwitcher value={layoutMode} onChange={setLayoutMode} />

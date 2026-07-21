@@ -5,9 +5,15 @@ import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
-  appShellHeaderLoweredSelectorClass,
+  appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
+import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
+import {
+  singleFactoryToSlice,
+  sliceToSingleFactoryId,
+} from '@/lib/machinesLocationFilterAdapters';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -349,9 +355,11 @@ const ProductionPage: React.FC = () => {
     };
   }, [batches]);
 
-  const handleFactoryChange = (value: string) => {
-    const id = value ? parseInt(value, 10) : null;
-    setFactoryId(id);
+  const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
+
+  const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
+    if (slice.factory_ids === undefined) return;
+    setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids, section_ids: [] }));
     setLineId(null);
   };
 
@@ -524,27 +532,20 @@ const ProductionPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-              <div className={appShellHeaderLeftGroupClass}>
-                <div className={appShellHeaderIconTileClass}>
-                  <FlaskConical className="h-5 w-5 text-brand-primary" />
-                </div>
-                <h1 className={appShellHeaderTitleClass}>Production</h1>
+            <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
+              <div className={appShellHeaderIconTileClass}>
+                <FlaskConical className="h-5 w-5 text-brand-primary" />
               </div>
-              <div className="hidden h-6 w-px bg-border sm:block" />
-              <Select value={factoryId?.toString() ?? 'all'} onValueChange={handleFactoryChange}>
-                <SelectTrigger className={`w-[180px] ${appShellHeaderLoweredSelectorClass}`}>
-                  <SelectValue placeholder="Factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All factories</SelectItem>
-                  {factories.map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <h1 className={appShellHeaderTitleClass}>Production</h1>
+              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <MachinesInlineLocationFilters
+                which="factories"
+                variant="toolbar"
+                value={factoryLocationValue}
+                onChange={handleFactoryLocationChange}
+                factories={factories}
+                sections={[]}
+              />
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <>

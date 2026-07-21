@@ -3,19 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-} from '@/components/ui/breadcrumb';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useGetInventoryListQuery, useDeleteInventoryMutation } from '@/features/inventory/inventoryApi';
 import { useGetProductsQuery, useDeleteProductMutation } from '@/features/products/productsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -28,7 +15,15 @@ import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDial
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
 import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
 import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import AppShellHeader, {
+  appShellHeaderControlClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
+import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
+import { cn } from '@/lib/utils';
 import { Tabs } from '@/components/ui/tabs';
 import StoragePageLayout from '@/components/newcomponents/customui/storage/StoragePageLayout';
 import StorageLayoutSwitcher from '@/components/newcomponents/customui/storage/StorageLayoutSwitcher';
@@ -43,6 +38,11 @@ import {
 } from '@/components/newcomponents/customui/storage/storageTabSwitcherStyles';
 import { INVENTORY_TYPES } from '@/components/newcomponents/customui/storage/storageConstants';
 import { DEFAULT_STORAGE_LAYOUT, type StorageLayoutMode } from '@/components/newcomponents/customui/storage/storageLayoutModes';
+import {
+  singleFactoryToSlice,
+  sliceToSingleFactoryId,
+} from '@/lib/machinesLocationFilterAdapters';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import toast from 'react-hot-toast';
 
 const VALID_INVENTORY_TYPES = new Set<InventoryType>(['STORAGE', 'DAMAGED', 'WASTE', 'SCRAP']);
@@ -219,10 +219,13 @@ const StoragePage: React.FC = () => {
     return { records, totalQty, totalCostValue, totalSalesValue, availableForSale, uniqueCount };
   }, [filteredProducts]);
 
-  const selectedFactory = useMemo(
-    () => (factoryId ? factories.find((f) => f.id === factoryId) ?? null : null),
-    [factoryId, factories]
-  );
+  const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
+
+  const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
+    if (slice.factory_ids === undefined) return;
+    setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids, section_ids: [] }));
+  };
+
   const factoryLabels = useMemo(() => {
     const labels: Record<number, string> = {};
     for (const f of factories) {
@@ -230,14 +233,6 @@ const StoragePage: React.FC = () => {
     }
     return labels;
   }, [factories]);
-  const factorySelectorLabel = useMemo(() => {
-    if (selectedFactory) return `${selectedFactory.name} (${selectedFactory.abbreviation})`;
-    if (factories.length === 1) {
-      const only = factories[0];
-      return `${only.name} (${only.abbreviation})`;
-    }
-    return `All factories (${factories.length})`;
-  }, [selectedFactory, factories]);
 
   const handleClearInventoryStock = async (inv: Inventory) => {
     if (
@@ -339,69 +334,24 @@ const StoragePage: React.FC = () => {
         }
       >
         <div
-          className={
-            tabsInHeader
-              ? 'flex min-w-0 flex-wrap items-end gap-3 lg:justify-self-start'
-              : 'flex min-w-0 flex-1 flex-wrap items-end gap-3'
-          }
+          className={cn(
+            appShellHeaderLeftGroupClass,
+            tabsInHeader ? 'lg:justify-self-start' : 'min-w-0 flex-1',
+          )}
         >
-          <div className="flex min-w-0 shrink-0 items-center gap-3">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35"
-              aria-hidden
-            >
-              <Archive className="h-5 w-5 text-brand-primary" />
-            </div>
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-              Storage
-            </h1>
+          <div className={appShellHeaderIconTileClass} aria-hidden>
+            <Archive className="h-5 w-5 text-brand-primary" />
           </div>
-          <div className="hidden h-6 w-px bg-border sm:block" />
-          <Breadcrumb className="min-w-0 self-end">
-            <BreadcrumbList className="text-card-foreground dark:text-foreground">
-              <BreadcrumbItem className="max-w-[min(242px,44vw)] min-w-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-7 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 pb-0.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <span className="truncate text-card-foreground dark:text-foreground">{factorySelectorLabel}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
-                    align="start"
-                  >
-                    <DropdownMenuLabel>Factories</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      className={factoryId == null ? 'bg-accent/70' : ''}
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setFactoryId(null);
-                      }}
-                    >
-                      All factories
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {factories.map((f) => (
-                      <DropdownMenuItem
-                        key={f.id}
-                        className={factoryId === f.id ? 'bg-accent/70' : ''}
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setFactoryId(f.id);
-                        }}
-                      >
-                        {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+          <h1 className={appShellHeaderTitleClass}>Storage</h1>
+          <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+          <MachinesInlineLocationFilters
+            which="factories"
+            variant="toolbar"
+            value={factoryLocationValue}
+            onChange={handleFactoryLocationChange}
+            factories={factories}
+            sections={[]}
+          />
         </div>
 
         {tabsInHeader && (

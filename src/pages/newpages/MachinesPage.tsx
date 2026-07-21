@@ -5,13 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MachinesWorkOrdersTabs from '@/components/newcomponents/customui/orders/MachinesWorkOrdersTabs';
 import WorkOrdersTabContent from '@/pages/newpages/orders/WorkOrdersTabContent';
 import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
@@ -30,9 +24,8 @@ import MachinesInlineLocationFilters from '@/components/newcomponents/customui/M
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import AppShellHeader, {
   appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
-  appShellHeaderTitleClass,
+  appShellHeaderScopeSeparatorClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import {
   brandIconGlyphClass,
@@ -44,8 +37,91 @@ import {
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-const machineSectionHeaderClass =
-  'flex items-center gap-2.5 border-b-2 border-border py-2.5 pb-3';
+const machineSectionHeaderClass = (atTop = false) =>
+  cn(
+    'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-2 border-border pb-2',
+    atTop ? 'pt-3' : 'pt-4',
+  );
+
+interface MachineListToolbarControlsProps {
+  search: string;
+  onSearchChange: (value: string) => void;
+  onOpenFilters: () => void;
+}
+
+const MachineListToolbarControls: React.FC<MachineListToolbarControlsProps> = ({
+  search,
+  onSearchChange,
+  onOpenFilters,
+}) => (
+  <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+    <div className="relative min-w-[140px] w-[min(200px,36vw)] shrink-0">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        type="text"
+        placeholder="Search machines..."
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className={cn(
+          appShellHeaderControlClass,
+          'border-border bg-background pl-9 focus-visible:ring-inset'
+        )}
+      />
+    </div>
+    <Button
+      variant="outline"
+      className={cn(
+        appShellHeaderControlClass,
+        'shrink-0 border-border bg-background focus-visible:ring-offset-0'
+      )}
+      onClick={onOpenFilters}
+    >
+      <SlidersHorizontal className="mr-2 h-4 w-4" />
+      Filters
+    </Button>
+  </div>
+);
+
+interface MachineSectionHeaderRowProps {
+  label: string;
+  count?: number;
+  formatCount?: (count: number) => string;
+  showListToolbar?: boolean;
+  atTop?: boolean;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onOpenFilters: () => void;
+}
+
+const defaultFormatCount = (count: number) => `${count} machine${count === 1 ? '' : 's'}`;
+
+const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
+  label,
+  count,
+  formatCount = defaultFormatCount,
+  showListToolbar = false,
+  atTop = false,
+  search,
+  onSearchChange,
+  onOpenFilters,
+}) => (
+  <div className={machineSectionHeaderClass(atTop || showListToolbar)}>
+    <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+      <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
+      <p className="text-base font-semibold text-card-foreground">{label}</p>
+      {count != null ? (
+        <span className="text-xs text-muted-foreground/90 tabular-nums">{formatCount(count)}</span>
+      ) : null}
+    </div>
+    {showListToolbar ? (
+      <MachineListToolbarControls
+        search={search}
+        onSearchChange={onSearchChange}
+        onOpenFilters={onOpenFilters}
+      />
+    ) : null}
+  </div>
+);
 
 const defaultMachineFilters: MachinesFiltersValue = {
   search: '',
@@ -416,6 +492,28 @@ const MachinesPage: React.FC = () => {
       ? factory.name
       : 'All workspace machines';
 
+  const handleSearchChange = (value: string) => {
+    commitMachineFilters({ ...activeFilters, search: value });
+  };
+
+  const firstGroupedSectionKey = React.useMemo(() => {
+    if (factory && !sectionIdNum && machinesGroupedBySection.length > 0) {
+      return String(machinesGroupedBySection[0].key);
+    }
+    if (!factory && !sectionIdNum) {
+      for (const group of machinesGroupedByFactorySection) {
+        const first = group.sections[0];
+        if (first) return `${group.factory!.id}-${String(first.key)}`;
+      }
+    }
+    return null;
+  }, [
+    factory,
+    sectionIdNum,
+    machinesGroupedBySection,
+    machinesGroupedByFactorySection,
+  ]);
+
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
     try {
@@ -461,24 +559,11 @@ const MachinesPage: React.FC = () => {
     <div className="flex h-screen bg-background overflow-hidden">
       <DashboardNavbar />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
-        <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'machines' | 'workOrders')}>
-            <TabsList>
-              <TabsTrigger value="machines" className="gap-1.5">
-                <Cog className="h-4 w-4" />
-                Machines
-              </TabsTrigger>
-              <TabsTrigger value="workOrders" className="gap-1.5">
-                <Wrench className="h-4 w-4" />
-                Work Orders
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
         {activeTab === 'workOrders' && (
           <WorkOrdersTabContent
             sheetMachineId={Number.isFinite(sheetMachineId) ? sheetMachineId : null}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
         )}
 
@@ -488,79 +573,32 @@ const MachinesPage: React.FC = () => {
         <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className={appShellHeaderLeftGroupClass}>
-              <div className={appShellHeaderIconTileClass}>
-                <Cog className={brandIconGlyphClass} strokeWidth={2} />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Machines</h1>
-              <div className="hidden h-6 w-px bg-border sm:block" />
-              <Breadcrumb className="min-w-0 self-end">
-                <BreadcrumbList className="items-end text-card-foreground dark:text-foreground">
-                  <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
-                    <MachinesInlineLocationFilters
-                      which="factories"
-                      variant="breadcrumb"
-                      baseline="lowered"
-                      value={{
-                        factory_ids: activeFilters.factory_ids,
-                        section_ids: activeFilters.section_ids,
-                      }}
-                      onChange={(slice) =>
-                        commitMachineFilters({ ...activeFilters, ...slice })
-                      }
-                      factories={factories}
-                      sections={allSections}
-                    />
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="-translate-y-[3px]" />
-                  <BreadcrumbItem className="max-w-[min(240px,45vw)] min-w-0">
-                    <MachinesInlineLocationFilters
-                      which="sections"
-                      variant="breadcrumb"
-                      baseline="lowered"
-                      value={{
-                        factory_ids: activeFilters.factory_ids,
-                        section_ids: activeFilters.section_ids,
-                      }}
-                      onChange={(slice) =>
-                        commitMachineFilters({ ...activeFilters, ...slice })
-                      }
-                      factories={factories}
-                      sections={allSections}
-                    />
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+              <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={setActiveTab} />
+              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <MachinesInlineLocationFilters
+                which="factories"
+                variant="toolbar"
+                value={{
+                  factory_ids: activeFilters.factory_ids,
+                  section_ids: activeFilters.section_ids,
+                }}
+                onChange={(slice) => commitMachineFilters({ ...activeFilters, ...slice })}
+                factories={factories}
+                sections={allSections}
+              />
+              <MachinesInlineLocationFilters
+                which="sections"
+                variant="toolbar"
+                value={{
+                  factory_ids: activeFilters.factory_ids,
+                  section_ids: activeFilters.section_ids,
+                }}
+                onChange={(slice) => commitMachineFilters({ ...activeFilters, ...slice })}
+                factories={factories}
+                sections={allSections}
+              />
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-              <div className="relative w-[min(200px,36vw)] min-w-[140px] shrink-0">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search machines..."
-                  value={activeFilters.search}
-                  onChange={(e) =>
-                    commitMachineFilters({
-                      ...activeFilters,
-                      search: e.target.value,
-                    })
-                  }
-                  className={cn(
-                    appShellHeaderControlClass,
-                    'border-border bg-background pl-9 focus-visible:ring-inset'
-                  )}
-                />
-              </div>
-              <Button
-                variant="outline"
-                className={cn(
-                  appShellHeaderControlClass,
-                  'shrink-0 border-border bg-background focus-visible:ring-offset-0'
-                )}
-                onClick={() => setIsFiltersOpen(true)}
-              >
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Filters
-              </Button>
               <Button
                 onClick={() => setIsAddMachineOpen(true)}
                 className={cn(
@@ -676,36 +714,44 @@ const MachinesPage: React.FC = () => {
             {/* Left: Machines list */}
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <Card className="flex-1 min-h-0 flex flex-col overflow-hidden shadow-sm bg-card border-border">
-                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
                   {machinesError ? (
                     <div className="text-center py-16 text-destructive">
                       Failed to load machines. Please try again.
                     </div>
                   ) : effectiveFilteredMachines.length === 0 ? (
-                    <div className="text-center py-16">
-                      <Cog className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-4">
-                        No machines found.
-                      </p>
-                      <Button
-                        onClick={() => setIsAddMachineOpen(true)}
-                        className="bg-brand-primary hover:bg-brand-primary-hover"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Machine
-                      </Button>
+                    <div className="space-y-3">
+                      <MachineSectionHeaderRow
+                        label={kpiContextLabel}
+                        showListToolbar
+                        search={activeFilters.search}
+                        onSearchChange={handleSearchChange}
+                        onOpenFilters={() => setIsFiltersOpen(true)}
+                      />
+                      <div className="text-center py-16">
+                        <Cog className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-4">No machines found.</p>
+                        <Button
+                          onClick={() => setIsAddMachineOpen(true)}
+                          className="bg-brand-primary hover:bg-brand-primary-hover"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Machine
+                        </Button>
+                      </div>
                     </div>
                   ) : factory && !sectionIdNum ? (
                     <div className="space-y-5">
                       {machinesGroupedBySection.map(({ key, label, machines: secMachines }) => (
                         <div key={key} className="space-y-3">
-                          <div className={machineSectionHeaderClass}>
-                            <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
-                            <p className="text-base font-semibold text-card-foreground">{label}</p>
-                            <span className="text-xs text-muted-foreground/90 tabular-nums">
-                              {secMachines.length} machine{secMachines.length === 1 ? '' : 's'}
-                            </span>
-                          </div>
+                          <MachineSectionHeaderRow
+                            label={label}
+                            count={secMachines.length}
+                            showListToolbar={String(key) === firstGroupedSectionKey}
+                            search={activeFilters.search}
+                            onSearchChange={handleSearchChange}
+                            onOpenFilters={() => setIsFiltersOpen(true)}
+                          />
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                             {secMachines.map((m) => (
                               <MachineListCardWithLatest
@@ -720,20 +766,22 @@ const MachinesPage: React.FC = () => {
                       ))}
                     </div>
                   ) : !factory && !sectionIdNum ? (
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       {machinesGroupedByFactorySection.map((group) => (
-                        <div key={group.factory!.id} className="space-y-5">
-                          {group.sections.map((secGroup) => (
+                        <div key={group.factory!.id} className="space-y-4">
+                          {group.sections.map((secGroup) => {
+                            const sectionKey = `${group.factory!.id}-${String(secGroup.key)}`;
+                            return (
                             <div key={secGroup.key} className="space-y-3">
-                              <div className={machineSectionHeaderClass}>
-                                <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
-                                <p className="text-base font-semibold text-card-foreground">
-                                  {group.factory!.name} ({group.factory!.abbreviation}) - {secGroup.label}
-                                </p>
-                                <span className="text-xs text-muted-foreground/80 tabular-nums">
-                                  {secGroup.machines.length}
-                                </span>
-                              </div>
+                              <MachineSectionHeaderRow
+                                label={secGroup.label}
+                                count={secGroup.machines.length}
+                                formatCount={(c) => String(c)}
+                                showListToolbar={sectionKey === firstGroupedSectionKey}
+                                search={activeFilters.search}
+                                onSearchChange={handleSearchChange}
+                                onOpenFilters={() => setIsFiltersOpen(true)}
+                              />
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                                 {secGroup.machines.map((m) => (
                                   <MachineListCardWithLatest
@@ -745,12 +793,22 @@ const MachinesPage: React.FC = () => {
                                 ))}
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ))}
                     </div>
                   ) : (
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+                    <div className="space-y-3">
+                      <MachineSectionHeaderRow
+                        label={kpiContextLabel}
+                        count={effectiveFilteredMachines.length}
+                        showListToolbar
+                        search={activeFilters.search}
+                        onSearchChange={handleSearchChange}
+                        onOpenFilters={() => setIsFiltersOpen(true)}
+                      />
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                       {effectiveFilteredMachines.map((m) => (
                         <MachineListCardWithLatest
                           key={m.id}
@@ -759,6 +817,7 @@ const MachinesPage: React.FC = () => {
                           onSelect={() => handleSelectMachine(m.id)}
                         />
                       ))}
+                      </div>
                     </div>
                   )}
                 </div>

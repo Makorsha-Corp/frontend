@@ -1,5 +1,11 @@
-import { endOfDay, endOfMonth, format, parseISO, startOfDay, startOfMonth } from 'date-fns';
-import type { WorkOrderApprover, WorkOrderPriority } from '@/types/workOrder';
+import { addDays, endOfDay, endOfMonth, format, parseISO, startOfDay, startOfMonth, subDays } from 'date-fns';
+import type {
+  WorkOrder,
+  WorkOrderApprover,
+  WorkOrderItemActionType,
+  WorkOrderPriority,
+  WorkOrderStatus,
+} from '@/types/workOrder';
 import type { WorkOrderSchedule } from '@/types/workOrderSchedule';
 import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
 import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilters';
@@ -7,12 +13,20 @@ import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilter
 export interface WorkOrderSheetRow {
   key: string;
   workOrderId: number;
+  workOrderNumber: string;
+  status: WorkOrderStatus;
+  approvalMet: boolean;
   itemId: number | null;
   date: string;
   machineId: number | null;
   machineName: string;
+  factoryName: string;
+  sectionName: string | null;
   works: string;
   partName: string;
+  actionType: WorkOrderItemActionType | null;
+  startedAt: string | null;
+  completedAt: string | null;
   quantity: number | null;
   unit: string;
   workers: string;
@@ -27,6 +41,11 @@ export interface WorkOrderSheetRow {
   rowTitle: string | null;
   isFirstInGroup: boolean;
   groupRowSpan: number;
+}
+
+export interface SheetFlattenLabelContext {
+  factoryName: (factoryId: number) => string;
+  sectionName: (machineId: number | null) => string | null;
 }
 
 export function approvalSlotStatus(
@@ -73,10 +92,32 @@ function buildRowMeta(
   };
 }
 
+export function filterBundlesByOrderIds(
+  bundles: WorkOrderSheetBundle[],
+  orderIds: Set<number>,
+): WorkOrderSheetBundle[] {
+  if (orderIds.size === 0) return [];
+  return bundles.filter((bundle) => orderIds.has(bundle.order.id));
+}
+
+export function flattenSheetBundlesToOrders(
+  bundles: WorkOrderSheetBundle[],
+): WorkOrder[] {
+  const seen = new Set<number>();
+  const orders: WorkOrder[] = [];
+  for (const bundle of bundles) {
+    if (seen.has(bundle.order.id)) continue;
+    seen.add(bundle.order.id);
+    orders.push(bundle.order);
+  }
+  return orders;
+}
+
 export function flattenSheetBundles(
   bundles: WorkOrderSheetBundle[],
   machineName: (id: number | null) => string,
   accountName: (id: number | null) => string | null = () => null,
+  labels?: SheetFlattenLabelContext,
 ): WorkOrderSheetRow[] {
   const rows: WorkOrderSheetRow[] = [];
 
@@ -86,22 +127,33 @@ export function flattenSheetBundles(
     const mgr = approvalSlotStatus(approvers.approvers, 'manager');
     const agm = approvalSlotStatus(approvers.approvers, 'agm');
     const approverList = approvers.approvers;
+    const approvalMet = approvers.summary.met;
     const workers = order.assigned_to?.trim() || '—';
     const remarks = order.description?.trim() || order.completion_notes?.trim() || '—';
     const works = order.work_order_type_name ?? order.title;
     const machineLabel = machineName(order.machine_id);
+    const factoryLabel = labels?.factoryName(order.factory_id) ?? `Factory #${order.factory_id}`;
+    const sectionLabel = labels?.sectionName(order.machine_id) ?? null;
     const meta = buildRowMeta(order, accountName);
 
     if (items.length === 0) {
       rows.push({
         key: `wo-${order.id}-empty`,
         workOrderId: order.id,
+        workOrderNumber: order.work_order_number,
+        status: order.status,
+        approvalMet,
         itemId: null,
         date: dateStr,
         machineId: order.machine_id,
         machineName: machineLabel,
+        factoryName: factoryLabel,
+        sectionName: sectionLabel,
         works,
         partName: '—',
+        actionType: null,
+        startedAt: order.started_at,
+        completedAt: order.completed_at,
         quantity: null,
         unit: '—',
         workers,
@@ -120,12 +172,20 @@ export function flattenSheetBundles(
       rows.push({
         key: `wo-${order.id}-item-${item.id}`,
         workOrderId: order.id,
+        workOrderNumber: order.work_order_number,
+        status: order.status,
+        approvalMet,
         itemId: item.id,
         date: dateStr,
         machineId: order.machine_id,
         machineName: machineLabel,
+        factoryName: factoryLabel,
+        sectionName: sectionLabel,
         works,
         partName: item.item_name ?? `Item #${item.item_id}`,
+        actionType: item.action_type,
+        startedAt: order.started_at,
+        completedAt: order.completed_at,
         quantity: Number(item.quantity),
         unit: item.item_unit ?? '—',
         workers,
@@ -218,6 +278,202 @@ function countWorkOrdersForDay(rows: WorkOrderSheetRow[]): number {
   return new Set(rows.map((r) => r.workOrderId)).size;
 }
 
+export interface SheetWeekBounds {
+  from: Date;
+  to: Date;
+}
+
+export interface SheetAdjacentWeekBounds {
+  anchor: SheetWeekBounds;
+  prev: SheetWeekBounds;
+  next: SheetWeekBounds;
+  fetch: SheetWeekBounds;
+}
+
+export function sheetAdjacentWeekBounds(sheetDate: string): SheetAdjacentWeekBounds {
+  const anchor = sheetPeriodBounds('week', sheetDate);
+  const prevFrom = startOfDay(subDays(anchor.from, 7));
+  const prevTo = endOfDay(subDays(anchor.from, 1));
+  const nextFrom = startOfDay(addDays(anchor.to, 1));
+  const nextTo = endOfDay(addDays(anchor.to, 7));
+  return {
+    anchor,
+    prev: { from: prevFrom, to: prevTo },
+    next: { from: nextFrom, to: nextTo },
+    fetch: { from: prevFrom, to: nextTo },
+  };
+}
+
+function formatWeekLabel(from: Date, to: Date): string {
+  return `${format(from, 'dd.MM')} – ${format(to, 'dd.MM.yyyy')}`;
+}
+
+function enumerateDatesInBounds(from: Date, to: Date): string[] {
+  const dates: string[] = [];
+  let cursor = startOfDay(from);
+  const end = startOfDay(to);
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(format(cursor, 'yyyy-MM-dd'));
+    cursor = addDays(cursor, 1);
+  }
+  return dates;
+}
+
+function buildDayGroup(
+  date: string,
+  rowsByDate: Map<string, WorkOrderSheetRow[]>,
+  schedules: WorkOrderSchedule[],
+  selectedDate: string,
+): SheetDateGroup {
+  const dateRows = rowsByDate.get(date) ?? [];
+  const daySchedules = schedulesForDate(schedules, date);
+  const entryCount = countWorkOrdersForDay(dateRows);
+  const stagedCount = countStagedForDate(schedules, date);
+  return {
+    date,
+    label: format(parseISO(date), 'dd.MM.yyyy (EEE)'),
+    rows: dateRows,
+    isSelected: date === selectedDate,
+    isEmpty: dateRows.length === 0 && daySchedules.length === 0,
+    entryCount,
+    stagedCount,
+    schedulesForDay: daySchedules,
+  };
+}
+
+function buildDaysInBounds(
+  rows: WorkOrderSheetRow[],
+  from: Date,
+  to: Date,
+  schedules: WorkOrderSchedule[],
+  selectedDate: string,
+  options: { includeAllDays: boolean },
+): SheetDateGroup[] {
+  const grouped = groupRowsByDate(rows);
+  const rowsByDate = new Map<string, WorkOrderSheetRow[]>();
+  for (const group of grouped) {
+    if (isDateInPeriod(group.date, from, to)) {
+      rowsByDate.set(group.date, group.rows);
+    }
+  }
+
+  for (const schedule of schedules) {
+    if (isDateInPeriod(schedule.scheduled_date, from, to)) {
+      rowsByDate.set(schedule.scheduled_date, rowsByDate.get(schedule.scheduled_date) ?? []);
+    }
+  }
+
+  const dates = options.includeAllDays
+    ? enumerateDatesInBounds(from, to)
+    : Array.from(rowsByDate.keys()).sort(
+        (a, b) => parseISO(b).getTime() - parseISO(a).getTime(),
+      );
+
+  if (options.includeAllDays) {
+    return dates
+      .slice()
+      .sort((a, b) => parseISO(b).getTime() - parseISO(a).getTime())
+      .map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
+  }
+
+  return dates.map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
+}
+
+export interface SheetWeekSection {
+  weekStart: string;
+  weekEnd: string;
+  label: string;
+  isAnchor: boolean;
+  position: 'prev' | 'anchor' | 'next';
+  hasOrders: boolean;
+  orderCount: number;
+  days: SheetDateGroup[];
+}
+
+export function buildSheetWeekSections(
+  rows: WorkOrderSheetRow[],
+  sheetDate: string,
+  schedules: WorkOrderSchedule[] = [],
+): SheetWeekSection[] {
+  const pickerSections = buildSheetWeekPickerSections(rows, sheetDate, schedules);
+  const prevSection = getWeekSectionByPosition(pickerSections, 'prev')!;
+  const anchorSection = getWeekSectionByPosition(pickerSections, 'anchor')!;
+  const nextSection = getWeekSectionByPosition(pickerSections, 'next')!;
+
+  const sections: SheetWeekSection[] = [];
+  if (nextSection.hasOrders) sections.push(nextSection);
+  sections.push(anchorSection);
+  if (prevSection.hasOrders) sections.push(prevSection);
+  return sections;
+}
+
+export function buildSheetWeekPickerSections(
+  rows: WorkOrderSheetRow[],
+  sheetDate: string,
+  schedules: WorkOrderSchedule[] = [],
+): SheetWeekSection[] {
+  const selectedDate = normalizeSheetDateIso(sheetDate);
+  const { anchor, prev, next } = sheetAdjacentWeekBounds(selectedDate);
+
+  const buildSection = (
+    bounds: SheetWeekBounds,
+    isAnchor: boolean,
+    position: SheetWeekSection['position'],
+  ): SheetWeekSection => {
+    const days = buildDaysInBounds(rows, bounds.from, bounds.to, schedules, selectedDate, {
+      includeAllDays: isAnchor,
+    });
+    const orderCount = days.reduce((sum, day) => sum + day.entryCount, 0);
+    return {
+      weekStart: format(bounds.from, 'yyyy-MM-dd'),
+      weekEnd: format(bounds.to, 'yyyy-MM-dd'),
+      label: formatWeekLabel(bounds.from, bounds.to),
+      isAnchor,
+      position,
+      hasOrders: orderCount > 0,
+      orderCount,
+      days,
+    };
+  };
+
+  return [
+    buildSection(prev, false, 'prev'),
+    buildSection(anchor, true, 'anchor'),
+    buildSection(next, false, 'next'),
+  ];
+}
+
+export function flattenWeekSectionRows(section: SheetWeekSection): WorkOrderSheetRow[] {
+  return busyDaysInSection(section).flatMap((day) => day.rows);
+}
+
+export function getWeekSectionByPosition(
+  sections: SheetWeekSection[],
+  position: SheetWeekSection['position'],
+): SheetWeekSection | undefined {
+  return sections.find((section) => section.position === position);
+}
+
+export function busyDaysInSection(section: SheetWeekSection): SheetDateGroup[] {
+  return section.days.filter((day) => day.entryCount > 0);
+}
+
+export function firstBusyDayInSection(section: SheetWeekSection): string | null {
+  return busyDaysInSection(section)[0]?.date ?? null;
+}
+
+export function resolveDisplayDayInAnchor(
+  anchorSection: SheetWeekSection,
+  sheetDate: string,
+): SheetDateGroup | null {
+  const selected = normalizeSheetDateIso(sheetDate);
+  const selectedDay = anchorSection.days.find(
+    (day) => day.date === selected && day.entryCount > 0,
+  );
+  if (selectedDay) return selectedDay;
+  return busyDaysInSection(anchorSection)[0] ?? null;
+}
+
 export function buildSheetDateGroups(
   rows: WorkOrderSheetRow[],
   dateScope: SheetDateScope,
@@ -226,46 +482,15 @@ export function buildSheetDateGroups(
 ): SheetDateGroup[] {
   const selectedDate = normalizeSheetDateIso(sheetDate);
   const { from, to } = sheetPeriodBounds(dateScope, selectedDate);
-  const grouped = groupRowsByDate(rows);
+  const includeAllDays = dateScope === 'week';
+  const days = buildDaysInBounds(rows, from, to, schedules, selectedDate, { includeAllDays });
 
-  const rowsByDate = new Map<string, WorkOrderSheetRow[]>();
-  for (const group of grouped) {
-    if (isDateInPeriod(group.date, from, to)) {
-      rowsByDate.set(group.date, group.rows);
-    }
-  }
-  rowsByDate.set(selectedDate, rowsByDate.get(selectedDate) ?? []);
-
-  const scheduleDates = new Set<string>();
-  for (const schedule of schedules) {
-    if (isDateInPeriod(schedule.scheduled_date, from, to)) {
-      scheduleDates.add(schedule.scheduled_date);
-    }
-  }
-  for (const date of scheduleDates) {
-    rowsByDate.set(date, rowsByDate.get(date) ?? []);
+  if (!days.some((day) => day.date === selectedDate)) {
+    days.push(buildDayGroup(selectedDate, new Map(), schedules, selectedDate));
+    days.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }
 
-  const dates = Array.from(rowsByDate.keys()).sort(
-    (a, b) => parseISO(b).getTime() - parseISO(a).getTime(),
-  );
-
-  return dates.map((date) => {
-    const dateRows = rowsByDate.get(date) ?? [];
-    const daySchedules = schedulesForDate(schedules, date);
-    const entryCount = countWorkOrdersForDay(dateRows);
-    const stagedCount = countStagedForDate(schedules, date);
-    return {
-      date,
-      label: format(parseISO(date), 'dd.MM.yyyy (EEE)'),
-      rows: dateRows,
-      isSelected: date === selectedDate,
-      isEmpty: dateRows.length === 0 && daySchedules.length === 0,
-      entryCount,
-      stagedCount,
-      schedulesForDay: daySchedules,
-    };
-  });
+  return days;
 }
 
 export function buildSheetPeriodLabel(dateScope: SheetDateScope, sheetDate: string): string | null {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +48,7 @@ import {
   workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
 import { ChevronDown, ChevronRight, Loader2, Plus, Sparkles, Trash2, Wrench } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
@@ -59,6 +59,9 @@ import ManageWoApprovalsDialog from './ManageWoApprovalsDialog';
 import { draftApproversFromUserIds } from './transferOrderApprovals';
 import { cn } from '@/lib/utils';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
+
+const FOOTER_TEMPLATE_HINT =
+  'Loads machine, works, parts, and billing from a preset. Choose No template to fill manually.';
 interface PartLineDraft {
   key: string;
   woItemId?: number;
@@ -124,6 +127,7 @@ export interface SheetMaintenanceEntryFormProps {
   showFooterHeader?: boolean;
   disabled?: boolean;
   showGenerateDay?: boolean;
+  showWorkDate?: boolean;
   submitLabel?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -147,12 +151,14 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   showFooterHeader = true,
   disabled = false,
   showGenerateDay = true,
+  showWorkDate = false,
   submitLabel,
   onSuccess,
   onCancel,
 }) => {
   const dispatch = useDispatch();
   const [machineId, setMachineId] = useState('');
+  const [workDate, setWorkDate] = useState(sheetDate);
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [worksTypeId, setWorksTypeId] = useState('');
   const [workers, setWorkers] = useState('');
@@ -165,6 +171,8 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     layout === 'footer' ? [] : [emptyPartLine()],
   );
   const [partsActionType, setPartsActionType] = useState<WorkOrderItemActionType>('CONSUME');
+  /** Footer-only: explicit "no parts this visit" vs picking an action before adding lines. */
+  const [footerPartsIntent, setFooterPartsIntent] = useState<'none' | WorkOrderItemActionType>('none');
   const [partDraft, setPartDraft] = useState(emptyFooterPartDraft);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
@@ -180,6 +188,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
 
   const isEdit = mode === 'edit' && workOrderId != null;
+  const templateLocked = Boolean(selectedTemplateId) && !isEdit;
 
   const { data: editOrder } = useGetWorkOrderByIdQuery(workOrderId!, { skip: !isEdit });
   const { data: editItems = [] } = useGetWorkOrderItemsQuery(workOrderId!, { skip: !isEdit });
@@ -196,6 +205,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [createTemplate] = useCreateWorkOrderTemplateMutation();
   const [loadingTemplateId, setLoadingTemplateId] = useState<number | null>(null);
   const [prefilled, setPrefilled] = useState(false);
+  const footerActionBarRef = useRef<HTMLDivElement>(null);
 
   const isLoading = isCreating || isUpdating;
 
@@ -229,6 +239,10 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   useEffect(() => {
     if (defaultMachineId) setMachineId(String(defaultMachineId));
   }, [defaultMachineId]);
+
+  useEffect(() => {
+    if (!isEdit) setWorkDate(sheetDate);
+  }, [sheetDate, isEdit]);
 
   useEffect(() => {
     if (!isEdit || !editOrder || prefilled) return;
@@ -298,6 +312,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const isFooterLayout = layout === 'footer';
 
+  const entryStartDate = showWorkDate && !isEdit ? workDate : sheetDate;
+
+  const workDateHelper = useMemo(() => {
+    if (!showWorkDate || isEdit) return null;
+    try {
+      const picked = startOfDay(parseISO(workDate));
+      const today = startOfDay(new Date());
+      if (picked > today) return 'Plan work — creates a draft order on this date';
+      return 'Record work for this day';
+    } catch {
+      return null;
+    }
+  }, [showWorkDate, isEdit, workDate]);
+
   const addLine = () => setLines((prev) => [...prev, emptyPartLine()]);
   const removeLine = (key: string) => {
     if (isFooterLayout) {
@@ -312,6 +340,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     if (isFooterLayout) {
       setLines([]);
       setPartsActionType('CONSUME');
+      setFooterPartsIntent('none');
       setPartDraft(emptyFooterPartDraft());
       setItemLabels({});
     } else {
@@ -484,10 +513,11 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   }, [validPartLines, partItems]);
 
   const partsChipSummary = useMemo(() => {
+    if (isFooterLayout && footerPartsIntent === 'none') return 'No parts';
     const action = workOrderItemActionLabel(partsActionType);
     if (validPartLines.length === 0) return action;
     return `${action} · ${partsSummary}`;
-  }, [partsActionType, validPartLines.length, partsSummary]);
+  }, [isFooterLayout, footerPartsIntent, partsActionType, validPartLines.length, partsSummary]);
 
   const moreSummary = useMemo(() => {
     const bits: string[] = [];
@@ -501,9 +531,45 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     if (approverUserIds.length > 0) {
       bits.push(`${approverUserIds.length} approver${approverUserIds.length === 1 ? '' : 's'}`);
     }
-    if (bits.length === 0) return 'Medium · Internal';
-    return bits.join(' · ');
+    return bits.length > 0 ? bits.join(' · ') : 'Medium · Internal';
   }, [priority, billTo, accountId, accounts, hasMiscCost, cost, approverUserIds]);
+
+  const manualFieldsTouched = useMemo(() => {
+    if (selectedTemplateId || isEdit) return false;
+    const hasParts = isFooterLayout
+      ? footerPartsIntent !== 'none' || validPartLines.length > 0
+      : partsOpen && validPartLines.length > 0;
+    const hasBilling =
+      priority !== 'MEDIUM' ||
+      billTo !== 'internal' ||
+      hasMiscCost === 'yes' ||
+      Boolean(accountId) ||
+      Boolean(cost.trim()) ||
+      approverUserIds.length > 0;
+    return Boolean(workers.trim() || hasParts || hasBilling);
+  }, [
+    selectedTemplateId,
+    isEdit,
+    isFooterLayout,
+    footerPartsIntent,
+    validPartLines.length,
+    partsOpen,
+    workers,
+    priority,
+    billTo,
+    hasMiscCost,
+    accountId,
+    cost,
+    approverUserIds.length,
+  ]);
+  const templatePickerDisabled = manualFieldsTouched && !selectedTemplateId;
+
+  useEffect(() => {
+    if (!templateLocked) return;
+    setMachinePickerOpen(false);
+    setPartsOverlayOpen(false);
+    setMoreOverlayOpen(false);
+  }, [templateLocked]);
 
   const closeFooterOverlays = () => {
     setPartsOverlayOpen(false);
@@ -519,6 +585,27 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     setPartsOverlayOpen(false);
     setMoreOverlayOpen(true);
   };
+
+  useEffect(() => {
+    if (!isFooterLayout || (!partsOverlayOpen && !moreOverlayOpen)) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (footerActionBarRef.current?.contains(target)) return;
+      if (itemPickerOpen || manageApprovalsOpen || machinePickerOpen) return;
+      closeFooterOverlays();
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [
+    isFooterLayout,
+    partsOverlayOpen,
+    moreOverlayOpen,
+    itemPickerOpen,
+    manageApprovalsOpen,
+    machinePickerOpen,
+  ]);
 
   const handleSubmit = async () => {
     const mid = Number(machineId);
@@ -570,7 +657,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         await submitEntry({
           machine_id: mid,
           work_order_type_id: typeId,
-          start_date: sheetDate,
+          start_date: entryStartDate,
           assigned_to: workers.trim() || undefined,
           description: remarks.trim() || undefined,
           priority,
@@ -583,7 +670,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               ? validLines.map((l) => mapPartLineToApi(l, mid))
               : undefined,
         }).unwrap();
-        toast.success('Logged in sheet');
+        toast.success('Entry saved');
         setWorkers('');
         setRemarks('');
         resetParts();
@@ -592,7 +679,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || (isEdit ? 'Failed to update entry' : 'Failed to log entry'));
+      toast.error(e?.data?.detail || (isEdit ? 'Failed to update entry' : 'Failed to save entry'));
     }
   };
 
@@ -650,13 +737,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             replacedItemId: item.replaced_item_id ? String(item.replaced_item_id) : '',
           })),
         );
+        if (isFooterLayout) {
+          setFooterPartsIntent(templateItems[0].action_type);
+        }
       } else if (isFooterLayout) {
         setLines([]);
+        setFooterPartsIntent('none');
       } else {
         setLines([emptyPartLine()]);
       }
     } else {
       resetParts();
+      if (isFooterLayout) {
+        setFooterPartsIntent('none');
+      }
     }
 
     if (templateApprovers.length > 0) {
@@ -678,7 +772,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     setLoadingTemplateId(template.id);
     try {
       await applyTemplateData(template);
-      toast.success('Template loaded — edit and log entry');
+      toast.success('Template applied — remarks and date still editable');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to load template');
@@ -760,16 +854,33 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">What happens with parts on this visit?</Label>
         <div className="flex flex-wrap gap-1.5">
+          <Button
+            type="button"
+            variant={footerPartsIntent === 'none' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8"
+            disabled={partsActionLocked}
+            onClick={() => {
+              setFooterPartsIntent('none');
+              setLines([]);
+              setPartDraft(emptyFooterPartDraft());
+            }}
+          >
+            No parts
+          </Button>
           {WORK_ORDER_ITEM_ACTION_OPTIONS.map((opt) => (
             <HoverCard key={opt.value} openDelay={120} closeDelay={80}>
               <HoverCardTrigger asChild>
                 <Button
                   type="button"
-                  variant={partsActionType === opt.value ? 'default' : 'outline'}
+                  variant={footerPartsIntent === opt.value ? 'default' : 'outline'}
                   size="sm"
                   className="h-8"
                   disabled={partsActionLocked}
-                  onClick={() => setPartsActionType(opt.value)}
+                  onClick={() => {
+                    setFooterPartsIntent(opt.value);
+                    setPartsActionType(opt.value);
+                  }}
                 >
                   {opt.label}
                 </Button>
@@ -824,10 +935,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </div>
           ))}
         </div>
+      ) : footerPartsIntent === 'none' ? (
+        <p className="text-xs text-muted-foreground">
+          No parts used on this visit — close or save the entry when ready.
+        </p>
       ) : (
-        <p className="text-xs text-muted-foreground">No parts yet — pick action above, then add a part.</p>
+        <p className="text-xs text-muted-foreground">Add at least one part below, or choose No parts.</p>
       )}
 
+      {footerPartsIntent !== 'none' ? (
       <div className="space-y-3 rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
         <div className="grid grid-cols-2 gap-2">
           <div className="grid gap-1">
@@ -881,6 +997,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           Add part
         </Button>
       </div>
+      ) : null}
     </div>
   );
 
@@ -1094,7 +1211,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       onClick={handleSubmit}
     >
       {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-      {submitLabel ?? (isEdit ? 'Save changes' : 'Log entry')}
+      {submitLabel ?? (isEdit ? 'Save changes' : 'Save entry')}
     </Button>
   );
 
@@ -1109,6 +1226,22 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     </div>
   ) : null;
 
+  const workDateField =
+    showWorkDate && !isEdit ? (
+      <div className="space-y-1 pb-2">
+        <div className="grid max-w-[11rem] gap-1">
+          <Label className="text-xs text-muted-foreground">Work date</Label>
+          <Input
+            type="date"
+            value={workDate}
+            onChange={(e) => setWorkDate(e.target.value)}
+            className="h-9"
+          />
+        </div>
+        {workDateHelper ? <p className="text-xs text-muted-foreground">{workDateHelper}</p> : null}
+      </div>
+    ) : null;
+
   const footerCoreFields = (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <WorkOrderTemplateSelector
@@ -1117,13 +1250,19 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           onValueChange={handleTemplateSelect}
           templates={templates}
           loading={loadingTemplateId != null}
+          disabled={templatePickerDisabled}
+          showHint={templateLocked}
+          labelHint={FOOTER_TEMPLATE_HINT}
+          helperText={
+            templatePickerDisabled ? 'Clear manual entries to use a template.' : undefined
+          }
           onSaveFromForm={handleSaveTemplate}
           canSaveFromForm={Boolean(worksTypeId)}
           defaultSectionId={sectionId}
           defaultMachineId={resolvedMachineId}
           machines={machinesInScope}
         />
-        <div className="grid gap-1">
+        <div className={cn('grid gap-1', templateLocked && 'opacity-60')}>
           <Label className="text-xs text-muted-foreground">Machine</Label>
           <MachineSelectSummaryButton
             onClick={() => setMachinePickerOpen(true)}
@@ -1135,6 +1274,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             selectedLine={selectedMachine?.name ?? null}
             staleNumericId={selectedMachine ? null : machineId || null}
             compactLabel
+            disabled={templateLocked}
             className="mt-0 h-9 min-h-9 py-0 text-sm"
           />
           <MachineSelectorDialog
@@ -1147,9 +1287,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             onSelect={(m) => setMachineId(String(m.id))}
           />
         </div>
-        <div className="grid gap-1">
+        <div className={cn('grid gap-1', templateLocked && 'opacity-60')}>
           <Label className="text-xs text-muted-foreground">Works</Label>
-          <Select value={worksTypeId} onValueChange={setWorksTypeId}>
+          <Select value={worksTypeId} onValueChange={setWorksTypeId} disabled={templateLocked}>
             <SelectTrigger className="h-9">
               <SelectValue placeholder="Type..." />
             </SelectTrigger>
@@ -1162,9 +1302,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-1">
+        <div className={cn('grid gap-1', templateLocked && 'opacity-60')}>
           <Label className="text-xs text-muted-foreground">Who worked</Label>
-          <Input value={workers} onChange={(e) => setWorkers(e.target.value)} placeholder="Ali, Rahim" className="h-9" />
+          <Input
+            value={workers}
+            onChange={(e) => setWorkers(e.target.value)}
+            placeholder="Ali, Rahim"
+            className="h-9"
+            disabled={templateLocked}
+          />
         </div>
         <div className="grid gap-1 md:col-span-1 col-span-2">
           <Label className="text-xs text-muted-foreground">Remarks</Label>
@@ -1175,6 +1321,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const formBody = (
     <>
+      {workDateField}
       {footerCoreFields}
 
       <div className="grid min-w-0 items-start gap-2 sm:grid-cols-2">
@@ -1239,7 +1386,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const footerActionBar = (
     <div className="shrink-0 border-t border-border/60 px-4 py-2">
-      <div className="flex items-stretch gap-2">
+      <div ref={footerActionBarRef} className="flex items-stretch gap-2">
         <div className="relative min-w-0 flex-1">
           {partsOverlayOpen && footerChipOverlay('parts')}
           <button
@@ -1249,7 +1396,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               partsOverlayOpen
                 ? 'border-brand-primary/40 bg-brand-primary/5'
                 : 'border-border/60',
+              templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
+            disabled={templateLocked}
             onClick={openPartsOverlay}
           >
             <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
@@ -1267,7 +1416,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               moreOverlayOpen
                 ? 'border-brand-primary/40 bg-brand-primary/5'
                 : 'border-border/60',
+              templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
+            disabled={templateLocked}
             onClick={openMoreOverlay}
           >
             <span className="shrink-0 text-sm font-medium text-foreground">Billing & approvals</span>
@@ -1294,7 +1445,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       {isFooter && showFooterHeader && (
         <div className="shrink-0 px-4 pt-3 pb-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Log entry · <span className="font-normal normal-case">{dateLabel}</span>
+            Add work · <span className="font-normal normal-case">{dateLabel}</span>
           </p>
         </div>
       )}
@@ -1302,9 +1453,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       {!embedded && !isFooter && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isEdit ? 'Edit entry' : 'Log maintenance'}
+            {isEdit ? 'Edit entry' : 'Add work'}
           </p>
-          {showGenerateDay && sectionId != null && !isEdit && (
+          {showGenerateDay && factoryId != null && !isEdit && (
             <Button type="button" variant="outline" size="sm" disabled={generating} onClick={handleBulkGenerate}>
               {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
               Generate day
@@ -1321,6 +1472,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               disabled && 'pointer-events-none opacity-60',
             )}
           >
+            {workDateField}
             {footerCoreFields}
           </div>
           {footerActionBar}

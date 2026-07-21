@@ -3,6 +3,8 @@ import { Label } from '@/components/ui/label';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { Machine } from '@/types/machine';
 import type { FactorySection } from '@/types/factorySection';
+import { Info } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import { WorkOrderTemplateSelectSummaryButton } from './WorkOrderTemplateSelectSummaryButton';
 import WorkOrderTemplateSelectorDialog from './WorkOrderTemplateSelectorDialog';
 
@@ -15,6 +17,8 @@ export interface WorkOrderTemplateSelectorProps {
   compact?: boolean;
   label?: string;
   showHint?: boolean;
+  labelHint?: string;
+  helperText?: string;
   className?: string;
   dialogTitle?: string;
   dialogDescription?: string;
@@ -35,6 +39,8 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
   compact = false,
   label = 'Template',
   showHint = false,
+  labelHint,
+  helperText,
   className,
   dialogTitle,
   dialogDescription,
@@ -62,15 +68,41 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
 
   return (
     <div className={wrapperClass}>
-      <Label
-        className={
-          compact
-            ? 'text-xs text-muted-foreground'
-            : 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
-        }
-      >
-        {label}
-      </Label>
+      <div className="flex items-center gap-1">
+        <Label
+          className={
+            compact
+              ? 'text-xs text-muted-foreground'
+              : 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+          }
+        >
+          {label}
+        </Label>
+        {labelHint ? (
+          <HoverCard openDelay={120} closeDelay={80}>
+            <HoverCardTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="How templates work"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </HoverCardTrigger>
+            <HoverCardPortal>
+              <HoverCardContent
+                side="top"
+                align="start"
+                sideOffset={6}
+                collisionPadding={12}
+                className="z-[200] w-auto max-w-[min(18rem,calc(100vw-2rem))] p-3 text-xs leading-snug text-muted-foreground"
+              >
+                {labelHint}
+              </HoverCardContent>
+            </HoverCardPortal>
+          </HoverCard>
+        ) : null}
+      </div>
       <WorkOrderTemplateSelectSummaryButton
         onClick={() => setDialogOpen(true)}
         ariaLabel={
@@ -86,10 +118,10 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
       />
       {showHint && selectedTemplate && (
         <p className="text-xs text-muted-foreground">
-          Prefilled from &quot;{selectedTemplate.template_name}&quot;
-          {!compact ? ' — review and adjust anything below before creating.' : ''}
+          From template — choose No template to edit fields.
         </p>
       )}
+      {helperText ? <p className="text-[10px] text-muted-foreground">{helperText}</p> : null}
       <WorkOrderTemplateSelectorDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

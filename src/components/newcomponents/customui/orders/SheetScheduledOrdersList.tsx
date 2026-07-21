@@ -15,6 +15,8 @@ export interface SheetScheduledOrdersListProps {
   isConfirmingId?: number | null;
   isCancellingId?: number | null;
   showStageDay?: boolean;
+  /** Compact layout for SheetLogEntryFooter — hides redundant log-entry CTAs. */
+  variant?: 'panel' | 'footer';
 }
 
 const SheetScheduledOrdersList: React.FC<SheetScheduledOrdersListProps> = ({
@@ -27,31 +29,55 @@ const SheetScheduledOrdersList: React.FC<SheetScheduledOrdersListProps> = ({
   isConfirmingId,
   isCancellingId,
   showStageDay,
+  variant = 'panel',
 }) => {
   const staged = schedules.filter((s) => s.status === 'STAGED');
+  const isFooter = variant === 'footer';
+  const showLogEntry = !isFooter && onLogEntry;
+  const visibleSchedules = isFooter ? staged : schedules;
 
-  if (schedules.length === 0) {
+  if (visibleSchedules.length === 0) {
+    if (!showStageDay || !onStageDay) {
+      return null;
+    }
     return (
-      <div className="space-y-3 px-3 py-6 text-center">
-        <p className="text-sm font-medium text-foreground">No orders scheduled</p>
-        <p className="text-xs text-muted-foreground">
-          Stage recurring templates for this day, or log an ad-hoc entry.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-          {showStageDay && onStageDay && (
-            <Button type="button" variant="outline" size="sm" disabled={isStaging} onClick={onStageDay}>
-              {isStaging ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CalendarClock className="mr-1 h-3.5 w-3.5" />
-              )}
-              Stage day
-            </Button>
+      <div
+        className={cn(
+          'space-y-2 border-b border-border/60 bg-muted/20',
+          isFooter ? 'px-4 py-3' : 'space-y-3 px-3 py-6 text-center',
+        )}
+      >
+        {!isFooter && (
+          <>
+            <p className="text-sm font-medium text-foreground">No orders scheduled</p>
+            <p className="text-xs text-muted-foreground">
+              Stage recurring templates for this day, or log an ad-hoc entry.
+            </p>
+          </>
+        )}
+        {isFooter && (
+          <p className="text-xs text-muted-foreground">
+            Stage recurring templates for this day, then confirm machines you will service.
+          </p>
+        )}
+        <div
+          className={cn(
+            'flex flex-wrap items-center gap-2',
+            isFooter ? 'justify-start' : 'justify-center pt-1',
           )}
-          {onLogEntry && (
+        >
+          <Button type="button" variant="outline" size="sm" disabled={isStaging} onClick={onStageDay}>
+            {isStaging ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CalendarClock className="mr-1 h-3.5 w-3.5" />
+            )}
+            Stage day
+          </Button>
+          {showLogEntry && (
             <Button type="button" size="sm" onClick={onLogEntry}>
               <Plus className="mr-1 h-3.5 w-3.5" />
-              Log entry
+              Add work
             </Button>
           )}
         </div>
@@ -60,7 +86,12 @@ const SheetScheduledOrdersList: React.FC<SheetScheduledOrdersListProps> = ({
   }
 
   return (
-    <div className="space-y-3 px-3 py-4">
+    <div
+      className={cn(
+        'space-y-3 border-b border-border/60 bg-muted/20',
+        isFooter ? 'max-h-40 overflow-y-auto px-4 py-3' : 'px-3 py-4',
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-foreground">Scheduled orders</p>
@@ -83,7 +114,7 @@ const SheetScheduledOrdersList: React.FC<SheetScheduledOrdersListProps> = ({
       </div>
 
       <ul className="divide-y divide-border/60 rounded-md border border-border/60">
-        {schedules.map((schedule) => (
+        {visibleSchedules.map((schedule) => (
           <li
             key={schedule.id}
             className={cn(
@@ -157,7 +188,7 @@ const SheetScheduledOrdersList: React.FC<SheetScheduledOrdersListProps> = ({
         ))}
       </ul>
 
-      {onLogEntry && (
+      {showLogEntry && (
         <div className="flex justify-end">
           <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={onLogEntry}>
             <Plus className="mr-1 h-3 w-3" />
