@@ -5,6 +5,7 @@ import type {
   WorkOrderItemActionType,
   WorkOrderItemSourceType,
   WorkOrderPriority,
+  WorkOrderStatus,
 } from './workOrder';
 
 export interface WorkOrderSheetBundle {
@@ -48,6 +49,20 @@ export interface ListWorkOrderSheetParams {
   start_date_to?: string;
   skip?: number;
   limit?: number;
+}
+
+export interface ListWorkOrderSheetDailyCountsParams {
+  factory_id?: number;
+  machine_id?: number;
+  start_date_from?: string;
+  start_date_to?: string;
+  status?: WorkOrderStatus;
+  work_order_type_id?: number;
+  priority?: WorkOrderPriority;
+}
+
+export interface WorkOrderSheetDailyCountsResponse {
+  counts: Record<string, number>;
 }
 
 export interface GenerateWorkOrderDraftsRequest {

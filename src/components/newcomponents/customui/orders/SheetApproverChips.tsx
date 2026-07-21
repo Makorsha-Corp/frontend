@@ -28,7 +28,7 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
 }) => {
   if (approvers.length === 0) {
     return (
-      <span className="text-xs italic text-muted-foreground/80">Not required</span>
+      <span className="text-xs italic text-muted-foreground/80">No approvers required</span>
     );
   }
 

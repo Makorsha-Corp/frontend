@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CompleteWorkOrderDialog from '@/components/newcomponents/customui/orders/CompleteWorkOrderDialog';
 import {
@@ -39,13 +33,11 @@ export interface SheetWorkOrderRowActionsProps {
 
 const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   workOrderId,
-  workOrderNumber,
   status,
   approvalMet,
   machineId,
   approvers,
   currentUserId,
-  onOpenDetail,
   onMutated,
   className,
 }) => {
@@ -119,17 +111,11 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
     }
   };
 
-  const primaryAction =
-    showComplete ? ('complete' as const) : showStart && startEnabled ? ('start' as const) : null;
+  const hasWorkflowAction =
+    showApprove || showWithdraw || showStart || showComplete;
 
-  if (isTerminal && !showWithdraw) {
-    return (
-      <div className={cn('flex w-full flex-col gap-1', className)} onClick={stop}>
-        <Button type="button" variant="outline" size="sm" className="h-7 w-full text-xs" onClick={onOpenDetail}>
-          Open
-        </Button>
-      </div>
-    );
+  if (isTerminal || !hasWorkflowAction) {
+    return null;
   }
 
   return (
@@ -148,7 +134,20 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           </Button>
         ) : null}
 
-        {primaryAction === 'start' ? (
+        {showWithdraw ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 w-full text-xs"
+            disabled={isBusy}
+            onClick={() => void handleWithdraw()}
+          >
+            {isUnapproving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Withdraw'}
+          </Button>
+        ) : null}
+
+        {showStart && startEnabled ? (
           <Button
             type="button"
             size="sm"
@@ -160,7 +159,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           </Button>
         ) : null}
 
-        {primaryAction === 'complete' ? (
+        {showComplete ? (
           <Button
             type="button"
             size="sm"
@@ -172,7 +171,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           </Button>
         ) : null}
 
-        {showStart && !startEnabled && status === 'DRAFT' ? (
+        {showStart && !startEnabled ? (
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -188,48 +187,6 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
             </Tooltip>
           </TooltipProvider>
         ) : null}
-
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 min-w-0 flex-1 px-2 text-xs"
-            onClick={onOpenDetail}
-          >
-            Open
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                disabled={isBusy}
-                aria-label={`Actions for ${workOrderNumber}`}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {showWithdraw ? (
-                <DropdownMenuItem onClick={() => void handleWithdraw()} disabled={isUnapproving}>
-                  Withdraw approval
-                </DropdownMenuItem>
-              ) : null}
-              {showStart && primaryAction !== 'start' && startEnabled ? (
-                <DropdownMenuItem onClick={() => void handleStart()} disabled={isStarting}>
-                  Start work
-                </DropdownMenuItem>
-              ) : null}
-              {showComplete && primaryAction !== 'complete' ? (
-                <DropdownMenuItem onClick={() => setCompleteOpen(true)}>Complete</DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem onClick={onOpenDetail}>Open detail</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
 
       <CompleteWorkOrderDialog

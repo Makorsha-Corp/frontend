@@ -1,4 +1,17 @@
-import { addDays, endOfDay, endOfMonth, format, parseISO, startOfDay, startOfMonth, subDays } from 'date-fns';
+import {
+  addDays,
+  differenceInCalendarWeeks,
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getYear,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subDays,
+} from 'date-fns';
 import type {
   WorkOrder,
   WorkOrderApprover,
@@ -9,6 +22,9 @@ import type {
 import type { WorkOrderSchedule } from '@/types/workOrderSchedule';
 import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
 import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilters';
+
+/** Sunday-start work week (Sun → Sat). */
+export const SHEET_WEEK_STARTS_ON = 0 as const;
 
 export interface WorkOrderSheetRow {
   key: string;
@@ -261,9 +277,10 @@ export function sheetPeriodBounds(
     return { from: startOfMonth(base), to: endOfMonth(base) };
   }
   if (dateScope === 'week') {
-    const from = startOfDay(base);
-    const to = endOfDay(new Date(from.getTime() + 6 * 24 * 60 * 60 * 1000));
-    return { from, to };
+    return {
+      from: startOfWeek(base, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+      to: endOfWeek(base, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+    };
   }
   const day = startOfDay(base);
   return { from: day, to: endOfDay(day) };
@@ -276,6 +293,21 @@ function isDateInPeriod(dateIso: string, from: Date, to: Date): boolean {
 
 function countWorkOrdersForDay(rows: WorkOrderSheetRow[]): number {
   return new Set(rows.map((r) => r.workOrderId)).size;
+}
+
+/** Unique work-order count per start date (for calendar dots). */
+export function buildOrderCountByDate(rows: WorkOrderSheetRow[]): Record<string, number> {
+  const byDate = new Map<string, Set<number>>();
+  for (const row of rows) {
+    const ids = byDate.get(row.date) ?? new Set<number>();
+    ids.add(row.workOrderId);
+    byDate.set(row.date, ids);
+  }
+  const result: Record<string, number> = {};
+  for (const [date, ids] of byDate) {
+    result[date] = ids.size;
+  }
+  return result;
 }
 
 export interface SheetWeekBounds {
@@ -304,8 +336,79 @@ export function sheetAdjacentWeekBounds(sheetDate: string): SheetAdjacentWeekBou
   };
 }
 
+/** Visible calendar grid for a month (Sun–Sat rows incl. trailing/leading days). */
+export function sheetCalendarGridBounds(month: Date): SheetWeekBounds {
+  return {
+    from: startOfWeek(startOfMonth(month), { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+    to: endOfWeek(endOfMonth(month), { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+  };
+}
+
 function formatWeekLabel(from: Date, to: Date): string {
-  return `${format(from, 'dd.MM')} – ${format(to, 'dd.MM.yyyy')}`;
+  return `${format(from, 'EEE dd.MM')} – ${format(to, 'EEE dd.MM.yyyy')}`;
+}
+
+type CompactWeekRangeYearMode = 'always' | 'if-not-current' | 'never';
+
+/** Compact range like `19 – 25 Jul` or `19 – 25 Jul 2026`. */
+export function formatCompactWeekRangeLabel(
+  from: Date,
+  to: Date,
+  yearMode: CompactWeekRangeYearMode = 'if-not-current',
+): string {
+  const todayYear = getYear(new Date());
+  const fromYear = getYear(from);
+  const toYear = getYear(to);
+  const includeYear =
+    yearMode === 'always' ||
+    (yearMode === 'if-not-current' && (fromYear !== todayYear || toYear !== todayYear));
+
+  const sameMonth = format(from, 'MMM yyyy') === format(to, 'MMM yyyy');
+
+  if (sameMonth) {
+    const core = `${format(from, 'd')} – ${format(to, 'd')} ${format(from, 'MMM')}`;
+    return includeYear ? `${core} ${fromYear}` : core;
+  }
+
+  const fromPart = `${format(from, 'd')} ${format(from, 'MMM')}`;
+  const toPart = `${format(to, 'd')} ${format(to, 'MMM')}`;
+  const core = `${fromPart} – ${toPart}`;
+
+  if (!includeYear) return core;
+
+  if (fromYear === toYear) {
+    return `${core} ${fromYear}`;
+  }
+
+  return `${format(from, 'd MMM yyyy')} – ${format(to, 'd MMM yyyy')}`;
+}
+
+/** Toolbar week trigger: This week / Last week / Next week / compact range. */
+export function formatRelativeWeekTriggerLabel(sheetDate: string): string {
+  const base = parseISO(sheetDate);
+  const weekDiff = differenceInCalendarWeeks(base, new Date(), {
+    weekStartsOn: SHEET_WEEK_STARTS_ON,
+  });
+
+  if (weekDiff === 0) return 'This week';
+  if (weekDiff === -1) return 'Last week';
+  if (weekDiff === 1) return 'Next week';
+
+  const { from, to } = sheetPeriodBounds('week', sheetDate);
+  return formatCompactWeekRangeLabel(from, to, 'if-not-current');
+}
+
+/** Snapshot panel header — always includes year. */
+export function formatCompactWeekSnapshotHeader(sheetDate: string): string {
+  const { from, to } = sheetPeriodBounds('week', sheetDate);
+  return formatCompactWeekRangeLabel(from, to, 'always');
+}
+
+/** Snapshot panel header from a week start ISO (Sunday). */
+export function formatCompactWeekSnapshotHeaderFromWeekStart(weekStartIso: string): string {
+  const from = parseISO(weekStartIso);
+  const to = endOfWeek(from, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+  return formatCompactWeekRangeLabel(from, to, 'always');
 }
 
 function enumerateDatesInBounds(from: Date, to: Date): string[] {
@@ -462,16 +565,99 @@ export function firstBusyDayInSection(section: SheetWeekSection): string | null 
   return busyDaysInSection(section)[0]?.date ?? null;
 }
 
-export function resolveDisplayDayInAnchor(
-  anchorSection: SheetWeekSection,
-  sheetDate: string,
-): SheetDateGroup | null {
-  const selected = normalizeSheetDateIso(sheetDate);
-  const selectedDay = anchorSection.days.find(
-    (day) => day.date === selected && day.entryCount > 0,
+export interface WeekDayCell {
+  date: string;
+  dayLabel: string;
+  rows: WorkOrderSheetRow[];
+  entryCount: number;
+  isToday: boolean;
+  isSelected: boolean;
+  isEmpty: boolean;
+}
+
+export interface WeekSnapshotOrderLine {
+  workOrderId: number;
+  workOrderNumber: string;
+  machineName: string;
+  works: string;
+}
+
+/** Unique work orders per day within a week (for popover snapshot detail). */
+export function buildWeekSnapshotOrdersByDate(
+  rows: WorkOrderSheetRow[],
+  weekStartIso: string,
+): Record<string, WeekSnapshotOrderLine[]> {
+  const weekStart = startOfDay(parseISO(weekStartIso));
+  const weekDates = Array.from({ length: 7 }, (_, index) =>
+    format(addDays(weekStart, index), 'yyyy-MM-dd'),
   );
-  if (selectedDay) return selectedDay;
-  return busyDaysInSection(anchorSection)[0] ?? null;
+  const weekDateSet = new Set(weekDates);
+  const byDate = new Map<string, Map<number, WeekSnapshotOrderLine>>();
+
+  for (const row of rows) {
+    if (!weekDateSet.has(row.date)) continue;
+    const byOrder = byDate.get(row.date) ?? new Map<number, WeekSnapshotOrderLine>();
+    if (!byDate.has(row.date)) byDate.set(row.date, byOrder);
+    if (byOrder.has(row.workOrderId)) continue;
+    byOrder.set(row.workOrderId, {
+      workOrderId: row.workOrderId,
+      workOrderNumber: row.workOrderNumber,
+      machineName: row.machineName,
+      works: row.works,
+    });
+  }
+
+  const result: Record<string, WeekSnapshotOrderLine[]> = {};
+  for (const date of weekDates) {
+    const orders = byDate.get(date);
+    if (orders && orders.size > 0) {
+      result[date] = Array.from(orders.values());
+    }
+  }
+  return result;
+}
+
+/** All 7 days in a week section (Sun → Sat), including empty days. */
+export function groupWeekByDay(section: SheetWeekSection, selectedDate: string): WeekDayCell[] {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const selected = normalizeSheetDateIso(selectedDate);
+  return section.days
+    .slice()
+    .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
+    .map((day) => ({
+      date: day.date,
+      dayLabel: format(parseISO(day.date), 'EEE dd.MM'),
+      rows: day.rows,
+      entryCount: day.entryCount,
+      isToday: day.date === today,
+      isSelected: day.date === selected,
+      isEmpty: day.entryCount === 0,
+    }));
+}
+
+/** Build 7-day week cells from daily-count map (popover snapshot / hover preview). */
+export function buildWeekDaysFromDailyCounts(
+  counts: Record<string, number>,
+  weekStartIso: string,
+  selectedDate: string,
+): WeekDayCell[] {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const selected = normalizeSheetDateIso(selectedDate);
+  const weekStart = startOfDay(parseISO(weekStartIso));
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = format(addDays(weekStart, index), 'yyyy-MM-dd');
+    const entryCount = counts[date] ?? 0;
+    return {
+      date,
+      dayLabel: format(parseISO(date), 'EEE dd.MM'),
+      rows: [],
+      entryCount,
+      isToday: date === today,
+      isSelected: date === selected,
+      isEmpty: entryCount === 0,
+    };
+  });
 }
 
 export function buildSheetDateGroups(
@@ -500,7 +686,7 @@ export function buildSheetPeriodLabel(dateScope: SheetDateScope, sheetDate: stri
   }
   if (dateScope === 'week') {
     const { from, to } = sheetPeriodBounds(dateScope, sheetDate);
-    return `${format(from, 'dd.MM')} – ${format(to, 'dd.MM.yyyy')}`;
+    return formatWeekLabel(from, to);
   }
   return null;
 }

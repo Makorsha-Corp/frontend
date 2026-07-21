@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { addDays, format, subDays } from 'date-fns';
+import { addDays, format, isSameMonth, parseISO, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   useDeleteWorkOrderMutation,
   useGetWorkOrdersSheetQuery,
+  useGetWorkOrderSheetDailyCountsQuery,
 } from '@/features/workOrders/workOrdersApi';
 import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -24,28 +25,21 @@ import WorkOrdersToolbar, {
 } from '@/components/newcomponents/customui/orders/WorkOrdersToolbar';
 import WorkOrdersFilterPanel from '@/components/newcomponents/customui/orders/WorkOrdersFilterPanel';
 import WorkOrderSheetTable from '@/components/newcomponents/customui/orders/WorkOrderSheetTable';
-import MachineWorkOrderSheetTable from '@/components/newcomponents/customui/orders/MachineWorkOrderSheetTable';
+import WorkOrderWeekCalendar from '@/components/newcomponents/customui/orders/WorkOrderWeekCalendar';
 import SheetLogEntryFooter from '@/components/newcomponents/customui/orders/SheetLogEntryFooter';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
 import AddWorkOrderDialog from '@/components/newcomponents/customui/orders/AddWorkOrderDialog';
 import MaintenanceWizardDialog from '@/components/newcomponents/customui/orders/MaintenanceWizardDialog';
 import { useWorkOrdersFilters } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import {
-  buildSheetPeriodLabel,
-  buildSheetWeekPickerSections,
-  buildSheetWeekSections,
-  firstBusyDayInSection,
-  filterBundlesByOrderIds,
-  flattenSheetBundles,
   flattenSheetBundlesToOrders,
-  getWeekSectionByPosition,
-  sheetAdjacentWeekBounds,
-  sheetPeriodBounds,
+  sheetCalendarGridBounds,
 } from '@/pages/newpages/orders/workOrderSheetData';
 import {
   filterWorkOrders,
   type WorkOrderLabelContext,
 } from '@/pages/newpages/orders/workOrdersOverviewData';
+import { deriveWorkOrderWeekCalendarView } from '@/pages/newpages/orders/workOrderWeekCalendarData';
 import { buildMachineIdToFactoryId } from '@/pages/newpages/orders/ordersOverviewData';
 import {
   countActiveWorkOrderFilters,
@@ -76,10 +70,12 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const {
     filters,
     layoutMode,
+    weekView,
     apiDateFrom,
     apiDateTo,
     setDateScope,
     setLayoutMode,
+    setWeekView,
     setSheetDate,
     clearSheetDate,
     setFactoryFilter,
@@ -91,6 +87,16 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     setSearchQuery,
     patchParams,
   } = useWorkOrdersFilters();
+
+  const [calendarMonth, setCalendarMonth] = useState(() =>
+    filters.sheetDate ? parseISO(filters.sheetDate) : new Date(),
+  );
+
+  useEffect(() => {
+    if (!filters.sheetDate) return;
+    const next = parseISO(filters.sheetDate);
+    setCalendarMonth((prev) => (isSameMonth(prev, next) ? prev : next));
+  }, [filters.sheetDate]);
 
   const activeFilterCount = countActiveWorkOrderFilters(filters, layoutMode);
   const [filtersPanelOpen, setFiltersPanelOpen] = useState(
@@ -113,16 +119,20 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const useAdjacentWeeks =
     layoutMode === 'week' && filters.dateScope === 'week' && applyDateFilter;
 
+  const calendarGridRange = useMemo(() => {
+    const { from, to } = sheetCalendarGridBounds(calendarMonth);
+    return {
+      from: format(from, 'yyyy-MM-dd'),
+      to: format(to, 'yyyy-MM-dd'),
+    };
+  }, [calendarMonth]);
+
   const sheetFetchDates = useMemo(() => {
     if (!applyDateFilter || !filters.dateRange.from || !filters.dateRange.to) {
       return { from: apiDateFrom, to: apiDateTo };
     }
-    if (useAdjacentWeeks && filters.sheetDate) {
-      const { fetch } = sheetAdjacentWeekBounds(filters.sheetDate);
-      return {
-        from: format(fetch.from, 'yyyy-MM-dd'),
-        to: format(fetch.to, 'yyyy-MM-dd'),
-      };
+    if (useAdjacentWeeks) {
+      return calendarGridRange;
     }
     return { from: apiDateFrom, to: apiDateTo };
   }, [
@@ -130,7 +140,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     useAdjacentWeeks,
     filters.dateRange.from,
     filters.dateRange.to,
-    filters.sheetDate,
+    calendarGridRange,
     apiDateFrom,
     apiDateTo,
   ]);
@@ -147,6 +157,19 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     start_date_to: applyDateFilter ? sheetFetchDates.to : undefined,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
+
+  const { data: orderCountByDate = {} } = useGetWorkOrderSheetDailyCountsQuery(
+    {
+      factory_id: factoryId,
+      machine_id: machineId,
+      start_date_from: calendarGridRange.from,
+      start_date_to: calendarGridRange.to,
+      status: filters.statusFilter !== 'all' ? filters.statusFilter : undefined,
+      work_order_type_id: filters.workTypeFilter !== 'all' ? filters.workTypeFilter : undefined,
+      priority: filters.priorityFilter !== 'all' ? filters.priorityFilter : undefined,
+    },
+    { skip: layoutMode !== 'week' },
+  );
 
   const logEntryDate = filters.sheetDate || format(new Date(), 'yyyy-MM-dd');
 
@@ -205,10 +228,8 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     [factories, machineName],
   );
 
-  const filterOpts = useMemo(
+  const filterOptsBase = useMemo(
     () => ({
-      from: applyDateFilter ? filters.dateRange.from : undefined,
-      to: applyDateFilter ? filters.dateRange.to : undefined,
       status: filters.statusFilter,
       workType: filters.workTypeFilter,
       priority: filters.priorityFilter,
@@ -216,7 +237,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       machineId: resolvedMachineFilter,
       searchQuery: filters.searchQuery,
     }),
-    [filters, resolvedMachineFilter, applyDateFilter],
+    [filters, resolvedMachineFilter],
   );
 
   const ordersFromSheet = useMemo(
@@ -225,91 +246,109 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   );
 
   const filteredOrders = useMemo(
-    () => filterWorkOrders(ordersFromSheet, filterOpts, labelCtx),
-    [ordersFromSheet, filterOpts, labelCtx],
+    () =>
+      filterWorkOrders(
+        ordersFromSheet,
+        {
+          ...filterOptsBase,
+          from: applyDateFilter ? filters.dateRange.from : undefined,
+          to: applyDateFilter ? filters.dateRange.to : undefined,
+        },
+        labelCtx,
+      ),
+    [ordersFromSheet, filterOptsBase, applyDateFilter, filters.dateRange.from, filters.dateRange.to, labelCtx],
   );
 
-  const filteredOrderIds = useMemo(
-    () => new Set(filteredOrders.map((order) => order.id)),
-    [filteredOrders],
+  const {
+    calendarSheetRows,
+    orderCountByDate: derivedOrderCountByDate,
+    anchorWeekSection,
+    listSheetRows,
+  } = useMemo(
+    () =>
+      deriveWorkOrderWeekCalendarView({
+        bundles,
+        calendarMonth,
+        sheetDate: filters.sheetDate ?? '',
+        anchorWeekFrom: filters.dateRange.from,
+        anchorWeekTo: filters.dateRange.to,
+        filterOptsBase,
+        orderCountByDateFromApi: orderCountByDate,
+        searchQuery: filters.searchQuery,
+        machineName,
+        accountName,
+        sheetLabelCtx,
+        labelCtx,
+        useWeekCalendar: layoutMode === 'week' && applyDateFilter,
+      }),
+    [
+      bundles,
+      calendarMonth,
+      filters.sheetDate,
+      filters.dateRange.from,
+      filters.dateRange.to,
+      filterOptsBase,
+      orderCountByDate,
+      filters.searchQuery,
+      machineName,
+      accountName,
+      sheetLabelCtx,
+      labelCtx,
+      layoutMode,
+      applyDateFilter,
+    ],
   );
 
-  const filteredBundles = useMemo(
-    () => filterBundlesByOrderIds(bundles, filteredOrderIds),
-    [bundles, filteredOrderIds],
-  );
-
-  const sheetRows = useMemo(
-    () => flattenSheetBundles(filteredBundles, machineName, accountName, sheetLabelCtx),
-    [filteredBundles, machineName, accountName, sheetLabelCtx],
-  );
-
-  const weekSections = useMemo(() => {
-    if (!useAdjacentWeeks || !filters.sheetDate) return undefined;
-    return buildSheetWeekSections(sheetRows, filters.sheetDate);
-  }, [useAdjacentWeeks, filters.sheetDate, sheetRows]);
-
-  const weekPickerSections = useMemo(() => {
-    if (!useAdjacentWeeks || !filters.sheetDate) return [];
-    return buildSheetWeekPickerSections(sheetRows, filters.sheetDate);
-  }, [useAdjacentWeeks, filters.sheetDate, sheetRows]);
-
-  const navigateToWeekStart = useCallback(
-    (weekStart: string) => {
-      const section = weekPickerSections.find((s) => s.weekStart === weekStart);
-      setSheetDate(section ? (firstBusyDayInSection(section) ?? weekStart) : weekStart);
-    },
-    [weekPickerSections, setSheetDate],
-  );
+  const weekOrderCountByDate =
+    layoutMode === 'week' && applyDateFilter ? derivedOrderCountByDate : orderCountByDate;
 
   const shiftAnchorWeek = useCallback(
     (direction: 'prev' | 'next') => {
       if (!filters.sheetDate) return;
-      const { from } = sheetPeriodBounds('week', filters.sheetDate);
-      const shifted = direction === 'prev' ? subDays(from, 7) : addDays(from, 7);
+      const base = parseISO(filters.sheetDate);
+      const shifted = direction === 'prev' ? subDays(base, 7) : addDays(base, 7);
       setSheetDate(format(shifted, 'yyyy-MM-dd'));
     },
     [filters.sheetDate, setSheetDate],
+  );
+
+  const goToToday = useCallback(() => {
+    setSheetDate(format(new Date(), 'yyyy-MM-dd'));
+  }, [setSheetDate]);
+
+  const handleSelectDay = useCallback(
+    (date: string) => {
+      setSheetDate(date);
+    },
+    [setSheetDate],
   );
 
   const toolbarWeekNav = useMemo((): WorkOrdersToolbarWeekNav | undefined => {
     if (layoutMode !== 'week' || filters.dateScope !== 'week' || !filters.sheetDate) {
       return undefined;
     }
-    const anchorLabel = buildSheetPeriodLabel('week', filters.sheetDate);
-    if (!anchorLabel) return undefined;
-
-    const anchorSection = weekSections
-      ? getWeekSectionByPosition(weekSections, 'anchor')
-      : undefined;
 
     return {
-      anchorLabel,
-      anchorOrderCount: anchorSection?.orderCount ?? 0,
       sheetDate: filters.sheetDate,
-      weekOptions: weekPickerSections.map((section) => ({
-        section,
-        positionLabel:
-          section.position === 'prev'
-            ? 'Previous week'
-            : section.position === 'next'
-              ? 'Next week'
-              : 'This week',
-      })),
+      calendarSheetRows,
+      orderCountByDate: weekOrderCountByDate,
+      calendarMonth,
+      onCalendarMonthChange: setCalendarMonth,
       onNavigatePrev: () => shiftAnchorWeek('prev'),
       onNavigateNext: () => shiftAnchorWeek('next'),
-      onSelectWeek: navigateToWeekStart,
       onSheetDateChange: setSheetDate,
+      onGoToToday: goToToday,
     };
   }, [
     layoutMode,
     filters.dateScope,
     filters.sheetDate,
-    weekSections,
-    weekPickerSections,
+    calendarSheetRows,
+    weekOrderCountByDate,
+    calendarMonth,
     shiftAnchorWeek,
-    navigateToWeekStart,
     setSheetDate,
+    goToToday,
   ]);
 
   const orderById = useMemo(() => {
@@ -351,6 +390,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       footerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }, []);
+
+  const handleAddForDay = useCallback(
+    (date: string) => {
+      setSheetDate(date);
+      focusFooterForAdd();
+    },
+    [setSheetDate, focusFooterForAdd],
+  );
 
   const selectedOrder =
     filteredOrders.find((o) => o.id === selectedOrderId) ??
@@ -495,6 +542,8 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         onFiltersPanelOpenChange={setFiltersPanelOpen}
         activeFilterCount={activeFilterCount}
         weekNav={toolbarWeekNav}
+        weekView={weekView}
+        onWeekViewChange={setWeekView}
         machineFilter={resolvedMachineFilter}
         onMachineChange={setMachineFilter}
         machines={machinesForToolbarSelect}
@@ -538,7 +587,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
               <WorkOrderSheetTable
-                rows={sheetRows}
+                rows={listSheetRows}
                 isLoading={isLoading}
                 showStartDateColumn
                 currentUserId={user?.id ?? null}
@@ -551,17 +600,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         ) : (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-              <MachineWorkOrderSheetTable
-                rows={sheetRows}
-                schedules={[]}
-                dateScope={filters.dateScope}
-                sheetDate={filters.sheetDate || logEntryDate}
-                weekSections={weekSections}
-                onSheetDateChange={setSheetDate}
+              <WorkOrderWeekCalendar
+                weekSection={anchorWeekSection}
+                selectedDate={filters.sheetDate || logEntryDate}
+                weekView={weekView}
                 isLoading={isLoading}
+                onSelectDay={handleSelectDay}
+                onAddForDay={handleAddForDay}
                 onRowClick={(id) => setSelectedOrder(id)}
-                onLogEntry={focusFooterForAdd}
-                showStageDay={false}
                 currentUserId={user?.id ?? null}
                 onSheetMutated={() => refetch()}
               />

@@ -1,14 +1,19 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { endOfDay, endOfMonth, format, parseISO, startOfDay, startOfMonth } from 'date-fns';
+import { endOfDay, endOfMonth, endOfWeek, format, parseISO, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 import type { WorkOrderPriorityFilter, WorkOrderStatusFilter, WorkTypeFilter } from './workOrdersOverviewData';
 
 export type SheetDateScope = 'day' | 'week' | 'month';
 export type SheetRowFlow = 'modal-edit' | 'side-panel' | 'preview';
 export type WorkOrdersLayoutMode = 'list' | 'week';
+export type WorkOrdersWeekView = 'rows' | 'columns';
 
 function parseLayoutMode(raw: string | null): WorkOrdersLayoutMode {
   return raw === 'week' ? 'week' : 'list';
+}
+
+function parseWeekView(raw: string | null): WorkOrdersWeekView {
+  return raw === 'columns' ? 'columns' : 'rows';
 }
 
 export interface WorkOrdersFilterState {
@@ -25,6 +30,8 @@ export interface WorkOrdersFilterState {
   machineFilter: string;
   searchQuery: string;
 }
+
+const SHEET_WEEK_STARTS_ON = 0 as const;
 
 const todayIso = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -43,6 +50,7 @@ export function useWorkOrdersFilters() {
 
   const dateScope = parseSheetDateScope(searchParams.get('woDateScope'));
   const layoutMode = parseLayoutMode(searchParams.get('woLayout'));
+  const weekView = parseWeekView(searchParams.get('woWeekView'));
   const sheetRowFlow = parseSheetRowFlow(searchParams.get('sheetRowFlow'));
   const sheetDate = searchParams.get('woDate') ?? '';
   const hasDateFilter = sheetDate.length > 0;
@@ -63,9 +71,10 @@ export function useWorkOrdersFilters() {
       return { from: startOfMonth(base), to: endOfMonth(base) };
     }
     if (dateScope === 'week') {
-      const from = startOfDay(base);
-      const to = endOfDay(new Date(from.getTime() + 6 * 24 * 60 * 60 * 1000));
-      return { from, to };
+      return {
+        from: startOfWeek(base, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+        to: endOfWeek(base, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
+      };
     }
     const day = startOfDay(base);
     return { from: day, to: endOfDay(day) };
@@ -94,6 +103,7 @@ export function useWorkOrdersFilters() {
         next.delete('woLayout');
         next.delete('woDate');
         next.delete('woDateScope');
+        next.delete('woWeekView');
       } else {
         next.set('woLayout', 'week');
         if (!prev.get('woDate')) {
@@ -105,6 +115,8 @@ export function useWorkOrdersFilters() {
   };
   const setSheetRowFlow = (flow: SheetRowFlow) =>
     patchParams({ sheetRowFlow: flow === 'modal-edit' ? null : flow });
+  const setWeekView = (view: WorkOrdersWeekView) =>
+    patchParams({ woWeekView: view === 'rows' ? null : view });
   const setSheetDate = (iso: string) => patchParams({ woDate: iso.trim() ? iso : null });
   const clearSheetDate = () => patchParams({ woDate: null });
   const setFactoryFilter = (value: string) =>
@@ -140,11 +152,13 @@ export function useWorkOrdersFilters() {
   return {
     filters,
     layoutMode,
+    weekView,
     sheetRowFlow,
     apiDateFrom,
     apiDateTo,
     setDateScope,
     setLayoutMode,
+    setWeekView,
     setSheetRowFlow,
     setSheetDate,
     clearSheetDate,

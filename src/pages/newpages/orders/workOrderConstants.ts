@@ -51,10 +51,29 @@ export function workOrderStatusBadgeClass(status: WorkOrderStatus): string {
     case 'COMPLETED':
       return 'status-badge status-badge--confirmed';
     case 'VOIDED':
-      return 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400';
+      return 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400';
     case 'IN_PROGRESS':
       return 'status-badge status-badge--unconfirmed';
+    case 'DRAFT':
+      return 'border-slate-400/45 bg-slate-500/10 text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/15 dark:text-slate-300';
     default:
       return 'text-muted-foreground';
   }
+}
+
+export function workOrderPriorityBadgeClass(priority: WorkOrderPriority): string {
+  switch (priority) {
+    case 'URGENT':
+      return 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400';
+    case 'HIGH':
+      return 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400';
+    case 'LOW':
+      return 'border-border/80 bg-muted/50 text-muted-foreground';
+    default:
+      return 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-400';
+  }
+}
+
+export function workOrderPriorityBadgeLabel(priority: WorkOrderPriority): string {
+  return priority === 'MEDIUM' ? 'MED' : priority;
 }

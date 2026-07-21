@@ -3,6 +3,7 @@ import { Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -11,22 +12,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
-import WorkOrderWeekNavigator, {
-  type WorkOrderWeekPickerOption,
-} from '@/components/newcomponents/customui/orders/WorkOrderWeekNavigator';
-import type { WorkOrdersLayoutMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import WorkOrderWeekNavigator from '@/components/newcomponents/customui/orders/WorkOrderWeekNavigator';
+import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
+import type { WorkOrdersLayoutMode, WorkOrdersWeekView } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import type { Machine } from '@/types/machine';
 import { cn } from '@/lib/utils';
 
+const toolbarTabsListClass = 'h-9 shrink-0 gap-0.5 bg-muted/80 p-1 ring-1 ring-border/60';
+const toolbarTabsTriggerClass =
+  'px-3 py-1.5 text-sm font-semibold data-[state=active]:shadow-sm';
+
 export interface WorkOrdersToolbarWeekNav {
-  anchorLabel: string;
-  anchorOrderCount: number;
   sheetDate: string;
-  weekOptions: WorkOrderWeekPickerOption[];
+  calendarSheetRows: WorkOrderSheetRow[];
+  orderCountByDate: Record<string, number>;
+  calendarMonth: Date;
+  onCalendarMonthChange: (month: Date) => void;
   onNavigatePrev: () => void;
   onNavigateNext: () => void;
-  onSelectWeek: (weekStart: string) => void;
   onSheetDateChange: (iso: string) => void;
+  onGoToToday: () => void;
 }
 
 export interface WorkOrdersToolbarProps {
@@ -38,6 +43,8 @@ export interface WorkOrdersToolbarProps {
   onFiltersPanelOpenChange: (open: boolean) => void;
   activeFilterCount: number;
   weekNav?: WorkOrdersToolbarWeekNav;
+  weekView?: WorkOrdersWeekView;
+  onWeekViewChange?: (view: WorkOrdersWeekView) => void;
   machineFilter: string;
   onMachineChange: (value: string) => void;
   machines: Machine[];
@@ -53,44 +60,56 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
   onFiltersPanelOpenChange,
   activeFilterCount,
   weekNav,
+  weekView = 'rows',
+  onWeekViewChange,
   machineFilter,
   onMachineChange,
   machines,
   machineSelectDisabled = false,
 }) => (
   <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2.5 flex flex-wrap items-center gap-2 lg:flex-nowrap">
-    <div className="inline-flex shrink-0 rounded-md border border-border bg-background p-0.5">
-      <Button
-        type="button"
-        variant={layoutMode === 'list' ? 'secondary' : 'ghost'}
-        size="sm"
-        className="h-8 px-3"
-        onClick={() => onLayoutModeChange('list')}
+    <Tabs
+      value={layoutMode}
+      onValueChange={(value) => onLayoutModeChange(value as WorkOrdersLayoutMode)}
+    >
+      <TabsList className={toolbarTabsListClass}>
+        <TabsTrigger value="list" className={toolbarTabsTriggerClass}>
+          List
+        </TabsTrigger>
+        <TabsTrigger value="week" className={toolbarTabsTriggerClass}>
+          Calendar week
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+
+    {layoutMode === 'week' && onWeekViewChange ? (
+      <Tabs
+        value={weekView}
+        onValueChange={(value) => onWeekViewChange(value as WorkOrdersWeekView)}
       >
-        List
-      </Button>
-      <Button
-        type="button"
-        variant={layoutMode === 'week' ? 'secondary' : 'ghost'}
-        size="sm"
-        className="h-8 px-3"
-        onClick={() => onLayoutModeChange('week')}
-      >
-        Calendar week
-      </Button>
-    </div>
+        <TabsList className={toolbarTabsListClass}>
+          <TabsTrigger value="rows" className={toolbarTabsTriggerClass}>
+            Rows
+          </TabsTrigger>
+          <TabsTrigger value="columns" className={toolbarTabsTriggerClass}>
+            Columns
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+    ) : null}
 
     <div className="flex min-w-0 flex-1 justify-center">
       {weekNav ? (
         <WorkOrderWeekNavigator
-          anchorLabel={weekNav.anchorLabel}
-          anchorOrderCount={weekNav.anchorOrderCount}
           sheetDate={weekNav.sheetDate}
-          weekOptions={weekNav.weekOptions}
+          calendarSheetRows={weekNav.calendarSheetRows}
+          orderCountByDate={weekNav.orderCountByDate}
+          calendarMonth={weekNav.calendarMonth}
+          onCalendarMonthChange={weekNav.onCalendarMonthChange}
           onNavigatePrev={weekNav.onNavigatePrev}
           onNavigateNext={weekNav.onNavigateNext}
-          onSelectWeek={weekNav.onSelectWeek}
           onSheetDateChange={weekNav.onSheetDateChange}
+          onGoToToday={weekNav.onGoToToday}
         />
       ) : null}
     </div>

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
 import {
   workOrderItemActionLabel,
+  workOrderPriorityBadgeClass,
+  workOrderPriorityBadgeLabel,
   workOrderStatusBadgeClass,
   workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
@@ -22,26 +24,15 @@ function formatSheetTimestamp(iso: string | null): string | null {
 }
 
 function priorityBadge(priority: WorkOrderSheetRow['priority']) {
-  if (priority === 'HIGH') {
-    return (
-      <Badge variant="outline" className="border-amber-500/50 px-1 py-0 text-[9px] text-amber-700 dark:text-amber-400">
-        HIGH
-      </Badge>
-    );
-  }
-  if (priority === 'URGENT') {
-    return <Badge variant="destructive" className="px-1 py-0 text-[9px]">URGENT</Badge>;
-  }
-  if (priority === 'LOW') {
-    return (
-      <Badge variant="outline" className="px-1 py-0 text-[9px] text-muted-foreground">
-        LOW
-      </Badge>
-    );
-  }
   return (
-    <Badge variant="outline" className="px-1 py-0 text-[9px] text-muted-foreground">
-      MED
+    <Badge
+      variant="outline"
+      className={cn(
+        'px-1 py-0 text-[9px] font-semibold',
+        workOrderPriorityBadgeClass(priority),
+      )}
+    >
+      {workOrderPriorityBadgeLabel(priority)}
     </Badge>
   );
 }
@@ -85,6 +76,10 @@ function approvalPendingBadge(row: WorkOrderSheetRow) {
   );
 }
 
+function SheetEmptyCell({ children }: { children: React.ReactNode }) {
+  return <span className="text-xs italic text-muted-foreground/80">{children}</span>;
+}
+
 function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
   if (!row.hasBilling && !row.hasTemplate) return null;
   return (
@@ -103,7 +98,7 @@ function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
   );
 }
 
-function SheetMachineWorksCell({ row }: { row: WorkOrderSheetRow }) {
+function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
   const started = formatSheetTimestamp(row.startedAt);
   const completed = formatSheetTimestamp(row.completedAt);
   const hasParts = row.partName !== '—';
@@ -113,17 +108,15 @@ function SheetMachineWorksCell({ row }: { row: WorkOrderSheetRow }) {
   const locationLabel = row.sectionName ? `${row.factoryName} · ${row.sectionName}` : row.factoryName;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="font-medium leading-tight">{row.machineName}</span>
+        <span className="text-sm font-semibold leading-snug">{row.machineName}</span>
         {priorityBadge(row.priority)}
         {statusBadge(row)}
         {approvalPendingBadge(row)}
       </div>
 
-      <div className="text-sm leading-snug text-muted-foreground">{row.works}</div>
-
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] leading-tight text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-normal text-muted-foreground">
         <span>{row.workOrderNumber}</span>
         <span aria-hidden className="text-border">·</span>
         <span>{locationLabel}</span>
@@ -137,7 +130,7 @@ function SheetMachineWorksCell({ row }: { row: WorkOrderSheetRow }) {
       </div>
 
       {(started || completed) && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] leading-tight">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] leading-normal">
           {started ? (
             <span className="text-emerald-700 dark:text-emerald-400">Started {started}</span>
           ) : null}
@@ -147,6 +140,12 @@ function SheetMachineWorksCell({ row }: { row: WorkOrderSheetRow }) {
         </div>
       )}
     </div>
+  );
+}
+
+function SheetWorksCell({ works }: { works: string }) {
+  return (
+    <div className="min-w-0 text-sm font-medium leading-snug text-foreground/90">{works}</div>
   );
 }
 
@@ -161,7 +160,7 @@ function parseWorkerNames(workers: string): string[] {
 function SheetWorkersCell({ workers }: { workers: string }) {
   const names = parseWorkerNames(workers);
   if (names.length === 0) {
-    return <span className="text-xs text-muted-foreground">—</span>;
+    return <SheetEmptyCell>No workers</SheetEmptyCell>;
   }
 
   return (
@@ -180,7 +179,7 @@ function SheetWorkersCell({ workers }: { workers: string }) {
 
 function SheetPartCell({ row }: { row: WorkOrderSheetRow }) {
   if (row.partName === '—') {
-    return <span className="text-muted-foreground">—</span>;
+    return <SheetEmptyCell>No parts required</SheetEmptyCell>;
   }
 
   const actionLabel = row.actionType ? workOrderItemActionLabel(row.actionType) : null;
@@ -216,7 +215,8 @@ export function WorkOrderSheetTableHeader({
         {showStartDateColumn ? (
           <th className="w-[4.5rem] min-w-[4.5rem] px-2 py-1.5">Start</th>
         ) : null}
-        <th className="px-2 py-1.5">Machine · Works</th>
+        <th className="px-2 py-1.5">Machine</th>
+        <th className="w-[8rem] min-w-[8rem] px-2 py-1.5">Works</th>
         <th className="px-2 py-1.5">Parts / consumables</th>
         <th className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5">Workers</th>
         <th className="w-[8.5rem] min-w-[8.5rem] px-2 py-1.5">Approvers</th>
@@ -271,33 +271,41 @@ export function WorkOrderSheetDayRows({
             </td>
           ) : null}
           {row.isFirstInGroup ? (
-            <td
-              rowSpan={row.groupRowSpan}
-              className="border-r border-border/40 px-2 py-1.5 align-top text-sm text-card-foreground"
-            >
-              <SheetMachineWorksCell row={row} />
-            </td>
+            <>
+              <td
+                rowSpan={row.groupRowSpan}
+                className="border-r border-border/40 px-2 py-2.5 align-top text-sm text-card-foreground"
+              >
+                <SheetMachineCell row={row} />
+              </td>
+              <td
+                rowSpan={row.groupRowSpan}
+                className="w-[8rem] min-w-[8rem] border-r border-border/40 px-2 py-2.5 align-middle text-sm text-card-foreground"
+              >
+                <SheetWorksCell works={row.works} />
+              </td>
+            </>
           ) : null}
-          <td className="px-2 py-1.5 text-sm">
+          <td className="px-2 py-1.5 align-middle text-sm">
             <SheetPartCell row={row} />
           </td>
           {row.isFirstInGroup ? (
             <>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[7.5rem] min-w-[7.5rem] border-l border-border/40 px-2 py-1.5 align-top"
+                className="w-[7.5rem] min-w-[7.5rem] border-l border-border/40 px-2 py-1.5 align-middle"
               >
                 <SheetWorkersCell workers={row.workers} />
               </td>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[8.5rem] min-w-[8.5rem] px-2 py-1.5 align-top"
+                className="w-[8.5rem] min-w-[8.5rem] px-2 py-1.5 align-middle"
               >
                 <SheetApproverChips approvers={row.approvers} />
               </td>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5 align-top"
+                className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5 align-middle"
               >
                 <SheetWorkOrderRowActions
                   workOrderId={row.workOrderId}
