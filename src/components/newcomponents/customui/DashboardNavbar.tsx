@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import FactorySelectorDialog from './FactorySelectorDialog';
+import GlobalFactoryHoverPicker from './GlobalFactoryHoverPicker';
 import NotificationBell from '@/components/newcomponents/customui/notifications/NotificationBell';
 
 interface NavItem {
@@ -418,18 +419,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         </span>
                       </button>
                     </CollapsibleTrigger>
-                    {factoriesExpanded && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFactoryDialogOpen(true);
-                        }}
-                        title="Change factory"
-                        className="p-1.5 rounded-md shrink-0 hover:bg-white/10 dark:hover:bg-white/10 transition-colors"
-                      >
-                        <ArrowLeftRight size={18} />
-                      </button>
-                    )}
+                    {factoriesExpanded && <GlobalFactoryHoverPicker />}
                     <CollapsibleTrigger asChild>
                       <button className="shrink-0 p-1 text-white/80">
                         {factoriesExpanded ? (
