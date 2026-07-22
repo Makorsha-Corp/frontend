@@ -9,6 +9,7 @@ import AccountInvoiceSummaryCard from './AccountInvoiceSummaryCard';
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
 import InvoiceEventLogCard from './InvoiceEventLogCard';
 import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
+import { cn } from '@/lib/utils';
 
 export interface AccountInvoiceOverviewPanelProps {
   invoiceId: number;
@@ -20,6 +21,12 @@ export interface AccountInvoiceOverviewPanelProps {
   dueDateReadOnly?: boolean;
   /** Event log card; hidden on PO/EO embedded invoice (shown in AccountInvoiceDialog). */
   showEventLog?: boolean;
+  /** When false, RTK queries are skipped (e.g. closed calendar popover). */
+  fetchEnabled?: boolean;
+  highlightPaymentId?: number;
+  paymentsReadOnly?: boolean;
+  /** Tighter layout for calendar popover embed. */
+  embedded?: boolean;
 }
 
 const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = ({
@@ -30,15 +37,21 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
   showOrderSummary = false,
   dueDateReadOnly = false,
   showEventLog = true,
+  fetchEnabled = true,
+  highlightPaymentId,
+  paymentsReadOnly = false,
+  embedded = false,
 }) => {
-  const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
+  const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId, {
+    skip: !fetchEnabled,
+  });
   const invoice = fetchedInvoice ?? invoiceProp;
   const { data: events = [] } = useGetInvoiceEventsQuery(invoiceId, {
-    skip: !showEventLog,
+    skip: !showEventLog || !fetchEnabled,
   });
 
   const { data: account } = useGetAccountByIdQuery(invoice?.account_id ?? 0, {
-    skip: !invoice?.account_id || accountNameProp !== undefined,
+    skip: !fetchEnabled || !invoice?.account_id || accountNameProp !== undefined,
   });
   const accountName =
     accountNameProp ?? account?.name ?? (invoice ? `Account #${invoice.account_id}` : null);
@@ -46,7 +59,7 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
 
   const { orderNumber: fetchedOrderNumber, isLoading: isOrderLoading } = useLinkedOrderForInvoice(
     invoiceId,
-    { skip: linkedOrderNumberProp !== undefined }
+    { skip: !fetchEnabled || linkedOrderNumberProp !== undefined },
   );
   const linkedOrderNumber =
     linkedOrderNumberProp !== undefined ? linkedOrderNumberProp : fetchedOrderNumber;
@@ -67,7 +80,7 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
   }
 
   return (
-    <div className="space-y-4">
+    <div className={cn('space-y-4', embedded && 'space-y-3 px-4 py-3')}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 pr-2">
           {accountName ? (
@@ -109,7 +122,12 @@ const AccountInvoiceOverviewPanel: React.FC<AccountInvoiceOverviewPanelProps> = 
         showPaymentsField
       />
 
-      <AccountInvoicePaymentsSection invoice={invoice} />
+      <AccountInvoicePaymentsSection
+        invoice={invoice}
+        embedded={embedded}
+        highlightPaymentId={highlightPaymentId}
+        readOnly={paymentsReadOnly}
+      />
 
       {showEventLog ? <InvoiceEventLogCard events={events} invoice={invoice} /> : null}
     </div>

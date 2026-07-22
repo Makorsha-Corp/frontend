@@ -186,10 +186,7 @@ const ProjectsPage: React.FC = () => {
 
   const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
     if (slice.factory_ids === undefined) return;
-    const nextId = sliceToSingleFactoryId({
-      factory_ids: slice.factory_ids,
-      section_ids: [],
-    });
+    const nextId = sliceToSingleFactoryId({ factory_ids: slice.factory_ids });
     setFactoryId(nextId);
     setSelectedProjectId(null);
     setSelectedProjectData(null);

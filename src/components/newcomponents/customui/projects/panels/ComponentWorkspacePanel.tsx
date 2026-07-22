@@ -20,6 +20,7 @@ import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
 import type { ProjectComponentTask } from '@/types/projectComponentTask';
+import type { ProjectComponentTotalCostResponse } from '@/types/ledger';
 import { formatCurrency, formatProjectStatus, getStatusBadge } from '../projectsPageUtils';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +28,7 @@ interface ComponentWorkspacePanelProps {
   selectedProject: Project | null;
   selectedComponent: ProjectComponent | undefined;
   componentsCount: number;
-  totalCost: { total_cost: number } | undefined;
+  totalCost: ProjectComponentTotalCostResponse | undefined;
   leftGroupTab: 'items' | 'misc';
   rightGroupTab: 'notes' | 'tasks' | 'documents';
   componentItems: { id: number; item_id: number; qty: number }[];
@@ -205,7 +206,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
                   <div className="col-span-2">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Cost</p>
                     <p className="text-lg font-semibold tabular-nums text-brand-primary">
-                      {totalCost ? formatCurrency(totalCost.total_cost) : '—'}
+                      {totalCost ? formatCurrency(Number(totalCost.total_cost)) : '—'}
                     </p>
                   </div>
                 </div>

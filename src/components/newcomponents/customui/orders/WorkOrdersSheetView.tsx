@@ -116,7 +116,7 @@ const WorkOrdersSheetView: React.FC<WorkOrdersSheetViewProps> = ({
   );
 
   const machineIdToFactoryId = useMemo(
-    () => buildMachineIdToFactoryId(machines, sections),
+    () => buildMachineIdToFactoryId(machines),
     [machines, sections],
   );
 

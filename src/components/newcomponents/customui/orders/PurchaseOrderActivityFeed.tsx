@@ -28,7 +28,7 @@ const PurchaseOrderActivityFeed: React.FC<PurchaseOrderActivityFeedProps> = ({
         icon: <Plus className="h-4 w-4 text-green-600 dark:text-green-400" />,
         timestamp: parseApiDateTime(order.created_at) ?? new Date(0),
         description: `${order.po_number} created`,
-        subtext: accountName(order.account_id),
+        subtext: order.account_id != null ? accountName(order.account_id) : '—',
         targetId: order.id,
       });
 

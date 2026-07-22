@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector, useStore } from 'react-redux';
+import { useSelector, useStore } from 'react-redux';
 import type { RootState } from '@/app/store';
+import { useAppDispatch } from '@/app/hooks';
 import { authApi } from '@/features/auth/authApi';
 import { logout, setTokens } from '@/features/auth/authSlice';
 import { notificationsApi } from '@/features/notifications/notificationsApi';
@@ -18,7 +19,7 @@ export interface UseNotificationStreamOptions {
 }
 
 export function useNotificationStream(options?: UseNotificationStreamOptions): boolean {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const store = useStore<RootState>();
   const token = useSelector((state: RootState) => state.auth.token);
   const workspaceId = useSelector((state: RootState) => state.auth.workspace?.id);

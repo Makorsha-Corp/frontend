@@ -359,7 +359,7 @@ const ProductionPage: React.FC = () => {
 
   const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
     if (slice.factory_ids === undefined) return;
-    setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids, section_ids: [] }));
+    setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids }));
     setLineId(null);
   };
 

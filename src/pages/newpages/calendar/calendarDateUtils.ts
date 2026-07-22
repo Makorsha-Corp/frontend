@@ -20,7 +20,8 @@ import {
   subMonths,
   subWeeks,
 } from 'date-fns';
-import type { CalendarEvent, CalendarView } from '@/types/calendar';
+import type { CalendarCategory, CalendarEvent, CalendarView } from '@/types/calendar';
+import { ALL_CALENDAR_CATEGORIES } from '@/types/calendar';
 
 /** Sunday-start week to match work-order calendar. */
 export const CALENDAR_WEEK_STARTS_ON = 0 as const;
@@ -122,6 +123,22 @@ export function getAnchorYear(anchorDate: string): number {
   return getYear(parseCalendarDate(anchorDate));
 }
 
+export function getAnchorDay(anchorDate: string): number {
+  return getDate(parseCalendarDate(anchorDate));
+}
+
+export function getDaySelectOptions(month: number, year: number): number[] {
+  const maxDay = getDate(lastDayOfMonth(new Date(year, month, 1)));
+  return Array.from({ length: maxDay }, (_, index) => index + 1);
+}
+
+export function setAnchorDay(anchorDate: string, day: number): string {
+  const current = parseCalendarDate(anchorDate);
+  const maxDay = getDate(lastDayOfMonth(current));
+  const next = set(current, { date: Math.min(Math.max(1, day), maxDay) });
+  return formatCalendarDate(next);
+}
+
 export function shiftAnchorDate(view: CalendarView, anchorDate: string, direction: -1 | 1): string {
   const anchor = parseCalendarDate(anchorDate);
   if (view === 'month') {
@@ -136,6 +153,42 @@ export function shiftAnchorDate(view: CalendarView, anchorDate: string, directio
   return formatCalendarDate(addDays(anchor, direction * 7));
 }
 
+export interface CategoryEventGroup {
+  category: CalendarCategory;
+  events: CalendarEvent[];
+}
+
+const CATEGORY_ORDER = new Map<CalendarCategory, number>(
+  ALL_CALENDAR_CATEGORIES.map((category, index) => [category, index]),
+);
+
+function compareEventsByCategory(a: CalendarEvent, b: CalendarEvent): number {
+  const categoryDiff =
+    (CATEGORY_ORDER.get(a.category) ?? 999) - (CATEGORY_ORDER.get(b.category) ?? 999);
+  if (categoryDiff !== 0) return categoryDiff;
+  return a.title.localeCompare(b.title);
+}
+
+export function sortEventsByCategory(events: CalendarEvent[]): CalendarEvent[] {
+  return [...events].sort(compareEventsByCategory);
+}
+
+export function groupEventsByCategory(events: CalendarEvent[]): CategoryEventGroup[] {
+  const sorted = sortEventsByCategory(events);
+  const groups: CategoryEventGroup[] = [];
+
+  for (const event of sorted) {
+    const last = groups[groups.length - 1];
+    if (last?.category === event.category) {
+      last.events.push(event);
+    } else {
+      groups.push({ category: event.category, events: [event] });
+    }
+  }
+
+  return groups;
+}
+
 export function groupEventsByDate(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
   const map = new Map<string, CalendarEvent[]>();
   for (const event of events) {
@@ -144,7 +197,7 @@ export function groupEventsByDate(events: CalendarEvent[]): Map<string, Calendar
     map.set(event.date, list);
   }
   for (const [, list] of map) {
-    list.sort((a, b) => a.title.localeCompare(b.title));
+    sortEventsByCategory(list);
   }
   return map;
 }

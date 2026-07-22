@@ -120,13 +120,25 @@ export interface ExpenseOrderApproversList {
   summary: ExpenseApprovalSummary;
 }
 
+export interface ExpenseOrderEventFieldChange {
+  field: string;
+  label: string;
+  from_value?: string | null;
+  to_value?: string | null;
+}
+
+export interface ExpenseOrderEventMetadata {
+  changes?: ExpenseOrderEventFieldChange[];
+  [key: string]: unknown;
+}
+
 export interface ExpenseOrderEvent {
   id: number;
   workspace_id: number;
   expense_order_id: number;
   event_type: string;
   description: string;
-  metadata?: Record<string, unknown> | null;
+  metadata?: ExpenseOrderEventMetadata | null;
   performed_by: number | null;
   performer_name: string | null;
   created_at: string;

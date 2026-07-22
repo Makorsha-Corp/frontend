@@ -10,6 +10,11 @@ export interface CalendarWeekViewProps {
   onSelectDay: (date: string) => void;
 }
 
+function hasCategoryClusterBreak(events: CalendarDayCell['events'], index: number): boolean {
+  if (index === 0) return false;
+  return events[index - 1].category !== events[index].category;
+}
+
 const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({ days, onSelectDay }) => {
   return (
     <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-border overflow-hidden rounded-lg border border-border bg-card">
@@ -42,19 +47,26 @@ const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({ days, onSelectDay }
             </span>
           </button>
 
-          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-1.5">
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-1.5">
             {day.events.length === 0 ? (
               <div className="rounded-md border border-dashed border-border/70 px-2 py-6 text-center text-[11px] text-muted-foreground">
                 No events
               </div>
             ) : (
-              day.events.map((event) => {
+              day.events.map((event, index) => {
                 const style = getCategoryStyle(event.category);
+                const clusterBreak = hasCategoryClusterBreak(day.events, index);
+
                 return (
-                  <CalendarEventPopover key={event.id} event={event}>
+                  <CalendarEventPopover
+                    key={event.id}
+                    event={event}
+                    className="block w-full shrink-0"
+                  >
                     <div
                       className={cn(
                         'w-full rounded-md border p-2 text-left text-xs shadow-sm transition-colors hover:bg-muted/20',
+                        clusterBreak && 'mt-1.5 border-t border-border/40 pt-2',
                         style.event,
                       )}
                     >

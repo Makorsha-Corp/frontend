@@ -20,12 +20,15 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* shadcn */
-    "baseUrl": ".",
+    /* Path aliases (@/ → src/) — baseUrl removed per TS 6.0 */
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": ["src", "vite-env.d.ts"],
+  "exclude": [
+    "src/legacy-reference",
+    "src/components/newcomponents/customui/orders/PurchaseOrderDetailPanelMockup.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -192,7 +192,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const [deleteOrder] = useDeleteWorkOrderMutation();
 
   const machineIdToFactoryId = useMemo(
-    () => buildMachineIdToFactoryId(machines, sections),
+    () => buildMachineIdToFactoryId(machines),
     [machines, sections],
   );
 

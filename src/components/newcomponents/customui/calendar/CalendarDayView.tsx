@@ -1,14 +1,16 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUtils';
 import type { CalendarDayCell } from '@/pages/newpages/calendar/calendarDateUtils';
-import CalendarEventPopover from './CalendarEventPopover';
-import { getCategoryStyle } from './calendarCategoryStyles';
+import CalendarCategoryDivider from './CalendarCategoryDivider';
+import CalendarEventCard from './CalendarEventCard';
 
 export interface CalendarDayViewProps {
   day: CalendarDayCell;
 }
 
 const CalendarDayView: React.FC<CalendarDayViewProps> = ({ day }) => {
+  const categoryGroups = groupEventsByCategory(day.events);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
       <div className="border-b border-border px-4 py-3">
@@ -17,33 +19,20 @@ const CalendarDayView: React.FC<CalendarDayViewProps> = ({ day }) => {
           {day.events.length} {day.events.length === 1 ? 'event' : 'events'}
         </p>
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {day.events.length === 0 ? (
           <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
             No events on this day
           </div>
         ) : (
-          day.events.map((event) => {
-            const style = getCategoryStyle(event.category);
-            return (
-              <CalendarEventPopover key={event.id} event={event} className="block w-full">
-                <div
-                  className={cn(
-                    'w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/20',
-                    style.event,
-                  )}
-                >
-                  <p className="text-xs font-medium uppercase tracking-wide opacity-80">
-                    {style.label} · {event.date_label}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">{event.title}</p>
-                  {event.subtitle ? (
-                    <p className="mt-1 text-xs opacity-80 line-clamp-2">{event.subtitle}</p>
-                  ) : null}
-                </div>
-              </CalendarEventPopover>
-            );
-          })
+          categoryGroups.map((group) => (
+            <section key={group.category} className="space-y-1.5">
+              <CalendarCategoryDivider category={group.category} count={group.events.length} />
+              {group.events.map((event) => (
+                <CalendarEventCard key={event.id} event={event} variant="day" />
+              ))}
+            </section>
+          ))
         )}
       </div>
     </div>

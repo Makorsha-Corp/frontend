@@ -15,13 +15,20 @@ import {
   EmphasisTabsTrigger,
 } from '@/components/newcomponents/customui/EmphasisTabSwitcher';
 import { cn } from '@/lib/utils';
+import {
+  appShellHeaderBoxedControlClass,
+  appShellHeaderControlClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import type { CalendarView } from '@/types/calendar';
 import {
+  getAnchorDay,
   getAnchorMonth,
   getAnchorYear,
+  getDaySelectOptions,
   getMonthSelectOptions,
   getYearSelectOptions,
   isViewingCurrentPeriod,
+  setAnchorDay,
   setAnchorMonthYear,
   shiftAnchorDate,
   todayIso,
@@ -44,6 +51,10 @@ export interface CalendarToolbarProps {
   anchorDate: string;
   onViewChange: (view: CalendarView) => void;
   onAnchorDateChange: (date: string) => void;
+  /** Header row in AppShellHeader vs standalone page row. */
+  variant?: 'default' | 'header';
+  /** Split navigation (date) and views for header layout. */
+  part?: 'all' | 'navigation' | 'views';
 }
 
 const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
@@ -51,12 +62,16 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   anchorDate,
   onViewChange,
   onAnchorDateChange,
+  variant = 'default',
+  part = 'all',
 }) => {
   const isCurrentPeriod = isViewingCurrentPeriod(view, anchorDate);
 
   const month = getAnchorMonth(anchorDate);
   const year = getAnchorYear(anchorDate);
+  const day = getAnchorDay(anchorDate);
   const yearOptions = useMemo(() => getYearSelectOptions(anchorDate), [anchorDate]);
+  const dayOptions = useMemo(() => getDaySelectOptions(month, year), [month, year]);
 
   const handleMonthChange = (value: string) => {
     onAnchorDateChange(setAnchorMonthYear(anchorDate, Number(value), year));
@@ -66,91 +81,146 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
     onAnchorDateChange(setAnchorMonthYear(anchorDate, month, Number(value)));
   };
 
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex h-10 items-stretch overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 shrink-0 rounded-none border-r border-border"
-            onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, -1))}
-            aria-label="Previous period"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+  const handleDayChange = (value: string) => {
+    onAnchorDateChange(setAnchorDay(anchorDate, Number(value)));
+  };
 
-          <div className="flex items-center gap-1 px-2">
-            <Select value={String(month)} onValueChange={handleMonthChange}>
-              <SelectTrigger className={cn(selectTriggerClass, 'w-[7.5rem] font-semibold')}>
+  const isHeader = variant === 'header';
+  const controlHeight = isHeader ? appShellHeaderControlClass : 'h-10';
+  const dateShellClass = isHeader
+    ? cn('inline-flex items-stretch overflow-hidden rounded-lg border shadow-sm', appShellHeaderBoxedControlClass)
+    : 'inline-flex h-10 items-stretch overflow-hidden rounded-lg border border-border bg-card shadow-sm';
+  const navButtonClass = cn(
+    'shrink-0 rounded-none',
+    isHeader ? cn(appShellHeaderControlClass, 'w-9') : 'h-10 w-10',
+  );
+  const selectTrigger = cn(
+    selectTriggerClass,
+    isHeader && '!h-9',
+  );
+
+  const navigationControls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className={dateShellClass}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn(navButtonClass, 'border-r border-border')}
+          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, -1))}
+          aria-label="Previous period"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        <div className="flex items-center gap-1 px-2">
+          <Select value={String(month)} onValueChange={handleMonthChange}>
+            <SelectTrigger className={cn(selectTrigger, 'w-[7.5rem] font-semibold')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {view === 'day' ? (
+            <Select value={String(day)} onValueChange={handleDayChange}>
+              <SelectTrigger className={cn(selectTrigger, 'w-[3.25rem] font-semibold')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {MONTH_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {dayOptions.map((optionDay) => (
+                  <SelectItem key={optionDay} value={String(optionDay)}>
+                    {optionDay}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          ) : null}
 
-            <Select value={String(year)} onValueChange={handleYearChange}>
-              <SelectTrigger className={cn(selectTriggerClass, 'w-[5.5rem] font-semibold')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {yearOptions.map((optionYear) => (
-                  <SelectItem key={optionYear} value={String(optionYear)}>
-                    {optionYear}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 shrink-0 rounded-none border-l border-border"
-            onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, 1))}
-            aria-label="Next period"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <Select value={String(year)} onValueChange={handleYearChange}>
+            <SelectTrigger className={cn(selectTrigger, 'w-[5.5rem] font-semibold')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((optionYear) => (
+                <SelectItem key={optionYear} value={String(optionYear)}>
+                  {optionYear}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Button
           type="button"
-          variant={isCurrentPeriod ? 'secondary' : 'outline'}
-          size="sm"
-          className={cn('h-10 shrink-0 px-3', isCurrentPeriod && 'pointer-events-none opacity-70')}
-          onClick={() => onAnchorDateChange(todayIso())}
-          disabled={isCurrentPeriod}
+          variant="ghost"
+          size="icon"
+          className={cn(navButtonClass, 'border-l border-border')}
+          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, 1))}
+          aria-label="Next period"
         >
-          Today
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      <EmphasisTabsProvider value={view}>
-        <Tabs
-          value={view}
-          onValueChange={(nextView) => onViewChange(nextView as CalendarView)}
+      <Button
+        type="button"
+        variant={isCurrentPeriod ? 'secondary' : 'outline'}
+        size="sm"
+        className={cn(
+          'shrink-0 px-3',
+          controlHeight,
+          isHeader && 'border-border bg-background',
+          isCurrentPeriod && 'pointer-events-none opacity-70',
+        )}
+        onClick={() => onAnchorDateChange(todayIso())}
+        disabled={isCurrentPeriod}
+      >
+        Today
+      </Button>
+    </div>
+  );
+
+  const viewControls = (
+    <EmphasisTabsProvider value={view}>
+      <Tabs value={view} onValueChange={(nextView) => onViewChange(nextView as CalendarView)}>
+        <EmphasisTabsList
+          className={cn(
+            'w-auto shrink-0 border border-border bg-muted/40 dark:bg-muted/60',
+            isHeader ? cn(appShellHeaderControlClass, 'h-9') : 'h-10',
+          )}
         >
-          <EmphasisTabsList className="h-10 w-auto shrink-0 border border-border bg-muted/40 dark:bg-muted/60">
-            {VIEW_OPTIONS.map((option) => (
-              <EmphasisTabsTrigger
-                key={option.value}
-                value={option.value}
-                className="flex-none px-3 text-sm"
-              >
-                {option.label}
-              </EmphasisTabsTrigger>
-            ))}
-          </EmphasisTabsList>
-        </Tabs>
-      </EmphasisTabsProvider>
+          {VIEW_OPTIONS.map((option) => (
+            <EmphasisTabsTrigger
+              key={option.value}
+              value={option.value}
+              className="flex-none px-3 text-sm"
+            >
+              {option.label}
+            </EmphasisTabsTrigger>
+          ))}
+        </EmphasisTabsList>
+      </Tabs>
+    </EmphasisTabsProvider>
+  );
+
+  if (part === 'navigation') {
+    return navigationControls;
+  }
+
+  if (part === 'views') {
+    return viewControls;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      {navigationControls}
+      {viewControls}
     </div>
   );
 };

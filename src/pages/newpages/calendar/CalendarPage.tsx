@@ -4,6 +4,7 @@ import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar
 import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import CalendarToolbar from '@/components/newcomponents/customui/calendar/CalendarToolbar';
@@ -21,6 +22,8 @@ import {
   groupEventsByDate,
 } from './calendarDateUtils';
 import { useCalendarFilters } from './useCalendarFilters';
+import { useCalendarMonthLayoutDev } from './useCalendarMonthLayoutDev';
+import CalendarMonthLayoutDevToggle from '@/components/newcomponents/customui/calendar/CalendarMonthLayoutDevToggle';
 
 const CalendarPage: React.FC = () => {
   const {
@@ -35,6 +38,8 @@ const CalendarPage: React.FC = () => {
     toggleCategory,
     showAllCategories,
   } = useCalendarFilters();
+
+  const { layoutPreset, setLayoutPreset } = useCalendarMonthLayoutDev();
 
   const { data, isLoading, isFetching, error } = useGetCalendarEventsQuery({
     start: visibleRange.start,
@@ -71,32 +76,49 @@ const CalendarPage: React.FC = () => {
       <DashboardNavbar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AppShellHeader sticky>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className={appShellHeaderLeftGroupClass}>
               <div className={appShellHeaderIconTileClass}>
                 <CalendarDays className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>Calendar</h1>
+              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <CalendarToolbar
+                variant="header"
+                part="navigation"
+                view={view}
+                anchorDate={anchorDate}
+                onViewChange={setView}
+                onAnchorDateChange={setAnchorDate}
+              />
             </div>
-            {(isLoading || isFetching) && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading events" />
-            )}
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              <CalendarToolbar
+                variant="header"
+                part="views"
+                view={view}
+                anchorDate={anchorDate}
+                onViewChange={setView}
+                onAnchorDateChange={setAnchorDate}
+              />
+              {(isLoading || isFetching) && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading events" />
+              )}
+            </div>
           </div>
         </AppShellHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6">
-          <CalendarToolbar
-            view={view}
-            anchorDate={anchorDate}
-            onViewChange={setView}
-            onAnchorDateChange={setAnchorDate}
-          />
-
-          <CategoryLegendChips
-            activeCategories={activeCategories}
-            onToggle={toggleCategory}
-            onShowAll={showAllCategories}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <CategoryLegendChips
+              activeCategories={activeCategories}
+              onToggle={toggleCategory}
+              onShowAll={showAllCategories}
+            />
+            {view === 'month' ? (
+              <CalendarMonthLayoutDevToggle value={layoutPreset} onChange={setLayoutPreset} />
+            ) : null}
+          </div>
 
           {error ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive">
@@ -106,7 +128,11 @@ const CalendarPage: React.FC = () => {
 
           <div className="flex min-h-0 flex-1 flex-col">
             {view === 'month' && (
-              <CalendarMonthGrid days={monthDays} onSelectDay={openDayView} />
+              <CalendarMonthGrid
+                days={monthDays}
+                onSelectDay={openDayView}
+                layoutPreset={layoutPreset}
+              />
             )}
             {view === 'week' && (
               <CalendarWeekView days={weekDays} onSelectDay={openDayView} />

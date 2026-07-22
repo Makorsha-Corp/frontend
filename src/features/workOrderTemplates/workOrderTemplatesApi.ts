@@ -12,6 +12,7 @@ import type {
   GenerateWorkOrderDraftsRequest,
 } from '@/types/workOrderTemplate';
 import type { WorkOrder } from '@/types/workOrder';
+import { workOrdersApi } from '@/features/workOrders/workOrdersApi';
 
 export const workOrderTemplatesApi = createApi({
   reducerPath: 'workOrderTemplatesApi',
@@ -77,7 +78,15 @@ export const workOrderTemplatesApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['WorkOrder', 'WorkOrderTemplate'],
+      invalidatesTags: ['WorkOrderTemplate'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(workOrdersApi.util.invalidateTags(['WorkOrder']));
+        } catch {
+          /* mutation failed — skip cross-slice invalidation */
+        }
+      },
     }),
   }),
 });

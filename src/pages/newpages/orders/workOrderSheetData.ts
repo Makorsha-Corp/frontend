@@ -26,6 +26,18 @@ import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilter
 /** Sunday-start work week (Sun → Sat). */
 export const SHEET_WEEK_STARTS_ON = 0 as const;
 
+export interface MachineDayChecklistEntry {
+  machineId: number;
+  machineName: string;
+  logged: boolean;
+}
+
+export interface MachineDayChecklist {
+  entries: MachineDayChecklistEntry[];
+  loggedCount: number;
+  totalCount: number;
+}
+
 export interface WorkOrderSheetRow {
   key: string;
   workOrderId: number;

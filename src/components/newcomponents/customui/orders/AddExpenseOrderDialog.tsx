@@ -34,6 +34,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import { ALLOCATION_TYPES, expenseCategoryLabel, type AllocationTypeValue } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
+import type { ExpenseOrder } from '@/types/expenseOrder';
 import { cn } from '@/lib/utils';
 
 const formatMoney = (n: number) =>
@@ -42,7 +43,7 @@ const formatMoney = (n: number) =>
 interface AddExpenseOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (order: { id: number } & Record<string, unknown>) => void;
+  onSuccess: (order: ExpenseOrder) => void;
 }
 
 const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({

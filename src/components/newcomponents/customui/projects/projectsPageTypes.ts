@@ -5,6 +5,7 @@ import type { ProjectComponentTask } from '@/types/projectComponentTask';
 import type { ProjectMember } from '@/types/project';
 import type { ProjectEvent } from '@/types/project';
 import type { ProjectLayoutMode } from './projectLayoutModes';
+import type { ProjectComponentTotalCostResponse } from '@/types/ledger';
 
 export interface ProjectsPageLayoutProps {
   layout: ProjectLayoutMode;
@@ -24,7 +25,7 @@ export interface ProjectsPageLayoutProps {
   miscCosts: { id: number; name: string; amount: number }[];
   componentNotes: ProjectComponentNote[];
   tasks: ProjectComponentTask[];
-  totalCost: { total_cost: number } | undefined;
+  totalCost: ProjectComponentTotalCostResponse | undefined;
   leftGroupTab: 'items' | 'misc';
   rightGroupTab: 'notes' | 'tasks' | 'documents';
   isDeletingProject: boolean;

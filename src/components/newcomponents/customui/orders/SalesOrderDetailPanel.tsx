@@ -80,7 +80,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
           <div>
             <h3 className="text-base font-semibold text-card-foreground mb-2">Deliveries ({deliveries.length})</h3>
             <div className="border border-border rounded-lg divide-y">
-              {deliveries.map((d: { id: number; delivery_number?: string; scheduled_date?: string; actual_delivery_date?: string; delivery_status?: string }) => (
+              {deliveries.map((d) => (
                 <div key={d.id} className="px-4 py-2 flex justify-between text-sm">
                   <span>{d.delivery_number ?? `#${d.id}`}</span>
                   <span className="text-muted-foreground">

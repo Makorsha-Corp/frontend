@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,11 +42,15 @@ const PAYMENT_ICON = INVOICE_EVENT_VISUALS.payment_recorded;
 interface AccountInvoicePaymentsSectionProps {
   invoice: AccountInvoice;
   embedded?: boolean;
+  highlightPaymentId?: number;
+  readOnly?: boolean;
 }
 
 const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps> = ({
   invoice,
   embedded = false,
+  highlightPaymentId,
+  readOnly = false,
 }) => {
   const { data: payments = [], isLoading: isLoadingPayments } = useGetInvoicePaymentsByInvoiceQuery(
     { invoice_id: invoice.id, skip: 0, limit: 100 },
@@ -73,6 +77,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const [showVoided, setShowVoided] = useState(
     () => invoice.invoice_status === 'voided'
   );
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const isConfirmed = invoice.invoice_status === 'confirmed';
   const isFinalized = isConfirmed;
@@ -82,6 +87,11 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   useEffect(() => {
     setShowVoided(invoice.invoice_status === 'voided');
   }, [invoice.id, invoice.invoice_status]);
+
+  useEffect(() => {
+    if (highlightPaymentId == null || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [highlightPaymentId, payments]);
 
   const activePayments = payments.filter((p) => !p.is_voided);
   const voidedPayments = payments.filter((p) => p.is_voided);
@@ -159,7 +169,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
                 {activePayments.length}
               </Badge>
             </CardTitle>
-            {!isVoided && (
+            {!isVoided && !readOnly && (
               <div className="relative group shrink-0">
                 <Button
                   size="sm"
@@ -201,7 +211,12 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
               {activePayments.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm"
+                  ref={p.id === highlightPaymentId ? highlightRef : undefined}
+                  className={cn(
+                    'flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-sm',
+                    p.id === highlightPaymentId &&
+                      'bg-brand-primary/10 ring-2 ring-brand-primary ring-offset-2 ring-offset-background',
+                  )}
                 >
                   <div className="flex min-w-0 items-start gap-3">
                     <div
@@ -238,7 +253,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
                       ) : null}
                     </div>
                   </div>
-                  {isFinalized && (
+                  {isFinalized && !readOnly && (
                     <button
                       type="button"
                       onClick={() => openVoidDialog(p)}
@@ -291,6 +306,8 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
         </CardContent>
       </Card>
 
+      {!readOnly && (
+        <>
       {/* ── Make payment dialog ── */}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="w-[min(34rem,94vw)] max-w-none">
@@ -431,6 +448,8 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </>
   );
 };

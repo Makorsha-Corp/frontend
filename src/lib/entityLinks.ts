@@ -22,6 +22,10 @@ export function buildOrderHref(orderType: string, orderId: number): string {
   }
 }
 
+export function buildAccountInvoiceHref(accountId: number, invoiceId: number): string {
+  return `/accounts/${accountId}?invoiceId=${invoiceId}`;
+}
+
 export function buildAccountHref(accountId: number): string {
   return `/accounts/${accountId}`;
 }

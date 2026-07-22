@@ -30,6 +30,7 @@ import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSe
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import { isSameTransferLocation } from '@/components/newcomponents/customui/orders/transferOrderRouteHelpers';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
+import type { TransferOrder } from '@/types/transferOrder';
 import { cn } from '@/lib/utils';
 import {
   handleUnaddedItemDraftOnSubmit,
@@ -59,7 +60,7 @@ interface SourceAvailableItem {
 interface AddTransferOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (order: { id: number } & Record<string, unknown>) => void;
+  onSuccess: (order: TransferOrder) => void;
 }
 
 const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({

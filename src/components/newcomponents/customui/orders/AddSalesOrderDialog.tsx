@@ -23,12 +23,13 @@ import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
+import type { SalesOrder } from '@/types/salesOrder';
 
 interface AddSalesOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accounts: Account[];
-  onSuccess: (order: { id: number } & Record<string, unknown>) => void;
+  onSuccess: (order: SalesOrder) => void;
 }
 
 const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({

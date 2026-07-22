@@ -70,15 +70,19 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
 
   const calendarModifiers = useMemo(() => {
     const hasOrders = (date: Date) => Boolean(orderCountByDate[format(date, 'yyyy-MM-dd')]);
+    const previewWeek = (date: Date) =>
+      previewWeekDate
+        ? isSameWeek(date, previewWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON })
+        : false;
 
     if (!parsedDate) {
-      return previewWeekDate
-        ? {
-            hasOrders,
-            previewWeek: (date: Date) =>
-              isSameWeek(date, previewWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
-          }
-        : { hasOrders };
+      return {
+        hasOrders,
+        previewWeek,
+        selectedWeek: () => false,
+        selectedWeekStart: () => false,
+        selectedWeekEnd: () => false,
+      };
     }
 
     const weekStart = startOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
@@ -86,16 +90,11 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
 
     return {
       hasOrders,
+      previewWeek,
       selectedWeek: (date: Date) =>
         isSameWeek(date, parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
       selectedWeekStart: (date: Date) => isSameDay(date, weekStart),
       selectedWeekEnd: (date: Date) => isSameDay(date, weekEnd),
-      ...(previewWeekDate
-        ? {
-            previewWeek: (date: Date) =>
-              isSameWeek(date, previewWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
-          }
-        : {}),
     };
   }, [parsedDate, orderCountByDate, previewWeekDate]);
 

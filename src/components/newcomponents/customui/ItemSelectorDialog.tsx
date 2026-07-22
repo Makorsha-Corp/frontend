@@ -73,7 +73,7 @@ export interface ItemSelection {
 export interface ItemSelectorMachineOption {
   id: number;
   name: string;
-  factory_section_id?: number;
+  factory_section_id?: number | null;
 }
 
 export interface ItemSelectorDialogProps {

@@ -16,6 +16,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  position?: string;
   workspace_name?: string;
   invitation_token?: string | null;
 }

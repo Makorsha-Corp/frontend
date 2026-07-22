@@ -180,7 +180,11 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     try {
       await updateMachineItem({
         id: mi.id,
-        data: { qty: qtyNum, req_qty: reqQty, defective_qty: defectiveQty },
+        data: {
+          qty: qtyNum,
+          req_qty: reqQty ?? undefined,
+          defective_qty: defectiveQty ?? undefined,
+        },
       }).unwrap();
       toast.success('Item updated');
       cancelItemEdit();

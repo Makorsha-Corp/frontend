@@ -60,7 +60,7 @@ const OrdersOverviewPage: React.FC = () => {
 
   const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
     if (slice.factory_ids === undefined) return;
-    setFactoryFilter(sliceToFactoryFilter({ factory_ids: slice.factory_ids, section_ids: [] }));
+    setFactoryFilter(sliceToFactoryFilter({ factory_ids: slice.factory_ids }));
   };
 
   return (

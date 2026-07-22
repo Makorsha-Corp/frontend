@@ -1,8 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUtils';
 import type { AgendaGroup } from '@/pages/newpages/calendar/calendarDateUtils';
-import CalendarEventPopover from './CalendarEventPopover';
-import { getCategoryStyle } from './calendarCategoryStyles';
+import CalendarCategoryDivider from './CalendarCategoryDivider';
+import CalendarEventCard from './CalendarEventCard';
 
 export interface CalendarAgendaListProps {
   groups: AgendaGroup[];
@@ -18,39 +19,39 @@ const CalendarAgendaList: React.FC<CalendarAgendaListProps> = ({ groups }) => {
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-lg border border-border bg-card p-4">
-      {groups.map((group) => (
-        <section key={group.date}>
-          <h3 className="sticky top-0 z-10 bg-card py-1 text-sm font-semibold text-foreground">
-            {group.dateLabel}
-          </h3>
-          <div className="mt-2 space-y-2">
-            {group.events.map((event) => {
-              const style = getCategoryStyle(event.category);
-              return (
-                <CalendarEventPopover key={event.id} event={event} className="block w-full">
-                  <div
-                    className={cn(
-                      'w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/20',
-                      style.event,
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium">{event.title}</p>
-                      <span className="shrink-0 text-[10px] uppercase tracking-wide opacity-80">
-                        {event.date_label}
-                      </span>
-                    </div>
-                    {event.subtitle ? (
-                      <p className="mt-1 truncate text-xs opacity-80">{event.subtitle}</p>
-                    ) : null}
+    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card">
+      <div className="space-y-4 px-4 pb-4">
+        {groups.map((group) => {
+          const categoryGroups = groupEventsByCategory(group.events);
+
+          return (
+            <section key={group.date}>
+              <h3
+                className={cn(
+                  'sticky top-0 z-10 -mx-4 flex min-h-14 items-center',
+                  'border-b border-border bg-card px-4 pt-4 pb-3',
+                  'text-sm font-semibold text-foreground shadow-[0_1px_0_0_hsl(var(--border))]',
+                )}
+              >
+                {group.dateLabel}
+              </h3>
+              <div className="mt-2 space-y-3">
+                {categoryGroups.map((categoryGroup) => (
+                  <div key={categoryGroup.category} className="space-y-1.5">
+                    <CalendarCategoryDivider
+                      category={categoryGroup.category}
+                      count={categoryGroup.events.length}
+                    />
+                    {categoryGroup.events.map((event) => (
+                      <CalendarEventCard key={event.id} event={event} variant="agenda" />
+                    ))}
                   </div>
-                </CalendarEventPopover>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                ))}
+              </div>
+          </section>
+        );
+      })}
+      </div>
     </div>
   );
 };

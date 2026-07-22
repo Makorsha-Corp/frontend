@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useAppDispatch } from '@/app/hooks';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ import {
 import type { Machine } from '@/types/machine';
 import type { WorkOrderType } from '@/types/workOrderType';
 import type { Item } from '@/types/item';
-import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
+import type { WorkOrderTemplate, WorkOrderTemplateItem, WorkOrderTemplateApprover } from '@/types/workOrderTemplate';
 import type { Account } from '@/types/account';
 import type { WorkspaceMember } from '@/types/workspace';
 import type {
@@ -58,6 +58,7 @@ import WorkOrderTemplateSelector from './WorkOrderTemplateSelector';
 import ManageWoApprovalsDialog from './ManageWoApprovalsDialog';
 import { draftApproversFromUserIds } from './transferOrderApprovals';
 import { cn } from '@/lib/utils';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 
 const FOOTER_TEMPLATE_HINT =
@@ -156,7 +157,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [machineId, setMachineId] = useState('');
   const [workDate, setWorkDate] = useState(sheetDate);
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
@@ -576,12 +577,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     setMoreOverlayOpen(false);
   };
 
-  const openPartsOverlay = () => {
+  const togglePartsOverlay = () => {
+    if (partsOverlayOpen) {
+      setPartsOverlayOpen(false);
+      return;
+    }
     setMoreOverlayOpen(false);
     setPartsOverlayOpen(true);
   };
 
-  const openMoreOverlay = () => {
+  const toggleMoreOverlay = () => {
+    if (moreOverlayOpen) {
+      setMoreOverlayOpen(false);
+      return;
+    }
     setPartsOverlayOpen(false);
     setMoreOverlayOpen(true);
   };
@@ -643,7 +652,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             assigned_to: workers.trim() || undefined,
             priority,
             account_id: billTo === 'external' ? Number(accountId) : null,
-            cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : null,
+            cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
             machine_id: mid,
             start_date: sheetDate,
           },
@@ -713,11 +722,12 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       setMoreOpen(true);
     }
 
-    const [templateItems, templateApprovers] = await Promise.all([
+    const [templateItems, templateApprovers]: [WorkOrderTemplateItem[], WorkOrderTemplateApprover[]] =
+      await Promise.all([
       dispatch(workOrderTemplatesApi.endpoints.getWorkOrderTemplateItems.initiate(template.id)).unwrap(),
       template.requires_approval
         ? dispatch(workOrderTemplatesApi.endpoints.getWorkOrderTemplateApprovers.initiate(template.id)).unwrap()
-        : Promise.resolve([]),
+        : Promise.resolve([] as WorkOrderTemplateApprover[]),
     ]);
 
     if (templateItems.length > 0 || template.uses_inventory) {
@@ -1231,11 +1241,11 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       <div className="space-y-1 pb-2">
         <div className="grid max-w-[11rem] gap-1">
           <Label className="text-xs text-muted-foreground">Work date</Label>
-          <Input
-            type="date"
+          <DatePickerField
             value={workDate}
-            onChange={(e) => setWorkDate(e.target.value)}
-            className="h-9"
+            onChange={setWorkDate}
+            triggerClassName="h-9 w-full px-3 text-sm"
+            aria-label="Work date"
           />
         </div>
         {workDateHelper ? <p className="text-xs text-muted-foreground">{workDateHelper}</p> : null}
@@ -1399,7 +1409,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
             disabled={templateLocked}
-            onClick={openPartsOverlay}
+            onClick={togglePartsOverlay}
           >
             <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
             <span className="min-w-0 truncate text-right text-xs text-muted-foreground">
@@ -1419,7 +1429,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
             disabled={templateLocked}
-            onClick={openMoreOverlay}
+            onClick={toggleMoreOverlay}
           >
             <span className="shrink-0 text-sm font-medium text-foreground">Billing & approvals</span>
             <span className="min-w-0 truncate text-right text-xs text-muted-foreground">

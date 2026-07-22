@@ -144,7 +144,7 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
                     ? () => onDeleteOrder(o)
                     : undefined
                 }
-                accountName={accountName(o.account_id)}
+                accountName={o.account_id != null ? accountName(o.account_id) : '—'}
                 destinationLabel={destinationLabel(o)}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}

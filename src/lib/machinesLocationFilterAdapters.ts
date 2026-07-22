@@ -13,7 +13,7 @@ export function singleFactoryToSlice(
 
 /** Map location slice → single factory id (`null` = all factories). */
 export function sliceToSingleFactoryId(
-  slice: Pick<MachinesLocationFilterSlice, 'factory_ids'>,
+  slice: MachinesLocationFilterSlice | Pick<MachinesLocationFilterSlice, 'factory_ids'>,
 ): number | null {
   if (slice.factory_ids.length === 0) return null;
   return slice.factory_ids[0] ?? null;
@@ -33,7 +33,7 @@ export function factoryFilterToSlice(factoryFilter: string): MachinesLocationFil
 
 /** Map location slice → `'all' | factory id string` filter. */
 export function sliceToFactoryFilter(
-  slice: Pick<MachinesLocationFilterSlice, 'factory_ids'>,
+  slice: MachinesLocationFilterSlice | Pick<MachinesLocationFilterSlice, 'factory_ids'>,
 ): string {
   if (slice.factory_ids.length === 0) return 'all';
   return String(slice.factory_ids[0]);
