@@ -91,7 +91,7 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
         <Input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search WO# or title..."
+          placeholder="Search WO# or description..."
           className={cn('pl-9', appShellHeaderControlClass, 'border-border bg-background')}
         />
       </div>

@@ -61,7 +61,7 @@ export interface WorkOrder {
 
 export interface CreateWorkOrderRequest {
   work_order_type_id: number;
-  title: string;
+  title?: string;
   description?: string;
   priority?: WorkOrderPriority;
   factory_id: number;

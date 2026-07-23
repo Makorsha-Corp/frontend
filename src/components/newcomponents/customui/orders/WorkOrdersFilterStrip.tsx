@@ -270,7 +270,7 @@ const WorkOrdersFilterStrip: React.FC<WorkOrdersFilterStripProps> = ({
           <Input
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search WO# or title..."
+            placeholder="Search WO# or description..."
             className="w-[180px] h-9 border-border bg-background text-sm"
           />
         </>

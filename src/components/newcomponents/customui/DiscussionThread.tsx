@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { MessageSquare, Send, Reply, X, AtSign } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useSelector } from 'react-redux';
@@ -74,6 +74,9 @@ function toMentionKey(name: string) {
 }
 
 const MAX_MENTION_SUGGESTIONS = 6;
+/** Match Button size="icon" (h-10) for single-line composer height */
+const MESSAGE_INPUT_MIN_HEIGHT_PX = 40;
+const MESSAGE_INPUT_MAX_HEIGHT_PX = 160;
 
 function MessageInput({
   entityType,
@@ -95,6 +98,21 @@ function MessageInput({
   const mirrorRef = useRef<HTMLDivElement>(null);
 
   const [createDiscussion, { isLoading }] = useCreateDiscussionMutation();
+
+  const syncTextareaHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const next = Math.min(
+      Math.max(el.scrollHeight, MESSAGE_INPUT_MIN_HEIGHT_PX),
+      MESSAGE_INPUT_MAX_HEIGHT_PX,
+    );
+    el.style.height = `${next}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    syncTextareaHeight();
+  }, [message, syncTextareaHeight]);
 
   const filteredMembers = useMemo(
     () =>
@@ -147,6 +165,7 @@ function MessageInput({
     const val = e.target.value;
     setMessage(val);
     syncScroll();
+    requestAnimationFrame(syncTextareaHeight);
     const cursor = e.target.selectionStart ?? val.length;
     const atMatch = val.slice(0, cursor).match(/@(\w*)$/);
     if (atMatch) {
@@ -213,6 +232,7 @@ function MessageInput({
       }).unwrap();
       setMessage('');
       setMentionMap(new Map());
+      requestAnimationFrame(syncTextareaHeight);
       onCancel?.();
     } catch (err) {
       console.error('[DiscussionThread] send failed:', err);
@@ -266,7 +286,7 @@ function MessageInput({
           Inside: a mirror div (for highlight marks) sits behind a transparent textarea.
           The user reads text from the mirror; the textarea captures input + shows caret.
         */}
-        <div className="relative flex-1 rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background overflow-hidden">
+        <div className="relative flex-1 min-h-10 rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background overflow-hidden">
           {/* Mirror — same text as textarea but with mention highlights */}
           <div
             ref={mirrorRef}
@@ -288,14 +308,15 @@ function MessageInput({
             onKeyDown={handleKeyDown}
             onScroll={syncScroll}
             autoFocus={autoFocus}
-            rows={2}
+            rows={1}
             placeholder={placeholder}
-            className="relative w-full resize-none bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none"
+            className="relative block w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-sm leading-normal placeholder:text-muted-foreground focus:outline-none"
             style={{
               color: message ? 'transparent' : undefined,
               caretColor: 'var(--foreground, currentColor)',
-              lineHeight: '1.5',
-              minHeight: '2.5rem',
+              minHeight: MESSAGE_INPUT_MIN_HEIGHT_PX,
+              maxHeight: MESSAGE_INPUT_MAX_HEIGHT_PX,
+              height: MESSAGE_INPUT_MIN_HEIGHT_PX,
             }}
           />
         </div>

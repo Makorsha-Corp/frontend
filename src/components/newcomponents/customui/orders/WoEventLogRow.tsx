@@ -92,9 +92,12 @@ const WoEventLogRow: React.FC<WoEventLogRowProps> = ({ event, isLast }) => {
           </div>
         )}
         {event.performer_name && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {initialsOf(event.performer_name)} · {event.performer_name}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-primary text-[10px] font-semibold text-white">
+              {initialsOf(event.performer_name)}
+            </div>
+            <span className="text-xs text-muted-foreground">{event.performer_name}</span>
+          </div>
         )}
       </div>
     </div>

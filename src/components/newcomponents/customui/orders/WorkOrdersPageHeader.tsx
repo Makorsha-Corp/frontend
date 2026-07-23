@@ -117,7 +117,7 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
               <DropdownMenuItem onClick={onAdd}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add work order
-                <span className="ml-2 text-xs text-muted-foreground">projects, custom title</span>
+                <span className="ml-2 text-xs text-muted-foreground">projects, description</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onAdvancedMaintenance}>Advanced maintenance</DropdownMenuItem>
             </DropdownMenuContent>

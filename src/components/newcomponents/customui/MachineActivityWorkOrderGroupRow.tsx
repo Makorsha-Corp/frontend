@@ -4,7 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useGetWorkOrderByIdQuery } from '@/features/workOrders/workOrdersApi';
-import { workOrderStatusBadgeClass, workOrderStatusLabel } from '@/pages/newpages/orders/workOrderConstants';
+import { workOrderStatusBadgeClass, workOrderStatusLabel, workOrderDisplayLabel } from '@/pages/newpages/orders/workOrderConstants';
 import { formatRelativeFromApi } from '@/utils/datetime';
 import type { MachineActivityEvent } from '@/types/machineActivityEvent';
 import MachineActivityEventLogRow from './MachineActivityEventLogRow';
@@ -59,7 +59,7 @@ const MachineActivityWorkOrderGroupRow: React.FC<MachineActivityWorkOrderGroupRo
                 </span>
                 {!open && (
                   <span className="truncate text-[11px] text-muted-foreground">
-                    {order?.title ? `${order.title} — ` : ''}
+                    {order ? `${workOrderDisplayLabel(order)} — ` : ''}
                     {events.length} update{events.length === 1 ? '' : 's'} — click to expand
                   </span>
                 )}

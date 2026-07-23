@@ -58,12 +58,14 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
       <DialogContent className="w-[min(28rem,94vw)] max-w-none">
         <DialogHeader>
           <DialogTitle>Mark work order complete</DialogTitle>
-          <DialogDescription>Any final notes, and where should the machine be left?</DialogDescription>
+          <DialogDescription>
+            Record completion notes and, if this order targets a machine, where to leave it.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid gap-1.5">
-            <Label htmlFor="wo-complete-notes">Notes (optional)</Label>
+            <Label htmlFor="wo-complete-notes">Completion notes (optional)</Label>
             <Textarea
               id="wo-complete-notes"
               placeholder="What was done..."
@@ -72,6 +74,9 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
               rows={3}
               className="resize-none"
             />
+            <p className="text-xs text-muted-foreground">
+              Recorded on the work order after you mark it complete.
+            </p>
           </div>
 
           {hasMachineTarget && (

@@ -5,6 +5,7 @@ import {
   isWorkOrderComplete,
   priorityLabel,
   workOrderStatusLabel,
+  workOrderDisplayLabel,
 } from './workOrderConstants';
 import { getWorkOrderCalendarDate } from './workOrderDateUtils';
 
@@ -86,7 +87,8 @@ export function filterWorkOrders(
       const machine = labelCtx.machineName(o.machine_id).toLowerCase();
       return (
         o.work_order_number?.toLowerCase().includes(q) ||
-        o.title?.toLowerCase().includes(q) ||
+        o.description?.toLowerCase().includes(q) ||
+        workOrderDisplayLabel(o).toLowerCase().includes(q) ||
         (o.assigned_to?.toLowerCase().includes(q) ?? false) ||
         workOrderStatusLabel(o.status).toLowerCase().includes(q) ||
         (o.work_order_type_name?.toLowerCase().includes(q) ?? false) ||

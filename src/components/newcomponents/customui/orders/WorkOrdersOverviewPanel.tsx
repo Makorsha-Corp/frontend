@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import type { WorkOrder } from '@/types/workOrder';
 import type { WorkOrderSummaryStats } from '@/pages/newpages/orders/workOrdersOverviewData';
 import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
+import { workOrderDisplayLabel } from '@/pages/newpages/orders/workOrderConstants';
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
@@ -53,10 +54,10 @@ const WorkOrdersOverviewPanel: React.FC<WorkOrdersOverviewPanelProps> = ({
         cell: (o) => o.work_order_number,
       },
       {
-        id: 'title',
-        header: 'Title',
+        id: 'description',
+        header: 'Description',
         cellClassName: 'max-w-[160px] truncate',
-        cell: (o) => o.title,
+        cell: (o) => workOrderDisplayLabel(o),
       },
       {
         id: 'status',

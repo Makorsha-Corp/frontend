@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, Clock, ShieldCheck, Wrench, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Check, Clock, ShieldCheck, UserPlus, Wrench, X, XCircle } from 'lucide-react';
 import type { WorkOrderApprovalSummary, WorkOrderApprover } from '@/types/workOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
 import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
@@ -23,6 +23,8 @@ export interface WoApprovalsTopBarProps {
   isVoided?: boolean;
   isLocked?: boolean;
   onVoidOrder?: () => void;
+  /** Inline with identity row in detail header (no separate sub-bar). */
+  layout?: 'bar' | 'inline';
 }
 
 const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
@@ -35,36 +37,55 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
   isVoided = false,
   isLocked = false,
   onVoidOrder,
+  layout = 'bar',
 }) => {
   const sortedApprovers = [...approvers].sort((a, b) => Number(b.approved) - Number(a.approved));
+  const isInline = layout === 'inline';
+  const showApprovalBadge = sortedApprovers.length > 0 || approvalSummary.required > 0;
 
   return (
     <div
       id="wo-section-approvals"
-      className={cn(ORDER_PANEL_HEADER_CLASS, '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 bg-card/40 px-6 scroll-mt-6')}
+      className={cn(
+        'flex min-w-0 flex-nowrap items-center gap-x-3 scroll-mt-6',
+        isInline ? 'flex-1' : cn(ORDER_PANEL_HEADER_CLASS, 'gap-x-4 px-6'),
+      )}
     >
       <div className="flex shrink-0 items-center gap-2">
         <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden />
         <span className="text-sm font-semibold text-card-foreground">Approvals</span>
-        <Badge
-          variant="outline"
-          className={cn(
-            'font-normal shrink-0',
-            approvalSummary.met ? 'text-green-600 border-green-600/30' : 'text-amber-600 border-amber-600/30'
-          )}
-        >
-          {approvalSummary.required === 0
-            ? 'Not required'
-            : `${approvalSummary.approved_count} / ${approvalSummary.required}`}
-        </Badge>
+        {showApprovalBadge && (
+          <Badge
+            variant="outline"
+            className={cn(
+              'font-normal shrink-0',
+              approvalSummary.met ? 'text-green-600 border-green-600/30' : 'text-amber-600 border-amber-600/30'
+            )}
+          >
+            {`${approvalSummary.approved_count} / ${approvalSummary.required}`}
+          </Badge>
+        )}
       </div>
 
       <TooltipProvider delayDuration={150}>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
           {sortedApprovers.length === 0 ? (
-            <span className="text-xs text-muted-foreground">
-              No approvers assigned — this order does not require approval
-            </span>
+            !isVoided && !isLocked ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 text-xs"
+                onClick={onManage}
+              >
+                <UserPlus className="mr-1 h-3.5 w-3.5" />
+                Assign approvers
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground truncate">
+                {isInline ? 'No approvers' : 'No approvers assigned — this order does not require approval'}
+              </span>
+            )
           ) : (
             sortedApprovers.map((approver) => (
               <Tooltip key={approver.id}>
@@ -135,10 +156,10 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
             </Button>
           )
         )}
-        {!isVoided && !isLocked && (
+        {!isVoided && !isLocked && sortedApprovers.length > 0 && (
           <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={onManage}>
             <Wrench className="mr-1 h-4 w-4" />
-            Manage
+            Edit approvers
           </Button>
         )}
         {myApproval && !isVoided && !isLocked && (

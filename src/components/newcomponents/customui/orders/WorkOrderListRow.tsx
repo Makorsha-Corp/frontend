@@ -2,6 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useGetWorkOrderItemsQuery } from '@/features/workOrders/workOrdersApi';
 import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
+import { workOrderDisplayLabel } from '@/pages/newpages/orders/workOrderConstants';
 import type { WorkOrder } from '@/types/workOrder';
 
 interface WorkOrderListRowProps {
@@ -34,7 +35,7 @@ const WorkOrderListRow: React.FC<WorkOrderListRowProps> = ({
           {order.status}
         </Badge>
       </div>
-      <div className="text-sm text-muted-foreground truncate mt-0.5">{order.title}</div>
+      <div className="text-sm text-muted-foreground truncate mt-0.5">{workOrderDisplayLabel(order)}</div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
         <span>{formatDate(getWorkOrderCalendarDateString(order))}</span>
         <span>•</span>

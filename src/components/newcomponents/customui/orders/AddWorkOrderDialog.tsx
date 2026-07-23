@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -40,11 +41,10 @@ interface AddWorkOrderDialogProps {
 }
 
 const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenChange, onSuccess }) => {
-  const [workOrderTypeId, setWorkOrderTypeId] = useState<string>('');
-  const [title, setTitle] = useState('');
+  const [workOrderTypeId, setWorkOrderTypeId] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<WorkOrderPriority>('MEDIUM');
-  const [factoryId, setFactoryId] = useState<string>('');
+  const [factoryId, setFactoryId] = useState('');
   const [target, setTarget] = useState<TargetValue>('none');
   const [accountId, setAccountId] = useState<string>('__none__');
   const [startDate, setStartDate] = useState('');
@@ -70,7 +70,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
 
   const reset = () => {
     setWorkOrderTypeId('');
-    setTitle('');
     setDescription('');
     setPriority('MEDIUM');
     setFactoryId('');
@@ -89,10 +88,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
       toast.error('Select a factory');
       return;
     }
-    if (!title.trim()) {
-      toast.error('Enter a title');
-      return;
-    }
     if (!workOrderTypeId) {
       toast.error('Select a work order type');
       return;
@@ -103,7 +98,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
     try {
       const result = await createOrder({
         work_order_type_id: Number(workOrderTypeId),
-        title: title.trim(),
         description: description.trim() || undefined,
         priority,
         factory_id: fid,
@@ -134,10 +128,6 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>Title *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Work order title" required />
-          </div>
-          <div>
             <Label>Work type *</Label>
             <Select value={workOrderTypeId || '__none__'} onValueChange={(v) => setWorkOrderTypeId(v === '__none__' ? '' : v)}>
               <SelectTrigger className="mt-1">
@@ -152,10 +142,19 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
                 ))}
               </SelectContent>
             </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              A system label is generated from work type and target (e.g. Inspection — Making Machine).
+            </p>
           </div>
           <div>
             <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this work order about? (optional)"
+              rows={2}
+              className="mt-1 resize-none"
+            />
           </div>
           <div>
             <Label>Priority</Label>

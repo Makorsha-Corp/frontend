@@ -177,7 +177,11 @@ function SheetWorkersCell({ workers }: { workers: string }) {
   );
 }
 
-function SheetPartCell({ row }: { row: WorkOrderSheetRow }) {
+const SHEET_PARTS_SCROLL_MIN = 3;
+/** ~2 compact part lines visible before vertical scroll */
+const SHEET_PARTS_SCROLL_MAX_H = 'max-h-12';
+
+function SheetPartLine({ row }: { row: WorkOrderSheetRow }) {
   if (row.partName === '—') {
     return <SheetEmptyCell>No parts required</SheetEmptyCell>;
   }
@@ -190,16 +194,41 @@ function SheetPartCell({ row }: { row: WorkOrderSheetRow }) {
         ? String(row.quantity)
         : null;
 
+  const metaParts = [actionLabel, qtyLabel].filter(Boolean);
+  const metaText = metaParts.join(' · ');
+
   return (
-    <div className="min-w-0">
-      <div className={cn('truncate', SHEET_PRIMARY)}>{row.partName}</div>
-      {(actionLabel || qtyLabel) && (
-        <div className={cn('mt-0.5 flex flex-wrap items-center gap-x-1', SHEET_CHIP)}>
-          {actionLabel ? <span>{actionLabel}</span> : null}
-          {actionLabel && qtyLabel ? <span aria-hidden>·</span> : null}
-          {qtyLabel ? <span>{qtyLabel}</span> : null}
-        </div>
+    <div className="min-w-0 overflow-x-auto overflow-y-hidden">
+      <div className="flex w-max max-w-none items-center gap-x-1.5 whitespace-nowrap">
+        <span className={cn('shrink-0', SHEET_PRIMARY)}>{row.partName}</span>
+        {metaText ? (
+          <>
+            <span className="h-3 w-px shrink-0 bg-border" aria-hidden />
+            <span className={cn('shrink-0', SHEET_CHIP)}>{metaText}</span>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SheetPartCell({ row }: { row: WorkOrderSheetRow }) {
+  return <SheetPartLine row={row} />;
+}
+
+function SheetPartsGroupCell({ rows }: { rows: WorkOrderSheetRow[] }) {
+  const scrollable = rows.length >= SHEET_PARTS_SCROLL_MIN;
+
+  return (
+    <div
+      className={cn(
+        'min-w-0 flex flex-col gap-1',
+        scrollable && cn(SHEET_PARTS_SCROLL_MAX_H, 'overflow-y-auto overflow-x-hidden'),
       )}
+    >
+      {rows.map((partRow) => (
+        <SheetPartLine key={partRow.key} row={partRow} />
+      ))}
     </div>
   );
 }
@@ -312,7 +341,19 @@ export function WorkOrderSheetDayRows({
 }: WorkOrderSheetDayRowsProps) {
   return (
     <tbody>
-      {rows.map((row, rowIndex) => (
+      {rows.map((row, rowIndex) => {
+        if (row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN && !row.isFirstInGroup) {
+          return null;
+        }
+
+        const partGroupRows =
+          row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN
+            ? rows.slice(rowIndex, rowIndex + row.groupRowSpan)
+            : [row];
+        const effectiveRowSpan =
+          row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN ? 1 : row.groupRowSpan;
+
+        return (
         <tr
           key={row.key}
           title={row.rowTitle ?? undefined}
@@ -325,7 +366,7 @@ export function WorkOrderSheetDayRows({
         >
           {showStartDateColumn && row.isFirstInGroup ? (
             <td
-              rowSpan={row.groupRowSpan}
+              rowSpan={effectiveRowSpan}
               className={cn(
                 SHEET_DATE_COL,
                 'border-r border-border/40 align-top text-card-foreground',
@@ -338,13 +379,13 @@ export function WorkOrderSheetDayRows({
           {row.isFirstInGroup ? (
             <>
               <td
-                rowSpan={row.groupRowSpan}
+                rowSpan={effectiveRowSpan}
                 className={cn('border-r border-border/40 align-top text-card-foreground', SHEET_CELL_PAD)}
               >
                 <SheetMachineCell row={row} />
               </td>
               <td
-                rowSpan={row.groupRowSpan}
+                rowSpan={effectiveRowSpan}
                 className={cn(SHEET_WORKS_COL, 'border-r border-border/40 align-middle text-card-foreground', SHEET_CELL_PAD)}
               >
                 <SheetWorksCell works={row.works} />
@@ -352,24 +393,28 @@ export function WorkOrderSheetDayRows({
             </>
           ) : null}
           <td className={cn('align-middle text-card-foreground', SHEET_CELL_PAD)}>
-            <SheetPartCell row={row} />
+            {partGroupRows.length >= SHEET_PARTS_SCROLL_MIN ? (
+              <SheetPartsGroupCell rows={partGroupRows} />
+            ) : (
+              <SheetPartCell row={row} />
+            )}
           </td>
           {row.isFirstInGroup ? (
             <>
               <td
-                rowSpan={row.groupRowSpan}
+                rowSpan={effectiveRowSpan}
                 className={cn(SHEET_WORKERS_COL, 'border-l border-border/40 align-middle', SHEET_CELL_PAD)}
               >
                 <SheetWorkersCell workers={row.workers} />
               </td>
               <td
-                rowSpan={row.groupRowSpan}
+                rowSpan={effectiveRowSpan}
                 className={cn(SHEET_APPROVERS_COL, 'align-middle', SHEET_CELL_PAD)}
               >
                 <SheetApproverChips approvers={row.approvers} />
               </td>
               <td
-                rowSpan={row.groupRowSpan}
+                rowSpan={effectiveRowSpan}
                 className={cn(SHEET_ACTIONS_COL, 'align-middle', SHEET_CELL_PAD)}
               >
                 <SheetWorkOrderRowActions
@@ -387,7 +432,8 @@ export function WorkOrderSheetDayRows({
             </>
           ) : null}
         </tr>
-      ))}
+        );
+      })}
     </tbody>
   );
 }

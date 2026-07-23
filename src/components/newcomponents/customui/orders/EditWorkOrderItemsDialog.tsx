@@ -8,24 +8,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -34,8 +18,6 @@ import {
   useUpdateWorkOrderItemMutation,
 } from '@/features/workOrders/workOrdersApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
-import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi';
 import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType } from '@/types/workOrder';
@@ -56,35 +38,37 @@ function formatItemDisplayLabel(selection: ItemSelection): string {
   return base;
 }
 
+function partSourceLabel(sourceType: WorkOrderItemSourceType): string {
+  return sourceType === 'machine' ? 'machine stock' : 'storage';
+}
+
 export interface EditWorkOrderItemsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   woId: number;
+  factoryId: number;
+  sectionId?: number | null;
   /** When set, Install/Replace/Borrow become available (they only make sense against a
    * machine's own on-hand inventory) alongside the always-available plain "Used up". */
   machineId?: number | null;
   items: WorkOrderItem[];
   onSaved?: () => void;
-  /** Preselects "uses inventory" with this source type — used right after a machine
-   * quick action creates an order that involves parts. */
-  defaultSourceType?: WorkOrderItemSourceType;
 }
 
 const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   open,
   onOpenChange,
   woId,
+  factoryId,
+  sectionId,
   machineId,
   items,
   onSaved,
-  defaultSourceType,
 }) => {
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('1');
-  const [notes, setNotes] = useState('');
-  const [usesInventory, setUsesInventory] = useState(Boolean(defaultSourceType));
-  const [sourceType, setSourceType] = useState<WorkOrderItemSourceType | ''>(defaultSourceType ?? '');
-  const [sourceId, setSourceId] = useState('');
+  const [sourceType, setSourceType] = useState<WorkOrderItemSourceType>('storage');
+  const [sourceMachineId, setSourceMachineId] = useState<number | undefined>();
   const [actionType, setActionType] = useState<WorkOrderItemActionType>('CONSUME');
   const [replacedItemId, setReplacedItemId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -94,8 +78,6 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
 
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
-  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
-  const { data: sections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
   const { data: machineItems = [] } = useGetMachineItemsQuery(
     { machine_id: machineId ?? 0, limit: API_LIMITS.FLEXIBLE_1000 },
@@ -115,22 +97,20 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     if (open) {
       setItemId('');
       setQty('1');
-      setNotes('');
-      setUsesInventory(Boolean(defaultSourceType));
-      setSourceType(defaultSourceType ?? '');
-      setSourceId('');
-      setActionType('CONSUME');
+      setSourceType('storage');
+      setSourceMachineId(undefined);
+      const lockedAction = items[0]?.action_type;
+      setActionType(lockedAction ?? 'CONSUME');
       setReplacedItemId('');
     }
-  }, [open, defaultSourceType]);
+  }, [open, items]);
+
+  const actionLocked = items.length > 0;
+  const actionOptions = machineId
+    ? WORK_ORDER_ITEM_ACTION_OPTIONS
+    : WORK_ORDER_ITEM_ACTION_OPTIONS.filter((o) => o.value === 'CONSUME');
 
   const usedItemIds = useMemo(() => new Set(items.map((i) => i.item_id)), [items]);
-
-  const itemSelectorFactoryId =
-    usesInventory && sourceType === 'storage' && sourceId ? Number(sourceId) : undefined;
-
-  const itemPickerInitialTab =
-    usesInventory && sourceType === 'storage' && sourceId ? ('storage' as const) : ('catalog' as const);
 
   const itemDisplayLabel = (id: string) =>
     itemLabels[id] ??
@@ -150,7 +130,11 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     if (itemPickerTarget === 'replaced') {
       setReplacedItemId(id);
     } else {
+      const nextSourceType: WorkOrderItemSourceType =
+        selection.selectionSource === 'machine' ? 'machine' : 'storage';
       setItemId(id);
+      setSourceType(nextSourceType);
+      setSourceMachineId(selection.machineId);
     }
   };
 
@@ -163,25 +147,25 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     if (!itemId.trim() || !qty.trim()) return false;
     const q = parseFloat(qty);
     if (!(q > 0)) return false;
-    if (usesInventory && (!sourceType || !sourceId)) return false;
-    if (usesInventory && actionType === 'REPLACE' && !replacedItemId) return false;
+    if (actionType === 'REPLACE' && !replacedItemId) return false;
     return true;
   })();
 
-  const resetForm = () => {
+  const resetDraft = () => {
     setItemId('');
     setQty('1');
-    setNotes('');
-    setUsesInventory(false);
-    setSourceType('');
-    setSourceId('');
-    setActionType('CONSUME');
+    setSourceType('storage');
+    setSourceMachineId(undefined);
     setReplacedItemId('');
   };
 
   const handleAdd = async () => {
     if (!canAdd) {
-      toast.error('Pick an item, quantity, and a source location if using inventory');
+      toast.error(
+        actionType === 'REPLACE'
+          ? 'Pick item, quantity, and part being replaced'
+          : 'Pick an item and quantity',
+      );
       return;
     }
     setIsSaving(true);
@@ -191,20 +175,19 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
         data: {
           item_id: Number(itemId),
           quantity: Number(qty),
-          notes: notes.trim() || undefined,
-          uses_inventory: usesInventory,
-          source_location_type: usesInventory ? (sourceType as WorkOrderItemSourceType) : undefined,
-          source_location_id: usesInventory ? Number(sourceId) : undefined,
-          action_type: usesInventory ? actionType : undefined,
-          replaced_item_id: usesInventory && actionType === 'REPLACE' ? Number(replacedItemId) : undefined,
+          uses_inventory: true,
+          source_location_type: sourceType,
+          source_location_id: sourceType === 'machine' ? (sourceMachineId ?? machineId ?? undefined) : factoryId,
+          action_type: actionType,
+          replaced_item_id: actionType === 'REPLACE' ? Number(replacedItemId) : undefined,
         },
       }).unwrap();
-      toast.success('Item added');
-      resetForm();
+      toast.success('Part added');
+      resetDraft();
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add item');
+      toast.error(e?.data?.detail || 'Failed to add part');
     } finally {
       setIsSaving(false);
     }
@@ -228,253 +211,222 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const handleRemove = async (item: WorkOrderItem) => {
     try {
       await removeItem({ woId, itemId: item.id }).unwrap();
-      toast.success('Item removed');
+      toast.success('Part removed');
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove item');
+      toast.error(e?.data?.detail || 'Failed to remove part');
     }
+  };
+
+  const itemLineSourceLabel = (item: WorkOrderItem) => {
+    if (!item.uses_inventory) return 'not tracked';
+    if (item.source_location_type === 'machine') {
+      const name = machines.find((m) => m.id === item.source_location_id)?.name;
+      return name ? `${name} stock` : 'machine stock';
+    }
+    return partSourceLabel('storage');
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[70vh] max-h-[70vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
-          <DialogTitle>Edit items</DialogTitle>
-          <DialogDescription>
-            Mark a line "uses inventory" to deduct stock from storage or a machine when work starts.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="flex h-[min(80vh,52rem)] max-h-[80vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+          <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
+            <DialogTitle>Edit parts</DialogTitle>
+            <DialogDescription>
+              Same flow as the sheet entry footer — pick what happens, then add parts from storage or machine stock.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-6 py-4">
-          <div className="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Item *</Label>
-                <ItemSelectSummaryButton
-                  ariaLabel="Select item"
-                  selectedLabel={itemId ? itemDisplayLabel(itemId) : null}
-                  staleNumericId={itemId || null}
-                  compactLabel
-                  onClick={() => openItemPicker('item')}
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Qty</Label>
-                <StepNumberInput min={0.01} step={1} value={qty} onChange={(e) => setQty(e.target.value)} />
-              </div>
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Notes</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="bg-background" />
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-4">
+            <div className="shrink-0 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {actionOptions.map((opt) => (
+                    <HoverCard key={opt.value} openDelay={120} closeDelay={80}>
+                      <HoverCardTrigger asChild>
+                        <Button
+                          type="button"
+                          variant={actionType === opt.value ? 'default' : 'outline'}
+                          size="sm"
+                          className={`h-8 ${actionType === opt.value ? 'bg-brand-primary hover:bg-brand-primary-hover' : ''}`}
+                          disabled={actionLocked && actionType !== opt.value}
+                          onClick={() => setActionType(opt.value)}
+                        >
+                          {opt.label}
+                        </Button>
+                      </HoverCardTrigger>
+                      <HoverCardPortal>
+                        <HoverCardContent
+                          side="top"
+                          align="center"
+                          sideOffset={6}
+                          collisionPadding={12}
+                          className="z-[200] w-auto max-w-[min(18rem,calc(100vw-2rem))] p-3 text-xs leading-snug text-muted-foreground"
+                        >
+                          {WORK_ORDER_ITEM_ACTION_EXPLAINER[opt.value]}
+                        </HoverCardContent>
+                      </HoverCardPortal>
+                    </HoverCard>
+                  ))}
+                </div>
+                {actionLocked ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    Action locked for this order. Remove all parts to change.
+                  </p>
+                ) : null}
               </div>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={usesInventory} onCheckedChange={(v) => setUsesInventory(Boolean(v))} />
-              <span className="text-sm text-card-foreground">Uses inventory (deduct stock when work starts)</span>
-            </label>
-
-            {usesInventory && machineId && (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
-                <div className="flex flex-wrap gap-2">
-                  {WORK_ORDER_ITEM_ACTION_OPTIONS.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={actionType === opt.value ? 'default' : 'outline'}
-                      size="sm"
-                      className={
-                        actionType === opt.value
-                          ? 'bg-brand-primary hover:bg-brand-primary-hover'
-                          : undefined
-                      }
-                      onClick={() => setActionType(opt.value)}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-                <p className="rounded-md bg-background px-2.5 py-2 text-xs text-muted-foreground">
-                  {WORK_ORDER_ITEM_ACTION_EXPLAINER[actionType]}
-                </p>
-              </div>
-            )}
-
-            {usesInventory && (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="grid gap-1">
-                  <Label className="text-xs text-muted-foreground">Source</Label>
-                  <Select
-                    value={sourceType}
-                    onValueChange={(v) => {
-                      setSourceType(v as WorkOrderItemSourceType);
-                      setSourceId('');
-                    }}
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Storage or machine..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="storage">Factory storage</SelectItem>
-                      <SelectItem value="machine">Another machine's stock</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="shrink-0 space-y-3 rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
                   <Label className="text-xs text-muted-foreground">
-                    {sourceType === 'machine' ? 'Machine' : 'Factory'}
+                    {actionType === 'REPLACE' ? 'New item' : 'Item'}
                   </Label>
-                  <Select value={sourceId} onValueChange={setSourceId} disabled={!sourceType}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sourceType === 'machine'
-                        ? machines.map((m) => (
-                            <SelectItem key={m.id} value={String(m.id)}>
-                              {m.name}
-                            </SelectItem>
-                          ))
-                        : factories.map((f) => (
-                            <SelectItem key={f.id} value={String(f.id)}>
-                              {f.name}
-                            </SelectItem>
-                          ))}
-                    </SelectContent>
-                  </Select>
+                  <ItemSelectSummaryButton
+                    ariaLabel={actionType === 'REPLACE' ? 'Select new item' : 'Select item'}
+                    selectedLabel={itemId ? itemDisplayLabel(itemId) : null}
+                    staleNumericId={itemId || null}
+                    compactLabel
+                    className="h-9 min-h-9 py-0 text-sm"
+                    onClick={() => openItemPicker('item')}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs text-muted-foreground">Quantity</Label>
+                  <StepNumberInput
+                    min={0.01}
+                    step={1}
+                    value={qty}
+                    onChange={(e) => setQty(e.target.value)}
+                    className="h-9"
+                  />
                 </div>
               </div>
-            )}
 
-            {usesInventory && machineId && actionType === 'REPLACE' && (
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Item being replaced (currently on this machine)</Label>
-                <ItemSelectSummaryButton
-                  ariaLabel="Select item being replaced"
-                  selectedLabel={replacedItemId ? itemDisplayLabel(replacedItemId) : null}
-                  staleNumericId={replacedItemId || null}
-                  onClick={() => openItemPicker('replaced')}
-                />
-                {replacedItemId && (
-                  <p className="text-xs text-muted-foreground">Currently on this machine: {replacedItemOnHandQty}</p>
-                )}
-                {replaceWillDegrade && (
-                  <p className="flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    The machine only shows {replacedItemOnHandQty} on hand — with fewer than {qty}, this will just
-                    install the new part without removing anything.
-                  </p>
-                )}
-              </div>
-            )}
+              {machineId && actionType === 'REPLACE' && (
+                <div className="grid gap-1">
+                  <Label className="text-xs text-muted-foreground">Part being replaced on machine</Label>
+                  <ItemSelectSummaryButton
+                    ariaLabel="Select part being replaced"
+                    selectedLabel={replacedItemId ? itemDisplayLabel(replacedItemId) : null}
+                    staleNumericId={replacedItemId || null}
+                    compactLabel
+                    className="h-9 min-h-9 py-0 text-sm"
+                    onClick={() => openItemPicker('replaced')}
+                  />
+                  {replacedItemId ? (
+                    <p className="text-xs text-muted-foreground">Currently on this machine: {replacedItemOnHandQty}</p>
+                  ) : null}
+                  {replaceWillDegrade ? (
+                    <p className="flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      The machine only shows {replacedItemOnHandQty} on hand — with fewer than {qty}, this will just
+                      install the new part without removing anything.
+                    </p>
+                  ) : null}
+                </div>
+              )}
 
-            <Button type="button" variant="outline" className="w-full" disabled={!canAdd || isSaving} onClick={handleAdd}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add line
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full bg-background"
+                disabled={!canAdd || isSaving}
+                onClick={handleAdd}
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add part
+              </Button>
+            </div>
 
-          <div className="min-h-0 flex-1 overflow-x-auto rounded-lg border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Item</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                      No items
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.item_name ?? `Item #${item.item_id}`}</TableCell>
-                      <TableCell>
-                        {item.consumed_at ? (
-                          <span>
-                            {item.quantity}
-                            {item.item_unit ? ` ${item.item_unit}` : ''}
-                          </span>
-                        ) : (
-                          <StepNumberInput
-                            min={0.01}
-                            step={1}
-                            className="h-8 w-20"
-                            value={qtyDrafts[item.id] ?? String(item.quantity)}
-                            onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                            onBlur={(e) => handleQtyBlur(item, e.target.value)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.uses_inventory ? (
-                          item.source_location_type === 'machine' ? (
-                            machines.find((m) => m.id === item.source_location_id)?.name ?? `Machine #${item.source_location_id}`
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+              {items.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">No parts on this order yet.</p>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {item.item_name ?? `Item #${item.item_id}`}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.consumed_at ? (
+                            <>
+                              {item.quantity}
+                              {item.item_unit ? ` ${item.item_unit}` : ''}
+                            </>
                           ) : (
-                            factories.find((f) => f.id === item.source_location_id)?.name ?? `Factory #${item.source_location_id}`
-                          )
-                        ) : (
-                          <span className="text-muted-foreground">Not tracked</span>
-                        )}
-                        {item.consumed_at && (
-                          <Badge variant="outline" className="ml-2 gap-1 text-green-600 border-green-600/30">
-                            Consumed
+                            <span className="inline-flex items-center gap-2">
+                              <StepNumberInput
+                                min={0.01}
+                                step={1}
+                                className="h-8 w-24"
+                                value={qtyDrafts[item.id] ?? String(item.quantity)}
+                                onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                onBlur={(e) => handleQtyBlur(item, e.target.value)}
+                              />
+                              {item.item_unit ? <span>{item.item_unit}</span> : null}
+                            </span>
+                          )}
+                          {' · '}
+                          {itemLineSourceLabel(item)}
+                          {item.uses_inventory && item.action_type === 'REPLACE' && item.replaced_item_name ? (
+                            <span> · replaces {item.replaced_item_name}</span>
+                          ) : null}
+                        </p>
+                        {item.consumed_at ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600/30">
+                            Stock deducted
                           </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {item.uses_inventory ? (
-                          <>
-                            {WORK_ORDER_ITEM_ACTION_OPTIONS.find((o) => o.value === item.action_type)?.label ?? item.action_type}
-                            {item.action_type === 'REPLACE' && item.replaced_item_name && (
-                              <span className="block text-xs">Replaces: {item.replaced_item_name}</span>
-                            )}
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell>
+                        ) : null}
+                      </div>
+                      <div className="shrink-0 pt-0.5">
                         {item.consumed_at ? (
                           <Lock className="h-4 w-4 text-muted-foreground" aria-label="Locked — void the order to reverse" />
                         ) : (
-                          <Button type="button" variant="ghost" size="icon" onClick={() => handleRemove(item)}>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleRemove(item)}
+                          >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4 gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="shrink-0 border-t border-border px-6 py-4 gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ItemSelectorDialog
         open={itemPickerOpen}
         onOpenChange={setItemPickerOpen}
         onSelect={handleItemSelect}
-        factoryId={itemSelectorFactoryId}
-        initialTab={itemPickerTarget === 'item' ? itemPickerInitialTab : 'catalog'}
+        defaultFactoryId={factoryId}
+        defaultSectionId={sectionId ?? undefined}
+        inventoryOnly
+        includeMachineStock
+        defaultMachineId={machineId ?? undefined}
+        initialTab={itemPickerTarget === 'replaced' ? 'machine' : 'storage'}
         selectedItemId={
           itemPickerTarget === 'replaced'
             ? replacedItemId
@@ -484,7 +436,8 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
               ? Number(itemId)
               : undefined
         }
-        title={itemPickerTarget === 'replaced' ? 'Select item being replaced' : 'Select item'}
+        title={itemPickerTarget === 'replaced' ? 'Select part being replaced' : 'Select part'}
+        description="Pick from factory storage or machine stock on hand."
       />
     </>
   );

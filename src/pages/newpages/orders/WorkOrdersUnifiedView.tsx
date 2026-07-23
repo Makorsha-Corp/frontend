@@ -448,40 +448,42 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         onFactoryPickerHighlightDismiss={dismissFactoryPickerHighlight}
       />
 
-      <WorkOrdersToolbar
-        dateViewMode={dateViewMode}
-        sheetDate={filters.sheetDate}
-        weekPeriodLabel={weekPeriodLabel}
-        onDateViewModeChange={setDateViewMode}
-        onPickDate={pickDate}
-        onPickWeek={pickWeek}
-        searchQuery={filters.searchQuery}
-        onSearchChange={setSearchQuery}
-        popoverFilterCount={popoverFilterCount}
-        filtersPopover={
-          <WorkOrdersFilterPanel
-            filters={filters}
-            statusFilter={filters.statusFilter}
-            workTypeFilter={filters.workTypeFilter}
-            priorityFilter={filters.priorityFilter}
-            onStatusChange={setStatusFilter}
-            onWorkTypeChange={setWorkTypeFilter}
-            onPriorityChange={setPriorityFilter}
-            onClearPanelFilters={clearPanelFilters}
-            chipHandlers={chipHandlers}
-            factories={factories}
-            sections={sections}
-            machines={machines}
-            workOrderTypes={workOrderTypes}
-          />
-        }
-        machineFilter={resolvedMachineFilter}
-        onMachineChange={setMachineFilter}
-        machines={machinesForToolbarSelect}
-        machineSelectDisabled={defaultMachineId != null}
-        showCompleteOrders={filters.showCompleteOrders}
-        onShowCompleteOrdersChange={setShowCompleteOrders}
-      />
+      {!selectedOrder ? (
+        <WorkOrdersToolbar
+          dateViewMode={dateViewMode}
+          sheetDate={filters.sheetDate}
+          weekPeriodLabel={weekPeriodLabel}
+          onDateViewModeChange={setDateViewMode}
+          onPickDate={pickDate}
+          onPickWeek={pickWeek}
+          searchQuery={filters.searchQuery}
+          onSearchChange={setSearchQuery}
+          popoverFilterCount={popoverFilterCount}
+          filtersPopover={
+            <WorkOrdersFilterPanel
+              filters={filters}
+              statusFilter={filters.statusFilter}
+              workTypeFilter={filters.workTypeFilter}
+              priorityFilter={filters.priorityFilter}
+              onStatusChange={setStatusFilter}
+              onWorkTypeChange={setWorkTypeFilter}
+              onPriorityChange={setPriorityFilter}
+              onClearPanelFilters={clearPanelFilters}
+              chipHandlers={chipHandlers}
+              factories={factories}
+              sections={sections}
+              machines={machines}
+              workOrderTypes={workOrderTypes}
+            />
+          }
+          machineFilter={resolvedMachineFilter}
+          onMachineChange={setMachineFilter}
+          machines={machinesForToolbarSelect}
+          machineSelectDisabled={defaultMachineId != null}
+          showCompleteOrders={filters.showCompleteOrders}
+          onShowCompleteOrdersChange={setShowCompleteOrders}
+        />
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {error ? (
@@ -528,25 +530,27 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         )}
       </div>
 
-      <SheetLogEntryFooter
-        ref={footerRef}
-        key={`footer-${sectionId ?? 'none'}-${defaultMachineId ?? 'none'}`}
-        open={footerDrawerOpen}
-        onOpenChange={setFooterDrawerOpen}
-        sheetDate={logEntryDate}
-        factoryId={resolvedFactoryId}
-        factoryLabel={factoryLabel}
-        sectionId={sectionId ?? null}
-        machines={machinesInScope}
-        workOrderTypes={workOrderTypes}
-        partItems={items}
-        templates={templates}
-        accounts={accounts}
-        members={members}
-        defaultMachineId={defaultMachineId}
-        onSuccess={() => refetch()}
-        onRequestFactorySelect={promptFactorySelect}
-      />
+      {!selectedOrder ? (
+        <SheetLogEntryFooter
+          ref={footerRef}
+          key={`footer-${sectionId ?? 'none'}-${defaultMachineId ?? 'none'}`}
+          open={footerDrawerOpen}
+          onOpenChange={setFooterDrawerOpen}
+          sheetDate={logEntryDate}
+          factoryId={resolvedFactoryId}
+          factoryLabel={factoryLabel}
+          sectionId={sectionId ?? null}
+          machines={machinesInScope}
+          workOrderTypes={workOrderTypes}
+          partItems={items}
+          templates={templates}
+          accounts={accounts}
+          members={members}
+          defaultMachineId={defaultMachineId}
+          onSuccess={() => refetch()}
+          onRequestFactorySelect={promptFactorySelect}
+        />
+      ) : null}
 
       <AddWorkOrderDialog
         open={isAddOpen}

@@ -81,3 +81,16 @@ export function workOrderPriorityBadgeClass(priority: WorkOrderPriority): string
 export function workOrderPriorityBadgeLabel(priority: WorkOrderPriority): string {
   return priority === 'MEDIUM' ? 'MED' : priority;
 }
+
+/** User-facing label: description when set, otherwise the system auto-title. */
+export function workOrderDisplayLabel(order: {
+  description?: string | null;
+  title: string;
+  work_order_type_name?: string | null;
+}): string {
+  const description = order.description?.trim();
+  if (description) return description;
+  const title = order.title?.trim();
+  if (title) return title;
+  return order.work_order_type_name?.trim() || 'Work order';
+}

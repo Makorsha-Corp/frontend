@@ -26,6 +26,7 @@ import {
   WORK_ORDER_STATUS_OPTIONS,
   priorityLabel,
   workOrderStatusLabel,
+  workOrderDisplayLabel,
 } from './workOrderConstants';
 import {
   filterWorkOrders,
@@ -254,7 +255,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   type="text"
-                  placeholder="Search by WO# or title..."
+                  placeholder="Search by WO# or description..."
                   value={filters.searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
@@ -281,6 +282,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
         </AppShellHeader>
       )}
 
+      {!selectedOrder ? (
       <div className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -293,7 +295,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
           {selectedOrder ? (
             <span className="truncate text-left">
               <span className="font-medium">{selectedOrder.work_order_number}</span>
-              <span className="text-muted-foreground font-normal"> · {selectedOrder.title}</span>
+              <span className="text-muted-foreground font-normal"> · {workOrderDisplayLabel(selectedOrder)}</span>
             </span>
           ) : (
             <span className="truncate">
@@ -352,6 +354,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
           </>
         )}
       </div>
+      ) : null}
 
       <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
         {navigatorOpen && (
