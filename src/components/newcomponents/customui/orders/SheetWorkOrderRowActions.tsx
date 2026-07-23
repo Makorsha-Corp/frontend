@@ -17,6 +17,7 @@ import {
 } from '@/features/workOrders/workOrdersApi';
 import type { WorkOrderApprover, WorkOrderCompleteRequest, WorkOrderStatus } from '@/types/workOrder';
 import { cn } from '@/lib/utils';
+import { SHEET_ACTION_BTN } from './workOrderSheetTypography';
 
 export interface SheetWorkOrderRowActionsProps {
   workOrderId: number;
@@ -126,7 +127,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 w-full text-xs"
+            className={SHEET_ACTION_BTN}
             disabled={isBusy}
             onClick={() => void handleApprove()}
           >
@@ -139,7 +140,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 w-full text-xs"
+            className={SHEET_ACTION_BTN}
             disabled={isBusy}
             onClick={() => void handleWithdraw()}
           >
@@ -151,7 +152,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           <Button
             type="button"
             size="sm"
-            className="h-7 w-full text-xs bg-brand-primary hover:bg-brand-primary-hover"
+            className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
             disabled={isBusy}
             onClick={() => void handleStart()}
           >
@@ -163,7 +164,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           <Button
             type="button"
             size="sm"
-            className="h-7 w-full text-xs bg-brand-primary hover:bg-brand-primary-hover"
+            className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
             disabled={isBusy}
             onClick={() => setCompleteOpen(true)}
           >
@@ -176,7 +177,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex w-full">
-                  <Button type="button" size="sm" className="h-7 w-full text-xs" disabled>
+                  <Button type="button" size="sm" className={SHEET_ACTION_BTN} disabled>
                     Start
                   </Button>
                 </span>

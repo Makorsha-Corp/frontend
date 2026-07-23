@@ -111,7 +111,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
         project_component_id: targetKind === 'component' ? Number(targetId) : undefined,
         uses_inventory: true,
         account_id: accountId !== '__none__' ? parseInt(accountId, 10) : undefined,
-        start_date: startDate || undefined,
+        planned_date: startDate || undefined,
         end_date: endDate || undefined,
         cost: cost ? parseFloat(cost) : undefined,
         assigned_to: assignedTo.trim() || undefined,
@@ -238,7 +238,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Start date</Label>
+              <Label>Planned date</Label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1" />
             </div>
             <div>

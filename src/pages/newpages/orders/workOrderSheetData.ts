@@ -22,6 +22,7 @@ import type {
 import type { WorkOrderSchedule } from '@/types/workOrderSchedule';
 import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
 import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 
 /** Sunday-start work week (Sun → Sat). */
 export const SHEET_WEEK_STARTS_ON = 0 as const;
@@ -46,6 +47,7 @@ export interface WorkOrderSheetRow {
   approvalMet: boolean;
   itemId: number | null;
   date: string;
+  plannedDate: string | null;
   machineId: number | null;
   machineName: string;
   factoryName: string;
@@ -151,7 +153,8 @@ export function flattenSheetBundles(
 
   for (const bundle of bundles) {
     const { order, items, approvers } = bundle;
-    const dateStr = order.start_date ?? order.created_at.slice(0, 10);
+    const dateStr = getWorkOrderCalendarDateString(order);
+    const plannedDate = order.planned_date?.trim() ? order.planned_date.slice(0, 10) : null;
     const mgr = approvalSlotStatus(approvers.approvers, 'manager');
     const agm = approvalSlotStatus(approvers.approvers, 'agm');
     const approverList = approvers.approvers;
@@ -173,6 +176,7 @@ export function flattenSheetBundles(
         approvalMet,
         itemId: null,
         date: dateStr,
+        plannedDate,
         machineId: order.machine_id,
         machineName: machineLabel,
         factoryName: factoryLabel,
@@ -205,6 +209,7 @@ export function flattenSheetBundles(
         approvalMet,
         itemId: item.id,
         date: dateStr,
+        plannedDate,
         machineId: order.machine_id,
         machineName: machineLabel,
         factoryName: factoryLabel,
@@ -485,10 +490,7 @@ function buildDaysInBounds(
       );
 
   if (options.includeAllDays) {
-    return dates
-      .slice()
-      .sort((a, b) => parseISO(b).getTime() - parseISO(a).getTime())
-      .map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
+    return dates.map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
   }
 
   return dates.map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
@@ -672,6 +674,19 @@ export function buildWeekDaysFromDailyCounts(
   });
 }
 
+export function sheetDateGroupsToWeekDayCells(groups: SheetDateGroup[]): WeekDayCell[] {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  return groups.map((group) => ({
+    date: group.date,
+    dayLabel: format(parseISO(group.date), 'EEE dd.MM'),
+    rows: group.rows,
+    entryCount: group.entryCount,
+    isToday: group.date === today,
+    isSelected: group.isSelected,
+    isEmpty: group.isEmpty,
+  }));
+}
+
 export function buildSheetDateGroups(
   rows: WorkOrderSheetRow[],
   dateScope: SheetDateScope,
@@ -685,7 +700,11 @@ export function buildSheetDateGroups(
 
   if (!days.some((day) => day.date === selectedDate)) {
     days.push(buildDayGroup(selectedDate, new Map(), schedules, selectedDate));
-    days.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    days.sort((a, b) =>
+      dateScope === 'week'
+        ? parseISO(a.date).getTime() - parseISO(b.date).getTime()
+        : parseISO(b.date).getTime() - parseISO(a.date).getTime(),
+    );
   }
 
   return days;

@@ -72,16 +72,16 @@ const WorkOrdersSheetView: React.FC<WorkOrdersSheetViewProps> = ({
   const { data: bundles = [], isLoading, refetch: refetchSheet } = useGetWorkOrdersSheetQuery({
     factory_id: factoryId,
     machine_id: machineId,
-    start_date_from: apiDateFrom,
-    start_date_to: apiDateTo,
+    planned_date_from: apiDateFrom,
+    planned_date_to: apiDateTo,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
 
   const { data: schedules = [], isLoading: isLoadingSchedules, refetch: refetchSchedules } = useGetWorkOrderSchedulesQuery({
     factory_id: factoryId,
     machine_id: machineId,
-    start_date_from: apiDateFrom,
-    start_date_to: apiDateTo,
+    planned_date_from: apiDateFrom,
+    planned_date_to: apiDateTo,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
 

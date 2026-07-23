@@ -1,8 +1,15 @@
 import React from 'react';
-import { format, parseISO, startOfDay } from 'date-fns';
+import { parseISO, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
+import {
+  formatWorkOrderDatePopoverLines,
+  getWorkOrderSheetDisplayDate,
+  hasWorkOrderLifecycleVariance,
+  type WorkOrderLifecycleNote,
+} from '@/pages/newpages/orders/workOrderDateUtils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   workOrderItemActionLabel,
   workOrderPriorityBadgeClass,
@@ -10,25 +17,31 @@ import {
   workOrderStatusBadgeClass,
   workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { parseApiDateTime } from '@/utils/datetime';
-import { Bookmark, DollarSign } from 'lucide-react';
+import { Bookmark, Clock, DollarSign } from 'lucide-react';
 import SheetApproverChips from './SheetApproverChips';
 import SheetWorkOrderRowActions from './SheetWorkOrderRowActions';
 import { initialsOf } from './transferOrderApprovals';
-
-function formatSheetTimestamp(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = parseApiDateTime(iso);
-  if (!date || Number.isNaN(date.getTime())) return null;
-  return format(date, 'MMM d, HH:mm');
-}
+import {
+  SHEET_ACTIONS_COL,
+  SHEET_APPROVERS_COL,
+  SHEET_BADGE,
+  SHEET_CELL_PAD,
+  SHEET_CHIP,
+  SHEET_DATE_COL,
+  SHEET_HEADER,
+  SHEET_HEADER_CELL_PAD,
+  SHEET_META,
+  SHEET_PRIMARY,
+  SHEET_WORKERS_COL,
+  SHEET_WORKS_COL,
+} from './workOrderSheetTypography';
 
 function priorityBadge(priority: WorkOrderSheetRow['priority']) {
   return (
     <Badge
       variant="outline"
       className={cn(
-        'px-1 py-0 text-[9px] font-semibold',
+        SHEET_BADGE,
         workOrderPriorityBadgeClass(priority),
       )}
     >
@@ -51,7 +64,7 @@ function statusBadge(row: WorkOrderSheetRow) {
     return (
       <Badge
         variant="outline"
-        className="border-sky-500/40 px-1 py-0 text-[9px] font-normal text-sky-700 dark:text-sky-400"
+        className={cn(SHEET_BADGE, 'border-sky-500/40 font-normal text-sky-700 dark:text-sky-400')}
       >
         Planned
       </Badge>
@@ -60,7 +73,7 @@ function statusBadge(row: WorkOrderSheetRow) {
   return (
     <Badge
       variant="outline"
-      className={cn('px-1 py-0 text-[9px] font-normal', workOrderStatusBadgeClass(row.status))}
+      className={cn(SHEET_BADGE, 'font-normal', workOrderStatusBadgeClass(row.status))}
     >
       {workOrderStatusLabel(row.status)}
     </Badge>
@@ -70,14 +83,14 @@ function statusBadge(row: WorkOrderSheetRow) {
 function approvalPendingBadge(row: WorkOrderSheetRow) {
   if (row.approvalMet || row.approvers.length === 0 || row.status !== 'DRAFT') return null;
   return (
-    <Badge variant="outline" className="border-amber-500/40 px-1 py-0 text-[9px] text-amber-700 dark:text-amber-400">
+    <Badge variant="outline" className={cn(SHEET_BADGE, 'border-amber-500/40 text-amber-700 dark:text-amber-400')}>
       Needs approval
     </Badge>
   );
 }
 
 function SheetEmptyCell({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs italic text-muted-foreground/80">{children}</span>;
+  return <span className={cn(SHEET_META, 'italic')}>{children}</span>;
 }
 
 function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
@@ -99,8 +112,6 @@ function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
 }
 
 function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
-  const started = formatSheetTimestamp(row.startedAt);
-  const completed = formatSheetTimestamp(row.completedAt);
   const hasParts = row.partName !== '—';
   const partCountLabel = hasParts
     ? `${row.groupRowSpan} part${row.groupRowSpan === 1 ? '' : 's'}`
@@ -108,15 +119,15 @@ function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
   const locationLabel = row.sectionName ? `${row.factoryName} · ${row.sectionName}` : row.factoryName;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        <span className="text-sm font-semibold leading-snug">{row.machineName}</span>
+        <span className={cn(SHEET_PRIMARY, 'leading-snug')}>{row.machineName}</span>
         {priorityBadge(row.priority)}
         {statusBadge(row)}
         {approvalPendingBadge(row)}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-normal text-muted-foreground">
+      <div className={cn('flex flex-wrap items-center gap-x-1.5 gap-y-0.5 leading-normal', SHEET_META)}>
         <span>{row.workOrderNumber}</span>
         <span aria-hidden className="text-border">·</span>
         <span>{locationLabel}</span>
@@ -128,24 +139,13 @@ function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
         ) : null}
         <SheetRowIndicators row={row} />
       </div>
-
-      {(started || completed) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] leading-normal">
-          {started ? (
-            <span className="text-emerald-700 dark:text-emerald-400">Started {started}</span>
-          ) : null}
-          {completed ? (
-            <span className="text-blue-700 dark:text-blue-400">Done {completed}</span>
-          ) : null}
-        </div>
-      )}
     </div>
   );
 }
 
 function SheetWorksCell({ works }: { works: string }) {
   return (
-    <div className="min-w-0 text-sm font-medium leading-snug text-foreground/90">{works}</div>
+    <div className={cn('min-w-0 leading-snug', SHEET_PRIMARY)}>{works}</div>
   );
 }
 
@@ -167,10 +167,10 @@ function SheetWorkersCell({ workers }: { workers: string }) {
     <div className="flex flex-col gap-1.5">
       {names.map((name) => (
         <div key={name} className="flex min-w-0 items-center gap-1.5">
-          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
             {initialsOf(name)}
           </span>
-          <span className="truncate text-xs leading-tight text-card-foreground">{name}</span>
+          <span className={cn('truncate leading-tight', SHEET_PRIMARY)}>{name}</span>
         </div>
       ))}
     </div>
@@ -192,9 +192,9 @@ function SheetPartCell({ row }: { row: WorkOrderSheetRow }) {
 
   return (
     <div className="min-w-0">
-      <div className="truncate font-medium text-card-foreground">{row.partName}</div>
+      <div className={cn('truncate', SHEET_PRIMARY)}>{row.partName}</div>
       {(actionLabel || qtyLabel) && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-1 text-[10px] text-muted-foreground">
+        <div className={cn('mt-0.5 flex flex-wrap items-center gap-x-1', SHEET_CHIP)}>
           {actionLabel ? <span>{actionLabel}</span> : null}
           {actionLabel && qtyLabel ? <span aria-hidden>·</span> : null}
           {qtyLabel ? <span>{qtyLabel}</span> : null}
@@ -211,27 +211,88 @@ export function WorkOrderSheetTableHeader({
 }) {
   return (
     <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-      <tr className="border-b border-border/60 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <tr className={cn('border-b border-border/60 text-left', SHEET_HEADER)}>
         {showStartDateColumn ? (
-          <th className="w-[4.5rem] min-w-[4.5rem] px-2 py-1.5">Start</th>
+          <th className={cn(SHEET_DATE_COL, SHEET_HEADER_CELL_PAD)}>Date</th>
         ) : null}
-        <th className="px-2 py-1.5">Machine</th>
-        <th className="w-[8rem] min-w-[8rem] px-2 py-1.5">Works</th>
-        <th className="px-2 py-1.5">Parts / consumables</th>
-        <th className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5">Workers</th>
-        <th className="w-[8.5rem] min-w-[8.5rem] px-2 py-1.5">Approvers</th>
-        <th className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5">Actions</th>
+        <th className={SHEET_HEADER_CELL_PAD}>Machine</th>
+        <th className={cn(SHEET_WORKS_COL, SHEET_HEADER_CELL_PAD)}>Works</th>
+        <th className={SHEET_HEADER_CELL_PAD}>Parts / consumables</th>
+        <th className={cn(SHEET_WORKERS_COL, SHEET_HEADER_CELL_PAD)}>Workers</th>
+        <th className={cn(SHEET_APPROVERS_COL, SHEET_HEADER_CELL_PAD)}>Approvers</th>
+        <th className={cn(SHEET_ACTIONS_COL, SHEET_HEADER_CELL_PAD)}>Actions</th>
       </tr>
     </thead>
   );
 }
 
-function formatSheetStartDate(dateStr: string): string {
-  try {
-    return format(parseISO(dateStr), 'MMM d');
-  } catch {
-    return dateStr;
+function lifecycleNoteToneClass(note: WorkOrderLifecycleNote) {
+  if (note.text.includes(' late')) {
+    return 'text-amber-700 dark:text-amber-400';
   }
+  if (note.tone === 'completed') {
+    return 'text-blue-700 dark:text-blue-400';
+  }
+  return 'text-emerald-700 dark:text-emerald-400';
+}
+
+function lifecycleVarianceIconClass(notes: WorkOrderLifecycleNote[]): string {
+  const isLate = notes.some((note) => note.text.includes(' late'));
+  if (isLate) return 'text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300';
+  return 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300';
+}
+
+function SheetStartDateCell({ row }: { row: WorkOrderSheetRow }) {
+  const dateRow = {
+    plannedDate: row.plannedDate,
+    calendarDate: row.date,
+    startedAt: row.startedAt,
+    completedAt: row.completedAt,
+  };
+  const displayDate = getWorkOrderSheetDisplayDate(dateRow);
+  const hasVariance = hasWorkOrderLifecycleVariance(dateRow);
+  const popoverLines = hasVariance ? formatWorkOrderDatePopoverLines(dateRow) : null;
+
+  return (
+    <div className={cn(SHEET_DATE_COL, 'flex items-center gap-0.5')}>
+      <span className={SHEET_PRIMARY}>{displayDate}</span>
+      {hasVariance && popoverLines ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'inline-flex shrink-0 rounded p-0.5 transition-colors',
+                lifecycleVarianceIconClass(popoverLines.lifecycleNotes),
+              )}
+              aria-label="View start timeline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Clock className="h-3 w-3" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-56 space-y-2 p-3"
+            align="start"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div>
+              <div className={cn(SHEET_HEADER, 'normal-case tracking-normal')}>Planned</div>
+              <div className={cn('mt-0.5', SHEET_PRIMARY)}>{popoverLines.plannedLabel}</div>
+            </div>
+            {popoverLines.lifecycleNotes.map((note) => (
+              <div
+                key={note.text}
+                className={cn('text-sm leading-snug', lifecycleNoteToneClass(note))}
+              >
+                {note.text}
+              </div>
+            ))}
+          </PopoverContent>
+        </Popover>
+      ) : null}
+    </div>
+  );
 }
 
 export interface WorkOrderSheetDayRowsProps {
@@ -265,47 +326,51 @@ export function WorkOrderSheetDayRows({
           {showStartDateColumn && row.isFirstInGroup ? (
             <td
               rowSpan={row.groupRowSpan}
-              className="w-[4.5rem] min-w-[4.5rem] border-r border-border/40 px-2 py-1.5 align-top text-[11px] text-muted-foreground"
+              className={cn(
+                SHEET_DATE_COL,
+                'border-r border-border/40 align-top text-card-foreground',
+                SHEET_CELL_PAD,
+              )}
             >
-              {formatSheetStartDate(row.date)}
+              <SheetStartDateCell row={row} />
             </td>
           ) : null}
           {row.isFirstInGroup ? (
             <>
               <td
                 rowSpan={row.groupRowSpan}
-                className="border-r border-border/40 px-2 py-2.5 align-top text-sm text-card-foreground"
+                className={cn('border-r border-border/40 align-top text-card-foreground', SHEET_CELL_PAD)}
               >
                 <SheetMachineCell row={row} />
               </td>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[8rem] min-w-[8rem] border-r border-border/40 px-2 py-2.5 align-middle text-sm text-card-foreground"
+                className={cn(SHEET_WORKS_COL, 'border-r border-border/40 align-middle text-card-foreground', SHEET_CELL_PAD)}
               >
                 <SheetWorksCell works={row.works} />
               </td>
             </>
           ) : null}
-          <td className="px-2 py-1.5 align-middle text-sm">
+          <td className={cn('align-middle text-card-foreground', SHEET_CELL_PAD)}>
             <SheetPartCell row={row} />
           </td>
           {row.isFirstInGroup ? (
             <>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[7.5rem] min-w-[7.5rem] border-l border-border/40 px-2 py-1.5 align-middle"
+                className={cn(SHEET_WORKERS_COL, 'border-l border-border/40 align-middle', SHEET_CELL_PAD)}
               >
                 <SheetWorkersCell workers={row.workers} />
               </td>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[8.5rem] min-w-[8.5rem] px-2 py-1.5 align-middle"
+                className={cn(SHEET_APPROVERS_COL, 'align-middle', SHEET_CELL_PAD)}
               >
                 <SheetApproverChips approvers={row.approvers} />
               </td>
               <td
                 rowSpan={row.groupRowSpan}
-                className="w-[7.5rem] min-w-[7.5rem] px-2 py-1.5 align-middle"
+                className={cn(SHEET_ACTIONS_COL, 'align-middle', SHEET_CELL_PAD)}
               >
                 <SheetWorkOrderRowActions
                   workOrderId={row.workOrderId}

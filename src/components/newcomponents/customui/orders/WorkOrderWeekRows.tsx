@@ -4,10 +4,12 @@ import { Plus } from 'lucide-react';
 import type { WeekDayCell } from '@/pages/newpages/orders/workOrderSheetData';
 import {
   weekDayBandHeaderClass,
+  weekDayBandHeaderSelectClass,
   weekDayBandSectionClass,
   weekDayContentInsetClass,
   weekDayCountLabel,
-  weekDayEmptyAddButtonClass,
+  weekDayHeaderAddButtonClass,
+  weekDayHeaderCountClass,
 } from './weekCalendarStyles';
 import WorkOrderSheetTable from './WorkOrderSheetTable';
 
@@ -31,34 +33,37 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
   <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
     {days.map((day) => (
       <section key={day.date} className={weekDayBandSectionClass(day)}>
-        <button
-          type="button"
-          className={weekDayBandHeaderClass(day)}
-          onClick={() => onSelectDay(day.date)}
-        >
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-            {day.dayLabel}
-          </span>
-          {day.isToday ? (
-            <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
-              Today
-            </Badge>
-          ) : null}
-          <span className="shrink-0 text-xs text-muted-foreground">{weekDayCountLabel(day)}</span>
-        </button>
+        <div className={weekDayBandHeaderClass(day)}>
+          <button
+            type="button"
+            className={weekDayBandHeaderSelectClass()}
+            onClick={() => onSelectDay(day.date)}
+          >
+            <span className="shrink-0 truncate text-sm font-semibold text-foreground">
+              {day.dayLabel}
+            </span>
+            {day.isToday ? (
+              <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
+                Today
+              </Badge>
+            ) : null}
+          </button>
 
-        {day.isEmpty ? (
-          <div className={weekDayContentInsetClass()}>
+          {day.isEmpty ? (
             <button
               type="button"
-              className={weekDayEmptyAddButtonClass('rows')}
+              className={weekDayHeaderAddButtonClass()}
               onClick={() => onAddForDay(day.date)}
             >
               <Plus className="h-3 w-3 shrink-0" />
               Add work
             </button>
-          </div>
-        ) : (
+          ) : (
+            <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
+          )}
+        </div>
+
+        {!day.isEmpty ? (
           <div className={weekDayContentInsetClass()}>
             <WorkOrderSheetTable
               embed
@@ -69,7 +74,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
               onSheetMutated={onSheetMutated}
             />
           </div>
-        )}
+        ) : null}
       </section>
     ))}
   </div>

@@ -57,14 +57,14 @@ export const workOrdersApi = createApi({
       invalidatesTags: ['WorkOrder'],
     }),
     getWorkOrdersSheet: builder.query<WorkOrderSheetBundle[], ListWorkOrderSheetParams>({
-      query: ({ factory_id, machine_id, start_date_from, start_date_to, skip = 0, limit = 1000 } = {}) => {
+      query: ({ factory_id, machine_id, planned_date_from, planned_date_to, skip = 0, limit = 1000 } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', String(skip));
         params.append('limit', String(limit));
         if (factory_id) params.append('factory_id', String(factory_id));
         if (machine_id) params.append('machine_id', String(machine_id));
-        if (start_date_from) params.append('start_date_from', start_date_from);
-        if (start_date_to) params.append('start_date_to', start_date_to);
+        if (planned_date_from) params.append('planned_date_from', planned_date_from);
+        if (planned_date_to) params.append('planned_date_to', planned_date_to);
         return `work-orders/sheet/?${params.toString()}`;
       },
       providesTags: ['WorkOrder', 'WorkOrderItem'],
@@ -76,8 +76,8 @@ export const workOrdersApi = createApi({
       query: ({
         factory_id,
         machine_id,
-        start_date_from,
-        start_date_to,
+        planned_date_from,
+        planned_date_to,
         status,
         work_order_type_id,
         priority,
@@ -85,8 +85,8 @@ export const workOrdersApi = createApi({
         const params = new URLSearchParams();
         if (factory_id) params.append('factory_id', String(factory_id));
         if (machine_id) params.append('machine_id', String(machine_id));
-        if (start_date_from) params.append('start_date_from', start_date_from);
-        if (start_date_to) params.append('start_date_to', start_date_to);
+        if (planned_date_from) params.append('planned_date_from', planned_date_from);
+        if (planned_date_to) params.append('planned_date_to', planned_date_to);
         if (status) params.append('status', status);
         if (work_order_type_id) params.append('work_order_type_id', String(work_order_type_id));
         if (priority) params.append('priority', priority);

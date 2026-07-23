@@ -174,6 +174,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const [approverIds, setApproverIds] = useState<number[]>([]);
 
   const [description, setDescription] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [recurrenceDay, setRecurrenceDay] = useState('1');
+  const [nextGenerationDate, setNextGenerationDate] = useState('');
+  const [autoGenerate, setAutoGenerate] = useState(false);
+  const [generationMode, setGenerationMode] = useState<'schedule' | 'draft'>('schedule');
   const [isSaving, setIsSaving] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
@@ -251,6 +257,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       }
       setRequiresApproval(template.requires_approval ? 'yes' : 'no');
       setDescription(template.description ?? '');
+      setIsRecurring(template.is_recurring);
+      setRecurrenceType((template.recurrence_type as 'daily' | 'weekly' | 'monthly') || 'weekly');
+      setRecurrenceDay(template.recurrence_day != null ? String(template.recurrence_day) : '1');
+      setNextGenerationDate(template.next_generation_date?.slice(0, 10) ?? '');
+      setAutoGenerate(template.auto_generate);
+      setGenerationMode(template.generation_mode ?? 'schedule');
     } else {
       setTemplateName('');
       setTypeId('');
@@ -267,6 +279,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setRequiresApproval('no');
       setApproverIds([]);
       setDescription('');
+      setIsRecurring(false);
+      setRecurrenceType('weekly');
+      setRecurrenceDay('1');
+      setNextGenerationDate('');
+      setAutoGenerate(false);
+      setGenerationMode('schedule');
     }
     setDraftLine(emptyLine());
     setIsCreatingType(false);
@@ -465,6 +483,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         approver_user_ids: requiresApproval === 'yes' ? approverIds : [],
         default_factory_section_id: sectionId ? Number(sectionId) : undefined,
         default_machine_id: machineId ? Number(machineId) : undefined,
+        is_recurring: isRecurring,
+        recurrence_type: isRecurring ? recurrenceType : null,
+        recurrence_day: isRecurring ? Number(recurrenceDay) || null : null,
+        next_generation_date: isRecurring && nextGenerationDate ? nextGenerationDate : null,
+        auto_generate: isRecurring ? autoGenerate : false,
+        generation_mode: isRecurring ? generationMode : 'schedule',
       };
       const lineItems =
         needsParts === 'yes'
@@ -892,10 +916,89 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     </div>
   );
 
+  const recurrenceDayLabel =
+    recurrenceType === 'weekly' ? 'Day of week (0=Mon … 6=Sun)' : 'Day of month (1–31)';
+
+  const recurrenceSection = (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurrence</Label>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant={!isRecurring ? 'default' : 'outline'}
+          size="sm"
+          className={yesNoChipClass(!isRecurring)}
+          onClick={() => setIsRecurring(false)}
+        >
+          One-off
+        </Button>
+        <Button
+          type="button"
+          variant={isRecurring ? 'default' : 'outline'}
+          size="sm"
+          className={yesNoChipClass(isRecurring)}
+          onClick={() => setIsRecurring(true)}
+        >
+          Recurring
+        </Button>
+      </div>
+
+      {isRecurring ? (
+        <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Cadence</Label>
+            <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as 'daily' | 'weekly' | 'monthly')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {recurrenceType !== 'daily' ? (
+            <div className="grid gap-1">
+              <Label className="text-xs text-muted-foreground">{recurrenceDayLabel}</Label>
+              <StepNumberInput min={0} step={1} value={recurrenceDay} onChange={(e) => setRecurrenceDay(e.target.value)} />
+            </div>
+          ) : null}
+
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Next due date</Label>
+            <Input type="date" value={nextGenerationDate} onChange={(e) => setNextGenerationDate(e.target.value)} />
+          </div>
+
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">When due, create as</Label>
+            <Select value={generationMode} onValueChange={(v) => setGenerationMode(v as 'schedule' | 'draft')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="schedule">Staged schedule (confirm on sheet)</SelectItem>
+                <SelectItem value="draft">Draft work order (immediate)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox checked={autoGenerate} onCheckedChange={(v) => setAutoGenerate(v === true)} />
+            <span>Auto-generate when due (future job)</span>
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+
   const dialogBody = (
     <div className="grid min-h-0 flex-1 gap-4 px-5 py-3 md:grid-cols-2">
       <div className="flex min-h-0 min-w-0 flex-col gap-3">
         {basicsSection}
+        <Separator />
+        {recurrenceSection}
         <Separator />
         {descriptionSection}
       </div>

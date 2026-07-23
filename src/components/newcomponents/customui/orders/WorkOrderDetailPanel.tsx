@@ -423,7 +423,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                     <dt className="text-muted-foreground text-xs uppercase tracking-wide">Start / End</dt>
                     <dd className="font-medium mt-0.5 flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                      {formatDate(order.start_date)} – {formatDate(order.end_date)}
+                      {formatDate(order.planned_date)} – {formatDate(order.end_date)}
                     </dd>
                   </div>
                 </div>

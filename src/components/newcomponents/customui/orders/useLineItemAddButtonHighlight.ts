@@ -1,23 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-
-const HIGHLIGHT_AUTO_CLEAR_MS = 3500;
+import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
 
 export function useLineItemAddButtonHighlight() {
-  const [addButtonHighlighted, setAddButtonHighlighted] = useState(false);
-
-  useEffect(() => {
-    if (!addButtonHighlighted) return;
-    const timer = window.setTimeout(() => setAddButtonHighlighted(false), HIGHLIGHT_AUTO_CLEAR_MS);
-    return () => window.clearTimeout(timer);
-  }, [addButtonHighlighted]);
-
-  const pulseAddButtonHighlight = useCallback(() => {
-    setAddButtonHighlighted(true);
-  }, []);
-
-  const dismissAddButtonHighlight = useCallback(() => {
-    setAddButtonHighlighted(false);
-  }, []);
+  const {
+    highlighted: addButtonHighlighted,
+    pulseHighlight: pulseAddButtonHighlight,
+    dismissHighlight: dismissAddButtonHighlight,
+  } = useScrollTargetHighlight();
 
   return {
     addButtonHighlighted,

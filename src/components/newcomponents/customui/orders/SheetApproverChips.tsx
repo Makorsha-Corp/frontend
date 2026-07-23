@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { WorkOrderApprover } from '@/types/workOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
+import { SHEET_META } from './workOrderSheetTypography';
 
 export interface SheetApproverChipsProps {
   approvers: WorkOrderApprover[];
@@ -28,7 +29,7 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
 }) => {
   if (approvers.length === 0) {
     return (
-      <span className="text-xs italic text-muted-foreground/80">No approvers required</span>
+      <span className={cn(SHEET_META, 'italic')}>No approvers required</span>
     );
   }
 
@@ -41,7 +42,7 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
     <div className={cn('flex flex-col gap-1.5', className)}>
       <span
         className={cn(
-          'text-[10px] font-medium leading-none',
+          'text-[11px] font-medium leading-none',
           approved === total ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
         )}
       >
@@ -55,7 +56,7 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
               <TooltipTrigger asChild>
                 <div
                   className={cn(
-                    'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white',
+                    'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white',
                     approver.approved ? avatarColor(approver.user_id) : 'bg-muted-foreground/35',
                   )}
                 >

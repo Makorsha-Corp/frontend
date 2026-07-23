@@ -24,6 +24,7 @@ import {
   type MachinesLocationFilterSlice,
 } from '@/lib/machinesLocationFilters';
 import { cn } from '@/lib/utils';
+import { SCROLL_TARGET_HIGHLIGHT_CLASS } from '@/lib/scrollTargetHighlight';
 import {
   appShellHeaderBoxedControlClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
@@ -39,6 +40,12 @@ export interface MachinesInlineLocationFiltersProps {
   factories: Array<{ id: number; name: string; abbreviation: string }>;
   sections: Array<{ id: number; name: string; factory_id: number }>;
   className?: string;
+  /** Controlled open state (factories dropdown only). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Draw attention to the trigger when factory selection is required (PO scroll-target glow). */
+  highlight?: boolean;
+  onHighlightDismiss?: () => void;
 }
 
 const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps> = ({
@@ -51,6 +58,10 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   factories,
   sections,
   className,
+  open,
+  onOpenChange,
+  highlight = false,
+  onHighlightDismiss,
 }) => {
   const allFactoryIds = React.useMemo(() => factories.map((f) => f.id), [factories]);
 
@@ -85,9 +96,19 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   if (which === 'factories') {
     return (
       <div className={className}>
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={onOpenChange}>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
+            <Button
+              type="button"
+              variant={isBreadcrumb ? 'ghost' : 'outline'}
+              className={cn(triggerClassName, highlight && SCROLL_TARGET_HIGHLIGHT_CLASS)}
+              onMouseEnter={() => {
+                if (highlight) onHighlightDismiss?.();
+              }}
+              onClick={() => {
+                if (highlight) onHighlightDismiss?.();
+              }}
+            >
               <span className="truncate text-card-foreground dark:text-foreground">{factoryDropdownLabel}</span>
               <ChevronDown className={chevronClassName} aria-hidden />
             </Button>

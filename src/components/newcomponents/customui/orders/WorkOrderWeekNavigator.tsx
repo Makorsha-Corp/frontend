@@ -13,6 +13,7 @@ import { Day, useDayPicker } from 'react-day-picker';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { workOrderWeekSelectedModifierClassNames } from '@/components/ui/calendarDayClassNames';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import WorkOrderWeekSnapshotPanel from '@/components/newcomponents/customui/orders/WorkOrderWeekSnapshotPanel';
@@ -101,11 +102,8 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
   const calendarModifierClassNames = useMemo(
     () => ({
       hasOrders:
-        'relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-brand-primary aria-selected:after:bg-white',
-      selectedWeek:
-        'rounded-none bg-brand-primary/10 hover:bg-brand-primary/15 aria-selected:!rounded-md aria-selected:!bg-brand-primary aria-selected:!text-white aria-selected:hover:!bg-brand-primary/90 aria-selected:hover:!text-white aria-selected:focus:!bg-brand-primary aria-selected:focus:!text-white dark:aria-selected:!bg-brand-primary dark:aria-selected:!text-white',
-      selectedWeekStart: 'rounded-l-md',
-      selectedWeekEnd: 'rounded-r-md',
+        'relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-brand-primary aria-selected:after:bg-primary-foreground',
+      ...workOrderWeekSelectedModifierClassNames,
       previewWeek: 'rounded-none bg-muted/60 text-foreground hover:bg-muted/70',
     }),
     [],
@@ -211,12 +209,6 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
               modifiers={calendarModifiers}
               modifiersClassNames={calendarModifierClassNames}
               components={calendarComponents}
-              classNames={{
-                day_selected:
-                  '!rounded-md !bg-brand-primary !text-white hover:!bg-brand-primary/90 hover:!text-white focus:!bg-brand-primary focus:!text-white dark:!bg-brand-primary dark:!text-white dark:hover:!bg-brand-primary/90',
-                day_today:
-                  'font-semibold bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-50 aria-selected:!bg-brand-primary aria-selected:!text-white aria-selected:hover:!bg-brand-primary/90 aria-selected:hover:!text-white dark:aria-selected:!bg-brand-primary dark:aria-selected:!text-white',
-              }}
               onSelect={(date) => {
                 if (!date) return;
                 handleSelectDay(format(date, 'yyyy-MM-dd'));

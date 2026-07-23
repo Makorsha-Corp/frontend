@@ -7,10 +7,8 @@ import {
   priorityLabel,
   workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import type {
-  WorkOrdersFilterState,
-  WorkOrdersLayoutMode,
-} from './useWorkOrdersFilters';
+import { buildSheetPeriodLabel } from '@/pages/newpages/orders/workOrderSheetData';
+import type { WorkOrdersFilterState } from './useWorkOrdersFilters';
 
 export interface WorkOrderFilterChip {
   id: string;
@@ -28,10 +26,7 @@ export interface WorkOrderFilterChipHandlers {
   onClearDate: () => void;
 }
 
-export function countActiveWorkOrderFilters(
-  filters: WorkOrdersFilterState,
-  layoutMode: WorkOrdersLayoutMode,
-): number {
+export function countActiveWorkOrderFilters(filters: WorkOrdersFilterState): number {
   let n = 0;
   if (filters.factoryFilter !== 'all') n += 1;
   if (filters.sectionFilter !== 'all') n += 1;
@@ -40,13 +35,21 @@ export function countActiveWorkOrderFilters(
   if (filters.workTypeFilter !== 'all') n += 1;
   if (filters.priorityFilter !== 'all') n += 1;
   if (filters.searchQuery.trim()) n += 1;
-  if (layoutMode === 'week' && filters.hasDateFilter) n += 1;
+  if (filters.hasDateFilter) n += 1;
+  return n;
+}
+
+/** Status / type / priority only — for Filters popover badge (date + search live in toolbar). */
+export function countWorkOrderPopoverFilters(filters: WorkOrdersFilterState): number {
+  let n = 0;
+  if (filters.statusFilter !== 'all') n += 1;
+  if (filters.workTypeFilter !== 'all') n += 1;
+  if (filters.priorityFilter !== 'all') n += 1;
   return n;
 }
 
 export function buildWorkOrderFilterChips(
   filters: WorkOrdersFilterState,
-  layoutMode: WorkOrdersLayoutMode,
   factories: Factory[],
   sections: FactorySection[],
   machines: Machine[],
@@ -101,11 +104,17 @@ export function buildWorkOrderFilterChips(
       onRemove: handlers.onClearSearch,
     });
   }
-  if (layoutMode === 'week' && filters.hasDateFilter && filters.sheetDate) {
+  if (filters.hasDateFilter && filters.sheetDate) {
+    const periodLabel =
+      filters.dateScope === 'day'
+        ? format(new Date(`${filters.sheetDate}T12:00:00`), 'dd.MM.yyyy')
+        : buildSheetPeriodLabel('week', filters.sheetDate) ??
+          format(new Date(`${filters.sheetDate}T12:00:00`), 'dd.MM.yyyy');
+    const scopeLabel = filters.dateScope === 'day' ? 'Day' : 'Week';
     chips.push({
       chip: {
         id: 'date',
-        label: format(new Date(`${filters.sheetDate}T12:00:00`), 'dd.MM.yyyy'),
+        label: `${scopeLabel} · ${periodLabel}`,
       },
       onRemove: handlers.onClearDate,
     });
@@ -125,7 +134,6 @@ export function buildWorkOrderPanelFilterChips(
 ): { chip: WorkOrderFilterChip; onRemove: () => void }[] {
   return buildWorkOrderFilterChips(
     filters,
-    'list',
     factories,
     sections,
     machines,
@@ -136,7 +144,8 @@ export function buildWorkOrderPanelFilterChips(
       chip.id !== 'factory' &&
       chip.id !== 'section' &&
       chip.id !== 'machine' &&
-      chip.id !== 'date',
+      chip.id !== 'date' &&
+      chip.id !== 'search',
   );
 }
 

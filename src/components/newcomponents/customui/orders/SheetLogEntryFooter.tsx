@@ -27,6 +27,8 @@ export interface SheetLogEntryFooterProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
+  /** When footer opened but no factory — prompt header factory picker. */
+  onRequestFactorySelect?: () => void;
   className?: string;
 }
 
@@ -47,6 +49,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
       disabled = false,
       open = false,
       onOpenChange,
+      onRequestFactorySelect,
       onSuccess,
       className,
     },
@@ -57,8 +60,16 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
     const dateLabel = format(parseISO(sheetDate), 'dd.MM.yyyy (EEE)');
     const scopeLabel = factoryLabel ?? (canAdd ? 'Factory selected' : 'Select factory');
 
+    const handleOpenChange = (next: boolean) => {
+      if (next && !canAdd) {
+        onRequestFactorySelect?.();
+        return;
+      }
+      onOpenChange?.(next);
+    };
+
     return (
-      <Collapsible open={open} onOpenChange={onOpenChange}>
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
         <div
           ref={ref}
           className={cn(

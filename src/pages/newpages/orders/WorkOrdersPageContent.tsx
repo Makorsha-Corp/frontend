@@ -121,6 +121,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
       factoryId: filters.factoryFilter,
       machineId: filters.machineFilter,
       searchQuery: filters.searchQuery,
+      showCompleteOrders: filters.showCompleteOrders,
     }),
     [filters],
   );

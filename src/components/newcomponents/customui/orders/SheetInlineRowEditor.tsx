@@ -66,7 +66,7 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
       await submitEntry({
         machine_id: Number(machineId),
         work_order_type_id: Number(worksTypeId),
-        start_date: sheetDate,
+        planned_date: sheetDate,
         assigned_to: workers.trim() || undefined,
         description: remarks.trim() || undefined,
         items: hasPart

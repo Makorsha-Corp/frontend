@@ -46,6 +46,10 @@ export function isWorkOrderOpen(status: WorkOrderStatus): boolean {
   return status !== 'COMPLETED' && status !== 'VOIDED';
 }
 
+export function isWorkOrderComplete(status: WorkOrderStatus): boolean {
+  return status === 'COMPLETED';
+}
+
 export function workOrderStatusBadgeClass(status: WorkOrderStatus): string {
   switch (status) {
     case 'COMPLETED':

@@ -31,7 +31,7 @@ export interface WorkOrderSheetApproverLine {
 export interface WorkOrderSheetEntryRequest {
   machine_id: number;
   work_order_type_id: number;
-  start_date: string;
+  planned_date: string;
   assigned_to?: string;
   description?: string;
   priority?: WorkOrderPriority;
@@ -45,8 +45,8 @@ export interface WorkOrderSheetEntryRequest {
 export interface ListWorkOrderSheetParams {
   factory_id?: number;
   machine_id?: number;
-  start_date_from?: string;
-  start_date_to?: string;
+  planned_date_from?: string;
+  planned_date_to?: string;
   skip?: number;
   limit?: number;
 }
@@ -54,8 +54,8 @@ export interface ListWorkOrderSheetParams {
 export interface ListWorkOrderSheetDailyCountsParams {
   factory_id?: number;
   machine_id?: number;
-  start_date_from?: string;
-  start_date_to?: string;
+  planned_date_from?: string;
+  planned_date_to?: string;
   status?: WorkOrderStatus;
   work_order_type_id?: number;
   priority?: WorkOrderPriority;

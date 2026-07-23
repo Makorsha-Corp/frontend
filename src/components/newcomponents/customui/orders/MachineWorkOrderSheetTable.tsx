@@ -18,6 +18,7 @@ import WorkOrderDaySheetPanel from './WorkOrderDaySheetPanel';
 import SheetScheduledOrdersList from './SheetScheduledOrdersList';
 import WorkOrderSheetTable from './WorkOrderSheetTable';
 import { WorkOrderSheetTableHeader } from './workOrderSheetTableParts';
+import { SHEET_TABLE, SHEET_TABLE_MIN_W } from './workOrderSheetTypography';
 
 function dayGroupBadgeLabel(group: {
   entryCount: number;
@@ -104,7 +105,7 @@ function SheetDayAccordionItem({
           onRowClick={onRowClick}
           currentUserId={currentUserId}
           onSheetMutated={onSheetMutated}
-          tableClassName="min-w-[620px]"
+          tableClassName={SHEET_TABLE_MIN_W}
         />
         {showSchedulePanel && (
           <SheetScheduledOrdersList
@@ -249,14 +250,14 @@ const MachineWorkOrderSheetTable: React.FC<MachineWorkOrderSheetTableProps> = ({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="min-w-[620px]">
+        <div className={SHEET_TABLE_MIN_W}>
           {periodLabel && (
             <div className="border-b border-border/60 bg-card px-3 py-2 text-sm font-semibold text-foreground">
               {periodLabel}
             </div>
           )}
 
-          <table className="w-full border-collapse text-sm">
+          <table className={cn('w-full border-collapse', SHEET_TABLE)}>
             <WorkOrderSheetTableHeader />
           </table>
 

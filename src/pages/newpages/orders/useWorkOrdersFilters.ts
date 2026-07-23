@@ -1,12 +1,38 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { endOfDay, endOfMonth, endOfWeek, format, parseISO, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subDays,
+  subMonths,
+} from 'date-fns';
 import type { WorkOrderPriorityFilter, WorkOrderStatusFilter, WorkTypeFilter } from './workOrdersOverviewData';
 
 export type SheetDateScope = 'day' | 'week' | 'month';
 export type SheetRowFlow = 'modal-edit' | 'side-panel' | 'preview';
+/** @deprecated Calendar week layout removed — date filters drive grouped list instead. */
 export type WorkOrdersLayoutMode = 'list' | 'week';
+/** @deprecated Columns week view removed. */
 export type WorkOrdersWeekView = 'rows' | 'columns';
+export type DatePreset = 'today' | 'week' | 'month';
+export type WorkOrdersDateViewMode = 'all' | 'week' | 'day';
+
+export function deriveDateViewMode(
+  hasDateFilter: boolean,
+  dateScope: SheetDateScope,
+): WorkOrdersDateViewMode {
+  if (!hasDateFilter) return 'all';
+  if (dateScope === 'day') return 'day';
+  return 'week';
+}
 
 function parseLayoutMode(raw: string | null): WorkOrdersLayoutMode {
   return raw === 'week' ? 'week' : 'list';
@@ -29,6 +55,7 @@ export interface WorkOrdersFilterState {
   sectionFilter: string;
   machineFilter: string;
   searchQuery: string;
+  showCompleteOrders: boolean;
 }
 
 const SHEET_WEEK_STARTS_ON = 0 as const;
@@ -43,6 +70,13 @@ function parseSheetDateScope(raw: string | null): SheetDateScope {
 function parseSheetRowFlow(raw: string | null): SheetRowFlow {
   if (raw === 'side-panel' || raw === 'preview') return raw;
   return 'modal-edit';
+}
+
+/** Work orders default to showing completed; URL `woShowComplete=0` hides them. */
+function readWorkOrderShowComplete(params: URLSearchParams): boolean {
+  const raw = params.get('woShowComplete');
+  if (raw === '0' || raw === 'false') return false;
+  return true;
 }
 
 export function useWorkOrdersFilters() {
@@ -63,6 +97,7 @@ export function useWorkOrdersFilters() {
     : Number(searchParams.get('woType'));
   const priorityFilter = (searchParams.get('woPriority') ?? 'all') as WorkOrderPriorityFilter;
   const searchQuery = searchParams.get('woSearch') ?? '';
+  const showCompleteOrders = readWorkOrderShowComplete(searchParams);
 
   const dateRange = useMemo(() => {
     if (!hasDateFilter) return {};
@@ -96,20 +131,12 @@ export function useWorkOrdersFilters() {
 
   const setDateScope = (scope: SheetDateScope) =>
     patchParams({ woDateScope: scope === 'week' ? null : scope });
-  const setLayoutMode = (mode: WorkOrdersLayoutMode) => {
+  /** @deprecated No-op — layout toggle removed; use date filters instead. */
+  const setLayoutMode = (_mode: WorkOrdersLayoutMode) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (mode === 'list') {
-        next.delete('woLayout');
-        next.delete('woDate');
-        next.delete('woDateScope');
-        next.delete('woWeekView');
-      } else {
-        next.set('woLayout', 'week');
-        if (!prev.get('woDate')) {
-          next.set('woDate', todayIso());
-        }
-      }
+      next.delete('woLayout');
+      next.delete('woWeekView');
       return next;
     });
   };
@@ -118,7 +145,7 @@ export function useWorkOrdersFilters() {
   const setWeekView = (view: WorkOrdersWeekView) =>
     patchParams({ woWeekView: view === 'rows' ? null : view });
   const setSheetDate = (iso: string) => patchParams({ woDate: iso.trim() ? iso : null });
-  const clearSheetDate = () => patchParams({ woDate: null });
+  const clearSheetDate = () => patchParams({ woDate: null, woDateScope: null });
   const setFactoryFilter = (value: string) =>
     patchParams({ woFactory: value === 'all' ? null : value, woMachine: null });
   const setSectionFilter = (value: string) =>
@@ -131,6 +158,102 @@ export function useWorkOrdersFilters() {
   const setPriorityFilter = (value: WorkOrderPriorityFilter) =>
     patchParams({ woPriority: value === 'all' ? null : value });
   const setSearchQuery = (value: string) => patchParams({ woSearch: value.trim() ? value : null });
+  const setShowCompleteOrders = (value: boolean) =>
+    patchParams({ woShowComplete: value ? null : '0' });
+
+  const dateViewMode = deriveDateViewMode(hasDateFilter, dateScope);
+
+  const setDateViewMode = useCallback(
+    (mode: WorkOrdersDateViewMode) => {
+      if (mode === 'all') {
+        patchParams({ woDate: null, woDateScope: null });
+        return;
+      }
+      if (mode === 'week') {
+        patchParams({ woDate: todayIso(), woDateScope: null });
+        return;
+      }
+      patchParams({ woDate: sheetDate || todayIso(), woDateScope: 'day' });
+    },
+    [patchParams, sheetDate],
+  );
+
+  const pickDate = useCallback(
+    (iso: string) => {
+      patchParams({ woDate: iso, woDateScope: 'day' });
+    },
+    [patchParams],
+  );
+
+  const pickWeek = useCallback(
+    (iso: string) => {
+      patchParams({ woDate: iso, woDateScope: null });
+    },
+    [patchParams],
+  );
+
+  const shiftWeek = useCallback(
+    (direction: 'prev' | 'next') => {
+      if (!sheetDate || dateScope === 'day') return;
+      const base = parseISO(sheetDate);
+      const shifted = direction === 'prev' ? subDays(base, 7) : addDays(base, 7);
+      setSheetDate(format(shifted, 'yyyy-MM-dd'));
+    },
+    [sheetDate, dateScope, setSheetDate],
+  );
+
+  const shiftSheetDate = useCallback(
+    (direction: 'prev' | 'next') => {
+      if (!sheetDate) return;
+      const base = parseISO(sheetDate);
+      let shifted: Date;
+      if (dateScope === 'month') {
+        shifted = direction === 'prev' ? subMonths(base, 1) : addMonths(base, 1);
+      } else if (dateScope === 'week') {
+        shifted = direction === 'prev' ? subDays(base, 7) : addDays(base, 7);
+      } else {
+        shifted = direction === 'prev' ? subDays(base, 1) : addDays(base, 1);
+      }
+      setSheetDate(format(shifted, 'yyyy-MM-dd'));
+    },
+    [sheetDate, dateScope, setSheetDate],
+  );
+
+  const applyDatePreset = useCallback(
+    (preset: DatePreset) => {
+      const today = todayIso();
+      if (preset === 'today') {
+        patchParams({ woDate: today, woDateScope: 'day' });
+      } else if (preset === 'week') {
+        patchParams({ woDate: today, woDateScope: null });
+      } else {
+        patchParams({ woDate: today, woDateScope: 'month' });
+      }
+    },
+    [patchParams],
+  );
+
+  const goToToday = useCallback(() => {
+    setSheetDate(todayIso());
+  }, [setSheetDate]);
+
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const layout = prev.get('woLayout');
+      const weekViewParam = prev.get('woWeekView');
+      if (!layout && !weekViewParam) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('woLayout');
+      next.delete('woWeekView');
+      if (layout === 'week' && !prev.get('woDate')) {
+        next.set('woDate', todayIso());
+      }
+      if (prev.get('woDateScope') === 'month') {
+        next.delete('woDateScope');
+      }
+      return next;
+    });
+  }, [setSearchParams]);
 
   const filters: WorkOrdersFilterState = {
     dateScope,
@@ -144,6 +267,7 @@ export function useWorkOrdersFilters() {
     sectionFilter,
     machineFilter,
     searchQuery,
+    showCompleteOrders,
   };
 
   const apiDateFrom = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined;
@@ -151,12 +275,16 @@ export function useWorkOrdersFilters() {
 
   return {
     filters,
+    dateViewMode,
     layoutMode,
     weekView,
     sheetRowFlow,
     apiDateFrom,
     apiDateTo,
     setDateScope,
+    setDateViewMode,
+    pickDate,
+    pickWeek,
     setLayoutMode,
     setWeekView,
     setSheetRowFlow,
@@ -169,6 +297,11 @@ export function useWorkOrdersFilters() {
     setWorkTypeFilter,
     setPriorityFilter,
     setSearchQuery,
+    setShowCompleteOrders,
+    shiftWeek,
+    shiftSheetDate,
+    applyDatePreset,
+    goToToday,
     patchParams,
   };
 }

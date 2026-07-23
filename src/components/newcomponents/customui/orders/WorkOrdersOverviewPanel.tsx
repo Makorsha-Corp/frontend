@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { WorkOrder } from '@/types/workOrder';
 import type { WorkOrderSummaryStats } from '@/pages/newpages/orders/workOrdersOverviewData';
+import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
@@ -94,10 +95,10 @@ const WorkOrdersOverviewPanel: React.FC<WorkOrdersOverviewPanelProps> = ({
         cell: (o) => machineName(o.machine_id),
       },
       {
-        id: 'start_date',
-        header: 'Start',
+        id: 'planned_date',
+        header: 'Date',
         cellClassName: 'text-muted-foreground',
-        cell: (o) => formatDate(o.start_date ?? o.created_at),
+        cell: (o) => formatDate(getWorkOrderCalendarDateString(o)),
       },
       {
         id: 'cost',

@@ -2,8 +2,9 @@ import React from 'react';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -11,110 +12,61 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
-import WorkOrderWeekNavigator from '@/components/newcomponents/customui/orders/WorkOrderWeekNavigator';
-import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
-import type { WorkOrdersLayoutMode, WorkOrdersWeekView } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import WorkOrdersDateFilterControls from '@/components/newcomponents/customui/orders/WorkOrdersDateFilterControls';
+import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import type { Machine } from '@/types/machine';
 import { cn } from '@/lib/utils';
 
-const toolbarTabsListClass = 'h-9 shrink-0 gap-0.5 bg-muted/80 p-1 ring-1 ring-border/60';
-const toolbarTabsTriggerClass =
-  'px-3 py-1.5 text-sm font-semibold data-[state=active]:shadow-sm';
-
-export interface WorkOrdersToolbarWeekNav {
-  sheetDate: string;
-  calendarSheetRows: WorkOrderSheetRow[];
-  orderCountByDate: Record<string, number>;
-  calendarMonth: Date;
-  onCalendarMonthChange: (month: Date) => void;
-  onNavigatePrev: () => void;
-  onNavigateNext: () => void;
-  onSheetDateChange: (iso: string) => void;
-  onGoToToday: () => void;
-}
-
 export interface WorkOrdersToolbarProps {
-  layoutMode: WorkOrdersLayoutMode;
-  onLayoutModeChange: (mode: WorkOrdersLayoutMode) => void;
+  dateViewMode: WorkOrdersDateViewMode;
+  sheetDate: string;
+  weekPeriodLabel: string | null;
+  onDateViewModeChange: (mode: WorkOrdersDateViewMode) => void;
+  onPickDate: (iso: string) => void;
+  onPickWeek: (iso: string) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-  filtersPanelOpen: boolean;
-  onFiltersPanelOpenChange: (open: boolean) => void;
-  activeFilterCount: number;
-  weekNav?: WorkOrdersToolbarWeekNav;
-  weekView?: WorkOrdersWeekView;
-  onWeekViewChange?: (view: WorkOrdersWeekView) => void;
+  popoverFilterCount: number;
+  filtersPopover: React.ReactNode;
   machineFilter: string;
   onMachineChange: (value: string) => void;
   machines: Machine[];
   machineSelectDisabled?: boolean;
+  showCompleteOrders: boolean;
+  onShowCompleteOrdersChange: (value: boolean) => void;
 }
 
 const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
-  layoutMode,
-  onLayoutModeChange,
+  dateViewMode,
+  sheetDate,
+  weekPeriodLabel,
+  onDateViewModeChange,
+  onPickDate,
+  onPickWeek,
   searchQuery,
   onSearchChange,
-  filtersPanelOpen,
-  onFiltersPanelOpenChange,
-  activeFilterCount,
-  weekNav,
-  weekView = 'rows',
-  onWeekViewChange,
+  popoverFilterCount,
+  filtersPopover,
   machineFilter,
   onMachineChange,
   machines,
   machineSelectDisabled = false,
+  showCompleteOrders,
+  onShowCompleteOrdersChange,
 }) => (
   <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2.5 flex flex-wrap items-center gap-2 lg:flex-nowrap">
-    <Tabs
-      value={layoutMode}
-      onValueChange={(value) => onLayoutModeChange(value as WorkOrdersLayoutMode)}
-    >
-      <TabsList className={toolbarTabsListClass}>
-        <TabsTrigger value="list" className={toolbarTabsTriggerClass}>
-          List
-        </TabsTrigger>
-        <TabsTrigger value="week" className={toolbarTabsTriggerClass}>
-          Calendar week
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+    <WorkOrdersDateFilterControls
+      dateViewMode={dateViewMode}
+      sheetDate={sheetDate}
+      weekPeriodLabel={weekPeriodLabel}
+      onDateViewModeChange={onDateViewModeChange}
+      onPickDate={onPickDate}
+      onPickWeek={onPickWeek}
+    />
 
-    {layoutMode === 'week' && onWeekViewChange ? (
-      <Tabs
-        value={weekView}
-        onValueChange={(value) => onWeekViewChange(value as WorkOrdersWeekView)}
-      >
-        <TabsList className={toolbarTabsListClass}>
-          <TabsTrigger value="rows" className={toolbarTabsTriggerClass}>
-            Rows
-          </TabsTrigger>
-          <TabsTrigger value="columns" className={toolbarTabsTriggerClass}>
-            Columns
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-    ) : null}
-
-    <div className="flex min-w-0 flex-1 justify-center">
-      {weekNav ? (
-        <WorkOrderWeekNavigator
-          sheetDate={weekNav.sheetDate}
-          calendarSheetRows={weekNav.calendarSheetRows}
-          orderCountByDate={weekNav.orderCountByDate}
-          calendarMonth={weekNav.calendarMonth}
-          onCalendarMonthChange={weekNav.onCalendarMonthChange}
-          onNavigatePrev={weekNav.onNavigatePrev}
-          onNavigateNext={weekNav.onNavigateNext}
-          onSheetDateChange={weekNav.onSheetDateChange}
-          onGoToToday={weekNav.onGoToToday}
-        />
-      ) : null}
-    </div>
-
-    <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+    <div className="ml-auto flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
       <Select value={machineFilter} onValueChange={onMachineChange} disabled={machineSelectDisabled}>
         <SelectTrigger
           className={cn(
@@ -144,21 +96,42 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
         />
       </div>
 
-      <Button
-        type="button"
-        variant={filtersPanelOpen ? 'secondary' : 'outline'}
-        size="sm"
-        className={cn('shrink-0 gap-1.5', appShellHeaderControlClass)}
-        onClick={() => onFiltersPanelOpenChange(!filtersPanelOpen)}
-      >
-        <SlidersHorizontal className="h-4 w-4" />
-        Filters
-        {activeFilterCount > 0 && (
-          <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
-            {activeFilterCount}
-          </Badge>
-        )}
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Switch
+          id="wo-show-complete-toolbar"
+          checked={showCompleteOrders}
+          onCheckedChange={onShowCompleteOrdersChange}
+          aria-label="Show complete work orders"
+        />
+        <Label
+          htmlFor="wo-show-complete-toolbar"
+          className="cursor-pointer whitespace-nowrap text-sm font-normal text-muted-foreground"
+        >
+          Show complete
+        </Label>
+      </div>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant={popoverFilterCount > 0 ? 'secondary' : 'outline'}
+            size="sm"
+            className={cn('shrink-0 gap-1.5', appShellHeaderControlClass)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+            {popoverFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
+                {popoverFilterCount}
+              </Badge>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[min(17rem,94vw)] p-0">
+          {filtersPopover}
+        </PopoverContent>
+      </Popover>
     </div>
   </div>
 );

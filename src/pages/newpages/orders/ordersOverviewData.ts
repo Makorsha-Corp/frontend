@@ -12,6 +12,7 @@ import type { TransferOrder } from '@/types/transferOrder';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import type { SalesOrder } from '@/types/salesOrder';
 import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
+import { getWorkOrderCalendarDate, getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 import type { Machine } from '@/types/machine';
 import type { Project } from '@/types/project';
 import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
@@ -169,17 +170,18 @@ export function normalizeOrders(
   for (const w of work) {
     if (w.is_deleted) continue;
     const createdAt = parseISO(w.created_at);
+    const calendarDate = getWorkOrderCalendarDate(w);
     out.push({
       kind: 'work',
       id: w.id,
       ref: w.work_order_number,
       amount: Number(w.cost ?? 0),
       createdAt,
-      reportDate: w.start_date ? parseBusinessDay(w.start_date, startOfDay(createdAt)) : startOfDay(createdAt),
+      reportDate: calendarDate,
       statusLabel: w.status.replace(/_/g, ' '),
       workStatus: w.status,
       factoryId: w.factory_id,
-      displayDate: w.created_at ? format(createdAt, 'yyyy-MM-dd') : '—',
+      displayDate: getWorkOrderCalendarDateString(w),
       dueOrExpectedDate: w.end_date,
     });
   }

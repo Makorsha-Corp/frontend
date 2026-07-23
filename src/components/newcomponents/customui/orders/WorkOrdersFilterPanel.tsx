@@ -48,7 +48,7 @@ export interface WorkOrdersFilterPanelProps {
   className?: string;
 }
 
-const selectTriggerClass = 'h-9 w-[min(180px,40vw)] border-border bg-background text-sm';
+const selectTriggerClass = 'h-9 w-full border-border bg-background text-sm';
 
 const WorkOrdersFilterPanel: React.FC<WorkOrdersFilterPanelProps> = ({
   filters,
@@ -80,13 +80,8 @@ const WorkOrdersFilterPanel: React.FC<WorkOrdersFilterPanelProps> = ({
   );
 
   return (
-    <div
-      className={cn(
-        'shrink-0 border-b border-border bg-card/30 px-4 py-2.5',
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={cn('flex flex-col gap-2.5 p-3', className)}>
+      <div className="grid gap-2">
         <Select value={statusFilter} onValueChange={(v) => onStatusChange(v as WorkOrderStatusFilter)}>
           <SelectTrigger className={cn(selectTriggerClass, appShellHeaderControlClass)}>
             <SelectValue placeholder="All statuses" />
@@ -134,27 +129,29 @@ const WorkOrdersFilterPanel: React.FC<WorkOrdersFilterPanelProps> = ({
             ))}
           </SelectContent>
         </Select>
+      </div>
 
-        {chips.map(({ chip, onRemove }) => (
-          <Badge key={chip.id} variant="secondary" className="gap-1 pr-1 font-normal">
-            {chip.label}
-            <button
-              type="button"
-              className="rounded-sm p-0.5 hover:bg-muted"
-              onClick={onRemove}
-              aria-label={`Remove ${chip.label} filter`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
+      {chips.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          {chips.map(({ chip, onRemove }) => (
+            <Badge key={chip.id} variant="secondary" className="gap-1 pr-1 font-normal">
+              {chip.label}
+              <button
+                type="button"
+                className="rounded-sm p-0.5 hover:bg-muted"
+                onClick={onRemove}
+                aria-label={`Remove ${chip.label} filter`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
 
-        {chips.length > 0 ? (
           <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearPanelFilters}>
             Clear all
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -654,7 +654,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             account_id: billTo === 'external' ? Number(accountId) : null,
             cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
             machine_id: mid,
-            start_date: sheetDate,
+            planned_date: sheetDate,
           },
         }).unwrap();
         if (shouldSyncParts) {
@@ -666,7 +666,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         await submitEntry({
           machine_id: mid,
           work_order_type_id: typeId,
-          start_date: entryStartDate,
+          planned_date: entryStartDate,
           assigned_to: workers.trim() || undefined,
           description: remarks.trim() || undefined,
           priority,

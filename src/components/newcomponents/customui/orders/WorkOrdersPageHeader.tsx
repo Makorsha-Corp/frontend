@@ -24,12 +24,15 @@ export interface WorkOrdersPageHeaderProps {
   onAddWork: () => void;
   onAdd: () => void;
   onAdvancedMaintenance: () => void;
-  addWorkDisabled?: boolean;
   factories: Factory[];
   sections: FactorySection[];
   factoryFilter: string;
   sectionFilter: string;
   onLocationFilterChange: (slice: MachinesLocationFilterSlice) => void;
+  factoryPickerOpen?: boolean;
+  onFactoryPickerOpenChange?: (open: boolean) => void;
+  factoryPickerHighlight?: boolean;
+  onFactoryPickerHighlightDismiss?: () => void;
 }
 
 const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
@@ -38,12 +41,15 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
   onAddWork,
   onAdd,
   onAdvancedMaintenance,
-  addWorkDisabled = false,
   factories,
   sections,
   factoryFilter,
   sectionFilter,
   onLocationFilterChange,
+  factoryPickerOpen,
+  onFactoryPickerOpenChange,
+  factoryPickerHighlight = false,
+  onFactoryPickerHighlightDismiss,
 }) => {
   const locationValue = useMemo(
     (): MachinesLocationFilterSlice => ({
@@ -74,6 +80,10 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
             onChange={handleLocationChange}
             factories={factories}
             sections={sections}
+            open={factoryPickerOpen}
+            onOpenChange={onFactoryPickerOpenChange}
+            highlight={factoryPickerHighlight}
+            onHighlightDismiss={onFactoryPickerHighlightDismiss}
           />
           <MachinesInlineLocationFilters
             which="sections"
@@ -90,7 +100,6 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
           <Button
             type="button"
             className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-            disabled={addWorkDisabled}
             onClick={onAddWork}
           >
             <ClipboardPen className="mr-2 h-4 w-4" />

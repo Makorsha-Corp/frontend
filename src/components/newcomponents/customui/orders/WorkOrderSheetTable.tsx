@@ -6,6 +6,7 @@ import {
   WorkOrderSheetDayRows,
   WorkOrderSheetTableHeader,
 } from './workOrderSheetTableParts';
+import { SHEET_TABLE, SHEET_TABLE_MIN_W } from './workOrderSheetTypography';
 
 export interface WorkOrderSheetTableProps {
   rows: WorkOrderSheetRow[];
@@ -38,7 +39,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
   tableClassName,
 }) => {
   const table = (
-    <table className={cn('w-full border-collapse text-sm', tableClassName)}>
+    <table className={cn('w-full border-collapse', SHEET_TABLE, tableClassName)}>
       {showHeader ? <WorkOrderSheetTableHeader showStartDateColumn={showStartDateColumn} /> : null}
       <WorkOrderSheetDayRows
         rows={rows}
@@ -81,7 +82,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="min-w-[620px]">{table}</div>
+        <div className={SHEET_TABLE_MIN_W}>{table}</div>
       </div>
     </div>
   );

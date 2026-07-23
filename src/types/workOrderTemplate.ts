@@ -13,6 +13,8 @@ export interface WorkOrderTemplateItem {
   notes: string | null;
 }
 
+export type WorkOrderTemplateGenerationMode = 'schedule' | 'draft';
+
 export interface WorkOrderTemplate {
   id: number;
   workspace_id: number;
@@ -33,6 +35,7 @@ export interface WorkOrderTemplate {
   recurrence_day: number | null;
   next_generation_date: string | null;
   auto_generate: boolean;
+  generation_mode: WorkOrderTemplateGenerationMode;
   default_factory_section_id: number | null;
   default_machine_id: number | null;
   created_by: number | null;
@@ -76,6 +79,7 @@ export interface CreateWorkOrderTemplate {
   recurrence_day?: number | null;
   next_generation_date?: string | null;
   auto_generate?: boolean;
+  generation_mode?: WorkOrderTemplateGenerationMode;
   default_factory_section_id?: number | null;
   default_machine_id?: number | null;
 }
@@ -98,6 +102,7 @@ export interface UpdateWorkOrderTemplate {
   recurrence_day?: number | null;
   next_generation_date?: string | null;
   auto_generate?: boolean;
+  generation_mode?: WorkOrderTemplateGenerationMode;
   default_factory_section_id?: number | null;
   default_machine_id?: number | null;
 }
@@ -121,7 +126,7 @@ export interface CreateWorkOrderFromTemplate {
   title?: string;
   description?: string;
   assigned_to?: string;
-  start_date?: string;
+  planned_date?: string;
 }
 
 export interface GenerateWorkOrderDraftsRequest {

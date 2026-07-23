@@ -23,8 +23,10 @@ export interface WorkOrder {
   machine_id: number | null;
   project_component_id: number | null;
   work_order_template_id: number | null;
-  start_date: string | null;
+  planned_date: string | null;
   end_date: string | null;
+  /** Planned planned_date, or created_at day when unscheduled — from API. */
+  calendar_date?: string | null;
   uses_inventory: boolean;
   cost: number | null;
   account_id: number | null;
@@ -65,7 +67,7 @@ export interface CreateWorkOrderRequest {
   factory_id: number;
   machine_id?: number;
   project_component_id?: number;
-  start_date?: string;
+  planned_date?: string;
   end_date?: string;
   uses_inventory?: boolean;
   cost?: number;
@@ -82,7 +84,7 @@ export interface UpdateWorkOrderRequest {
   machine_id?: number | null;
   /** Mutually exclusive with machine_id — setting one (even to null) clears the other. */
   project_component_id?: number | null;
-  start_date?: string;
+  planned_date?: string;
   end_date?: string;
   cost?: number;
   /** Clearing to null reverts to internal/free work (no external billing). */

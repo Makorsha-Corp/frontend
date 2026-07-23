@@ -1,10 +1,12 @@
-import { endOfDay, isWithinInterval, parseISO, startOfDay } from 'date-fns';
+import { endOfDay, isWithinInterval, startOfDay } from 'date-fns';
 import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/workOrder';
 import {
   isWorkOrderOpen,
+  isWorkOrderComplete,
   priorityLabel,
   workOrderStatusLabel,
 } from './workOrderConstants';
+import { getWorkOrderCalendarDate } from './workOrderDateUtils';
 
 export type WorkOrderStatusFilter = 'all' | WorkOrderStatus;
 export type WorkTypeFilter = 'all' | number;
@@ -24,6 +26,8 @@ export interface WorkOrderFilters {
   factoryId: string;
   machineId: string;
   searchQuery: string;
+  /** When false, completed work orders are hidden. Default true in UI. */
+  showCompleteOrders: boolean;
 }
 
 export interface WorkOrderSummaryStats {
@@ -34,10 +38,7 @@ export interface WorkOrderSummaryStats {
 }
 
 function reportDateForWorkOrder(order: WorkOrder): Date {
-  if (order.start_date?.trim()) {
-    return startOfDay(parseISO(order.start_date));
-  }
-  return startOfDay(parseISO(order.created_at));
+  return getWorkOrderCalendarDate(order);
 }
 
 export function filterWorkOrders(
@@ -72,6 +73,10 @@ export function filterWorkOrders(
   if (filters.machineId !== 'all') {
     const mid = Number(filters.machineId);
     rows = rows.filter((o) => o.machine_id === mid);
+  }
+
+  if (!filters.showCompleteOrders) {
+    rows = rows.filter((o) => !isWorkOrderComplete(o.status));
   }
 
   const q = filters.searchQuery.trim().toLowerCase();

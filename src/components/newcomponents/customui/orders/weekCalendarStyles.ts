@@ -11,17 +11,36 @@ export function weekDayBandSectionClass(day: WeekDayBandState): string {
   );
 }
 
-/** Rows view: clickable day header row inside the section. */
+/** Rows view: day header row — muted band (was content inset look). */
 export function weekDayBandHeaderClass(day: WeekDayBandState): string {
   return cn(
-    'flex w-full items-center gap-2 py-2 text-left transition-colors hover:bg-muted/30',
-    day.isSelected ? 'pl-[10px] pr-3' : 'px-3',
+    'flex w-full items-center gap-2 border-b border-border/60 bg-muted/45 py-2',
+    day.isSelected ? 'bg-muted/65 pl-[10px] pr-3' : 'px-3',
   );
 }
 
-/** Rows view: inset surface for order table or empty Add target. */
+/** Rows view: clickable day label area inside the header. */
+export function weekDayBandHeaderSelectClass(): string {
+  return cn(
+    'flex min-w-0 flex-1 items-center justify-start gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-background/40',
+  );
+}
+
+/** Rows view: Add work on muted header — light card pill. */
+export function weekDayHeaderAddButtonClass(): string {
+  return cn(
+    'inline-flex shrink-0 items-center gap-1 rounded-md border border-border/50 bg-card px-2 py-1 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-card/90',
+  );
+}
+
+/** Rows view: order count on muted header. */
+export function weekDayHeaderCountClass(): string {
+  return 'shrink-0 text-xs font-medium text-muted-foreground';
+}
+
+/** Rows view: content area — open/light on card (was header look). */
 export function weekDayContentInsetClass(): string {
-  return 'mx-2 mb-2 overflow-hidden rounded-md border border-border/60 bg-background';
+  return 'mx-2 mb-2 overflow-hidden rounded-md bg-card';
 }
 
 /** Compact empty-day Add control inside content inset (rows = inline; columns = stacked). */
