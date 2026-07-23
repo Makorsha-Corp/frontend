@@ -1,16 +1,14 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
-import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUtils';
+import { planMonthCellDisplay } from '@/pages/newpages/calendar/calendarMonthCellDisplay';
 import {
-  DEFAULT_MONTH_CELL_LAYOUT,
-  getMonthCellLayoutConfig,
+  MONTH_CELL_LAYOUT,
   type MonthCellLayoutConfig,
-  type MonthCellLayoutPreset,
 } from './calendarMonthCellLayouts';
-import MonthEventChip from './MonthEventChip';
+import MonthCellMeasuredChipRows from './MonthCellMeasuredChipRows';
 import MonthEventDot from './MonthEventDot';
-import MonthOverflowChip from './MonthOverflowChip';
+import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUtils';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -24,71 +22,30 @@ export interface CalendarMonthGridProps {
     events: CalendarEvent[];
   }>;
   onSelectDay: (date: string) => void;
-  layoutPreset?: MonthCellLayoutPreset;
-}
-
-function CategoryGroupedChips({
-  events,
-  layout,
-  overflowCount,
-}: {
-  events: CalendarEvent[];
-  layout: MonthCellLayoutConfig;
-  overflowCount: number;
-}) {
-  const groups = groupEventsByCategory(events);
-  const lastGroupIndex = groups.length - 1;
-
-  return (
-    <>
-      {groups.map((group, groupIndex) => (
-        <div
-          key={group.category}
-          className={cn(
-            'flex w-full flex-wrap items-start gap-x-1 gap-y-1',
-            groupIndex > 0 && layout.categoryGap,
-          )}
-        >
-          {group.events.map((event) => (
-            <MonthEventChip
-              key={event.id}
-              event={event}
-              chipText={layout.chipText}
-              chipPadding={layout.chipPadding}
-            />
-          ))}
-          {groupIndex === lastGroupIndex && overflowCount > 0 ? (
-            <MonthOverflowChip
-              count={overflowCount}
-              chipText={layout.chipText}
-              chipPadding={layout.chipPadding}
-            />
-          ) : null}
-        </div>
-      ))}
-    </>
-  );
 }
 
 function MonthCellDayHeader({
   dayLabel,
   isToday,
   isSelected,
+  isCurrentMonth,
   events,
 }: {
   dayLabel: string;
   isToday: boolean;
   isSelected: boolean;
+  isCurrentMonth: boolean;
   events: CalendarEvent[];
 }) {
   return (
-    <div className="mb-1 flex min-w-0 items-center gap-1">
+    <div className="mb-1 flex min-h-0 shrink-0 items-center gap-1">
       <span
         className={cn(
           'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium',
           isToday && 'bg-brand-primary text-primary-foreground',
           !isToday && isSelected && 'bg-muted text-foreground',
-          !isToday && !isSelected && 'text-muted-foreground',
+          !isToday && !isSelected && isCurrentMonth && 'text-muted-foreground',
+          !isToday && !isSelected && !isCurrentMonth && 'text-muted-foreground/45',
         )}
       >
         {dayLabel}
@@ -111,26 +68,6 @@ function MonthCellDayHeader({
   );
 }
 
-function MonthCellEventBody({
-  visibleEvents,
-  overflowCount,
-  layout,
-}: {
-  visibleEvents: CalendarEvent[];
-  overflowCount: number;
-  layout: MonthCellLayoutConfig;
-}) {
-  return (
-    <div className={cn('flex min-h-0 flex-col overflow-hidden', layout.stackGap)}>
-      <CategoryGroupedChips
-        events={visibleEvents}
-        layout={layout}
-        overflowCount={overflowCount}
-      />
-    </div>
-  );
-}
-
 function MonthCellEvents({
   events,
   layout,
@@ -138,17 +75,14 @@ function MonthCellEvents({
   events: CalendarEvent[];
   layout: MonthCellLayoutConfig;
 }) {
-  const hasOverflow = events.length > layout.maxVisibleEvents;
-  const visibleLimit = hasOverflow
-    ? layout.maxVisibleEvents - 1
-    : layout.maxVisibleEvents;
-  const visibleEvents = events.slice(0, visibleLimit);
-  const overflowCount = events.length - visibleEvents.length;
+  const plan = planMonthCellDisplay(events);
+
+  if (plan.groups.length === 0) return null;
 
   return (
-    <MonthCellEventBody
-      visibleEvents={visibleEvents}
-      overflowCount={overflowCount}
+    <MonthCellMeasuredChipRows
+      groups={plan.groups}
+      totalEventCount={plan.totalEventCount}
       layout={layout}
     />
   );
@@ -157,9 +91,8 @@ function MonthCellEvents({
 const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({
   days,
   onSelectDay,
-  layoutPreset = DEFAULT_MONTH_CELL_LAYOUT,
 }) => {
-  const layout = getMonthCellLayoutConfig(layoutPreset);
+  const layout = MONTH_CELL_LAYOUT;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
@@ -180,10 +113,11 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({
             role="button"
             tabIndex={0}
             className={cn(
-              'flex cursor-pointer flex-col p-1.5 text-left transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'relative flex min-h-0 cursor-pointer flex-col overflow-hidden p-1.5 text-left transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               layout.cellMinHeight,
-              !day.isCurrentMonth && 'bg-muted/10',
-              day.isSelected && 'bg-brand-primary/[0.06]',
+              !day.isCurrentMonth && 'bg-muted/30 dark:bg-muted/20',
+              day.isSelected && day.isCurrentMonth && 'bg-brand-primary/[0.06]',
+              day.isSelected && !day.isCurrentMonth && 'bg-brand-primary/[0.04]',
             )}
             onClick={() => onSelectDay(day.date)}
             onKeyDown={(e) => {
@@ -197,9 +131,12 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({
               dayLabel={day.dayLabel}
               isToday={day.isToday}
               isSelected={day.isSelected}
+              isCurrentMonth={day.isCurrentMonth}
               events={day.events}
             />
-            <MonthCellEvents events={day.events} layout={layout} />
+            <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', !day.isCurrentMonth && 'opacity-75')}>
+              <MonthCellEvents events={day.events} layout={layout} />
+            </div>
           </div>
         ))}
       </div>

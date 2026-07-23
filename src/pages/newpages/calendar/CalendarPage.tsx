@@ -22,8 +22,6 @@ import {
   groupEventsByDate,
 } from './calendarDateUtils';
 import { useCalendarFilters } from './useCalendarFilters';
-import { useCalendarMonthLayoutDev } from './useCalendarMonthLayoutDev';
-import CalendarMonthLayoutDevToggle from '@/components/newcomponents/customui/calendar/CalendarMonthLayoutDevToggle';
 
 const CalendarPage: React.FC = () => {
   const {
@@ -38,8 +36,6 @@ const CalendarPage: React.FC = () => {
     toggleCategory,
     showAllCategories,
   } = useCalendarFilters();
-
-  const { layoutPreset, setLayoutPreset } = useCalendarMonthLayoutDev();
 
   const { data, isLoading, isFetching, error } = useGetCalendarEventsQuery({
     start: visibleRange.start,
@@ -109,16 +105,11 @@ const CalendarPage: React.FC = () => {
         </AppShellHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <CategoryLegendChips
-              activeCategories={activeCategories}
-              onToggle={toggleCategory}
-              onShowAll={showAllCategories}
-            />
-            {view === 'month' ? (
-              <CalendarMonthLayoutDevToggle value={layoutPreset} onChange={setLayoutPreset} />
-            ) : null}
-          </div>
+          <CategoryLegendChips
+            activeCategories={activeCategories}
+            onToggle={toggleCategory}
+            onShowAll={showAllCategories}
+          />
 
           {error ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive">
@@ -128,11 +119,7 @@ const CalendarPage: React.FC = () => {
 
           <div className="flex min-h-0 flex-1 flex-col">
             {view === 'month' && (
-              <CalendarMonthGrid
-                days={monthDays}
-                onSelectDay={openDayView}
-                layoutPreset={layoutPreset}
-              />
+              <CalendarMonthGrid days={monthDays} onSelectDay={openDayView} />
             )}
             {view === 'week' && (
               <CalendarWeekView days={weekDays} onSelectDay={openDayView} />
