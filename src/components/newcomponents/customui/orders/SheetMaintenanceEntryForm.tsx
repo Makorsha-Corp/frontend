@@ -25,7 +25,6 @@ import {
   useUpdateWorkOrderItemMutation,
 } from '@/features/workOrders/workOrdersApi';
 import {
-  useGenerateWorkOrderDraftsMutation,
   useCreateWorkOrderTemplateMutation,
   workOrderTemplatesApi,
 } from '@/features/workOrderTemplates/workOrderTemplatesApi';
@@ -47,7 +46,7 @@ import {
   priorityLabel,
   workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { ChevronDown, ChevronRight, Loader2, Plus, Sparkles, Trash2, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Plus, Trash2, Wrench } from 'lucide-react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
@@ -55,14 +54,21 @@ import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 import WorkOrderTemplateSelector from './WorkOrderTemplateSelector';
+import WorkProgramSummaryStrip from './WorkProgramSummaryStrip';
 import ManageWoApprovalsDialog from './ManageWoApprovalsDialog';
 import { draftApproversFromUserIds } from './transferOrderApprovals';
 import { cn } from '@/lib/utils';
+import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
 import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
+import {
+  validateRecurrenceSpan,
+} from '@/pages/newpages/orders/workOrderTemplateLabels';
+import { listPlannedRecurrenceDates } from '@/pages/newpages/orders/workOrderRecurrenceDates';
 
 const FOOTER_TEMPLATE_HINT =
-  'Loads machine, works, parts, and billing from a preset. Choose No template to fill manually.';
+  'Templates prefill row defaults. For recurring templates, work date is the recurrence start — set end date and save to schedule all drafts in range.';
+
 interface PartLineDraft {
   key: string;
   woItemId?: number;
@@ -127,7 +133,6 @@ export interface SheetMaintenanceEntryFormProps {
   layout?: 'dialog' | 'footer';
   showFooterHeader?: boolean;
   disabled?: boolean;
-  showGenerateDay?: boolean;
   showWorkDate?: boolean;
   submitLabel?: string;
   onSuccess?: () => void;
@@ -151,7 +156,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   layout = 'dialog',
   showFooterHeader = true,
   disabled = false,
-  showGenerateDay = true,
   showWorkDate = false,
   submitLabel,
   onSuccess,
@@ -180,6 +184,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
 
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [priority, setPriority] = useState<WorkOrderPriority>('MEDIUM');
   const [billTo, setBillTo] = useState<'internal' | 'external'>('internal');
   const [accountId, setAccountId] = useState('');
@@ -202,7 +207,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [removeItem] = useRemoveWorkOrderItemMutation();
   const [addApprover] = useAddWorkOrderApproverMutation();
   const [removeApprover] = useRemoveWorkOrderApproverMutation();
-  const [generateDrafts, { isLoading: generating }] = useGenerateWorkOrderDraftsMutation();
   const [createTemplate] = useCreateWorkOrderTemplateMutation();
   const [loadingTemplateId, setLoadingTemplateId] = useState<number | null>(null);
   const [prefilled, setPrefilled] = useState(false);
@@ -315,15 +319,49 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const entryStartDate = showWorkDate && !isEdit ? workDate : sheetDate;
 
-  const workDateHelper = useMemo(() => {
-    if (!showWorkDate || isEdit) return null;
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => String(t.id) === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId],
+  );
+
+  const needsRecurrenceEnd = Boolean(
+    selectedTemplate?.is_recurring && !selectedTemplate.next_generation_date && !isEdit,
+  );
+
+  const machineLockedFromTemplate = Boolean(
+    templateLocked && selectedTemplate?.default_machine_id,
+  );
+
+  const plannedRecurrenceDates = useMemo(() => {
+    if (!selectedTemplate?.is_recurring || !needsRecurrenceEnd) return [];
+    if (!entryStartDate || !recurrenceEndDate) return [];
+    return listPlannedRecurrenceDates(
+      entryStartDate,
+      recurrenceEndDate,
+      selectedTemplate.recurrence_type,
+    );
+  }, [
+    selectedTemplate,
+    needsRecurrenceEnd,
+    entryStartDate,
+    recurrenceEndDate,
+  ]);
+
+  const isFutureWorkDate = useMemo(() => {
+    if (!showWorkDate || isEdit) return false;
     try {
-      const picked = startOfDay(parseISO(workDate));
-      const today = startOfDay(new Date());
-      if (picked > today) return 'Plan work — creates a draft order on this date';
-      return 'Record work for this day';
+      return startOfDay(parseISO(workDate)) > startOfDay(new Date());
     } catch {
-      return null;
+      return false;
+    }
+  }, [showWorkDate, isEdit, workDate]);
+
+  const isPastWorkDate = useMemo(() => {
+    if (!showWorkDate || isEdit) return false;
+    try {
+      return startOfDay(parseISO(workDate)) < startOfDay(new Date());
+    } catch {
+      return false;
     }
   }, [showWorkDate, isEdit, workDate]);
 
@@ -567,10 +605,14 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   useEffect(() => {
     if (!templateLocked) return;
-    setMachinePickerOpen(false);
     setPartsOverlayOpen(false);
     setMoreOverlayOpen(false);
   }, [templateLocked]);
+
+  useEffect(() => {
+    if (!machineLockedFromTemplate) return;
+    setMachinePickerOpen(false);
+  }, [machineLockedFromTemplate]);
 
   const closeFooterOverlays = () => {
     setPartsOverlayOpen(false);
@@ -631,6 +673,13 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       toast.error('Enter a misc cost amount');
       return;
     }
+    if (needsRecurrenceEnd) {
+      const spanError = validateRecurrenceSpan(entryStartDate, recurrenceEndDate);
+      if (spanError) {
+        toast.error(spanError);
+        return;
+      }
+    }
 
     const validLines = isFooterLayout
       ? validPartLines
@@ -673,13 +722,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           account_id: billTo === 'external' ? Number(accountId) : undefined,
           cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
           template_id: selectedTemplateId ? Number(selectedTemplateId) : undefined,
+          recurrence_end_date: needsRecurrenceEnd ? recurrenceEndDate : undefined,
           approvers: buildApprovers(),
           items:
             validLines.length > 0
               ? validLines.map((l) => mapPartLineToApi(l, mid))
               : undefined,
         }).unwrap();
-        toast.success('Entry saved');
+        toast.success(
+          isFutureWorkDate
+            ? 'Draft saved'
+            : isPastWorkDate
+              ? 'Draft saved — awaiting manager'
+              : 'Entry saved',
+        );
         setWorkers('');
         setRemarks('');
         resetParts();
@@ -687,13 +743,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       }
       onSuccess?.();
     } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || (isEdit ? 'Failed to update entry' : 'Failed to save entry'));
+      toast.error(
+        workOrderEntryErrorMessage(err, isEdit ? 'Failed to update entry' : 'Failed to save entry'),
+      );
     }
   };
 
   const applyTemplateData = async (template: WorkOrderTemplate) => {
     setSelectedTemplateId(String(template.id));
+    setRecurrenceEndDate('');
     setWorksTypeId(String(template.work_order_type_id));
     if (template.assigned_to) setWorkers(template.assigned_to);
     if (template.default_machine_id) setMachineId(String(template.default_machine_id));
@@ -774,6 +832,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const handleTemplateSelect = async (value: string) => {
     if (value === '__none__') {
       setSelectedTemplateId('');
+      setRecurrenceEndDate('');
       return;
     }
     setSelectedTemplateId(value);
@@ -788,21 +847,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       toast.error(e?.data?.detail || 'Failed to load template');
     } finally {
       setLoadingTemplateId(null);
-    }
-  };
-
-  const handleBulkGenerate = async () => {
-    try {
-      const result = await generateDrafts({
-        target_date: sheetDate,
-        factory_section_id: sectionId ?? undefined,
-        factory_id: factoryId ?? undefined,
-      }).unwrap();
-      toast.success(`Generated ${result.length} draft order(s)`);
-      onSuccess?.();
-    } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to generate drafts');
     }
   };
 
@@ -1238,17 +1282,98 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const workDateField =
     showWorkDate && !isEdit ? (
-      <div className="space-y-1 pb-2">
-        <div className="grid max-w-[11rem] gap-1">
-          <Label className="text-xs text-muted-foreground">Work date</Label>
-          <DatePickerField
-            value={workDate}
-            onChange={setWorkDate}
-            triggerClassName="h-9 w-full px-3 text-sm"
-            aria-label="Work date"
-          />
+      <div className="pb-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="grid max-w-[11rem] shrink-0 gap-1">
+            <Label className="text-xs text-muted-foreground">
+              {needsRecurrenceEnd ? 'Work date (recurrence start)' : 'Work date'}
+            </Label>
+            <DatePickerField
+              value={workDate}
+              onChange={setWorkDate}
+              highlightedDates={plannedRecurrenceDates}
+              triggerClassName="h-9 w-full px-3 text-sm"
+              aria-label={needsRecurrenceEnd ? 'Work date (recurrence start)' : 'Work date'}
+            />
+          </div>
+          {isPastWorkDate ? (
+            <p className="max-w-md pb-1 text-xs leading-snug text-muted-foreground">
+              Logging past work — saves a normal draft for manager review. It won&apos;t show as overdue.
+            </p>
+          ) : isFutureWorkDate ? (
+            <p className="max-w-md pb-1 text-xs leading-snug text-muted-foreground">
+              Future date — saves as draft until that day.
+            </p>
+          ) : null}
+          {needsRecurrenceEnd ? (
+            <div className="grid max-w-[11rem] shrink-0 gap-1">
+              <Label className="text-xs text-muted-foreground">Recurrence end (max 6 months)</Label>
+              <DatePickerField
+                value={recurrenceEndDate}
+                onChange={setRecurrenceEndDate}
+                highlightedDates={plannedRecurrenceDates}
+                placeholder="Pick end date"
+                triggerClassName="h-9 w-full px-3 text-sm"
+                aria-label="Recurrence end date"
+              />
+            </div>
+          ) : null}
+          {selectedTemplate?.is_recurring ? (
+            <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
+              <Label className="text-xs text-muted-foreground">Schedule</Label>
+              <WorkProgramSummaryStrip
+                template={selectedTemplate}
+                machines={machinesInScope}
+                compact
+                recurrenceStartIso={entryStartDate}
+                recurrenceEndIso={needsRecurrenceEnd ? recurrenceEndDate : null}
+                className="w-full"
+              />
+            </div>
+          ) : null}
         </div>
-        {workDateHelper ? <p className="text-xs text-muted-foreground">{workDateHelper}</p> : null}
+      </div>
+    ) : null;
+
+  const recurrenceEndField =
+    needsRecurrenceEnd && !(showWorkDate && !isEdit) ? (
+      <div className="pb-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="grid max-w-[11rem] shrink-0 gap-1">
+            <Label className="text-xs text-muted-foreground">Recurrence start</Label>
+            <DatePickerField
+              value={entryStartDate}
+              disabled
+              highlightedDates={plannedRecurrenceDates}
+              triggerClassName="h-9 w-full px-3 text-sm"
+              aria-label="Recurrence start date"
+            />
+          </div>
+          <div className="grid max-w-[11rem] shrink-0 gap-1">
+            <Label className="text-xs text-muted-foreground">Recurrence end (max 6 months)</Label>
+            <DatePickerField
+              value={recurrenceEndDate}
+              onChange={setRecurrenceEndDate}
+              highlightedDates={plannedRecurrenceDates}
+              placeholder="Pick end date"
+              triggerClassName="h-9 w-full px-3 text-sm"
+              aria-label="Recurrence end date"
+            />
+          </div>
+          {selectedTemplate?.is_recurring ? (
+            <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
+              <Label className="text-xs text-muted-foreground">Schedule</Label>
+              <WorkProgramSummaryStrip
+                template={selectedTemplate}
+                machines={machinesInScope}
+                compact
+                recurrenceStartIso={entryStartDate}
+                recurrenceEndIso={needsRecurrenceEnd ? recurrenceEndDate : null}
+                className="w-full"
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     ) : null;
 
@@ -1261,18 +1386,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           templates={templates}
           loading={loadingTemplateId != null}
           disabled={templatePickerDisabled}
-          showHint={templateLocked}
           labelHint={FOOTER_TEMPLATE_HINT}
-          helperText={
-            templatePickerDisabled ? 'Clear manual entries to use a template.' : undefined
-          }
+          showProgramSummary={false}
           onSaveFromForm={handleSaveTemplate}
           canSaveFromForm={Boolean(worksTypeId)}
           defaultSectionId={sectionId}
           defaultMachineId={resolvedMachineId}
           machines={machinesInScope}
         />
-        <div className={cn('grid gap-1', templateLocked && 'opacity-60')}>
+        <div className={cn('grid gap-1', machineLockedFromTemplate && 'opacity-60')}>
           <Label className="text-xs text-muted-foreground">Machine</Label>
           <MachineSelectSummaryButton
             onClick={() => setMachinePickerOpen(true)}
@@ -1284,7 +1406,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             selectedLine={selectedMachine?.name ?? null}
             staleNumericId={selectedMachine ? null : machineId || null}
             compactLabel
-            disabled={templateLocked}
+            disabled={machineLockedFromTemplate}
             className="mt-0 h-9 min-h-9 py-0 text-sm"
           />
           <MachineSelectorDialog
@@ -1332,6 +1454,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const formBody = (
     <>
       {workDateField}
+      {recurrenceEndField}
       {footerCoreFields}
 
       <div className="grid min-w-0 items-start gap-2 sm:grid-cols-2">
@@ -1465,12 +1588,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {isEdit ? 'Edit entry' : 'Add work'}
           </p>
-          {showGenerateDay && factoryId != null && !isEdit && (
-            <Button type="button" variant="outline" size="sm" disabled={generating} onClick={handleBulkGenerate}>
-              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
-              Generate day
-            </Button>
-          )}
         </div>
       )}
 
@@ -1478,11 +1595,12 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         <>
           <div
             className={cn(
-              'max-h-[12rem] min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-2',
+              'max-h-[22rem] min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-2',
               disabled && 'pointer-events-none opacity-60',
             )}
           >
             {workDateField}
+            {recurrenceEndField}
             {footerCoreFields}
           </div>
           {footerActionBar}

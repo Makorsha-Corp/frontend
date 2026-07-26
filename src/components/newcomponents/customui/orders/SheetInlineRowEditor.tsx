@@ -12,6 +12,7 @@ import { StepNumberInput } from '@/components/ui/step-number-input';
 import { useCreateWorkOrderSheetEntryMutation } from '@/features/workOrders/workOrdersApi';
 import type { Machine } from '@/types/machine';
 import type { WorkOrderType } from '@/types/workOrderType';
+import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
 import type { Item } from '@/types/item';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -80,8 +81,7 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
       setRemarks('');
       onSuccess?.();
     } catch (err: unknown) {
-      const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save row');
+      toast.error(workOrderEntryErrorMessage(err, 'Failed to save row'));
     }
   };
 

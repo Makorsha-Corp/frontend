@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { ChevronDown, ClipboardPen, Plus } from 'lucide-react';
+import { ChevronDown, ClipboardPen, LayoutTemplate, Plus } from 'lucide-react';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderLeftGroupClass,
@@ -22,6 +22,7 @@ export interface WorkOrdersPageHeaderProps {
   activeTab: 'machines' | 'workOrders';
   onTabChange: (tab: 'machines' | 'workOrders') => void;
   onAddWork: () => void;
+  onManagePresetsPrograms: () => void;
   onAdd: () => void;
   onAdvancedMaintenance: () => void;
   factories: Factory[];
@@ -39,6 +40,7 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
   activeTab,
   onTabChange,
   onAddWork,
+  onManagePresetsPrograms,
   onAdd,
   onAdvancedMaintenance,
   factories,
@@ -104,6 +106,16 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
           >
             <ClipboardPen className="mr-2 h-4 w-4" />
             Add work
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className={appShellHeaderControlClass}
+            onClick={onManagePresetsPrograms}
+          >
+            <LayoutTemplate className="mr-2 h-4 w-4" />
+            Templates
           </Button>
 
           <DropdownMenu>

@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import {
   Select,
@@ -40,9 +42,9 @@ import {
   Check,
   X,
   Package,
-  CalendarClock,
   AlertTriangle,
   History,
+  SlidersHorizontal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddMachineItemDialog from './AddMachineItemDialog';
@@ -115,6 +117,20 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     { skip: !machine.id },
   );
   const groupedActivityEvents = useMemo(() => groupMachineActivityEvents(activityEvents), [activityEvents]);
+
+  const activityFilterCount = useMemo(() => {
+    let count = 0;
+    if (activityFrom) count += 1;
+    if (activityTo) count += 1;
+    if (activityType !== 'all') count += 1;
+    return count;
+  }, [activityFrom, activityTo, activityType]);
+
+  const clearActivityFilters = () => {
+    setActivityFrom('');
+    setActivityTo('');
+    setActivityType('all');
+  };
 
   const { data: machineItems } = useGetMachineItemsQuery(
     { machine_id: machine.id, skip: 0, limit: 100 },
@@ -246,36 +262,16 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
 
         <Separator className="bg-border" />
 
-        {(machine.note || machine.next_maintenance_schedule || machine.next_maintenance_note) && (
+        {machine.note ? (
           <div className="space-y-2">
             <p className={sectionLabel}>Machine details</p>
             <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3 text-sm">
-              {machine.note && (
-                <p className="text-card-foreground border-l-2 border-brand-primary/35 pl-2.5 leading-relaxed">
-                  {machine.note}
-                </p>
-              )}
-              {(machine.next_maintenance_schedule || machine.next_maintenance_note) && (
-                <div className="flex gap-2 text-xs">
-                  <CalendarClock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                  <div className="space-y-1 min-w-0">
-                    {machine.next_maintenance_schedule && (
-                      <p>
-                        <span className="text-muted-foreground">Next maintenance: </span>
-                        <span className="font-medium tabular-nums">
-                          {machine.next_maintenance_schedule.slice(0, 10)}
-                        </span>
-                      </p>
-                    )}
-                    {machine.next_maintenance_note && (
-                      <p className="text-muted-foreground">{machine.next_maintenance_note}</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              <p className="text-card-foreground border-l-2 border-brand-primary/35 pl-2.5 leading-relaxed">
+                {machine.note}
+              </p>
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -582,34 +578,80 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
                   </Badge>
                 )}
               </CardTitle>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="date"
-                  value={activityFrom}
-                  onChange={(e) => setActivityFrom(e.target.value)}
-                  className="h-8 w-[130px] text-xs"
-                  aria-label="From date"
-                />
-                <Input
-                  type="date"
-                  value={activityTo}
-                  onChange={(e) => setActivityTo(e.target.value)}
-                  className="h-8 w-[130px] text-xs"
-                  aria-label="To date"
-                />
-                <Select value={activityType} onValueChange={setActivityType}>
-                  <SelectTrigger className="h-8 w-[120px] text-xs">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All types</SelectItem>
-                    <SelectItem value="status_updated">Status</SelectItem>
-                    <SelectItem value="maintenance_logged">Maintenance</SelectItem>
-                    <SelectItem value="work_order_completed">Work order</SelectItem>
-                    <SelectItem value="item_added">Inventory</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={activityFilterCount > 0 ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters
+                    {activityFilterCount > 0 ? (
+                      <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
+                        {activityFilterCount}
+                      </Badge>
+                    ) : null}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[min(17rem,94vw)] p-3">
+                  <div className="flex flex-col gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="machine-activity-from" className="text-xs text-muted-foreground">
+                        From
+                      </Label>
+                      <Input
+                        id="machine-activity-from"
+                        type="date"
+                        value={activityFrom}
+                        onChange={(e) => setActivityFrom(e.target.value)}
+                        className="h-9 w-full text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="machine-activity-to" className="text-xs text-muted-foreground">
+                        To
+                      </Label>
+                      <Input
+                        id="machine-activity-to"
+                        type="date"
+                        value={activityTo}
+                        onChange={(e) => setActivityTo(e.target.value)}
+                        className="h-9 w-full text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="machine-activity-type" className="text-xs text-muted-foreground">
+                        Event type
+                      </Label>
+                      <Select value={activityType} onValueChange={setActivityType}>
+                        <SelectTrigger id="machine-activity-type" className="h-9 w-full text-sm">
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All types</SelectItem>
+                          <SelectItem value="status_updated">Status</SelectItem>
+                          <SelectItem value="maintenance_logged">Maintenance</SelectItem>
+                          <SelectItem value="work_order_completed">Work order</SelectItem>
+                          <SelectItem value="item_added">Inventory</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {activityFilterCount > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 justify-start px-2 text-xs"
+                        onClick={clearActivityFilters}
+                      >
+                        Clear filters
+                      </Button>
+                    ) : null}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto p-0 px-4 pb-4">

@@ -22,3 +22,9 @@ export const workOrderWeekSelectedModifierClassNames = {
   selectedWeekStart: "rounded-l-md",
   selectedWeekEnd: "rounded-r-md",
 } as const
+
+/** Planned recurring work-order dates on sheet date pickers. */
+export const calendarPlannedRecurrenceModifierClassNames = {
+  plannedRecurrence:
+    "[&:not([aria-selected=true])]:bg-brand-primary/15 [&:not([aria-selected=true])]:font-medium [&:not([aria-selected=true])]:text-brand-primary dark:[&:not([aria-selected=true])]:bg-brand-primary/20",
+} as const

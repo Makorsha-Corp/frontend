@@ -1,16 +1,20 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import type { Factory } from '@/types/factory';
+import type { FactorySection } from '@/types/factorySection';
 import type { Machine } from '@/types/machine';
 import { cn } from '@/lib/utils';
 import { machineStatusSegmentClass, type MachineVisualKind } from '@/lib/machineVisualStatus';
-import DueStatusCard, { DueStatusRow } from './DueStatusCard';
+import DueStatusCard from './DueStatusCard';
+import { useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
+import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
 
 export interface FactoryMachinesStatusPanelProps {
-  factoryId: number;
+  factory: Pick<Factory, 'id' | 'name' | 'abbreviation'>;
   machines: Machine[];
   machinesLoading: boolean;
-  sectionNameById: Map<number, string>;
+  sections: FactorySection[];
 }
 
 type StatusBucket = 'active' | 'maintenance' | 'stoppedIdle';
@@ -22,11 +26,24 @@ function bucketForMachine(m: Machine): StatusBucket {
 }
 
 export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProps> = ({
-  factoryId,
+  factory,
   machines,
   machinesLoading,
-  sectionNameById,
+  sections,
 }) => {
+  const sectionById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+
+  const { data: upcomingWork = [], isLoading: loadUpcomingWork } = useGetUpcomingMachineWorkQuery({
+    within_days: 7,
+    factory_id: factory.id,
+    include_overdue: true,
+  });
+
+  const splitWork = useMemo(
+    () => splitUpcomingWorkByDueWindow(upcomingWork, sectionById, 7, factory.abbreviation),
+    [upcomingWork, sectionById, factory.abbreviation]
+  );
+
   const counts = useMemo(() => {
     let active = 0;
     let maintenance = 0;
@@ -40,50 +57,6 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
     return { active, maintenance, stoppedIdle, total: machines.length };
   }, [machines]);
 
-  const maintenanceRows = useMemo(() => {
-    const now = new Date();
-    const horizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return machines
-      .filter((m) => {
-        if (!m.next_maintenance_schedule) return false;
-        const d = new Date(m.next_maintenance_schedule);
-        return !Number.isNaN(d.getTime()) && d <= horizon;
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.next_maintenance_schedule!).getTime() -
-          new Date(b.next_maintenance_schedule!).getTime()
-      );
-  }, [machines]);
-
-  const dueRows: DueStatusRow[] = useMemo(
-    () =>
-      maintenanceRows.map((m) => {
-        const d = m.next_maintenance_schedule
-          ? new Date(m.next_maintenance_schedule).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
-          : '—';
-        const sectionName =
-          m.factory_section_id != null
-            ? sectionNameById.get(m.factory_section_id) ?? m.factory_section_name ?? `Section ${m.factory_section_id}`
-            : 'Unassigned';
-        return {
-          id: m.id,
-          name: m.name,
-          dateLabel: d,
-          contextLabel: sectionName,
-          href:
-            m.factory_section_id != null
-              ? `/factories/${factoryId}/sections/${m.factory_section_id}`
-              : `/factories/${factoryId}`,
-        };
-      }),
-    [maintenanceRows, sectionNameById, factoryId]
-  );
-
   const segments: { key: StatusBucket; label: string; count: number; segmentKind: MachineVisualKind }[] = [
     { key: 'active', label: 'Active', count: counts.active, segmentKind: 'running' },
     { key: 'maintenance', label: 'Maintenance', count: counts.maintenance, segmentKind: 'maintenance' },
@@ -91,6 +64,7 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   ];
 
   const pct = (n: number) => (counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0);
+  const dueLoading = loadUpcomingWork;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -98,64 +72,61 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3">
             <CardTitle className="min-w-0 text-lg font-semibold tracking-tight text-card-foreground">
-              Machine Statuses
+              Machine status
             </CardTitle>
+            {machinesLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+            ) : (
+              <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                {counts.total} total
+              </span>
+            )}
           </div>
         </CardHeader>
-        <CardContent className="flex flex-1 flex-col gap-4 pt-0">
+        <CardContent className="min-h-0 flex-1 pt-0">
           {machinesLoading ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               Loading machines…
             </div>
           ) : counts.total === 0 ? (
-            <p className="flex-1 py-6 text-center text-sm text-muted-foreground">
-              No machines in this factory yet. Add machines from a section.
-            </p>
+            <p className="py-6 text-sm text-muted-foreground">No machines in this factory.</p>
           ) : (
-            <div className="space-y-3">
-              <div
-                className="flex h-4 w-full overflow-hidden rounded-full bg-muted"
-                role="img"
-                aria-label={`Machines: ${counts.active} active, ${counts.maintenance} in maintenance, ${counts.stoppedIdle} stopped or idle of ${counts.total}`}
-              >
-                {segments.map(
-                  (s) =>
-                    s.count > 0 && (
-                      <div
-                        key={s.key}
-                        className={cn(
-                          machineStatusSegmentClass[s.segmentKind],
-                          'h-full min-w-[6px] transition-[width] duration-300'
-                        )}
-                        style={{ width: `${pct(s.count)}%` }}
-                        title={`${s.label}: ${s.count}`}
-                      />
-                    )
+            <>
+              <div className="mb-3 flex h-3 overflow-hidden rounded-full bg-muted">
+                {segments.map((segment) =>
+                  segment.count > 0 ? (
+                    <div
+                      key={segment.key}
+                      className={cn('h-full min-w-[2px]', machineStatusSegmentClass[segment.segmentKind])}
+                      style={{ width: `${pct(segment.count)}%` }}
+                      title={`${segment.label}: ${segment.count}`}
+                    />
+                  ) : null
                 )}
               </div>
-              <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                {segments.map((s) => (
-                  <li key={s.key} className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'h-2.5 w-2.5 shrink-0 rounded-full',
-                        machineStatusSegmentClass[s.segmentKind]
-                      )}
-                      aria-hidden
-                    />
-                    <span className="text-muted-foreground">{s.label}</span>
-                    <span className="font-semibold tabular-nums text-card-foreground">{s.count}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">({pct(s.count)}%)</span>
-                  </li>
+              <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                {segments.map((segment) => (
+                  <div key={segment.key}>
+                    <p className="text-xl font-semibold tabular-nums text-card-foreground">
+                      {segment.count}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{segment.label}</p>
+                  </div>
                 ))}
-              </ul>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      <DueStatusCard loading={machinesLoading} rows={dueRows} />
+      <DueStatusCard
+        title="Machine work due"
+        loading={dueLoading}
+        overdueRows={splitWork.overdueRows}
+        upcomingRows={splitWork.upcomingRows}
+        emptyMessage="No overdue or upcoming machine work in the next 7 days."
+      />
     </div>
   );
 };

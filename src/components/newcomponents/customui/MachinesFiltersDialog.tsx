@@ -237,7 +237,7 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
             </div>
 
             <div className="grid gap-2">
-              <Label>Maintenance window</Label>
+              <Label>Upcoming work</Label>
               <Select
                 value={draft.maintenance_window}
                 onValueChange={(v: MachinesFiltersValue['maintenance_window']) =>
@@ -252,7 +252,7 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
                   <SelectItem value="overdue">Overdue</SelectItem>
                   <SelectItem value="next_7_days">Next 7 days</SelectItem>
                   <SelectItem value="next_30_days">Next 30 days</SelectItem>
-                  <SelectItem value="none_scheduled">None scheduled</SelectItem>
+                  <SelectItem value="none_scheduled">No upcoming work</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -332,7 +332,7 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
                 <SelectContent>
                   <SelectItem value="name">Name</SelectItem>
                   <SelectItem value="created_at">Created date</SelectItem>
-                  <SelectItem value="maintenance_date">Maintenance date</SelectItem>
+                  <SelectItem value="maintenance_date">Next work date</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -16,7 +16,7 @@ import {
 import { useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
-import { useGetMachinesQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
+import { useGetMachinesQuery, useGetUpcomingMachineWorkQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
 import { Layers, Pencil, Loader2, Plus, Search, Cog, Play, Pause, ClipboardList, Wrench } from 'lucide-react';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
@@ -66,19 +66,22 @@ const FactorySectionDetailPage: React.FC = () => {
     { skip: !sectionIdNum || isNaN(sectionIdNum) }
   );
 
+  const { data: upcomingWorkForFactory = [] } = useGetUpcomingMachineWorkQuery(
+    {
+      within_days: 7,
+      factory_id: factoryId ?? undefined,
+    },
+    { skip: !factoryId || isNaN(factoryId) }
+  );
+
   const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
   const selectedMachine = machines?.find((m) => m.id === selectedMachineId) ?? null;
 
-  const maintenanceDueCount = React.useMemo(() => {
-    if (!machines) return 0;
-    const now = new Date();
-    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return machines.filter((m) => {
-      const d = m.next_maintenance_schedule ? new Date(m.next_maintenance_schedule) : null;
-      return d && d <= in7Days;
-    }).length;
-  }, [machines]);
+  const upcomingMachineWorkCount = React.useMemo(() => {
+    if (!sectionIdNum) return 0;
+    return upcomingWorkForFactory.filter((row) => row.factory_section_id === sectionIdNum).length;
+  }, [upcomingWorkForFactory, sectionIdNum]);
 
   const handleDeleteMachine = async (machine: Machine) => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
@@ -242,13 +245,13 @@ const FactorySectionDetailPage: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
-                        maintenanceDueCount > 0 ? statusMetricTileClass.maintenance : neutralMetricTileClass
+                        upcomingMachineWorkCount > 0 ? statusMetricTileClass.maintenance : neutralMetricTileClass
                       )}
                       aria-hidden
                     >
                       <Wrench
                         className={
-                          maintenanceDueCount > 0
+                          upcomingMachineWorkCount > 0
                             ? statusMetricIconClass.maintenance
                             : neutralMetricIconClass
                         }
@@ -256,15 +259,15 @@ const FactorySectionDetailPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Maint. due</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Upcoming work</p>
                       <p
                         className={
-                          maintenanceDueCount > 0
+                          upcomingMachineWorkCount > 0
                             ? 'text-base font-semibold tabular-nums text-amber-800 dark:text-amber-400'
                             : 'text-base font-semibold tabular-nums text-card-foreground'
                         }
                       >
-                        {maintenanceDueCount}
+                        {upcomingMachineWorkCount}
                       </p>
                     </div>
                   </div>

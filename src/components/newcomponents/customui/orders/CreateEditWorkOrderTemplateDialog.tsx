@@ -8,10 +8,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -38,14 +40,17 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { Machine } from '@/types/machine';
 import type { FactorySection } from '@/types/factorySection';
+import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
+import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
+import { cn } from '@/lib/utils';
 import type { WorkOrderItemActionType, WorkOrderPriority } from '@/types/workOrder';
 import {
   WORK_ORDER_ITEM_ACTION_OPTIONS,
   WORK_ORDER_ITEM_ACTION_EXPLAINER,
   WORK_ORDER_PRIORITIES,
   priorityLabel,
+  workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { cn } from '@/lib/utils';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -55,52 +60,40 @@ import { resolveFactoryIdFromWorkOrderContext } from '@/components/newcomponents
 import { useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
 
-type TemplateSaveBlockReason = 'name' | 'type' | 'addPartLine' | 'account' | 'cost' | 'approvers';
+type TemplateSaveBlockReason = 'name' | 'type' | 'account' | 'cost';
 
 const TEMPLATE_HIGHLIGHT_IDS: Record<TemplateSaveBlockReason, string> = {
   name: 'wot-template-name',
   type: 'wot-template-type',
-  addPartLine: 'wot-template-add-part-line',
   account: 'wot-template-account',
   cost: 'wot-template-cost',
-  approvers: 'wot-template-approvers',
 };
 
 function getTemplateSaveBlockReason(args: {
   templateName: string;
   typeId: string;
-  needsParts: 'no' | 'yes';
-  linesCount: number;
   billTo: 'external' | 'internal';
   accountId: string;
   hasMiscCost: 'no' | 'yes';
   cost: string;
-  requiresApproval: 'no' | 'yes';
-  approverIds: number[];
 }): TemplateSaveBlockReason | null {
   if (!args.templateName.trim()) return 'name';
   if (!args.typeId) return 'type';
-  if (args.needsParts === 'yes' && args.linesCount === 0) return 'addPartLine';
   if (args.billTo === 'external' && !args.accountId) return 'account';
   if (args.billTo === 'internal' && args.hasMiscCost === 'yes' && !(Number(args.cost) > 0)) return 'cost';
-  if (args.requiresApproval === 'yes' && args.approverIds.length === 0) return 'approvers';
   return null;
 }
 
 function templateSaveBlockMessage(reason: TemplateSaveBlockReason): string {
   switch (reason) {
     case 'name':
-      return 'Enter a template name';
+      return 'Enter a name';
     case 'type':
       return 'Select a work order type';
-    case 'addPartLine':
-      return 'Add at least one part line';
     case 'account':
       return 'Select an external account';
     case 'cost':
       return 'Enter a miscellaneous cost amount';
-    case 'approvers':
-      return 'Select at least one default approver';
   }
 }
 
@@ -120,6 +113,7 @@ export interface CreateEditWorkOrderTemplateDialogProps {
   template?: WorkOrderTemplate | null;
   defaultSectionId?: number | null;
   defaultMachineId?: number | null;
+  defaultFactoryId?: number | null;
   machines?: Machine[];
   sections?: FactorySection[];
 }
@@ -147,6 +141,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   template = null,
   defaultSectionId,
   defaultMachineId,
+  defaultFactoryId,
   machines = [],
   sections = [],
 }) => {
@@ -160,8 +155,8 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const [assignedTo, setAssignedTo] = useState('');
   const [sectionId, setSectionId] = useState('');
   const [machineId, setMachineId] = useState('');
+  const [machinePickerOpen, setMachinePickerOpen] = useState(false);
 
-  const [needsParts, setNeedsParts] = useState<'no' | 'yes'>('no');
   const [lines, setLines] = useState<TemplateLineDraft[]>([]);
   const [draftLine, setDraftLine] = useState<TemplateLineDraft>(emptyLine());
 
@@ -170,23 +165,20 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const [hasMiscCost, setHasMiscCost] = useState<'no' | 'yes'>('no');
   const [cost, setCost] = useState('');
 
-  const [requiresApproval, setRequiresApproval] = useState<'no' | 'yes'>('no');
   const [approverIds, setApproverIds] = useState<number[]>([]);
+  const [partsOverlayOpen, setPartsOverlayOpen] = useState(false);
+  const [moreOverlayOpen, setMoreOverlayOpen] = useState(false);
 
   const [description, setDescription] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
-  const [recurrenceDay, setRecurrenceDay] = useState('1');
-  const [nextGenerationDate, setNextGenerationDate] = useState('');
-  const [autoGenerate, setAutoGenerate] = useState(false);
-  const [generationMode, setGenerationMode] = useState<'schedule' | 'draft'>('schedule');
   const [isSaving, setIsSaving] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
   const [highlightTarget, setHighlightTarget] = useState<TemplateSaveBlockReason | null>(null);
   const [saveHintOpen, setSaveHintOpen] = useState(false);
-  const rightColumnRef = useRef<HTMLDivElement>(null);
+  const optionalPanelsRef = useRef<HTMLDivElement>(null);
   const highlightGenerationRef = useRef(0);
 
   const globalFactory = useGlobalFactory();
@@ -216,10 +208,27 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const [addTemplateItem] = useAddWorkOrderTemplateItemMutation();
   const [removeTemplateItem] = useRemoveWorkOrderTemplateItemMutation();
 
-  const machinesInSection = useMemo(() => {
-    if (!sectionId) return machines;
-    return machines.filter((m) => m.factory_section_id === Number(sectionId));
-  }, [machines, sectionId]);
+  const selectedDefaultMachine = useMemo(
+    () => machines.find((m) => String(m.id) === machineId) ?? null,
+    [machines, machineId],
+  );
+
+  const scopeFactoryId = useMemo(() => {
+    if (sectionId) {
+      return sections.find((s) => s.id === Number(sectionId))?.factory_id ?? undefined;
+    }
+    if (defaultFactoryId) return defaultFactoryId;
+    if (defaultSectionId) {
+      return sections.find((s) => s.id === defaultSectionId)?.factory_id ?? undefined;
+    }
+    if (machineId) {
+      const machine = machines.find((m) => m.id === Number(machineId));
+      if (machine?.factory_section_id) {
+        return sections.find((s) => s.id === machine.factory_section_id)?.factory_id ?? undefined;
+      }
+    }
+    return undefined;
+  }, [sectionId, sections, defaultFactoryId, defaultSectionId, machineId, machines]);
 
   useEffect(() => {
     if (!open) {
@@ -238,7 +247,6 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setAssignedTo(template.assigned_to ?? '');
       setSectionId(template.default_factory_section_id ? String(template.default_factory_section_id) : '');
       setMachineId(template.default_machine_id ? String(template.default_machine_id) : '');
-      setNeedsParts(template.uses_inventory ? 'yes' : 'no');
       if (template.account_id) {
         setBillTo('external');
         setAccountId(String(template.account_id));
@@ -255,14 +263,9 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         setAccountId('');
         setCost('');
       }
-      setRequiresApproval(template.requires_approval ? 'yes' : 'no');
       setDescription(template.description ?? '');
       setIsRecurring(template.is_recurring);
       setRecurrenceType((template.recurrence_type as 'daily' | 'weekly' | 'monthly') || 'weekly');
-      setRecurrenceDay(template.recurrence_day != null ? String(template.recurrence_day) : '1');
-      setNextGenerationDate(template.next_generation_date?.slice(0, 10) ?? '');
-      setAutoGenerate(template.auto_generate);
-      setGenerationMode(template.generation_mode ?? 'schedule');
     } else {
       setTemplateName('');
       setTypeId('');
@@ -270,25 +273,21 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setAssignedTo('');
       setSectionId(defaultSectionId ? String(defaultSectionId) : '');
       setMachineId(defaultMachineId ? String(defaultMachineId) : '');
-      setNeedsParts('no');
       setLines([]);
       setBillTo('internal');
       setAccountId('');
       setHasMiscCost('no');
       setCost('');
-      setRequiresApproval('no');
       setApproverIds([]);
       setDescription('');
       setIsRecurring(false);
       setRecurrenceType('weekly');
-      setRecurrenceDay('1');
-      setNextGenerationDate('');
-      setAutoGenerate(false);
-      setGenerationMode('schedule');
     }
     setDraftLine(emptyLine());
     setIsCreatingType(false);
     setNewTypeName('');
+    setPartsOverlayOpen(false);
+    setMoreOverlayOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, template?.id, defaultSectionId, defaultMachineId]);
 
@@ -390,27 +389,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       getTemplateSaveBlockReason({
         templateName,
         typeId,
-        needsParts,
-        linesCount: lines.length,
         billTo,
         accountId,
         hasMiscCost,
         cost,
-        requiresApproval,
-        approverIds,
       }),
-    [
-      templateName,
-      typeId,
-      needsParts,
-      lines.length,
-      billTo,
-      accountId,
-      hasMiscCost,
-      cost,
-      requiresApproval,
-      approverIds,
-    ],
+    [templateName, typeId, billTo, accountId, hasMiscCost, cost],
   );
 
   const canSave = saveBlockReason === null;
@@ -419,7 +403,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     const generation = ++highlightGenerationRef.current;
     const element = document.getElementById(TEMPLATE_HIGHLIGHT_IDS[reason]);
     const container =
-      reason === 'name' || reason === 'type' ? null : rightColumnRef.current;
+      reason === 'name' || reason === 'type' ? null : optionalPanelsRef.current;
+
+    if (reason === 'account' || reason === 'cost') {
+      setPartsOverlayOpen(false);
+      setMoreOverlayOpen(true);
+    }
 
     setHighlightTarget(null);
     setSaveHintOpen(true);
@@ -476,29 +465,38 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         work_order_type_id: Number(typeId),
         priority,
         assigned_to: assignedTo.trim() || undefined,
-        uses_inventory: needsParts === 'yes',
+        uses_inventory: lines.length > 0,
         account_id: billTo === 'external' ? Number(accountId) : undefined,
         cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
-        requires_approval: requiresApproval === 'yes',
-        approver_user_ids: requiresApproval === 'yes' ? approverIds : [],
+        requires_approval: approverIds.length > 0,
+        approver_user_ids: approverIds.length > 0 ? approverIds : [],
         default_factory_section_id: sectionId ? Number(sectionId) : undefined,
         default_machine_id: machineId ? Number(machineId) : undefined,
         is_recurring: isRecurring,
         recurrence_type: isRecurring ? recurrenceType : null,
-        recurrence_day: isRecurring ? Number(recurrenceDay) || null : null,
-        next_generation_date: isRecurring && nextGenerationDate ? nextGenerationDate : null,
-        auto_generate: isRecurring ? autoGenerate : false,
-        generation_mode: isRecurring ? generationMode : 'schedule',
+        ...(isRecurring
+          ? isEdit
+            ? {}
+            : {
+                recurrence_day: null,
+                next_generation_date: null,
+                recurrence_start_date: null,
+                recurrence_end_date: null,
+              }
+          : {
+              recurrence_day: null,
+              next_generation_date: null,
+              recurrence_start_date: null,
+              recurrence_end_date: null,
+            }),
+        auto_generate: false,
       };
-      const lineItems =
-        needsParts === 'yes'
-          ? lines.map((l) => ({
-              item_id: Number(l.itemId),
-              quantity: Number(l.quantity),
-              action_type: l.actionType,
-              replaced_item_id: l.actionType === 'REPLACE' ? Number(l.replacedItemId) : undefined,
-            }))
-          : [];
+      const lineItems = lines.map((l) => ({
+        item_id: Number(l.itemId),
+        quantity: Number(l.quantity),
+        action_type: l.actionType,
+        replaced_item_id: l.actionType === 'REPLACE' ? Number(l.replacedItemId) : undefined,
+      }));
 
       if (isEdit && template) {
         await updateTemplate({ id: template.id, data: basePayload }).unwrap();
@@ -597,8 +595,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         </div>
       </div>
 
-      {(sections.length > 0 || machines.length > 0) && (
-        <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
           {sections.length > 0 && (
             <div className="grid gap-1">
               <Label className="text-xs text-muted-foreground">Default section</Label>
@@ -628,190 +625,223 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
               </Select>
             </div>
           )}
-          {machines.length > 0 && (
-            <div className="grid gap-1">
+          <div className={cn('grid gap-1', sections.length === 0 && 'col-span-2')}>
+            <div className="flex items-center justify-between gap-2">
               <Label className="text-xs text-muted-foreground">Default machine</Label>
-              <Select value={machineId || '__none__'} onValueChange={(v) => setMachineId(v === '__none__' ? '' : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {machinesInSection.map((m) => (
-                    <SelectItem key={m.id} value={String(m.id)}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  const partsSection = (
-    <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Parts</Label>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={needsParts === 'no' ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(needsParts === 'no')}
-          onClick={() => setNeedsParts('no')}
-        >
-          No
-        </Button>
-        <Button
-          type="button"
-          variant={needsParts === 'yes' ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(needsParts === 'yes')}
-          onClick={() => setNeedsParts('yes')}
-        >
-          Yes
-        </Button>
-      </div>
-
-      {needsParts === 'yes' && (
-        <div className="space-y-3">
-          {lines.length > 0 && (
-            <div className="space-y-1.5 rounded-md border border-border">
-              {lines.map((line) => (
-                <div
-                  key={line.key}
-                  className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0"
+              {machineId ? (
+                <button
+                  type="button"
+                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                  onClick={() => setMachineId('')}
                 >
-                  <div className="min-w-0 text-sm">
-                    <span className="font-medium text-card-foreground">{itemName(line.itemId)}</span>
-                    <span className="text-muted-foreground">
-                      {' '}
-                      · {line.quantity} · {WORK_ORDER_ITEM_ACTION_OPTIONS.find((o) => o.value === line.actionType)?.label}
-                    </span>
-                    {line.actionType === 'REPLACE' && line.replacedItemId && (
-                      <span className="text-muted-foreground"> · replaces {itemName(line.replacedItemId)}</span>
-                    )}
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleRemoveLine(line.key)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
-              ))}
+                  Clear
+                </button>
+              ) : null}
             </div>
-          )}
-
-          <div className="space-y-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
-              <TooltipProvider delayDuration={200}>
-                <div className="flex flex-wrap gap-2">
-                  {WORK_ORDER_ITEM_ACTION_OPTIONS.map((opt) => (
-                    <Tooltip key={opt.value}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant={draftLine.actionType === opt.value ? 'default' : 'outline'}
-                          size="sm"
-                          className={yesNoChipClass(draftLine.actionType === opt.value)}
-                          onClick={() => setDraftLine((d) => ({ ...d, actionType: opt.value }))}
-                        >
-                          {opt.label}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-[18rem] text-xs leading-relaxed">
-                        {WORK_ORDER_ITEM_ACTION_EXPLAINER[opt.value]}
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </TooltipProvider>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">{draftLine.actionType === 'REPLACE' ? 'New item' : 'Item'}</Label>
-                <ItemSelectSummaryButton
-                  ariaLabel={draftLine.actionType === 'REPLACE' ? 'Select new item' : 'Select item'}
-                  selectedLabel={draftLine.itemId ? itemName(draftLine.itemId) : null}
-                  staleNumericId={draftLine.itemId || null}
-                  compactLabel
-                  onClick={() => openItemPicker('item')}
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Quantity</Label>
-                <StepNumberInput
-                  min={0.01}
-                  step={1}
-                  value={draftLine.quantity}
-                  onChange={(e) => setDraftLine((d) => ({ ...d, quantity: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {draftLine.actionType === 'REPLACE' && (
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Item typically being replaced</Label>
-                <ItemSelectSummaryButton
-                  ariaLabel="Select item being replaced"
-                  selectedLabel={draftLine.replacedItemId ? itemName(draftLine.replacedItemId) : null}
-                  staleNumericId={draftLine.replacedItemId || null}
-                  onClick={() => openItemPicker('replaced')}
-                />
-              </div>
-            )}
-
-            <p className="text-xs text-muted-foreground">
-              Parts pull from the machine this template is applied to.
-            </p>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              id={TEMPLATE_HIGHLIGHT_IDS.addPartLine}
-              className={cn('w-full bg-background', highlightClass('addPartLine'))}
-              disabled={!draftLineValid}
-              onClick={handleAddLine}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Add part line
-            </Button>
+            <MachineSelectSummaryButton
+              onClick={() => setMachinePickerOpen(true)}
+              ariaLabel={
+                selectedDefaultMachine
+                  ? `Change default machine. Current: ${selectedDefaultMachine.name}`
+                  : 'Select default machine'
+              }
+              selectedLine={selectedDefaultMachine?.name ?? null}
+              staleNumericId={selectedDefaultMachine ? null : machineId || null}
+              className="mt-0 h-10 min-h-10 py-0"
+            />
+            <MachineSelectorDialog
+              open={machinePickerOpen}
+              onOpenChange={setMachinePickerOpen}
+              initialFactoryId={scopeFactoryId}
+              initialSectionId={sectionId ? Number(sectionId) : defaultSectionId ?? undefined}
+              title="Select default machine"
+              description="Optional — pick factory, section, and machine for this template."
+              onSelect={(machine) => {
+                setMachineId(String(machine.id));
+                if (!sectionId && machine.factory_section_id) {
+                  setSectionId(String(machine.factory_section_id));
+                }
+              }}
+            />
           </div>
         </div>
-      )}
     </div>
   );
 
-  const billingSection = (
-    <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Billing</Label>
-      <div className="flex gap-2">
+  const partsSummary = useMemo(() => {
+    if (lines.length === 0) return 'No parts';
+    const names = lines.map((l) => itemName(l.itemId));
+    const preview = names.slice(0, 2).join(', ');
+    const list = names.length > 2 ? `${preview} +${names.length - 2}` : preview;
+    const action = workOrderItemActionLabel(lines[0].actionType);
+    return `${action} · ${list}`;
+  }, [lines, itemLabels, items]);
+
+  const moreSummary = useMemo(() => {
+    const bits: string[] = [];
+    if (priority !== 'MEDIUM') bits.push(priorityLabel(priority));
+    if (billTo === 'external') {
+      const acct = accounts.find((a) => String(a.id) === accountId);
+      bits.push(acct ? acct.name : 'External vendor');
+    } else if (hasMiscCost === 'yes' && Number(cost) > 0) {
+      bits.push(`Misc ${cost}`);
+    } else {
+      bits.push('Internal');
+    }
+    if (approverIds.length > 0) {
+      bits.push(`${approverIds.length} approver${approverIds.length === 1 ? '' : 's'}`);
+    }
+    return bits.join(' · ');
+  }, [priority, billTo, accountId, accounts, hasMiscCost, cost, approverIds.length]);
+
+  const closeOptionalOverlays = () => {
+    setPartsOverlayOpen(false);
+    setMoreOverlayOpen(false);
+  };
+
+  const togglePartsOverlay = () => {
+    if (partsOverlayOpen) {
+      setPartsOverlayOpen(false);
+      return;
+    }
+    setMoreOverlayOpen(false);
+    setPartsOverlayOpen(true);
+  };
+
+  const toggleMoreOverlay = () => {
+    if (moreOverlayOpen) {
+      setMoreOverlayOpen(false);
+      return;
+    }
+    setPartsOverlayOpen(false);
+    setMoreOverlayOpen(true);
+  };
+
+  const templatePartsEditorContent = (
+    <div className="space-y-3">
+      {lines.length > 0 && (
+        <div className="space-y-1.5 rounded-md border border-border">
+          {lines.map((line) => (
+            <div
+              key={line.key}
+              className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2 last:border-b-0"
+            >
+              <div className="min-w-0 text-sm">
+                <span className="font-medium text-card-foreground">{itemName(line.itemId)}</span>
+                <span className="text-muted-foreground">
+                  {' '}
+                  · {line.quantity} · {WORK_ORDER_ITEM_ACTION_OPTIONS.find((o) => o.value === line.actionType)?.label}
+                </span>
+                {line.actionType === 'REPLACE' && line.replacedItemId && (
+                  <span className="text-muted-foreground"> · replaces {itemName(line.replacedItemId)}</span>
+                )}
+              </div>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleRemoveLine(line.key)}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex flex-wrap gap-2">
+              {WORK_ORDER_ITEM_ACTION_OPTIONS.map((opt) => (
+                <Tooltip key={opt.value}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant={draftLine.actionType === opt.value ? 'default' : 'outline'}
+                      size="sm"
+                      className={yesNoChipClass(draftLine.actionType === opt.value)}
+                      onClick={() => setDraftLine((d) => ({ ...d, actionType: opt.value }))}
+                    >
+                      {opt.label}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[18rem] text-xs leading-relaxed">
+                    {WORK_ORDER_ITEM_ACTION_EXPLAINER[opt.value]}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">{draftLine.actionType === 'REPLACE' ? 'New item' : 'Item'}</Label>
+            <ItemSelectSummaryButton
+              ariaLabel={draftLine.actionType === 'REPLACE' ? 'Select new item' : 'Select item'}
+              selectedLabel={draftLine.itemId ? itemName(draftLine.itemId) : null}
+              staleNumericId={draftLine.itemId || null}
+              compactLabel
+              onClick={() => openItemPicker('item')}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Quantity</Label>
+            <StepNumberInput
+              min={0.01}
+              step={1}
+              value={draftLine.quantity}
+              onChange={(e) => setDraftLine((d) => ({ ...d, quantity: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {draftLine.actionType === 'REPLACE' && (
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Item typically being replaced</Label>
+            <ItemSelectSummaryButton
+              ariaLabel="Select item being replaced"
+              selectedLabel={draftLine.replacedItemId ? itemName(draftLine.replacedItemId) : null}
+              staleNumericId={draftLine.replacedItemId || null}
+              onClick={() => openItemPicker('replaced')}
+            />
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">Parts pull from the machine this template is applied to.</p>
+
         <Button
           type="button"
-          variant={billTo === 'internal' ? 'default' : 'outline'}
+          variant="outline"
           size="sm"
-          className={yesNoChipClass(billTo === 'internal')}
-          onClick={() => setBillTo('internal')}
+          className="w-full bg-background"
+          disabled={!draftLineValid}
+          onClick={handleAddLine}
         >
-          Internal
-        </Button>
-        <Button
-          type="button"
-          variant={billTo === 'external' ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(billTo === 'external')}
-          onClick={() => setBillTo('external')}
-        >
-          External account
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Add part line
         </Button>
       </div>
+    </div>
+  );
+
+  const templateMoreEditorContent = (
+    <div className="space-y-3">
+      <div className="grid gap-1">
+        <Label className="text-xs text-muted-foreground">Billing</Label>
+        <Select value={billTo} onValueChange={(v) => setBillTo(v as 'internal' | 'external')}>
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="internal">Internal / free</SelectItem>
+            <SelectItem value="external">External vendor</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {billTo === 'external' && (
-        <div id={TEMPLATE_HIGHLIGHT_IDS.account} className={cn('p-0.5', highlightClass('account'))}>
+        <div id={TEMPLATE_HIGHLIGHT_IDS.account} className={cn('grid gap-1 p-0.5', highlightClass('account'))}>
+          <Label className="text-xs text-muted-foreground">Vendor account</Label>
           <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9">
               <SelectValue placeholder="Select account..." />
             </SelectTrigger>
             <SelectContent>
@@ -824,88 +854,120 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
           </Select>
         </div>
       )}
+
       {billTo === 'internal' && (
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Default miscellaneous cost?</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={hasMiscCost === 'no' ? 'default' : 'outline'}
-              size="sm"
-              className={yesNoChipClass(hasMiscCost === 'no')}
-              onClick={() => setHasMiscCost('no')}
-            >
-              No
-            </Button>
-            <Button
-              type="button"
-              variant={hasMiscCost === 'yes' ? 'default' : 'outline'}
-              size="sm"
-              className={yesNoChipClass(hasMiscCost === 'yes')}
-              onClick={() => setHasMiscCost('yes')}
-            >
-              Yes
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Select value={hasMiscCost} onValueChange={(v) => setHasMiscCost(v as 'no' | 'yes')}>
+            <SelectTrigger className="h-9 w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">No misc cost</SelectItem>
+              <SelectItem value="yes">Misc cost</SelectItem>
+            </SelectContent>
+          </Select>
           {hasMiscCost === 'yes' && (
             <div id={TEMPLATE_HIGHLIGHT_IDS.cost} className={cn('p-0.5', highlightClass('cost'))}>
-              <StepNumberInput min={0} step={1} value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0.00" />
+              <StepNumberInput
+                min={0.01}
+                step={1}
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                className="h-9 w-32"
+                placeholder="Amount"
+              />
             </div>
           )}
         </div>
       )}
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Label className="text-xs text-muted-foreground shrink-0">Approvals</Label>
+            <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+              {approverIds.length === 0 ? 'Optional' : `${approverIds.length} assigned`}
+            </Badge>
+          </div>
+        </div>
+        {assignableMembers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No workspace members available.</p>
+        ) : (
+          <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border bg-muted/20 p-2">
+            {assignableMembers.map((m) => (
+              <label
+                key={m.user_id}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/40"
+              >
+                <Checkbox checked={approverIds.includes(m.user_id)} onCheckedChange={() => toggleApprover(m.user_id)} />
+                <span className="truncate">
+                  {m.user_name ?? `User #${m.user_id}`}
+                  {m.user_position ? ` · ${m.user_position}` : ''}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
-  const approvalSection = (
-    <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approval</Label>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={requiresApproval === 'no' ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(requiresApproval === 'no')}
-          onClick={() => setRequiresApproval('no')}
-        >
-          No
-        </Button>
-        <Button
-          type="button"
-          variant={requiresApproval === 'yes' ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(requiresApproval === 'yes')}
-          onClick={() => setRequiresApproval('yes')}
-        >
-          Yes
+  const optionalPanelOverlay = (variant: 'parts' | 'billing') => (
+    <div className="absolute bottom-full left-0 right-0 z-30 mb-2 flex max-h-[min(55vh,34rem)] flex-col overflow-hidden rounded-md border border-border/80 bg-card shadow-lg">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-foreground">
+            <span className="font-medium">
+              {variant === 'parts' ? 'Parts / consumables' : 'Billing & approvals'}
+            </span>
+            <span className="text-muted-foreground">
+              {' '}
+              · {variant === 'parts' ? partsSummary : moreSummary}
+            </span>
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={closeOptionalOverlays}>
+          Done
         </Button>
       </div>
-      {requiresApproval === 'yes' && (
-        <div
-          id={TEMPLATE_HIGHLIGHT_IDS.approvers}
-          className={cn('space-y-1 rounded-md border border-border bg-muted/20 p-3', highlightClass('approvers'))}
-        >
-          <Label className="text-xs text-muted-foreground">Default approvers</Label>
-          {assignableMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No workspace members available.</p>
-          ) : (
-            <div className="max-h-40 space-y-1 overflow-y-auto">
-              {assignableMembers.map((m) => (
-                <label
-                  key={m.user_id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/40"
-                >
-                  <Checkbox checked={approverIds.includes(m.user_id)} onCheckedChange={() => toggleApprover(m.user_id)} />
-                  <span className="truncate">
-                    {m.user_name ?? `User #${m.user_id}`}
-                    {m.user_position ? ` · ${m.user_position}` : ''}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {variant === 'parts' ? templatePartsEditorContent : templateMoreEditorContent}
+      </div>
+    </div>
+  );
+
+  const optionalPanelsBar = (
+    <div ref={optionalPanelsRef} className="shrink-0 border-t border-border/60 px-5 py-2">
+      <div className="flex items-stretch gap-2">
+        <div className="relative min-w-0 flex-1">
+          {partsOverlayOpen && optionalPanelOverlay('parts')}
+          <button
+            type="button"
+            className={cn(
+              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
+              partsOverlayOpen ? 'border-brand-primary/40 bg-brand-primary/5' : 'border-border/60',
+            )}
+            onClick={togglePartsOverlay}
+          >
+            <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
+            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">{partsSummary}</span>
+          </button>
         </div>
-      )}
+        <div className="relative min-w-0 flex-1">
+          {moreOverlayOpen && optionalPanelOverlay('billing')}
+          <button
+            type="button"
+            className={cn(
+              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
+              moreOverlayOpen ? 'border-brand-primary/40 bg-brand-primary/5' : 'border-border/60',
+            )}
+            onClick={toggleMoreOverlay}
+          >
+            <span className="shrink-0 text-sm font-medium text-foreground">Billing & approvals</span>
+            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">{moreSummary}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -916,99 +978,55 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     </div>
   );
 
-  const recurrenceDayLabel =
-    recurrenceType === 'weekly' ? 'Day of week (0=Mon … 6=Sun)' : 'Day of month (1–31)';
-
-  const recurrenceSection = (
-    <div className="space-y-2">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recurrence</Label>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={!isRecurring ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(!isRecurring)}
-          onClick={() => setIsRecurring(false)}
-        >
-          One-off
-        </Button>
-        <Button
-          type="button"
-          variant={isRecurring ? 'default' : 'outline'}
-          size="sm"
-          className={yesNoChipClass(isRecurring)}
-          onClick={() => setIsRecurring(true)}
-        >
-          Recurring
-        </Button>
+  const scheduleFieldsBlock = (
+    <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      <div className="grid gap-1">
+        <Label className="text-xs text-muted-foreground">Frequency</Label>
+        <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as 'daily' | 'weekly' | 'monthly')}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="daily">Daily</SelectItem>
+            <SelectItem value="weekly">Weekly</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {isRecurring ? (
-        <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-          <div className="grid gap-1">
-            <Label className="text-xs text-muted-foreground">Cadence</Label>
-            <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as 'daily' | 'weekly' | 'monthly')}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {recurrenceType !== 'daily' ? (
-            <div className="grid gap-1">
-              <Label className="text-xs text-muted-foreground">{recurrenceDayLabel}</Label>
-              <StepNumberInput min={0} step={1} value={recurrenceDay} onChange={(e) => setRecurrenceDay(e.target.value)} />
-            </div>
-          ) : null}
-
-          <div className="grid gap-1">
-            <Label className="text-xs text-muted-foreground">Next due date</Label>
-            <Input type="date" value={nextGenerationDate} onChange={(e) => setNextGenerationDate(e.target.value)} />
-          </div>
-
-          <div className="grid gap-1">
-            <Label className="text-xs text-muted-foreground">When due, create as</Label>
-            <Select value={generationMode} onValueChange={(v) => setGenerationMode(v as 'schedule' | 'draft')}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="schedule">Staged schedule (confirm on sheet)</SelectItem>
-                <SelectItem value="draft">Draft work order (immediate)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <Checkbox checked={autoGenerate} onCheckedChange={(v) => setAutoGenerate(v === true)} />
-            <span>Auto-generate when due (future job)</span>
-          </label>
-        </div>
-      ) : null}
+      <p className="rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm leading-snug text-muted-foreground">
+        Set frequency here. On a sheet row, pick this template and set start + end dates (up to 6 months).
+        Saving the first row schedules all draft work orders in that range.
+      </p>
     </div>
   );
 
   const dialogBody = (
-    <div className="grid min-h-0 flex-1 gap-4 px-5 py-3 md:grid-cols-2">
-      <div className="flex min-h-0 min-w-0 flex-col gap-3">
-        {basicsSection}
-        <Separator />
-        {recurrenceSection}
-        <Separator />
-        {descriptionSection}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden px-5 py-3 md:grid-cols-2">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
+          {basicsSection}
+          <Separator />
+          {descriptionSection}
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1">
+          <div className="flex items-center justify-between rounded-md border border-border p-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Recurring schedule</p>
+              <p className="text-xs text-muted-foreground">First sheet save auto-schedules drafts in the date range.</p>
+            </div>
+            <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
+          </div>
+          {isRecurring ? (
+            scheduleFieldsBlock
+          ) : (
+            <p className="rounded-md border border-dashed border-border/60 bg-muted/15 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
+              Optional parts, billing, and approvals — use the panels below, same as Add work footer.
+            </p>
+          )}
+        </div>
       </div>
-      <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto pr-1" ref={rightColumnRef}>
-        {partsSection}
-        <Separator />
-        {billingSection}
-        <Separator />
-        {approvalSection}
-      </div>
+      {optionalPanelsBar}
     </div>
   );
 
@@ -1047,13 +1065,13 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[min(70vh,40rem)] max-h-[70vh] w-[min(48rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
+        <DialogContent className="flex h-[min(80vh,52rem)] max-h-[80vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
           <DialogHeader className="shrink-0 border-b border-border px-5 py-3">
             <DialogTitle>{isEdit ? 'Edit template' : 'New template'}</DialogTitle>
             <DialogDescription>
               {isEdit
-                ? `Update saved defaults for "${template?.template_name}".`
-                : 'Save reusable defaults for maintenance — all fields optional except name and type.'}
+                ? `Update saved defaults for "${template?.template_name}". Turn on recurrence for Plan-day drafts.`
+                : 'Reusable work order defaults — name and type required; turn on recurrence for Plan-day drafts.'}
             </DialogDescription>
           </DialogHeader>
 

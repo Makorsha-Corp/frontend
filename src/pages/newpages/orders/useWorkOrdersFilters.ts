@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  parsePageFactoryFilterParam,
+  usePageFactoryScope,
+} from '@/hooks/usePageFactoryScope';
+import { sliceToFactoryFilter } from '@/lib/machinesLocationFilterAdapters';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
+import {
   addDays,
   addMonths,
   endOfDay,
@@ -14,6 +20,9 @@ import {
   subDays,
   subMonths,
 } from 'date-fns';
+import {
+  parseWorkOrderSheetPage,
+} from '@/pages/newpages/orders/workOrderSheetApiParams';
 import type { WorkOrderPriorityFilter, WorkOrderStatusFilter, WorkTypeFilter } from './workOrdersOverviewData';
 
 export type SheetDateScope = 'day' | 'week' | 'month';
@@ -81,6 +90,24 @@ function readWorkOrderShowComplete(params: URLSearchParams): boolean {
 
 export function useWorkOrdersFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const woFactorySeed = parsePageFactoryFilterParam(searchParams.get('woFactory'));
+  const { factoryFilter, setPageFactory } = usePageFactoryScope({
+    initialOverride: woFactorySeed,
+  });
+
+  useEffect(() => {
+    if (!searchParams.has('woFactory')) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('woFactory');
+        return next;
+      },
+      { replace: true },
+    );
+    // Strip legacy URL factory override once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dateScope = parseSheetDateScope(searchParams.get('woDateScope'));
   const layoutMode = parseLayoutMode(searchParams.get('woLayout'));
@@ -88,7 +115,6 @@ export function useWorkOrdersFilters() {
   const sheetRowFlow = parseSheetRowFlow(searchParams.get('sheetRowFlow'));
   const sheetDate = searchParams.get('woDate') ?? '';
   const hasDateFilter = sheetDate.length > 0;
-  const factoryFilter = searchParams.get('woFactory') ?? 'all';
   const sectionFilter = searchParams.get('woSection') ?? 'all';
   const machineFilter = searchParams.get('woMachine') ?? 'all';
   const statusFilter = (searchParams.get('woStatus') ?? 'all') as WorkOrderStatusFilter;
@@ -98,6 +124,29 @@ export function useWorkOrdersFilters() {
   const priorityFilter = (searchParams.get('woPriority') ?? 'all') as WorkOrderPriorityFilter;
   const searchQuery = searchParams.get('woSearch') ?? '';
   const showCompleteOrders = readWorkOrderShowComplete(searchParams);
+  const sheetPage = parseWorkOrderSheetPage(searchParams.get('woPage'));
+
+  const patchParams = useCallback(
+    (patch: Record<string, string | null>, options?: { resetPage?: boolean }) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(patch)) {
+          if (value == null || value === '' || value === 'all') next.delete(key);
+          else next.set(key, value);
+        }
+        if (options?.resetPage !== false) {
+          next.delete('woPage');
+        }
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const patchParamsKeepPage = useCallback(
+    (patch: Record<string, string | null>) => patchParams(patch, { resetPage: false }),
+    [patchParams],
+  );
 
   const dateRange = useMemo(() => {
     if (!hasDateFilter) return {};
@@ -115,18 +164,11 @@ export function useWorkOrdersFilters() {
     return { from: day, to: endOfDay(day) };
   }, [dateScope, sheetDate, hasDateFilter]);
 
-  const patchParams = useCallback(
-    (patch: Record<string, string | null>) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        for (const [key, value] of Object.entries(patch)) {
-          if (value == null || value === '' || value === 'all') next.delete(key);
-          else next.set(key, value);
-        }
-        return next;
-      });
+  const setSheetPage = useCallback(
+    (page: number) => {
+      patchParamsKeepPage({ woPage: page <= 1 ? null : String(page) });
     },
-    [setSearchParams],
+    [patchParamsKeepPage],
   );
 
   const setDateScope = (scope: SheetDateScope) =>
@@ -146,8 +188,27 @@ export function useWorkOrdersFilters() {
     patchParams({ woWeekView: view === 'rows' ? null : view });
   const setSheetDate = (iso: string) => patchParams({ woDate: iso.trim() ? iso : null });
   const clearSheetDate = () => patchParams({ woDate: null, woDateScope: null });
-  const setFactoryFilter = (value: string) =>
-    patchParams({ woFactory: value === 'all' ? null : value, woMachine: null });
+  const setFactoryFilterWithReset = useCallback(
+    (value: string) => {
+      setPageFactory(value === 'all' ? 'all' : value);
+      patchParams({ woMachine: null });
+    },
+    [setPageFactory, patchParams],
+  );
+  /** Factory + section (+ machine reset) — factory is visit-local; section/machine stay in URL. */
+  const setLocationFilterSlice = useCallback(
+    (slice: MachinesLocationFilterSlice) => {
+      const nextFactory = sliceToFactoryFilter(slice);
+      const nextSection =
+        slice.section_ids.length === 0 ? 'all' : String(slice.section_ids[0]);
+      setPageFactory(nextFactory);
+      patchParams({
+        woSection: nextSection === 'all' ? null : nextSection,
+        woMachine: null,
+      });
+    },
+    [setPageFactory, patchParams],
+  );
   const setSectionFilter = (value: string) =>
     patchParams({ woSection: value === 'all' ? null : value, woMachine: null });
   const setMachineFilter = (value: string) => patchParams({ woMachine: value === 'all' ? null : value });
@@ -290,7 +351,8 @@ export function useWorkOrdersFilters() {
     setSheetRowFlow,
     setSheetDate,
     clearSheetDate,
-    setFactoryFilter,
+    setFactoryFilter: setFactoryFilterWithReset,
+    setLocationFilterSlice,
     setSectionFilter,
     setMachineFilter,
     setStatusFilter,
@@ -303,5 +365,7 @@ export function useWorkOrdersFilters() {
     applyDatePreset,
     goToToday,
     patchParams,
+    sheetPage,
+    setSheetPage,
   };
 }

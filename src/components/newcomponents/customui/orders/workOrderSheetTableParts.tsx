@@ -1,13 +1,14 @@
 import React from 'react';
-import { parseISO, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
+import { getSheetDateStatusSublabel } from '@/pages/newpages/orders/workOrderSheetData';
 import {
-  formatWorkOrderDatePopoverLines,
+  getWorkOrderSheetDateAttention,
   getWorkOrderSheetDisplayDate,
-  hasWorkOrderLifecycleVariance,
   type WorkOrderLifecycleNote,
+  type WorkOrderSheetAttentionKind,
 } from '@/pages/newpages/orders/workOrderDateUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -17,7 +18,13 @@ import {
   workOrderStatusBadgeClass,
   workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { Bookmark, Clock, DollarSign } from 'lucide-react';
+import { DollarSign, Repeat2 } from 'lucide-react';
+import {
+  formatRecurrenceProgramDateLabel,
+  RECURRENCE_PROGRAM_POPOVER_MAX_DATES,
+  type RecurrenceProgramSummary,
+} from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import RecurringProgramDeleteButton from './RecurringProgramDeleteButton';
 import SheetApproverChips from './SheetApproverChips';
 import SheetWorkOrderRowActions from './SheetWorkOrderRowActions';
 import { initialsOf } from './transferOrderApprovals';
@@ -27,7 +34,10 @@ import {
   SHEET_BADGE,
   SHEET_CELL_PAD,
   SHEET_CHIP,
+  SHEET_DATE_CELL_PAD,
   SHEET_DATE_COL,
+  SHEET_DATE_HEADER_CELL_PAD,
+  SHEET_DATE_LABEL,
   SHEET_HEADER,
   SHEET_HEADER_CELL_PAD,
   SHEET_META,
@@ -50,26 +60,21 @@ function priorityBadge(priority: WorkOrderSheetRow['priority']) {
   );
 }
 
-function isFuturePlannedRow(row: WorkOrderSheetRow): boolean {
-  if (row.status !== 'DRAFT') return false;
-  try {
-    return startOfDay(parseISO(row.date)) > startOfDay(new Date());
-  } catch {
-    return false;
-  }
+function sheetDateStatusSublabel(row: WorkOrderSheetRow) {
+  return getSheetDateStatusSublabel(row);
+}
+
+function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
+  if (!row.hasBilling) return null;
+  return (
+    <span title={row.billingHint ?? 'Billing'} className="inline-flex text-muted-foreground">
+      <DollarSign className="h-3 w-3" />
+    </span>
+  );
 }
 
 function statusBadge(row: WorkOrderSheetRow) {
-  if (isFuturePlannedRow(row)) {
-    return (
-      <Badge
-        variant="outline"
-        className={cn(SHEET_BADGE, 'border-sky-500/40 font-normal text-sky-700 dark:text-sky-400')}
-      >
-        Planned
-      </Badge>
-    );
-  }
+  if (row.status === 'COMPLETED') return null;
   return (
     <Badge
       variant="outline"
@@ -93,25 +98,14 @@ function SheetEmptyCell({ children }: { children: React.ReactNode }) {
   return <span className={cn(SHEET_META, 'italic')}>{children}</span>;
 }
 
-function SheetRowIndicators({ row }: { row: WorkOrderSheetRow }) {
-  if (!row.hasBilling && !row.hasTemplate) return null;
-  return (
-    <>
-      {row.hasBilling && (
-        <span title={row.billingHint ?? 'Billing'} className="inline-flex text-muted-foreground">
-          <DollarSign className="h-3 w-3" />
-        </span>
-      )}
-      {row.hasTemplate && (
-        <span title="From template" className="inline-flex text-muted-foreground">
-          <Bookmark className="h-3 w-3" />
-        </span>
-      )}
-    </>
-  );
-}
 
-function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
+function SheetMachineCell({
+  row,
+  showStatusBadge = true,
+}: {
+  row: WorkOrderSheetRow;
+  showStatusBadge?: boolean;
+}) {
   const hasParts = row.partName !== '—';
   const partCountLabel = hasParts
     ? `${row.groupRowSpan} part${row.groupRowSpan === 1 ? '' : 's'}`
@@ -123,7 +117,7 @@ function SheetMachineCell({ row }: { row: WorkOrderSheetRow }) {
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         <span className={cn(SHEET_PRIMARY, 'leading-snug')}>{row.machineName}</span>
         {priorityBadge(row.priority)}
-        {statusBadge(row)}
+        {showStatusBadge ? statusBadge(row) : null}
         {approvalPendingBadge(row)}
       </div>
 
@@ -242,7 +236,12 @@ export function WorkOrderSheetTableHeader({
     <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
       <tr className={cn('border-b border-border/60 text-left', SHEET_HEADER)}>
         {showStartDateColumn ? (
-          <th className={cn(SHEET_DATE_COL, SHEET_HEADER_CELL_PAD)}>Date</th>
+          <th
+            className={cn(SHEET_DATE_COL, SHEET_DATE_HEADER_CELL_PAD, 'text-center')}
+            title="Planned work day. Click for actual start vs plan."
+          >
+            Start
+          </th>
         ) : null}
         <th className={SHEET_HEADER_CELL_PAD}>Machine</th>
         <th className={cn(SHEET_WORKS_COL, SHEET_HEADER_CELL_PAD)}>Works</th>
@@ -262,16 +261,65 @@ function lifecycleNoteToneClass(note: WorkOrderLifecycleNote) {
   if (note.tone === 'completed') {
     return 'text-blue-700 dark:text-blue-400';
   }
-  return 'text-emerald-700 dark:text-emerald-400';
+  if (note.text.includes(' early')) {
+    return 'text-blue-700 dark:text-blue-400';
+  }
+  return 'text-muted-foreground';
 }
 
-function lifecycleVarianceIconClass(notes: WorkOrderLifecycleNote[]): string {
-  const isLate = notes.some((note) => note.text.includes(' late'));
-  if (isLate) return 'text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300';
-  return 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300';
+function startVarianceBadgeClass(startVarianceTone: 'early' | 'late'): string {
+  if (startVarianceTone === 'late') {
+    return 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400';
+  }
+  return 'border-blue-500/45 bg-blue-500/10 text-blue-700 hover:bg-blue-500/15 dark:text-blue-400';
 }
 
-function SheetStartDateCell({ row }: { row: WorkOrderSheetRow }) {
+function sheetDateDraftBadgeClass(): string {
+  return 'border border-dashed border-slate-400/40 bg-slate-500/10 font-normal text-foreground/90 hover:bg-slate-500/16 dark:border-slate-400/35 dark:bg-slate-400/14 dark:text-slate-100 dark:hover:bg-slate-400/20';
+}
+
+function sheetDateActiveBadgeClass(): string {
+  return 'border border-solid border-amber-500/40 bg-amber-500/10 text-foreground/90 hover:bg-amber-500/16 dark:border-amber-400/35 dark:bg-amber-500/14 dark:text-amber-50 dark:hover:bg-amber-500/20';
+}
+
+function sheetDateAttentionBadgeClass(
+  kind: WorkOrderSheetAttentionKind,
+  startVarianceTone: 'early' | 'late' | null,
+): string {
+  if (kind === 'completed') {
+    return 'border-emerald-500/45 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15 dark:text-emerald-400';
+  }
+  if (kind === 'overdue_not_started') {
+    return 'border-red-500/40 bg-red-500/10 text-red-700 hover:bg-red-500/15 dark:text-red-400';
+  }
+  if (kind === 'overdue_in_progress') {
+    return 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400';
+  }
+  if (startVarianceTone) {
+    return startVarianceBadgeClass(startVarianceTone);
+  }
+  return 'border-transparent text-card-foreground hover:bg-muted/50';
+}
+
+function startVarianceUnderlineBarClass(startVarianceTone: 'early' | 'late' | null): string | null {
+  if (startVarianceTone === 'early') {
+    return 'h-0.5 w-full shrink-0 rounded-full bg-blue-500';
+  }
+  if (startVarianceTone === 'late') {
+    return 'h-0.5 w-full shrink-0 rounded-full bg-amber-500';
+  }
+  return null;
+}
+
+function SheetStartDateCell({
+  row,
+  programSummary,
+  onSheetMutated,
+}: {
+  row: WorkOrderSheetRow;
+  programSummary?: RecurrenceProgramSummary | null;
+  onSheetMutated?: () => void;
+}) {
   const dateRow = {
     plannedDate: row.plannedDate,
     calendarDate: row.date,
@@ -279,48 +327,192 @@ function SheetStartDateCell({ row }: { row: WorkOrderSheetRow }) {
     completedAt: row.completedAt,
   };
   const displayDate = getWorkOrderSheetDisplayDate(dateRow);
-  const hasVariance = hasWorkOrderLifecycleVariance(dateRow);
-  const popoverLines = hasVariance ? formatWorkOrderDatePopoverLines(dateRow) : null;
+  const attention = getWorkOrderSheetDateAttention({ ...dateRow, status: row.status });
+  const statusSublabel = sheetDateStatusSublabel(row);
+  const popoverLines = attention.popoverLines;
+  const lifecycleNotes = popoverLines?.lifecycleNotes ?? [];
+  const hasAttentionBadge = attention.kind !== 'none';
+  const underlineBarClass =
+    attention.kind === 'completed' ? startVarianceUnderlineBarClass(attention.startVarianceTone) : null;
+  const useStackedLayout = Boolean(underlineBarClass || statusSublabel);
+  const showProgramSection = row.isRecurringFromTemplate && programSummary != null;
+  const canDeleteProgramDrafts = row.status === 'DRAFT';
+  const popoverDates = showProgramSection
+    ? programSummary.futureDrafts.slice(0, RECURRENCE_PROGRAM_POPOVER_MAX_DATES)
+    : [];
+  const truncatedFutureCount = showProgramSection
+    ? Math.max(0, programSummary.futureDraftCount - popoverDates.length)
+    : 0;
+  const completedOccurrences = showProgramSection ? programSummary.completedOccurrences : [];
+  const inProgressOccurrences = showProgramSection ? programSummary.inProgressOccurrences : [];
+
+  const programDateItemClass = (isCurrentRow?: boolean) =>
+    cn(
+      'rounded px-1.5 py-0.5 text-xs',
+      isCurrentRow
+        ? 'bg-violet-500/10 font-medium text-violet-700 dark:text-violet-300'
+        : 'text-muted-foreground',
+    );
 
   return (
-    <div className={cn(SHEET_DATE_COL, 'flex items-center gap-0.5')}>
-      <span className={SHEET_PRIMARY}>{displayDate}</span>
-      {hasVariance && popoverLines ? (
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            SHEET_DATE_LABEL,
+            'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            hasAttentionBadge
+              ? sheetDateAttentionBadgeClass(attention.kind, attention.startVarianceTone)
+              : row.status === 'DRAFT'
+                ? sheetDateDraftBadgeClass()
+                : row.status === 'IN_PROGRESS'
+                  ? sheetDateActiveBadgeClass()
+                  : 'border-transparent text-card-foreground hover:bg-muted/50',
+            useStackedLayout ? 'flex-col gap-0.5 py-1' : null,
+          )}
+          aria-label={attention.ariaLabel}
+          title={
+            attention.varianceHeadline
+              ? `${attention.varianceHeadline} (planned ${popoverLines?.plannedLabel ?? ''})`
+              : undefined
+          }
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className="leading-none">{displayDate}</span>
+          {statusSublabel ? (
+            <span className={cn('text-[10px] font-normal leading-none', statusSublabel.className)}>
+              {statusSublabel.label}
+            </span>
+          ) : null}
+          {underlineBarClass ? <span className={underlineBarClass} aria-hidden /> : null}
+        </button>
+      </PopoverTrigger>
+      {popoverLines ? (
+        <PopoverContent
+          className="w-56 space-y-2 p-3"
+          align="start"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {attention.overdueHeadline ? (
+            <div
               className={cn(
-                'inline-flex shrink-0 rounded p-0.5 transition-colors',
-                lifecycleVarianceIconClass(popoverLines.lifecycleNotes),
+                'text-sm font-medium leading-snug',
+                attention.kind === 'overdue_in_progress'
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-destructive',
               )}
-              aria-label="View start timeline"
-              onClick={(event) => event.stopPropagation()}
             >
-              <Clock className="h-3 w-3" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-56 space-y-2 p-3"
-            align="start"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div>
-              <div className={cn(SHEET_HEADER, 'normal-case tracking-normal')}>Planned</div>
-              <div className={cn('mt-0.5', SHEET_PRIMARY)}>{popoverLines.plannedLabel}</div>
+              {attention.overdueHeadline}
             </div>
-            {popoverLines.lifecycleNotes.map((note) => (
-              <div
-                key={note.text}
-                className={cn('text-sm leading-snug', lifecycleNoteToneClass(note))}
-              >
-                {note.text}
+          ) : null}
+          {attention.varianceHeadline ? (
+            <div
+              className={cn(
+                'text-sm font-medium leading-snug',
+                attention.varianceHeadline === 'Started late'
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-blue-700 dark:text-blue-400',
+              )}
+            >
+              {attention.varianceHeadline}
+            </div>
+          ) : null}
+          <div>
+            <div className={cn(SHEET_HEADER, 'normal-case tracking-normal')}>Planned</div>
+            <div className={cn('mt-0.5', SHEET_PRIMARY)}>{popoverLines.plannedLabel}</div>
+          </div>
+          {lifecycleNotes.map((note) => (
+            <div
+              key={note.text}
+              className={cn('text-sm leading-snug', lifecycleNoteToneClass(note))}
+            >
+              {note.text}
+            </div>
+          ))}
+          {showProgramSection ? (
+            <>
+              <div className="border-t border-border/60 pt-2">
+                <div className={cn(SHEET_HEADER, 'normal-case tracking-normal flex items-center gap-1.5')}>
+                  <Repeat2 className="h-3 w-3 shrink-0" />
+                  Recurring · {programSummary.cadence}
+                </div>
+                {completedOccurrences.length > 0 ? (
+                  <div className="mt-1.5">
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Completed
+                    </div>
+                    <ul className="mt-1 space-y-1">
+                      {completedOccurrences.map((entry) => (
+                        <li key={entry.workOrderId} className={programDateItemClass(entry.isCurrentRow)}>
+                          {formatRecurrenceProgramDateLabel(entry.displayDate)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {inProgressOccurrences.length > 0 ? (
+                  <div className="mt-1.5">
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Active
+                    </div>
+                    <ul className="mt-1 space-y-1">
+                      {inProgressOccurrences.map((entry) => (
+                        <li key={entry.workOrderId} className={programDateItemClass(entry.isCurrentRow)}>
+                          {formatRecurrenceProgramDateLabel(entry.displayDate)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <div className="mt-1.5">
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Upcoming
+                  </div>
+                {popoverDates.length > 0 ? (
+                  <ul className="mt-1 space-y-1">
+                    {popoverDates.map((draft) => (
+                      <li
+                        key={draft.workOrderId}
+                        className={programDateItemClass(draft.isCurrentRow)}
+                      >
+                        {formatRecurrenceProgramDateLabel(draft.plannedDate)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">No future drafts</p>
+                )}
+                </div>
+                {truncatedFutureCount > 0 ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    +{truncatedFutureCount} more future draft{truncatedFutureCount === 1 ? '' : 's'}
+                  </p>
+                ) : programSummary.futureDraftCount > 0 ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {programSummary.futureDraftCount} future draft
+                    {programSummary.futureDraftCount === 1 ? '' : 's'}
+                  </p>
+                ) : null}
               </div>
-            ))}
-          </PopoverContent>
-        </Popover>
+              {canDeleteProgramDrafts ? (
+                <RecurringProgramDeleteButton
+                  program={programSummary}
+                  machineName={row.machineName}
+                  onDeleted={onSheetMutated ? () => onSheetMutated() : undefined}
+                  className="w-full"
+                />
+              ) : programSummary.futureDraftCount > 0 ? (
+                <p className="text-[10px] text-muted-foreground">
+                  {programSummary.futureDraftCount} upcoming draft
+                  {programSummary.futureDraftCount === 1 ? '' : 's'} in this program
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </PopoverContent>
       ) : null}
-    </div>
+    </Popover>
   );
 }
 
@@ -330,6 +522,7 @@ export interface WorkOrderSheetDayRowsProps {
   currentUserId?: number | null;
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
+  programSummariesByWorkOrderId?: Map<number, RecurrenceProgramSummary>;
 }
 
 export function WorkOrderSheetDayRows({
@@ -338,57 +531,62 @@ export function WorkOrderSheetDayRows({
   currentUserId = null,
   onSheetMutated,
   showStartDateColumn = false,
+  programSummariesByWorkOrderId,
 }: WorkOrderSheetDayRowsProps) {
   return (
     <tbody>
-      {rows.map((row, rowIndex) => {
-        if (row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN && !row.isFirstInGroup) {
+      {rows.map((workRow, rowIndex) => {
+        if (workRow.groupRowSpan >= SHEET_PARTS_SCROLL_MIN && !workRow.isFirstInGroup) {
           return null;
         }
 
         const partGroupRows =
-          row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN
-            ? rows.slice(rowIndex, rowIndex + row.groupRowSpan)
-            : [row];
+          workRow.groupRowSpan >= SHEET_PARTS_SCROLL_MIN
+            ? rows.slice(rowIndex, rowIndex + workRow.groupRowSpan)
+            : [workRow];
         const effectiveRowSpan =
-          row.groupRowSpan >= SHEET_PARTS_SCROLL_MIN ? 1 : row.groupRowSpan;
+          workRow.groupRowSpan >= SHEET_PARTS_SCROLL_MIN ? 1 : workRow.groupRowSpan;
 
         return (
         <tr
-          key={row.key}
-          title={row.rowTitle ?? undefined}
+          key={workRow.key}
+          title={workRow.rowTitle ?? undefined}
           className={cn(
             'border-b border-border/40 hover:bg-muted/30',
             onRowClick && 'cursor-pointer',
-            !row.isFirstInGroup && rowIndex % 2 === 1 && 'bg-muted/10',
+            !workRow.isFirstInGroup && rowIndex % 2 === 1 && 'bg-muted/10',
           )}
-          onClick={() => onRowClick?.(row.workOrderId)}
+          onClick={() => onRowClick?.(workRow.workOrderId)}
         >
-          {showStartDateColumn && row.isFirstInGroup ? (
+          {showStartDateColumn && workRow.isFirstInGroup ? (
             <td
               rowSpan={effectiveRowSpan}
               className={cn(
                 SHEET_DATE_COL,
-                'border-r border-border/40 align-top text-card-foreground',
-                SHEET_CELL_PAD,
+                'border-r border-border/40 align-middle text-center text-card-foreground',
+                SHEET_DATE_CELL_PAD,
               )}
             >
-              <SheetStartDateCell row={row} />
+              <SheetStartDateCell
+                row={workRow}
+                programSummary={programSummariesByWorkOrderId?.get(workRow.workOrderId)}
+                onSheetMutated={onSheetMutated}
+              />
             </td>
           ) : null}
-          {row.isFirstInGroup ? (
+          {workRow.isFirstInGroup ? (
             <>
               <td
                 rowSpan={effectiveRowSpan}
                 className={cn('border-r border-border/40 align-top text-card-foreground', SHEET_CELL_PAD)}
               >
-                <SheetMachineCell row={row} />
+                <SheetMachineCell row={workRow} showStatusBadge={!showStartDateColumn} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
                 className={cn(SHEET_WORKS_COL, 'border-r border-border/40 align-middle text-card-foreground', SHEET_CELL_PAD)}
               >
-                <SheetWorksCell works={row.works} />
+                <SheetWorksCell works={workRow.works} />
               </td>
             </>
           ) : null}
@@ -396,36 +594,39 @@ export function WorkOrderSheetDayRows({
             {partGroupRows.length >= SHEET_PARTS_SCROLL_MIN ? (
               <SheetPartsGroupCell rows={partGroupRows} />
             ) : (
-              <SheetPartCell row={row} />
+              <SheetPartCell row={workRow} />
             )}
           </td>
-          {row.isFirstInGroup ? (
+          {workRow.isFirstInGroup ? (
             <>
               <td
                 rowSpan={effectiveRowSpan}
                 className={cn(SHEET_WORKERS_COL, 'border-l border-border/40 align-middle', SHEET_CELL_PAD)}
               >
-                <SheetWorkersCell workers={row.workers} />
+                <SheetWorkersCell workers={workRow.workers} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
                 className={cn(SHEET_APPROVERS_COL, 'align-middle', SHEET_CELL_PAD)}
               >
-                <SheetApproverChips approvers={row.approvers} />
+                <SheetApproverChips approvers={workRow.approvers} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
                 className={cn(SHEET_ACTIONS_COL, 'align-middle', SHEET_CELL_PAD)}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
               >
                 <SheetWorkOrderRowActions
-                  workOrderId={row.workOrderId}
-                  workOrderNumber={row.workOrderNumber}
-                  status={row.status}
-                  approvalMet={row.approvalMet}
-                  machineId={row.machineId}
-                  approvers={row.approvers}
+                  workOrderId={workRow.workOrderId}
+                  workOrderNumber={workRow.workOrderNumber}
+                  status={workRow.status}
+                  plannedDate={workRow.plannedDate}
+                  approvalMet={workRow.approvalMet}
+                  machineId={workRow.machineId}
+                  approvers={workRow.approvers}
                   currentUserId={currentUserId}
-                  onOpenDetail={() => onRowClick?.(row.workOrderId)}
+                  onOpenDetail={() => onRowClick?.(workRow.workOrderId)}
                   onMutated={onSheetMutated}
                 />
               </td>

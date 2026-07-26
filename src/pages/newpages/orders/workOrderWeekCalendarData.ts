@@ -1,3 +1,4 @@
+import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
 import {
   buildOrderCountByDate,
@@ -29,6 +30,7 @@ export interface DeriveWorkOrderWeekCalendarViewInput {
   machineName: (id: number | null) => string;
   accountName: (id: number | null) => string | null;
   sheetLabelCtx: SheetFlattenLabelContext;
+  templateById?: Map<number, WorkOrderTemplate>;
   labelCtx: WorkOrderLabelContext;
   useWeekCalendar: boolean;
 }
@@ -50,6 +52,7 @@ function sheetRowsForDateRange(
   machineName: (id: number | null) => string,
   accountName: (id: number | null) => string | null,
   sheetLabelCtx: SheetFlattenLabelContext,
+  templateById?: Map<number, WorkOrderTemplate>,
 ): WorkOrderSheetRow[] {
   const orders = flattenSheetBundlesToOrders(bundles);
   const filteredOrders = filterWorkOrders(
@@ -59,7 +62,7 @@ function sheetRowsForDateRange(
   );
   const filteredOrderIds = new Set(filteredOrders.map((order) => order.id));
   const filteredBundles = filterBundlesByOrderIds(bundles, filteredOrderIds);
-  return flattenSheetBundles(filteredBundles, machineName, accountName, sheetLabelCtx);
+  return flattenSheetBundles(filteredBundles, machineName, accountName, sheetLabelCtx, templateById);
 }
 
 /** Single derive pass: month-scoped rows for popover, anchor-week rows for body. */
@@ -78,6 +81,7 @@ export function deriveWorkOrderWeekCalendarView(
     machineName,
     accountName,
     sheetLabelCtx,
+    templateById,
     labelCtx,
     useWeekCalendar,
   } = input;
@@ -92,6 +96,7 @@ export function deriveWorkOrderWeekCalendarView(
       machineName,
       accountName,
       sheetLabelCtx,
+      templateById,
     );
     return {
       calendarSheetRows: [],
@@ -112,6 +117,7 @@ export function deriveWorkOrderWeekCalendarView(
     machineName,
     accountName,
     sheetLabelCtx,
+    templateById,
   );
   const bodySheetRows = sheetRowsForDateRange(
     bundles,
@@ -122,6 +128,7 @@ export function deriveWorkOrderWeekCalendarView(
     machineName,
     accountName,
     sheetLabelCtx,
+    templateById,
   );
 
   const orderCountByDate = searchQuery.trim()

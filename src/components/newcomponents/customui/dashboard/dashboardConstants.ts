@@ -5,7 +5,7 @@ export const ORDER_TYPE_PATHS: Record<OverviewOrderKind, string> = {
   transfer: '/orders/transfer',
   expense: '/orders/expense',
   sales: '/orders/sales',
-  work: '/orders/work',
+  work: '/machines?tab=workOrders',
 };
 
 export const ORDER_TYPE_LABELS: Record<OverviewOrderKind, string> = {

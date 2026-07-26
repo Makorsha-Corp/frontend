@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { useAppSelector } from '@/app/hooks';
+import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -146,8 +146,7 @@ function formatOptionalPercent(value: unknown, digits = 1): string | null {
 
 const ProductionPage: React.FC = () => {
   const CARDS_PER_PAGE = 9;
-  const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
+  const { factoryId, setFactoryId } = usePageFactoryScopeId();
   const [lineId, setLineId] = useState<number | null>(null);
   const [batchStatusFilter, setBatchStatusFilter] = useState<Array<(typeof BATCH_STATUSES)[number]>>(() => {
     if (typeof window === 'undefined') return [...BATCH_STATUSES];
@@ -190,10 +189,6 @@ const ProductionPage: React.FC = () => {
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<ProductionBatch | null>(null);
   const [startBatchId, setStartBatchId] = useState<number | null>(null);
-
-  useEffect(() => {
-    setFactoryId(globalFactory?.id ?? null);
-  }, [globalFactory?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

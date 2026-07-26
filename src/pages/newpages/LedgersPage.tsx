@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
@@ -79,7 +80,7 @@ const isMachineRow = (row: LedgerRow): row is MachineLedgerEntry =>
 
 const LedgersPage: React.FC = () => {
   const [scope, setScope] = useState<LedgerScope>('storage');
-  const [factoryId, setFactoryId] = useState<number | null>(null);
+  const { factoryId, setFactoryId } = usePageFactoryScopeId();
   const [machineId, setMachineId] = useState<number | null>(null);
   const [itemId, setItemId] = useState<number | null>(null);
   const [projectComponentId, setProjectComponentId] = useState<number | null>(null);

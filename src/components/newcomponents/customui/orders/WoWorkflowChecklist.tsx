@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Check, ChevronRight, ClipboardList, Loader2, XCircle } from 'lucide-react';
 import type { WorkOrder, WorkOrderApprovalSummary } from '@/types/workOrder';
+import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
 
 type StepVisualState = 'complete' | 'active' | 'pending';
 type ChecklistPhase = 'approval' | 'start' | 'in_progress' | 'invoice_blocked' | 'complete' | 'done' | 'voided';
@@ -17,6 +18,8 @@ export interface WoWorkflowChecklistProps {
   isStarting?: boolean;
   onComplete?: () => void;
   isCompleting?: boolean;
+  onCompleteAsPlanned?: () => void;
+  isCompletingAsPlanned?: boolean;
   className?: string;
 }
 
@@ -115,9 +118,16 @@ const WoWorkflowChecklist: React.FC<WoWorkflowChecklistProps> = ({
   isStarting = false,
   onComplete,
   isCompleting = false,
+  onCompleteAsPlanned,
+  isCompletingAsPlanned = false,
   className,
 }) => {
   const phase = derivePhase(order, approvalSummary);
+  const showCompleteAsPlanned = canCompleteWorkOrderAsPlanned(
+    order.status,
+    order.planned_date,
+    approvalSummary.met,
+  );
   const approvalRatio =
     approvalSummary.required === 0 ? 'Not required' : `${approvalSummary.approved_count}/${approvalSummary.required}`;
 
@@ -185,12 +195,12 @@ const WoWorkflowChecklist: React.FC<WoWorkflowChecklistProps> = ({
                 title="Start work"
                 description="Approved and ready. Starting will consume any inventory items marked for this order."
               />
-              <div className="ml-10">
+              <div className="ml-10 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   size="sm"
                   className="bg-brand-primary hover:bg-brand-primary-hover"
-                  disabled={!onStart || isStarting}
+                  disabled={!onStart || isStarting || isCompletingAsPlanned}
                   onClick={onStart}
                 >
                   {isStarting ? (
@@ -202,6 +212,25 @@ const WoWorkflowChecklist: React.FC<WoWorkflowChecklistProps> = ({
                     'Start work'
                   )}
                 </Button>
+                {showCompleteAsPlanned ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                    disabled={!onCompleteAsPlanned || isCompletingAsPlanned || isStarting}
+                    onClick={onCompleteAsPlanned}
+                  >
+                    {isCompletingAsPlanned ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Completing…
+                      </>
+                    ) : (
+                      'Direct Complete'
+                    )}
+                  </Button>
+                ) : null}
               </div>
             </div>
           )}

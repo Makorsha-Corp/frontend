@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { WorkOrderEvent as ApiWorkOrderEvent } from '@/types/workOrder';
-import { formatRelativeFromApi } from '@/utils/datetime';
+import EventLogTimestamp from '@/components/newcomponents/customui/EventLogTimestamp';
 import { initialsOf } from './transferOrderApprovals';
 import { WO_EVENT_VISUALS } from './workOrderEventVisuals';
 
@@ -14,6 +14,7 @@ export interface WorkOrderEventDisplay {
   created_at: string;
   performer_name?: string | null;
   metadata?: ApiWorkOrderEvent['metadata'];
+  scheduleDetails?: string[];
 }
 
 const displayValue = (value: string | null | undefined) => value ?? '—';
@@ -21,14 +22,26 @@ const displayValue = (value: string | null | undefined) => value ?? '—';
 interface WoEventLogRowProps {
   event: WorkOrderEventDisplay;
   isLast: boolean;
+  showAbsoluteTimes?: boolean;
+  onToggleTimestampDisplay?: () => void;
 }
 
-const WoEventLogRow: React.FC<WoEventLogRowProps> = ({ event, isLast }) => {
+const WoEventLogRow: React.FC<WoEventLogRowProps> = ({
+  event,
+  isLast,
+  showAbsoluteTimes = false,
+  onToggleTimestampDisplay,
+}) => {
   const [open, setOpen] = useState(false);
   const ev = WO_EVENT_VISUALS[event.event_type] ?? WO_EVENT_VISUALS.default;
   const Icon = ev.icon;
   const changes = (event.metadata?.changes as Array<Record<string, string>> | undefined) ?? [];
-  const hasChanges = changes.length > 0;
+  const isScheduleEvent =
+    event.event_type === 'scheduled' || event.event_type === 'schedule_updated';
+  const hasChanges = !isScheduleEvent && changes.length > 0;
+
+  const scheduleDetails = event.scheduleDetails ?? [];
+  const hasScheduleDetails = scheduleDetails.length > 0;
 
   return (
     <div className="flex gap-3">
@@ -66,9 +79,11 @@ const WoEventLogRow: React.FC<WoEventLogRowProps> = ({ event, isLast }) => {
                   )}
                 </button>
               </CollapsibleTrigger>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {formatRelativeFromApi(event.created_at)}
-              </span>
+              <EventLogTimestamp
+                createdAt={event.created_at}
+                showAbsoluteTimes={showAbsoluteTimes}
+                onToggle={onToggleTimestampDisplay}
+              />
             </div>
             <CollapsibleContent>
               <ul className="mt-2 space-y-1.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
@@ -84,11 +99,24 @@ const WoEventLogRow: React.FC<WoEventLogRowProps> = ({ event, isLast }) => {
             </CollapsibleContent>
           </Collapsible>
         ) : (
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-card-foreground">{event.description}</p>
-            <span className="text-xs text-muted-foreground shrink-0">
-              {formatRelativeFromApi(event.created_at)}
-            </span>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-card-foreground">{event.description}</p>
+              {hasScheduleDetails ? (
+                <ul className="mt-1 space-y-0.5">
+                  {scheduleDetails.map((line) => (
+                    <li key={line} className="text-[11px] leading-snug text-muted-foreground">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+            <EventLogTimestamp
+              createdAt={event.created_at}
+              showAbsoluteTimes={showAbsoluteTimes}
+              onToggle={onToggleTimestampDisplay}
+            />
           </div>
         )}
         {event.performer_name && (

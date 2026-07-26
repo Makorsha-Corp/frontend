@@ -5,8 +5,8 @@ import type { FactorySection } from '@/types/factorySection';
 import type { Machine } from '@/types/machine';
 import {
   priorityLabel,
-  workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
+import { workOrderStatusFilterLabel } from '@/pages/newpages/orders/workOrdersOverviewData';
 import { buildSheetPeriodLabel } from '@/pages/newpages/orders/workOrderSheetData';
 import type { WorkOrdersFilterState } from './useWorkOrdersFilters';
 
@@ -81,7 +81,7 @@ export function buildWorkOrderFilterChips(
   }
   if (filters.statusFilter !== 'all') {
     chips.push({
-      chip: { id: 'status', label: workOrderStatusLabel(filters.statusFilter) },
+      chip: { id: 'status', label: workOrderStatusFilterLabel(filters.statusFilter) },
       onRemove: handlers.onClearStatus,
     });
   }

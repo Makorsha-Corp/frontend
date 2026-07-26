@@ -38,6 +38,18 @@ export function workOrderStatusLabel(status: WorkOrderStatus): string {
   return WORK_ORDER_STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status.replace(/_/g, ' ');
 }
 
+/** Compact label for tight sheet date chips (Start column sublabel). */
+export function workOrderStatusShortLabel(status: WorkOrderStatus): string {
+  switch (status) {
+    case 'IN_PROGRESS':
+      return 'Active';
+    case 'COMPLETED':
+      return 'Complete';
+    default:
+      return workOrderStatusLabel(status);
+  }
+}
+
 export function priorityLabel(priority: WorkOrderPriority): string {
   return priority.charAt(0) + priority.slice(1).toLowerCase();
 }

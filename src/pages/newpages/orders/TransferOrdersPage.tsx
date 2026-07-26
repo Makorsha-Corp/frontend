@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import {
+  parsePageFactoryFilterParam,
+  usePageFactoryScope,
+} from '@/hooks/usePageFactoryScope';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
@@ -82,6 +86,23 @@ const LOCATION_TYPE_OPTIONS: { value: TransferLocationTypeFilter; label: string 
 
 const TransferOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const factorySeed = parsePageFactoryFilterParam(searchParams.get('factory'));
+  const { factoryFilter, setPageFactory } = usePageFactoryScope({
+    initialOverride: factorySeed,
+  });
+
+  useEffect(() => {
+    if (!searchParams.has('factory')) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('factory');
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
@@ -121,7 +142,6 @@ const TransferOrdersPage: React.FC = () => {
   const {
     dateRange,
     statusFilters,
-    factoryFilter,
     sourceTypeFilter,
     destinationTypeFilter,
     searchQuery,
@@ -130,13 +150,21 @@ const TransferOrdersPage: React.FC = () => {
 
   const commitTransferFilters = useCallback(
     (patch: Partial<TransferOrderUrlFilters>) => {
+      if (patch.factoryFilter !== undefined) {
+        setPageFactory(patch.factoryFilter);
+      }
+      const { factoryFilter: _factoryPatch, ...urlPatch } = patch;
       setSearchParams(
         (prev) =>
-          writeTransferOrderParams(prev, { ...urlFilters, ...patch }, trStatusOptions),
+          writeTransferOrderParams(
+            prev,
+            { ...urlFilters, factoryFilter: 'all', ...urlPatch },
+            trStatusOptions,
+          ),
         { replace: true }
       );
     },
-    [setSearchParams, urlFilters, trStatusOptions]
+    [setSearchParams, urlFilters, setPageFactory, trStatusOptions]
   );
 
   const resolutionMaps = useMemo(

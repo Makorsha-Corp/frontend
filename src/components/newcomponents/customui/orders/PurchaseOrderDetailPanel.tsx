@@ -287,6 +287,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   }, [itemPriceInsights]);
   const { data: events = [] } = useGetPurchaseOrderEventsQuery(order.id);
   const [showConfirmEvents, setShowConfirmEvents] = useState(false);
+  const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
 
   const filteredEvents = useMemo(
     () =>
@@ -1457,6 +1458,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     key={event.id}
                     event={event}
                     isLast={idx === filteredEvents.length - 1}
+                    showAbsoluteTimes={showAbsoluteEventTimes}
+                    onToggleTimestampDisplay={() => setShowAbsoluteEventTimes((v) => !v)}
                   />
                 ))}
               </div>

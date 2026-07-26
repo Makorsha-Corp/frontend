@@ -19,6 +19,10 @@ import {
 } from '../../types/machine';
 
 import type { MachineActivityEvent, ListMachineActivityParams } from '../../types/machineActivityEvent';
+import type {
+  ListUpcomingMachineWorkParams,
+  MachineUpcomingWorkRow,
+} from '../../types/machineUpcomingWork';
 
 
 
@@ -135,6 +139,34 @@ export const machinesApi = createApi({
       },
 
       providesTags: ['Machine'],
+
+    }),
+
+    getUpcomingMachineWork: builder.query<MachineUpcomingWorkRow[], ListUpcomingMachineWorkParams>({
+
+      query: ({ within_days = 7, factory_id, include_overdue } = {}) => {
+
+        const params = new URLSearchParams();
+
+        params.append('within_days', within_days.toString());
+
+        if (factory_id != null) {
+
+          params.append('factory_id', factory_id.toString());
+
+        }
+
+        if (include_overdue) {
+
+          params.append('include_overdue', 'true');
+
+        }
+
+        return `machines/upcoming-work/?${params.toString()}`;
+
+      },
+
+      keepUnusedDataFor: 0,
 
     }),
 
@@ -257,6 +289,8 @@ export const machinesApi = createApi({
 export const {
 
   useGetMachinesQuery,
+
+  useGetUpcomingMachineWorkQuery,
 
   useGetMachineByIdQuery,
 

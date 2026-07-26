@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { startOfDay, parseISO } from 'date-fns';
 import { useAppSelector } from '@/app/hooks';
+import { useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetProductionBatchesQuery, useGetProductionLinesQuery } from '@/features/production/productionApi';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
@@ -24,6 +25,8 @@ import { useOrdersScopeData } from '@/pages/newpages/orders/useOrdersScopeData';
 import { isOpenInvoiceBalance } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import type { Project } from '@/types/project';
 import type { Machine } from '@/types/machine';
+import type { MachineUpcomingWorkRow } from '@/types/machineUpcomingWork';
+import { mapUpcomingWorkToAttentionRows, splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
 import type { FactorySection } from '@/types/factorySection';
 import type { AccountInvoice } from '@/types/accountInvoice';
 import type { ProductionBatch } from '@/types/production';
@@ -54,6 +57,9 @@ export interface DashboardKpis {
   planningProjectsCount: number;
   batchesInProgressCount: number;
   maintenanceDueCount: number;
+  upcomingMachineWorkCount: number;
+  overdueMachineWorkCount: number;
+  upcomingMachineWorkItemCount: number;
   netArAp: number;
   overdueInvoiceCount: number;
   pendingApprovalsCount: number;
@@ -102,7 +108,7 @@ function toFiniteNumber(value: number | string | null | undefined): number | nul
 function buildAttentionItems(
   orders: OverviewOrder[],
   projects: Project[],
-  machines: Machine[],
+  upcomingMachineWork: MachineUpcomingWorkRow[],
   sectionById: Map<number, FactorySection>,
   payableInvoices: AccountInvoice[],
   accountNameById: Map<number, string>,
@@ -182,24 +188,14 @@ function buildAttentionItems(
     });
   }
 
-  const maintenanceHorizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  for (const machine of machines) {
-    if (!machine.next_maintenance_schedule) continue;
-    const d = new Date(machine.next_maintenance_schedule);
-    if (Number.isNaN(d.getTime()) || d > maintenanceHorizon) continue;
-    const section = machine.factory_section_id != null ? sectionById.get(machine.factory_section_id) : undefined;
-    const sectionLabel = section?.name ?? machine.factory_section_name;
+  for (const row of mapUpcomingWorkToAttentionRows(upcomingMachineWork, sectionById)) {
     items.push({
-      id: `machine-${machine.id}`,
+      id: row.id,
       kind: 'maintenance',
-      title: machine.name,
-      subtitle: sectionLabel
-        ? `${sectionLabel} · ${machine.next_maintenance_schedule.slice(0, 10)}`
-        : machine.next_maintenance_schedule.slice(0, 10),
-      sortKey: d.getTime(),
-      href: section
-        ? `/factories/${section.factory_id}/sections/${section.id}`
-        : `/factories/${machine.factory_id}`,
+      title: row.title,
+      subtitle: row.subtitle,
+      sortKey: row.sortKey,
+      href: row.href,
     });
   }
 
@@ -238,6 +234,13 @@ export function useDashboardData() {
     hasError: scopeError,
     salesMayTruncate,
   } = useOrdersScopeData();
+
+  const { data: upcomingMachineWork = [], isLoading: loadUpcomingWork, isError: errUpcomingWork } =
+    useGetUpcomingMachineWorkQuery({
+      within_days: 7,
+      factory_id: factoryId ?? undefined,
+      include_overdue: true,
+    });
 
   const { data: projects = [], isLoading: loadPr, isError: errPr } = useGetProjectsQuery({
     skip: 0,
@@ -309,6 +312,7 @@ export function useDashboardData() {
     loadReceivable ||
     loadAccounts ||
     loadInventory ||
+    loadUpcomingWork ||
     (isOwner && (loadWorkspace || loadInvites));
 
   const hasError =
@@ -321,6 +325,7 @@ export function useDashboardData() {
     errReceivable ||
     errAccounts ||
     errInventory ||
+    errUpcomingWork ||
     (isOwner && (errWorkspace || errInvites));
 
   const sectionById = useMemo(
@@ -372,6 +377,11 @@ export function useDashboardData() {
     return inventoryList.filter((inv) => (inv.qty ?? 0) > 0);
   }, [inventoryList]);
 
+  const splitMachineWork = useMemo(
+    () => splitUpcomingWorkByDueWindow(upcomingMachineWork, sectionById, 7),
+    [upcomingMachineWork, sectionById]
+  );
+
   const kpis: DashboardKpis = useMemo(() => {
     const now = new Date();
     const stats = summaryStats(scopedOrders, now);
@@ -379,12 +389,9 @@ export function useDashboardData() {
     const activeProjects = projectsScoped.filter((p) => p.status === 'IN_PROGRESS');
     const planningProjects = projectsScoped.filter((p) => (p.status ?? 'PLANNING') === 'PLANNING');
 
-    const maintenanceHorizon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const maintenanceDue = machinesScoped.filter((m) => {
-      if (!m.next_maintenance_schedule) return false;
-      const d = new Date(m.next_maintenance_schedule);
-      return !Number.isNaN(d.getTime()) && d <= maintenanceHorizon;
-    });
+    const upcomingMachineWorkCount = upcomingMachineWork.length;
+    const overdueMachineWorkCount = splitMachineWork.overdueCount;
+    const upcomingMachineWorkItemCount = splitMachineWork.upcomingCount;
 
     const payableOutstanding = payableInvoices
       .filter((inv) => isOpenInvoiceBalance(inv))
@@ -414,7 +421,10 @@ export function useDashboardData() {
       activeProjectsCount: activeProjects.length,
       planningProjectsCount: planningProjects.length,
       batchesInProgressCount: batchesInProgressScoped.length,
-      maintenanceDueCount: maintenanceDue.length,
+      maintenanceDueCount: overdueMachineWorkCount + upcomingMachineWorkItemCount,
+      upcomingMachineWorkCount,
+      overdueMachineWorkCount,
+      upcomingMachineWorkItemCount,
       netArAp: receivableOutstanding - payableOutstanding,
       overdueInvoiceCount,
       pendingApprovalsCount: stats.pendingApprovalsCount,
@@ -425,7 +435,8 @@ export function useDashboardData() {
     scopedOrders,
     projectsScoped,
     batchesInProgressScoped,
-    machinesScoped,
+    upcomingMachineWork,
+    splitMachineWork,
     payableInvoices,
     receivableInvoices,
     inventoryScoped,
@@ -448,7 +459,7 @@ export function useDashboardData() {
       buildAttentionItems(
         scopedOrders,
         projectsScoped,
-        machinesScoped,
+        upcomingMachineWork,
         sectionById,
         payableInvoices,
         accountNameById,
@@ -459,7 +470,7 @@ export function useDashboardData() {
     [
       scopedOrders,
       projectsScoped,
-      machinesScoped,
+      upcomingMachineWork,
       sectionById,
       payableInvoices,
       accountNameById,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import type { Item } from '@/types/item';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { Account } from '@/types/account';
 import type { WorkspaceMember } from '@/types/workspace';
+
+const CLOSE_ANIMATION_MS = 200;
 
 export interface SheetLogEntryFooterProps {
   sheetDate: string;
@@ -55,25 +57,54 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
     },
     ref,
   ) => {
+    const [isClosing, setIsClosing] = useState(false);
+    const closeTimerRef = useRef<number | null>(null);
     const canAdd = factoryId != null;
     const isDisabled = disabled || !canAdd;
     const dateLabel = format(parseISO(sheetDate), 'dd.MM.yyyy (EEE)');
     const scopeLabel = factoryLabel ?? (canAdd ? 'Factory selected' : 'Select factory');
+    const isExpanded = open || isClosing;
+
+    const requestClose = useCallback(() => {
+      if (isClosing) return;
+      setIsClosing(true);
+      closeTimerRef.current = window.setTimeout(() => {
+        closeTimerRef.current = null;
+        setIsClosing(false);
+        onOpenChange?.(false);
+      }, CLOSE_ANIMATION_MS);
+    }, [isClosing, onOpenChange]);
+
+    useEffect(
+      () => () => {
+        if (closeTimerRef.current != null) {
+          window.clearTimeout(closeTimerRef.current);
+        }
+      },
+      [],
+    );
 
     const handleOpenChange = (next: boolean) => {
       if (next && !canAdd) {
         onRequestFactorySelect?.();
         return;
       }
+      if (!next && open) {
+        requestClose();
+        return;
+      }
       onOpenChange?.(next);
     };
 
     return (
-      <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <Collapsible open={isExpanded} onOpenChange={handleOpenChange}>
         <div
           ref={ref}
           className={cn(
             'relative z-30 shrink-0 overflow-visible border-t-2 border-brand-primary/20 bg-muted/30',
+            isClosing
+              ? 'animate-out slide-out-to-bottom-4 fade-out-0 duration-200'
+              : 'animate-in slide-in-from-bottom-4 fade-in-0 duration-300',
             className,
           )}
         >
@@ -83,7 +114,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
               className={cn(
                 'flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors',
                 'hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-                open && 'border-b border-border/60 bg-muted/40',
+                isExpanded && 'border-b border-border/60 bg-muted/40',
               )}
             >
               <span className="flex min-w-0 items-center gap-2">
@@ -94,8 +125,8 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                {open ? 'Collapse' : canAdd ? 'Expand to add' : 'Select factory'}
-                {open ? (
+                {isExpanded ? 'Collapse' : canAdd ? 'Expand to add' : 'Select factory'}
+                {isExpanded ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
                   <ChevronUp className="h-4 w-4" />
@@ -124,13 +155,12 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
                   accounts={accounts}
                   members={members}
                   defaultMachineId={defaultMachineId}
-                  showGenerateDay={false}
                   showFooterHeader={false}
                   showWorkDate
                   disabled={isDisabled}
                   onSuccess={() => {
                     onSuccess?.();
-                    onOpenChange?.(false);
+                    requestClose();
                   }}
                 />
               </div>

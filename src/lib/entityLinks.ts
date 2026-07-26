@@ -5,6 +5,27 @@ export type OrderLinkType =
   | 'work_order'
   | 'sales_order';
 
+export interface WorkOrderHrefOptions {
+  machineId?: number | null;
+  factoryId?: number | null;
+}
+
+export function buildWorkOrderHref(
+  workOrderId: number,
+  opts?: WorkOrderHrefOptions
+): string {
+  const params = new URLSearchParams();
+  params.set('tab', 'workOrders');
+  params.set('orderId', String(workOrderId));
+  if (opts?.machineId != null) {
+    params.set('woMachine', String(opts.machineId));
+  }
+  if (opts?.factoryId != null) {
+    params.set('factoryId', String(opts.factoryId));
+  }
+  return `/machines?${params.toString()}`;
+}
+
 export function buildOrderHref(orderType: string, orderId: number): string {
   switch (orderType) {
     case 'purchase_order':
@@ -14,7 +35,7 @@ export function buildOrderHref(orderType: string, orderId: number): string {
     case 'expense_order':
       return `/orders/expense?orderId=${orderId}`;
     case 'work_order':
-      return `/orders/work?orderId=${orderId}`;
+      return buildWorkOrderHref(orderId);
     case 'sales_order':
       return `/orders/sales?orderId=${orderId}`;
     default:
@@ -46,9 +67,6 @@ export function buildItemHref(itemId: number): string {
   return `/items?itemId=${itemId}&details=1`;
 }
 
-export function buildWorkOrderHref(workOrderId: number): string {
-  return buildOrderHref('work_order', workOrderId);
-}
 
 export function buildProductionHref(): string {
   return '/production';

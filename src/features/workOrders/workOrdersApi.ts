@@ -13,9 +13,13 @@ import type {
   WorkOrderApprover,
   WorkOrderEvent,
   WorkOrderCompleteRequest,
+  WorkOrderCompleteAsPlannedRequest,
+  BulkDeleteFutureRecurrenceDraftsRequest,
+  BulkDeleteFutureRecurrenceDraftsResponse,
 } from '../../types/workOrder';
 import type { CreateWorkOrderFromTemplate, GenerateWorkOrderDraftsRequest } from '../../types/workOrderTemplate';
-import type { WorkOrderSheetBundle, WorkOrderSheetEntryRequest, ListWorkOrderSheetParams, ListWorkOrderSheetDailyCountsParams, WorkOrderSheetDailyCountsResponse } from '../../types/workOrderSheet';
+import type { WorkOrderSheetBundle, WorkOrderSheetEntryRequest, WorkOrderSheetEntryResponse, ListWorkOrderSheetParams, WorkOrderSheetListResponse, ListWorkOrderSheetDailyCountsParams, WorkOrderSheetDailyCountsResponse } from '../../types/workOrderSheet';
+import { API_LIMITS } from '@/constants/apiLimits';
 
 export const workOrdersApi = createApi({
   reducerPath: 'workOrdersApi',
@@ -23,7 +27,18 @@ export const workOrdersApi = createApi({
   tagTypes: ['WorkOrder', 'WorkOrderItem', 'WorkOrderApprovers', 'WorkOrderEvents', 'Notification'],
   endpoints: (builder) => ({
     getWorkOrders: builder.query<WorkOrder[], ListWorkOrdersParams>({
-      query: ({ skip = 0, limit = 100, work_order_type_id, status, priority, factory_id, machine_id } = {}) => {
+      query: ({
+        skip = 0,
+        limit = 100,
+        work_order_type_id,
+        status,
+        priority,
+        factory_id,
+        machine_id,
+        work_order_template_id,
+        planned_date_from,
+        planned_date_to,
+      } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', skip.toString());
         params.append('limit', limit.toString());
@@ -32,6 +47,9 @@ export const workOrdersApi = createApi({
         if (priority) params.append('priority', priority);
         if (factory_id) params.append('factory_id', factory_id.toString());
         if (machine_id) params.append('machine_id', machine_id.toString());
+        if (work_order_template_id) params.append('work_order_template_id', work_order_template_id.toString());
+        if (planned_date_from) params.append('planned_date_from', planned_date_from);
+        if (planned_date_to) params.append('planned_date_to', planned_date_to);
         return `work-orders/?${params.toString()}`;
       },
       providesTags: ['WorkOrder'],
@@ -56,8 +74,21 @@ export const workOrdersApi = createApi({
       }),
       invalidatesTags: ['WorkOrder'],
     }),
-    getWorkOrdersSheet: builder.query<WorkOrderSheetBundle[], ListWorkOrderSheetParams>({
-      query: ({ factory_id, machine_id, planned_date_from, planned_date_to, skip = 0, limit = 1000 } = {}) => {
+    getWorkOrdersSheet: builder.query<WorkOrderSheetListResponse, ListWorkOrderSheetParams>({
+      query: ({
+        factory_id,
+        machine_id,
+        planned_date_from,
+        planned_date_to,
+        status,
+        status_scope,
+        work_order_type_id,
+        priority,
+        exclude_completed,
+        search,
+        skip = 0,
+        limit = API_LIMITS.WORK_ORDERS_SHEET_PAGE_SIZE,
+      } = {}) => {
         const params = new URLSearchParams();
         params.append('skip', String(skip));
         params.append('limit', String(limit));
@@ -65,6 +96,12 @@ export const workOrdersApi = createApi({
         if (machine_id) params.append('machine_id', String(machine_id));
         if (planned_date_from) params.append('planned_date_from', planned_date_from);
         if (planned_date_to) params.append('planned_date_to', planned_date_to);
+        if (status) params.append('status', status);
+        if (status_scope) params.append('status_scope', status_scope);
+        if (work_order_type_id) params.append('work_order_type_id', String(work_order_type_id));
+        if (priority) params.append('priority', priority);
+        if (exclude_completed) params.append('exclude_completed', 'true');
+        if (search) params.append('search', search);
         return `work-orders/sheet/?${params.toString()}`;
       },
       providesTags: ['WorkOrder', 'WorkOrderItem'],
@@ -95,13 +132,13 @@ export const workOrdersApi = createApi({
       transformResponse: (response: WorkOrderSheetDailyCountsResponse) => response.counts,
       providesTags: ['WorkOrder'],
     }),
-    createWorkOrderSheetEntry: builder.mutation<WorkOrder, WorkOrderSheetEntryRequest>({
+    createWorkOrderSheetEntry: builder.mutation<WorkOrderSheetEntryResponse, WorkOrderSheetEntryRequest>({
       query: (body) => ({
         url: 'work-orders/sheet-entry/',
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['WorkOrder', 'WorkOrderItem'],
+      invalidatesTags: ['WorkOrder', 'WorkOrderItem', 'WorkOrderTemplate'],
     }),
     updateWorkOrder: builder.mutation<WorkOrder, { id: number; data: UpdateWorkOrderRequest }>({
       query: ({ id, data }) => ({
@@ -134,6 +171,22 @@ export const workOrdersApi = createApi({
         { type: 'WorkOrderEvents', id },
       ],
     }),
+    completeWorkOrderAsPlanned: builder.mutation<
+      WorkOrder,
+      { id: number; data?: WorkOrderCompleteAsPlannedRequest }
+    >({
+      query: ({ id, data }) => ({
+        url: `work-orders/${id}/complete-as-planned/`,
+        method: 'POST',
+        body: data ?? {},
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'WorkOrder', id },
+        'WorkOrder',
+        { type: 'WorkOrderItem', id },
+        { type: 'WorkOrderEvents', id },
+      ],
+    }),
     voidWorkOrder: builder.mutation<WorkOrder, { id: number; void_note: string }>({
       query: ({ id, void_note }) => ({ url: `work-orders/${id}/void/`, method: 'POST', body: { void_note } }),
       invalidatesTags: (_r, _e, { id }) => [
@@ -158,6 +211,17 @@ export const workOrdersApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['WorkOrder'],
+    }),
+    bulkDeleteFutureRecurrenceDrafts: builder.mutation<
+      BulkDeleteFutureRecurrenceDraftsResponse,
+      BulkDeleteFutureRecurrenceDraftsRequest
+    >({
+      query: (body) => ({
+        url: 'work-orders/bulk-delete-future-drafts/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['WorkOrder', 'WorkOrderItem'],
     }),
     createInvoiceFromWorkOrder: builder.mutation<WorkOrder, number>({
       query: (id) => ({ url: `work-orders/${id}/create-invoice`, method: 'POST' }),
@@ -287,8 +351,10 @@ export const {
   useUpdateWorkOrderMutation,
   useStartWorkOrderMutation,
   useCompleteWorkOrderMutation,
+  useCompleteWorkOrderAsPlannedMutation,
   useVoidWorkOrderMutation,
   useDeleteWorkOrderMutation,
+  useBulkDeleteFutureRecurrenceDraftsMutation,
   useCreateInvoiceFromWorkOrderMutation,
   useGetWorkOrderApproversQuery,
   useAddWorkOrderApproverMutation,

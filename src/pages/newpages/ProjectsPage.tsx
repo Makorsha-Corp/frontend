@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
   appShellHeaderControlClass,
@@ -75,8 +76,8 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
 const ProjectsPage: React.FC = () => {
-  const { factory: globalFactory, user, workspace } = useAppSelector((state) => state.auth);
-  const [factoryId, setFactoryId] = useState<number | null>(() => globalFactory?.id ?? null);
+  const { user, workspace } = useAppSelector((state) => state.auth);
+  const { factoryId, setFactoryId } = usePageFactoryScopeId();
   const [layoutMode, setLayoutMode] = useState<ProjectLayoutMode>(DEFAULT_PROJECT_LAYOUT);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -97,10 +98,6 @@ const ProjectsPage: React.FC = () => {
   const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
   const [leftGroupTab, setLeftGroupTab] = useState<'items' | 'misc'>('items');
   const [rightGroupTab, setRightGroupTab] = useState<'notes' | 'tasks' | 'documents'>('notes');
-
-  useEffect(() => {
-    setFactoryId(globalFactory?.id ?? null);
-  }, [globalFactory?.id]);
 
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
   const { data: projects = [], isLoading: loadingProjects } = useGetProjectsQuery({

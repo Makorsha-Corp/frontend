@@ -112,6 +112,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<EoScrollSection | null>(null);
   const [markCompleteDialogOpen, setMarkCompleteDialogOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
+  const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
   const hadApprovalsBeforeEditRef = useRef(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
@@ -696,6 +697,8 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                         metadata: event.metadata,
                       }}
                       isLast={idx === apiEvents.length - 1}
+                      showAbsoluteTimes={showAbsoluteEventTimes}
+                      onToggleTimestampDisplay={() => setShowAbsoluteEventTimes((v) => !v)}
                     />
                   ))}
                 </div>

@@ -84,6 +84,16 @@ function relativeDayLabel(delta: number): string {
 
 }
 
+/** Calendar-day delta vs planned day — for schedule summary and event hints. */
+export function formatWorkOrderVarianceVsPlanned(
+  plannedDay: Date,
+  actualDay: Date,
+): { text: string; tone: 'on_time' | 'early' | 'late' } {
+  const delta = differenceInCalendarDays(actualDay, plannedDay);
+  if (delta === 0) return { text: 'On plan', tone: 'on_time' };
+  return { text: relativeDayLabel(delta), tone: delta < 0 ? 'early' : 'late' };
+}
+
 
 
 function buildLifecycleNotes(
@@ -147,6 +157,16 @@ function buildLifecycleNotes(
       tone: 'started',
 
       text: `Started ${format(startedDay, 'MMM d')} · ${relativeDayLabel(startedDelta)}`,
+
+    });
+
+  } else if (startedDay && startedDelta === 0 && !completedDay) {
+
+    notes.push({
+
+      tone: 'started',
+
+      text: `Started ${format(startedDay, 'MMM d')} · On plan`,
 
     });
 
@@ -216,47 +236,162 @@ export function getWorkOrderPlannedDay(row: {
 
 
 
-/** Sheet Date column: started_at day when set, else planned/calendar day. */
-
+/**
+ * List-view Start column label: always the planned work day.
+ * Actual start/completion vs plan is shown in the popover and badge colors.
+ */
 export function getWorkOrderSheetDisplayDate(row: {
-
   plannedDate: string | null;
-
   calendarDate: string;
-
-  startedAt: string | null;
-
 }): string {
-
-  if (row.startedAt) {
-
-    return format(startOfDay(parseApiDateTime(row.startedAt)), 'MMM d');
-
-  }
-
   const fallback = row.plannedDate?.trim() || row.calendarDate;
-
   return format(startOfDay(parseISO(fallback)), 'MMM d');
-
 }
 
 
 
-type WorkOrderSheetDateRow = {
-
+export type WorkOrderSheetDateRow = {
   plannedDate: string | null;
-
   calendarDate: string;
-
   startedAt: string | null;
-
   completedAt: string | null;
-
 };
 
+export type WorkOrderSheetAttentionKind =
+  | 'none'
+  | 'overdue_not_started'
+  | 'overdue_in_progress'
+  | 'lifecycle_variance'
+  | 'completed';
 
+export interface WorkOrderSheetDateAttention {
+  kind: WorkOrderSheetAttentionKind;
+  ariaLabel: string;
+  overdueHeadline: string | null;
+  varianceHeadline: string | null;
+  /** Start vs plan only — drives open-work cell badge color; null when no badge. */
+  startVarianceTone: 'early' | 'late' | null;
+  popoverLines: WorkOrderDatePopoverLines | null;
+}
 
-/** Start column helper for order objects (hub/detail). */
+function isWorkOrderOverdue(
+  row: Pick<WorkOrderSheetDateRow, 'plannedDate'>,
+  referenceDate: Date
+): boolean {
+  const plannedDateStr = row.plannedDate?.trim();
+  if (!plannedDateStr) return false;
+  return startOfDay(parseISO(plannedDateStr)) < referenceDate;
+}
+
+/** Headline for popover / aria when actual start differs from plan. */
+export function getWorkOrderStartVarianceHeadline(row: WorkOrderSheetDateRow): string | null {
+  const tone = getWorkOrderStartVarianceTone(row);
+  if (tone === 'early') return 'Started early';
+  if (tone === 'late') return 'Started late';
+  return null;
+}
+
+export type WorkOrderStartVarianceTone = 'early' | 'late' | 'on_time' | 'not_started';
+
+/** Compare started_at calendar day vs planned day — for Start column badge only. */
+export function getWorkOrderStartVarianceTone(row: WorkOrderSheetDateRow): WorkOrderStartVarianceTone {
+  const { startedDay } = lifecycleDaysFromRow(row);
+  if (!startedDay) return 'not_started';
+  const plannedDay = getWorkOrderPlannedDay(row);
+  const { tone } = formatWorkOrderVarianceVsPlanned(plannedDay, startedDay);
+  if (tone === 'early') return 'early';
+  if (tone === 'late') return 'late';
+  return 'on_time';
+}
+
+export function hasWorkOrderStartVariance(row: WorkOrderSheetDateRow): boolean {
+  const tone = getWorkOrderStartVarianceTone(row);
+  return tone === 'early' || tone === 'late';
+}
+
+function startVarianceToneForBadge(row: WorkOrderSheetDateRow): 'early' | 'late' | null {
+  const tone = getWorkOrderStartVarianceTone(row);
+  return tone === 'early' || tone === 'late' ? tone : null;
+}
+
+function lifecycleVarianceAriaLabel(row: WorkOrderSheetDateRow): string {
+  const headline = getWorkOrderStartVarianceHeadline(row);
+  if (!headline) return 'View start timeline';
+  const { startedDay } = lifecycleDaysFromRow(row);
+  const plannedDay = getWorkOrderPlannedDay(row);
+  if (!startedDay) return headline;
+  const { text } = formatWorkOrderVarianceVsPlanned(plannedDay, startedDay);
+  return `${headline} — ${text} vs plan`;
+}
+
+/** Sheet Date column attention: overdue (open) vs planned/actual lifecycle variance. */
+export function getWorkOrderSheetDateAttention(
+  row: WorkOrderSheetDateRow & { status: string },
+  referenceDate: Date = startOfDay(new Date())
+): WorkOrderSheetDateAttention {
+  const popoverLines = formatWorkOrderDatePopoverLines(row);
+  const varianceHeadline = getWorkOrderStartVarianceHeadline(row);
+  const startVarianceTone = startVarianceToneForBadge(row);
+
+  if (row.status === 'COMPLETED') {
+    return {
+      kind: 'completed',
+      ariaLabel: varianceHeadline
+        ? lifecycleVarianceAriaLabel(row)
+        : 'Completed — view planned and start dates',
+      overdueHeadline: null,
+      varianceHeadline,
+      startVarianceTone,
+      popoverLines,
+    };
+  }
+
+  if (row.status === 'IN_PROGRESS' && isWorkOrderOverdue(row, referenceDate)) {
+    const hasStartedNote = popoverLines.lifecycleNotes.some(
+      (note) => note.tone === 'started' || note.tone === 'both',
+    );
+    const startedRaw = parseApiDateTime(row.startedAt);
+    const lifecycleNotes =
+      hasStartedNote || !startedRaw
+        ? popoverLines.lifecycleNotes
+        : [
+            {
+              tone: 'started' as const,
+              text: `Started ${format(startOfDay(startedRaw), 'MMM d')}`,
+            },
+            ...popoverLines.lifecycleNotes,
+          ];
+    return {
+      kind: 'overdue_in_progress',
+      ariaLabel: 'Overdue — in progress',
+      overdueHeadline: 'Overdue — in progress',
+      varianceHeadline: null,
+      startVarianceTone: null,
+      popoverLines: { ...popoverLines, lifecycleNotes },
+    };
+  }
+
+  if (hasWorkOrderStartVariance(row)) {
+    return {
+      kind: 'lifecycle_variance',
+      ariaLabel: lifecycleVarianceAriaLabel(row),
+      overdueHeadline: null,
+      varianceHeadline,
+      startVarianceTone,
+      popoverLines,
+    };
+  }
+
+  return {
+    kind: 'none',
+    ariaLabel: 'View planned and start dates',
+    overdueHeadline: null,
+    varianceHeadline: null,
+    startVarianceTone: null,
+    popoverLines,
+  };
+}
+
 
 export function formatWorkOrderStartColumn(order: WorkOrderDateFields): WorkOrderStartColumnLines {
 
@@ -283,8 +418,6 @@ export function formatWorkOrderStartColumn(order: WorkOrderDateFields): WorkOrde
       plannedDate,
 
       calendarDate,
-
-      startedAt: order.started_at,
 
     }),
 
@@ -320,7 +453,9 @@ export function formatWorkOrderStartColumnFromRow(row: WorkOrderSheetDateRow): W
 
 export function hasWorkOrderLifecycleVariance(row: WorkOrderSheetDateRow): boolean {
 
-  return formatWorkOrderStartColumnFromRow(row).lifecycleNotes.length > 0;
+  const notes = formatWorkOrderStartColumnFromRow(row).lifecycleNotes;
+
+  return notes.some((note) => note.text.includes(' early') || note.text.includes(' late'));
 
 }
 

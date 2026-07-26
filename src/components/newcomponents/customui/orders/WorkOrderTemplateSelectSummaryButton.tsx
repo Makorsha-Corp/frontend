@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 
 const EMPTY_LABEL_FULL = 'No template — click to choose';
@@ -8,6 +9,7 @@ export interface WorkOrderTemplateSelectSummaryButtonProps {
   onClick: () => void;
   ariaLabel: string;
   selectedName?: string | null;
+  recurrenceCadence?: string | null;
   compactLabel?: boolean;
   className?: string;
   disabled?: boolean;
@@ -21,6 +23,7 @@ export function WorkOrderTemplateSelectSummaryButton({
   onClick,
   ariaLabel,
   selectedName,
+  recurrenceCadence,
   compactLabel = false,
   className,
   disabled = false,
@@ -34,12 +37,19 @@ export function WorkOrderTemplateSelectSummaryButton({
       onClick={onClick}
       aria-label={ariaLabel}
       disabled={disabled || loading}
-      className={cn(baseClassName, className)}
+      className={cn(baseClassName, 'gap-2', className)}
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       ) : selectedName ? (
-        <span className="line-clamp-1 text-foreground">{selectedName}</span>
+        <>
+          <span className="min-w-0 flex-1 truncate text-foreground">{selectedName}</span>
+          {recurrenceCadence ? (
+            <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
+              Recurring · {recurrenceCadence}
+            </Badge>
+          ) : null}
+        </>
       ) : (
         <span className="line-clamp-1 text-muted-foreground">{emptyLabel}</span>
       )}

@@ -88,6 +88,7 @@ const WorkOrdersFilterPanel: React.FC<WorkOrdersFilterPanelProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="planned">Upcoming drafts</SelectItem>
             {WORK_ORDER_STATUS_OPTIONS.map((s) => (
               <SelectItem key={s.value} value={s.value}>
                 {s.label}

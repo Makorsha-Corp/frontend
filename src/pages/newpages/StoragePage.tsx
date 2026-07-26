@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
+import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useGetInventoryListQuery, useDeleteInventoryMutation } from '@/features/inventory/inventoryApi';
 import { useGetProductsQuery, useDeleteProductMutation } from '@/features/products/productsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
-import { useAppSelector } from '@/app/hooks';
 import type { Inventory, InventoryType } from '@/types/inventory';
 import type { Product } from '@/types/product';
 import { Archive, Search } from 'lucide-react';
@@ -75,12 +75,12 @@ function parseStorageDeepLink(params: URLSearchParams): {
 }
 
 const StoragePage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const deepLink = useMemo(() => parseStorageDeepLink(searchParams), [searchParams]);
-  const { factory: globalFactory } = useAppSelector((state) => state.auth);
-  const [factoryId, setFactoryId] = useState<number | null>(
-    () => deepLink.factoryId ?? globalFactory?.id ?? null
-  );
+  const { factoryId, setFactoryId } = usePageFactoryScopeId({
+    initialOverride:
+      deepLink.factoryId != null ? String(deepLink.factoryId) : undefined,
+  });
   const [filterItemId, setFilterItemId] = useState<number | null>(() => deepLink.itemId);
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>(
     () => deepLink.inventoryType ?? 'all'
@@ -131,12 +131,20 @@ const StoragePage: React.FC = () => {
     if (deepLink.tab != null) {
       setContentTab(deepLink.tab);
     }
-  }, [deepLink.factoryId, deepLink.itemId, deepLink.inventoryType, deepLink.tab]);
+  }, [deepLink.factoryId, deepLink.itemId, deepLink.inventoryType, deepLink.tab, setFactoryId]);
 
   useEffect(() => {
-    if (deepLink.factoryId != null) return;
-    setFactoryId(globalFactory?.id ?? null);
-  }, [globalFactory?.id, deepLink.factoryId]);
+    if (!searchParams.has('factoryId')) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('factoryId');
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
 

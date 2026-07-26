@@ -103,6 +103,20 @@ export interface ListWorkOrdersParams {
   priority?: WorkOrderPriority;
   factory_id?: number;
   machine_id?: number;
+  work_order_template_id?: number;
+  planned_date_from?: string;
+  planned_date_to?: string;
+}
+
+export interface BulkDeleteFutureRecurrenceDraftsRequest {
+  work_order_template_id: number;
+  machine_id: number;
+  after_date?: string;
+}
+
+export interface BulkDeleteFutureRecurrenceDraftsResponse {
+  deleted_count: number;
+  deleted_ids: number[];
 }
 
 export interface WorkOrderItem {
@@ -162,6 +176,8 @@ export interface WorkOrderCompleteRequest {
   /** When the order targets a machine, choose what state to leave it in. */
   machine_status?: 'IDLE' | 'RUNNING';
 }
+
+export type WorkOrderCompleteAsPlannedRequest = WorkOrderCompleteRequest;
 
 export interface WorkOrderApprover {
   id: number;

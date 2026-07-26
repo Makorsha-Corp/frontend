@@ -76,7 +76,6 @@ const SheetLogEntryDialog: React.FC<SheetLogEntryDialogProps> = ({
             accounts={accounts}
             members={members}
             defaultMachineId={defaultMachineId}
-            showGenerateDay={false}
             showWorkDate={!isEdit}
             onCancel={() => onOpenChange(false)}
             onSuccess={() => {

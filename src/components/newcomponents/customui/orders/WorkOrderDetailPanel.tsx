@@ -18,6 +18,7 @@ import {
   useAddWorkOrderApproverMutation,
   useApproveWorkOrderMutation,
   useCompleteWorkOrderMutation,
+  useCompleteWorkOrderAsPlannedMutation,
   useCreateInvoiceFromWorkOrderMutation,
   useGetWorkOrderApproversQuery,
   useGetWorkOrderByIdQuery,
@@ -52,6 +53,7 @@ import {
   CircleDashed,
   Loader2,
   Package,
+  Trash2,
   Wrench,
   StickyNote,
   History,
@@ -74,9 +76,10 @@ import EditWorkOrderItemsDialog from './EditWorkOrderItemsDialog';
 import VoidWorkOrderDialog from './VoidWorkOrderDialog';
 import CompleteWorkOrderDialog from './CompleteWorkOrderDialog';
 import WoEventLogRow from './WoEventLogRow';
+import WorkOrderRecurringProgramCard from './WorkOrderRecurringProgramCard';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
+import { buildWorkOrderEventLogEntries } from '@/pages/newpages/orders/workOrderScheduleTimeline';
 
-const WO_NOISY_EVENT_TYPES = new Set(['updated']);
 const detailNestedTableShellClass = 'border border-border rounded-lg overflow-hidden';
 
 function toDateInputValue(d: string | null | undefined): string {
@@ -109,7 +112,7 @@ interface WorkOrderDetailPanelProps {
 const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   order: orderProp,
   onClose,
-  onDelete: _onDelete,
+  onDelete,
   variant = 'page',
   autoOpenItemsSourceHint,
 }) => {
@@ -117,7 +120,9 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [editItemsOpen, setEditItemsOpen] = useState(Boolean(autoOpenItemsSourceHint));
   const [voidOpen, setVoidOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
   const [showUpdateEvents, setShowUpdateEvents] = useState(false);
+  const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -142,6 +147,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [updateOrder] = useUpdateWorkOrderMutation();
   const [startOrder, { isLoading: isStarting }] = useStartWorkOrderMutation();
   const [completeOrder, { isLoading: isCompleting }] = useCompleteWorkOrderMutation();
+  const [completeAsPlannedOrder, { isLoading: isCompletingAsPlanned }] =
+    useCompleteWorkOrderAsPlannedMutation();
   const [voidOrder, { isLoading: isVoiding }] = useVoidWorkOrderMutation();
   const [addApprover] = useAddWorkOrderApproverMutation();
   const [removeApprover] = useRemoveWorkOrderApproverMutation();
@@ -227,6 +234,17 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
     }
   };
 
+  const handleCompleteAsPlanned = async (data: WorkOrderCompleteRequest) => {
+    try {
+      await completeAsPlannedOrder({ id: order.id, data }).unwrap();
+      toast.success('Work order directly completed');
+      setCompleteAsPlannedOpen(false);
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to direct complete work order');
+    }
+  };
+
   const handleVoid = async (voidNote: string) => {
     try {
       await voidOrder({ id: order.id, void_note: voidNote }).unwrap();
@@ -282,19 +300,10 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
 
   const consumedItems = items.filter((i) => i.consumed_at != null);
 
-  const filteredEvents = useMemo(() => {
-    const events = apiEvents.map((e) => ({
-      id: e.id,
-      event_type: e.event_type,
-      description: e.description,
-      created_at: e.created_at,
-      performer_name: e.user_name,
-      metadata: e.metadata,
-    }));
-    return showUpdateEvents
-      ? events
-      : events.filter((e) => !WO_NOISY_EVENT_TYPES.has(e.event_type));
-  }, [apiEvents, showUpdateEvents]);
+  const filteredEvents = useMemo(
+    () => buildWorkOrderEventLogEntries(order, apiEvents, { showUpdateEvents }),
+    [apiEvents, order, showUpdateEvents],
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -333,6 +342,19 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
             isLocked={isLocked}
             onVoidOrder={() => setVoidOpen(true)}
           />
+
+          {import.meta.env.DEV ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete work order
+            </Button>
+          ) : null}
         </div>
 
         {isVoided && (
@@ -494,6 +516,16 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                 </div>
               </CardContent>
             </Card>
+
+            <WorkOrderRecurringProgramCard
+              order={order}
+              machineName={machineName ?? 'Unknown machine'}
+              onProgramChanged={(result) => {
+                if (result.deleted_ids.includes(order.id)) {
+                  onClose();
+                }
+              }}
+            />
 
             <Card>
               <CardHeader className="p-4 pb-3 flex flex-row items-start justify-between gap-3">
@@ -664,6 +696,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                         key={event.id}
                         event={event}
                         isLast={idx === filteredEvents.length - 1}
+                        showAbsoluteTimes={showAbsoluteEventTimes}
+                        onToggleTimestampDisplay={() => setShowAbsoluteEventTimes((v) => !v)}
                       />
                     ))}
                   </div>
@@ -681,6 +715,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
               isStarting={isStarting}
               onComplete={() => setCompleteOpen(true)}
               isCompleting={isCompleting}
+              onCompleteAsPlanned={() => setCompleteAsPlannedOpen(true)}
+              isCompletingAsPlanned={isCompletingAsPlanned}
               className="lg:sticky lg:top-0 lg:self-start"
             />
           </div>
@@ -729,6 +765,16 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
         onComplete={handleComplete}
         isCompleting={isCompleting}
         hasMachineTarget={order.machine_id != null}
+      />
+
+      <CompleteWorkOrderDialog
+        open={completeAsPlannedOpen}
+        onOpenChange={setCompleteAsPlannedOpen}
+        onComplete={handleCompleteAsPlanned}
+        isCompleting={isCompletingAsPlanned}
+        hasMachineTarget={order.machine_id != null}
+        mode="as_planned"
+        plannedDate={order.planned_date}
       />
     </div>
   );

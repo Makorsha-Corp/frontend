@@ -6,14 +6,17 @@ import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   useDeleteWorkOrderMutation,
+  useGetWorkOrderByIdQuery,
   useGetWorkOrdersSheetQuery,
 } from '@/features/workOrders/workOrdersApi';
+import {
+  useGetWorkOrderTemplatesQuery,
+} from '@/features/workOrderTemplates/workOrderTemplatesApi';
 import { useGetWorkOrderTypesQuery } from '@/features/workOrderTypes/workOrderTypesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
-import { useGetWorkOrderTemplatesQuery } from '@/features/workOrderTemplates/workOrderTemplatesApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
@@ -22,32 +25,34 @@ import WorkOrdersPageHeader from '@/components/newcomponents/customui/orders/Wor
 import WorkOrdersToolbar from '@/components/newcomponents/customui/orders/WorkOrdersToolbar';
 import WorkOrdersFilterPanel from '@/components/newcomponents/customui/orders/WorkOrdersFilterPanel';
 import WorkOrderSheetTable from '@/components/newcomponents/customui/orders/WorkOrderSheetTable';
+import WorkOrdersSheetPagination from '@/components/newcomponents/customui/orders/WorkOrdersSheetPagination';
 import WorkOrderWeekRows from '@/components/newcomponents/customui/orders/WorkOrderWeekRows';
 import SheetLogEntryFooter from '@/components/newcomponents/customui/orders/SheetLogEntryFooter';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
 import AddWorkOrderDialog from '@/components/newcomponents/customui/orders/AddWorkOrderDialog';
 import MaintenanceWizardDialog from '@/components/newcomponents/customui/orders/MaintenanceWizardDialog';
+import WorkOrderTemplateSelectorDialog from '@/components/newcomponents/customui/orders/WorkOrderTemplateSelectorDialog';
 import { useWorkOrdersFilters } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import {
   buildSheetDateGroups,
   buildSheetPeriodLabel,
-  filterBundlesByOrderIds,
   flattenSheetBundles,
   flattenSheetBundlesToOrders,
   sheetDateGroupsToWeekDayCells,
 } from '@/pages/newpages/orders/workOrderSheetData';
 import {
-  filterWorkOrders,
-  type WorkOrderLabelContext,
-} from '@/pages/newpages/orders/workOrdersOverviewData';
+  buildWorkOrderSheetQueryParams,
+  sheetPageCount,
+} from '@/pages/newpages/orders/workOrderSheetApiParams';
+import type { WorkOrderFilters } from '@/pages/newpages/orders/workOrdersOverviewData';
+import { buildProgramSummariesByWorkOrderId } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import { useRecurrenceProgramOrdersForSheet } from '@/pages/newpages/orders/useRecurrenceProgramOrdersForSheet';
 import { buildMachineIdToFactoryId } from '@/pages/newpages/orders/ordersOverviewData';
 import {
   countWorkOrderPopoverFilters,
   filterMachinesForWorkOrderScope,
 } from '@/pages/newpages/orders/workOrdersFilterUtils';
-import { sliceToFactoryFilter } from '@/lib/machinesLocationFilterAdapters';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
-import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import type { WorkOrder } from '@/types/workOrder';
 
 export interface WorkOrdersUnifiedViewProps {
@@ -64,6 +69,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [footerDrawerOpen, setFooterDrawerOpen] = useState(false);
+  const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
   const [factoryPickerOpen, setFactoryPickerOpen] = useState(false);
   const {
     highlighted: factoryPickerHighlight,
@@ -83,6 +89,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     setSheetDate,
     clearSheetDate,
     setFactoryFilter,
+    setLocationFilterSlice,
     setSectionFilter,
     setMachineFilter,
     setStatusFilter,
@@ -93,6 +100,8 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     pickWeek,
     setShowCompleteOrders,
     patchParams,
+    sheetPage,
+    setSheetPage,
   } = useWorkOrdersFilters();
 
   const weekPeriodLabel = useMemo(
@@ -115,18 +124,54 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const machineId =
     resolvedMachineFilter !== 'all' ? Number(resolvedMachineFilter) : undefined;
 
+  const sheetFilterOpts: WorkOrderFilters = useMemo(
+    () => ({
+      status: filters.statusFilter,
+      workType: filters.workTypeFilter,
+      priority: filters.priorityFilter,
+      factoryId: filters.factoryFilter,
+      machineId: resolvedMachineFilter,
+      searchQuery: filters.searchQuery,
+      showCompleteOrders: filters.showCompleteOrders,
+    }),
+    [filters, resolvedMachineFilter],
+  );
+
+  const sheetQueryParams = useMemo(
+    () =>
+      buildWorkOrderSheetQueryParams(
+        sheetFilterOpts,
+        { page: sheetPage },
+        {
+          factoryId,
+          machineId,
+          plannedDateFrom: applyDateFilter ? apiDateFrom : undefined,
+          plannedDateTo: applyDateFilter ? apiDateTo : undefined,
+        },
+      ),
+    [
+      sheetFilterOpts,
+      sheetPage,
+      factoryId,
+      machineId,
+      applyDateFilter,
+      apiDateFrom,
+      apiDateTo,
+    ],
+  );
+
   const {
-    data: bundles = [],
+    data: sheetData,
     isLoading,
+    isFetching,
     refetch,
     error,
-  } = useGetWorkOrdersSheetQuery({
-    factory_id: factoryId,
-    machine_id: machineId,
-    planned_date_from: applyDateFilter ? apiDateFrom : undefined,
-    planned_date_to: applyDateFilter ? apiDateTo : undefined,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
+  } = useGetWorkOrdersSheetQuery(sheetQueryParams);
+
+  const bundles = sheetData?.items ?? [];
+  const sheetTotal = sheetData?.total ?? 0;
+
+  const [deleteOrder] = useDeleteWorkOrderMutation();
 
   const logEntryDate = filters.sheetDate || format(new Date(), 'yyyy-MM-dd');
 
@@ -146,7 +191,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: API_LIMITS.ACCOUNTS_LIST_MAX });
   const { workspace, user } = useAppSelector((s) => s.auth);
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, { skip: !workspace?.id });
-  const [deleteOrder] = useDeleteWorkOrderMutation();
 
   const machineIdToFactoryId = useMemo(
     () => buildMachineIdToFactoryId(machines),
@@ -177,52 +221,41 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     [factories, machines, sections],
   );
 
-  const labelCtx: WorkOrderLabelContext = useMemo(
+  const labelCtx = useMemo(
     () => ({
-      factoryName: (id) => factories.find((f) => f.id === id)?.name ?? `Factory #${id}`,
+      factoryName: (id: number) => factories.find((f) => f.id === id)?.name ?? `Factory #${id}`,
       machineName,
     }),
     [factories, machineName],
   );
 
-  const filterOptsBase = useMemo(
-    () => ({
-      status: filters.statusFilter,
-      workType: filters.workTypeFilter,
-      priority: filters.priorityFilter,
-      factoryId: filters.factoryFilter,
-      machineId: resolvedMachineFilter,
-      searchQuery: filters.searchQuery,
-      showCompleteOrders: filters.showCompleteOrders,
-    }),
-    [filters, resolvedMachineFilter],
+  const templateById = useMemo(
+    () => new Map(templates.map((template) => [template.id, template])),
+    [templates],
   );
 
-  const listSheetRows = useMemo(() => {
-    const orders = flattenSheetBundlesToOrders(bundles);
-    const filteredOrders = filterWorkOrders(
-      orders,
-      {
-        ...filterOptsBase,
-        from: applyDateFilter ? filters.dateRange.from : undefined,
-        to: applyDateFilter ? filters.dateRange.to : undefined,
-      },
-      labelCtx,
-    );
-    const filteredOrderIds = new Set(filteredOrders.map((order) => order.id));
-    const filteredBundles = filterBundlesByOrderIds(bundles, filteredOrderIds);
-    return flattenSheetBundles(filteredBundles, machineName, accountName, sheetLabelCtx);
-  }, [
-    bundles,
-    filterOptsBase,
-    applyDateFilter,
-    filters.dateRange.from,
-    filters.dateRange.to,
-    labelCtx,
-    machineName,
-    accountName,
-    sheetLabelCtx,
-  ]);
+  const programOrdersForPage = useRecurrenceProgramOrdersForSheet(bundles);
+
+  const programSummariesByWorkOrderId = useMemo(() => {
+    const ordersById = new Map<number, WorkOrder>();
+    for (const order of flattenSheetBundlesToOrders(bundles)) {
+      ordersById.set(order.id, order);
+    }
+    for (const order of programOrdersForPage) {
+      ordersById.set(order.id, order);
+    }
+    return buildProgramSummariesByWorkOrderId({
+      allOrders: Array.from(ordersById.values()),
+      templateById,
+    });
+  }, [bundles, programOrdersForPage, templateById]);
+
+  const listSheetRows = useMemo(
+    () => flattenSheetBundles(bundles, machineName, accountName, sheetLabelCtx, templateById),
+    [bundles, machineName, accountName, sheetLabelCtx, templateById],
+  );
+
+  const combinedListRows = listSheetRows;
 
   const groupedDays = useMemo(() => {
     if (!applyDateFilter || !filters.sheetDate) return [];
@@ -230,10 +263,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       listSheetRows,
       filters.dateScope,
       filters.sheetDate,
-      [],
     );
     return sheetDateGroupsToWeekDayCells(groups);
-  }, [applyDateFilter, filters.sheetDate, filters.dateScope, listSheetRows]);
+  }, [
+    applyDateFilter,
+    filters.sheetDate,
+    filters.dateScope,
+    listSheetRows,
+  ]);
 
   const handleSelectDay = useCallback(
     (date: string) => {
@@ -248,19 +285,26 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     return map;
   }, [bundles]);
 
-  const filteredOrders = useMemo(
-    () =>
-      filterWorkOrders(
-        flattenSheetBundlesToOrders(bundles),
-        {
-          ...filterOptsBase,
-          from: applyDateFilter ? filters.dateRange.from : undefined,
-          to: applyDateFilter ? filters.dateRange.to : undefined,
-        },
-        labelCtx,
-      ),
-    [bundles, filterOptsBase, applyDateFilter, filters.dateRange.from, filters.dateRange.to, labelCtx],
-  );
+  const needsSelectedOrderFetch =
+    selectedOrderId != null && !orderById.has(selectedOrderId);
+  const { data: fetchedSelectedOrder } = useGetWorkOrderByIdQuery(selectedOrderId!, {
+    skip: !needsSelectedOrderFetch,
+  });
+
+  const selectedOrder =
+    (selectedOrderId != null ? orderById.get(selectedOrderId) : undefined) ??
+    fetchedSelectedOrder ??
+    null;
+
+  useEffect(() => {
+    const maxPage = sheetPageCount(sheetTotal);
+    if (sheetPage > maxPage) {
+      setSheetPage(maxPage);
+    }
+  }, [sheetTotal, sheetPage, setSheetPage]);
+
+  const showLargeTotalWarning =
+    sheetTotal > API_LIMITS.WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING;
 
   const machinesForToolbarSelect = useMemo(
     () =>
@@ -319,11 +363,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     [setSheetDate, focusFooterForAdd],
   );
 
-  const selectedOrder =
-    filteredOrders.find((o) => o.id === selectedOrderId) ??
-    orderById.get(selectedOrderId ?? -1) ??
-    null;
-
   const chipHandlers = useMemo(
     () => ({
       onClearFactory: () => setFactoryFilter('all'),
@@ -355,26 +394,16 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     });
   }, [patchParams]);
 
-  const handleLocationFilterChange = useCallback(
-    (slice: MachinesLocationFilterSlice) => {
-      const nextFactory = sliceToFactoryFilter(slice);
-      const nextSection =
-        slice.section_ids.length === 0 ? 'all' : String(slice.section_ids[0]);
-      patchParams({
-        woFactory: nextFactory === 'all' ? null : nextFactory,
-        woSection: nextSection === 'all' ? null : nextSection,
-        woMachine: null,
-      });
-    },
-    [patchParams],
-  );
+  const handleLocationFilterChange = setLocationFilterSlice;
 
   useEffect(() => {
-    const raw = searchParams.get('orderId');
-    if (!raw) return;
-    const parsed = Number(raw);
-    if (Number.isNaN(parsed)) return;
-    setSelectedOrderId(parsed);
+    const rawOrder = searchParams.get('orderId');
+    if (rawOrder) {
+      const parsed = Number(rawOrder);
+      if (!Number.isNaN(parsed)) {
+        setSelectedOrderId(parsed);
+      }
+    }
   }, [searchParams]);
 
   const setSelectedOrder = (orderId: number | null) => {
@@ -435,6 +464,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         activeTab={activeTab}
         onTabChange={onTabChange}
         onAddWork={focusFooterForAdd}
+        onManagePresetsPrograms={() => setTemplatesManagerOpen(true)}
         onAdd={() => setIsAddOpen(true)}
         onAdvancedMaintenance={openAdvancedMaintenance}
         factories={factories}
@@ -503,38 +533,71 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         ) : applyDateFilter ? (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-              <WorkOrderWeekRows
-                days={groupedDays}
-                onSelectDay={handleSelectDay}
-                onAddForDay={handleAddForDay}
-                onRowClick={(id) => setSelectedOrder(id)}
-                currentUserId={user?.id ?? null}
-                onSheetMutated={() => refetch()}
+              {showLargeTotalWarning ? (
+                <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+                  {sheetTotal.toLocaleString()} work orders match — showing page {sheetPage} of{' '}
+                  {sheetPageCount(sheetTotal)}. Narrow date or filters to load faster.
+                </p>
+              ) : null}
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <WorkOrderWeekRows
+                  days={groupedDays}
+                  onSelectDay={handleSelectDay}
+                  onAddForDay={handleAddForDay}
+                  onRowClick={(id) => setSelectedOrder(id)}
+                  currentUserId={user?.id ?? null}
+                  onSheetMutated={refetch}
+                  programSummariesByWorkOrderId={programSummariesByWorkOrderId}
+                />
+              </div>
+              <WorkOrdersSheetPagination
+                page={sheetPage}
+                total={sheetTotal}
+                isFetching={isFetching}
+                onPageChange={setSheetPage}
               />
             </div>
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+              {showLargeTotalWarning ? (
+                <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+                  {sheetTotal.toLocaleString()} work orders match — showing page {sheetPage} of{' '}
+                  {sheetPageCount(sheetTotal)}. Narrow date or filters to load faster.
+                </p>
+              ) : null}
               <WorkOrderSheetTable
-                rows={listSheetRows}
-                isLoading={isLoading}
+                rows={combinedListRows}
+                isLoading={isLoading || isFetching}
                 showStartDateColumn
                 currentUserId={user?.id ?? null}
-                onSheetMutated={() => refetch()}
+                onSheetMutated={refetch}
                 onRowClick={(id) => setSelectedOrder(id)}
+                programSummariesByWorkOrderId={programSummariesByWorkOrderId}
                 emptyActions={listEmptyActions}
+                emptyMessage={
+                  filters.statusFilter === 'planned'
+                    ? 'No upcoming draft work orders match these filters.'
+                    : undefined
+                }
+              />
+              <WorkOrdersSheetPagination
+                page={sheetPage}
+                total={sheetTotal}
+                isFetching={isFetching}
+                onPageChange={setSheetPage}
               />
             </div>
           </div>
         )}
       </div>
 
-      {!selectedOrder ? (
+      {!selectedOrder && footerDrawerOpen ? (
         <SheetLogEntryFooter
           ref={footerRef}
           key={`footer-${sectionId ?? 'none'}-${defaultMachineId ?? 'none'}`}
-          open={footerDrawerOpen}
+          open
           onOpenChange={setFooterDrawerOpen}
           sheetDate={logEntryDate}
           factoryId={resolvedFactoryId}
@@ -574,6 +637,20 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
           }}
         />
       )}
+
+      <WorkOrderTemplateSelectorDialog
+        open={templatesManagerOpen}
+        onOpenChange={setTemplatesManagerOpen}
+        mode="manage"
+        factoryId={resolvedFactoryId}
+        machineId={machineId ?? null}
+        defaultSectionId={sectionId ?? null}
+        defaultMachineId={defaultMachineId ?? null}
+        machines={machinesInScope}
+        sections={sections}
+        onProgramsChanged={refetch}
+        onOpenWorkOrder={(id) => setSelectedOrder(id)}
+      />
     </div>
   );
 };

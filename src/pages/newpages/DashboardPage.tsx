@@ -128,10 +128,23 @@ const DashboardPage: React.FC = () => {
                 />
                 <DashboardStatCard
                   variant="outlined"
-                  title="Maintenance due (7d)"
-                  value={kpis.maintenanceDueCount}
+                  title="Machine work due"
+                  value={kpis.overdueMachineWorkCount + kpis.upcomingMachineWorkItemCount}
                   icon={<Wrench size={24} />}
-                  footer="Machines due within 7 days"
+                  footer={
+                    kpis.overdueMachineWorkCount > 0 || kpis.upcomingMachineWorkItemCount > 0
+                      ? [
+                          kpis.overdueMachineWorkCount > 0
+                            ? `${kpis.overdueMachineWorkCount} overdue`
+                            : null,
+                          kpis.upcomingMachineWorkItemCount > 0
+                            ? `${kpis.upcomingMachineWorkItemCount} due in 7d`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : 'Open work orders & scheduled drafts'
+                  }
                   href="/factories"
                   isLoading={isLoading}
                 />

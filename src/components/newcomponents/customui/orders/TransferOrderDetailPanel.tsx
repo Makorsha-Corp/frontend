@@ -120,6 +120,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const [editItemsOpen, setEditItemsOpen] = useState(false);
   const [editRouteOpen, setEditRouteOpen] = useState(false);
   const [showConfirmEvents, setShowConfirmEvents] = useState(false);
+  const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<TrScrollSection | null>(null);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
@@ -676,6 +677,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
                         metadata: event.metadata,
                       }}
                       isLast={idx === filteredEvents.length - 1}
+                      showAbsoluteTimes={showAbsoluteEventTimes}
+                      onToggleTimestampDisplay={() => setShowAbsoluteEventTimes((v) => !v)}
                     />
                   ))}
                 </div>

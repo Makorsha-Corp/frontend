@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 
 /** API datetimes are UTC but often omit Z — parse as UTC, not local. */
 export function parseApiDateTime(value: string | null | undefined): Date | null {
@@ -17,6 +17,16 @@ export function formatRelativeFromApi(value: string): string {
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return value;
     return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return value;
+  }
+}
+
+export function formatAbsoluteFromApi(value: string): string {
+  try {
+    const date = parseApiDateTime(value);
+    if (!date || Number.isNaN(date.getTime())) return value;
+    return format(date, 'MMM d, yyyy · h:mm a');
   } catch {
     return value;
   }

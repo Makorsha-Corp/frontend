@@ -7,6 +7,7 @@ import type {
   WorkOrderPriority,
   WorkOrderStatus,
 } from './workOrder';
+import type { PaginatedResponse } from './common';
 
 export interface WorkOrderSheetBundle {
   order: WorkOrder;
@@ -38,18 +39,29 @@ export interface WorkOrderSheetEntryRequest {
   account_id?: number;
   cost?: number;
   template_id?: number;
+  recurrence_end_date?: string;
   items?: WorkOrderSheetEntryLine[];
   approvers?: WorkOrderSheetApproverLine[];
 }
+
+export type WorkOrderSheetEntryResponse = WorkOrder;
 
 export interface ListWorkOrderSheetParams {
   factory_id?: number;
   machine_id?: number;
   planned_date_from?: string;
   planned_date_to?: string;
+  status?: WorkOrderStatus;
+  status_scope?: 'planned';
+  work_order_type_id?: number;
+  priority?: WorkOrderPriority;
+  exclude_completed?: boolean;
+  search?: string;
   skip?: number;
   limit?: number;
 }
+
+export type WorkOrderSheetListResponse = PaginatedResponse<WorkOrderSheetBundle>;
 
 export interface ListWorkOrderSheetDailyCountsParams {
   factory_id?: number;

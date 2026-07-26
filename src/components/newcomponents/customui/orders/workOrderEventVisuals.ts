@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   Clock,
   FileText,
@@ -23,6 +24,16 @@ export interface WoEventVisual {
 
 export const WO_EVENT_VISUALS: Record<string, WoEventVisual> = {
   created: { icon: History, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
+  scheduled: {
+    icon: CalendarClock,
+    wrap: 'bg-violet-100 dark:bg-violet-900/30',
+    color: 'text-violet-600 dark:text-violet-400',
+  },
+  schedule_updated: {
+    icon: CalendarClock,
+    wrap: 'bg-amber-100 dark:bg-amber-900/30',
+    color: 'text-amber-600 dark:text-amber-400',
+  },
   updated: { icon: History, wrap: 'bg-muted', color: 'text-muted-foreground' },
   started: {
     icon: PlayCircle,

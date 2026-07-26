@@ -8,12 +8,15 @@ import {
 } from './workOrderSheetTableParts';
 import { SHEET_TABLE, SHEET_TABLE_MIN_W } from './workOrderSheetTypography';
 
+import type { RecurrenceProgramSummary } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+
 export interface WorkOrderSheetTableProps {
   rows: WorkOrderSheetRow[];
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
+  programSummariesByWorkOrderId?: Map<number, RecurrenceProgramSummary>;
   /** Render table only — no scroll shell, loading, or empty states. */
   embed?: boolean;
   showHeader?: boolean;
@@ -30,6 +33,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
   currentUserId = null,
   onSheetMutated,
   showStartDateColumn = false,
+  programSummariesByWorkOrderId,
   embed = false,
   showHeader = true,
   isLoading = false,
@@ -47,6 +51,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
         currentUserId={currentUserId}
         onSheetMutated={onSheetMutated}
         showStartDateColumn={showStartDateColumn}
+        programSummariesByWorkOrderId={programSummariesByWorkOrderId}
       />
     </table>
   );

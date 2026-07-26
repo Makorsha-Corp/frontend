@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/tooltip';
 import { useGetFactoryByIdQuery, useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery, useDeleteFactorySectionMutation } from '@/features/factorySections/factorySectionsApi';
-import { useGetMachinesQuery } from '@/features/machines/machinesApi';
+import { useGetMachinesQuery, useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
 import FactoryMachinesStatusPanel from '@/components/newcomponents/customui/FactoryMachinesStatusPanel';
+import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
 import {
   Factory as FactoryIcon,
   Pencil,
@@ -234,14 +235,36 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     return m;
   }, [sections]);
 
+  const { data: upcomingWork = [] } = useGetUpcomingMachineWorkQuery(
+    {
+      within_days: 7,
+      factory_id: factoryId,
+      include_overdue: true,
+    },
+    { skip: !factory }
+  );
+
+  const sectionById = React.useMemo(
+    () => new Map(sections.map((section) => [section.id, section])),
+    [sections]
+  );
+
+  const maintenanceDueRows = React.useMemo(() => {
+    if (!factory) return [];
+    const split = splitUpcomingWorkByDueWindow(
+      upcomingWork,
+      sectionById,
+      7,
+      factory.abbreviation
+    );
+    return [...split.overdueRows, ...split.upcomingRows];
+  }, [factory, upcomingWork, sectionById]);
+
   const sectionStats = React.useMemo(() => {
     const statsMap = new Map<number, SectionMachineStats>();
     sections.forEach((s) => {
       statsMap.set(s.id, { total: 0, running: 0, notRunning: 0, maintDue: 0 });
     });
-
-    const now = new Date();
-    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     factoryMachines.forEach((m) => {
       if (m.factory_section_id == null) return;
@@ -250,15 +273,19 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
         stats.total++;
         if (m.is_running) stats.running++;
         else stats.notRunning++;
-
-        const d = m.next_maintenance_schedule ? new Date(m.next_maintenance_schedule) : null;
-        if (d && d <= in7Days) {
-          stats.maintDue++;
-        }
       }
     });
+
+    for (const row of maintenanceDueRows) {
+      if (row.machineId == null) continue;
+      const machine = factoryMachines.find((m) => m.id === row.machineId);
+      if (!machine?.factory_section_id) continue;
+      const stats = statsMap.get(machine.factory_section_id);
+      if (stats) stats.maintDue += 1;
+    }
+
     return statsMap;
-  }, [sections, factoryMachines]);
+  }, [sections, factoryMachines, maintenanceDueRows]);
 
   const filteredSections = React.useMemo(() => {
     if (!sectionSearchQuery.trim()) return sections;
@@ -405,10 +432,10 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
           <div className="flex flex-col gap-6">
              {/* Machines Status Panel integrated */}
               <FactoryMachinesStatusPanel
-                  factoryId={factoryId}
+                  factory={factory}
                   machines={factoryMachines}
                   machinesLoading={machinesLoading}
-                  sectionNameById={sectionNameById}
+                  sections={sections}
                 />
           </div>
         </div>

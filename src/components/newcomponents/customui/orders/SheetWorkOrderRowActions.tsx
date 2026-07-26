@@ -12,17 +12,20 @@ import CompleteWorkOrderDialog from '@/components/newcomponents/customui/orders/
 import {
   useApproveWorkOrderMutation,
   useCompleteWorkOrderMutation,
+  useCompleteWorkOrderAsPlannedMutation,
   useStartWorkOrderMutation,
   useUnapproveWorkOrderMutation,
 } from '@/features/workOrders/workOrdersApi';
 import type { WorkOrderApprover, WorkOrderCompleteRequest, WorkOrderStatus } from '@/types/workOrder';
 import { cn } from '@/lib/utils';
+import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
 import { SHEET_ACTION_BTN } from './workOrderSheetTypography';
 
 export interface SheetWorkOrderRowActionsProps {
   workOrderId: number;
   workOrderNumber: string;
   status: WorkOrderStatus;
+  plannedDate?: string | null;
   approvalMet: boolean;
   machineId: number | null;
   approvers: WorkOrderApprover[];
@@ -35,6 +38,7 @@ export interface SheetWorkOrderRowActionsProps {
 const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   workOrderId,
   status,
+  plannedDate,
   approvalMet,
   machineId,
   approvers,
@@ -43,11 +47,14 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   className,
 }) => {
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
 
   const [approveOrder, { isLoading: isApproving }] = useApproveWorkOrderMutation();
   const [unapproveOrder, { isLoading: isUnapproving }] = useUnapproveWorkOrderMutation();
   const [startOrder, { isLoading: isStarting }] = useStartWorkOrderMutation();
   const [completeOrder, { isLoading: isCompleting }] = useCompleteWorkOrderMutation();
+  const [completeAsPlannedOrder, { isLoading: isCompletingAsPlanned }] =
+    useCompleteWorkOrderAsPlannedMutation();
 
   const myApproval =
     currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
@@ -57,8 +64,9 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   const showWithdraw = status === 'DRAFT' && myApproval?.approved === true;
   const showStart = status === 'DRAFT';
   const showComplete = status === 'IN_PROGRESS';
+  const showCompleteAsPlanned = canCompleteWorkOrderAsPlanned(status, plannedDate, approvalMet);
   const startEnabled = approvalMet;
-  const isBusy = isApproving || isUnapproving || isStarting || isCompleting;
+  const isBusy = isApproving || isUnapproving || isStarting || isCompleting || isCompletingAsPlanned;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -112,8 +120,20 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
     }
   };
 
+  const handleCompleteAsPlanned = async (data: WorkOrderCompleteRequest) => {
+    try {
+      await completeAsPlannedOrder({ id: workOrderId, data }).unwrap();
+      toast.success('Work order directly completed');
+      setCompleteAsPlannedOpen(false);
+      afterSuccess();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to direct complete work order');
+    }
+  };
+
   const hasWorkflowAction =
-    showApprove || showWithdraw || showStart || showComplete;
+    showApprove || showWithdraw || showStart || showComplete || showCompleteAsPlanned;
 
   if (isTerminal || !hasWorkflowAction) {
     return null;
@@ -160,13 +180,44 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           </Button>
         ) : null}
 
+        {showCompleteAsPlanned ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn(
+              SHEET_ACTION_BTN,
+              'border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40',
+            )}
+            disabled={isBusy}
+            onPointerDown={stop}
+            onClick={(e) => {
+              stop(e);
+              setCompleteAsPlannedOpen(true);
+            }}
+          >
+            {isCompletingAsPlanned ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              'Direct Complete'
+            )}
+          </Button>
+        ) : null}
+
         {showComplete ? (
           <Button
             type="button"
             size="sm"
-            className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
+            className={cn(
+              SHEET_ACTION_BTN,
+              'bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500',
+            )}
             disabled={isBusy}
-            onClick={() => setCompleteOpen(true)}
+            onPointerDown={stop}
+            onClick={(e) => {
+              stop(e);
+              setCompleteOpen(true);
+            }}
           >
             Complete
           </Button>
@@ -196,6 +247,16 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         onComplete={handleComplete}
         isCompleting={isCompleting}
         hasMachineTarget={machineId != null}
+      />
+
+      <CompleteWorkOrderDialog
+        open={completeAsPlannedOpen}
+        onOpenChange={setCompleteAsPlannedOpen}
+        onComplete={handleCompleteAsPlanned}
+        isCompleting={isCompletingAsPlanned}
+        hasMachineTarget={machineId != null}
+        mode="as_planned"
+        plannedDate={plannedDate}
       />
     </>
   );

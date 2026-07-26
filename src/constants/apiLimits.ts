@@ -32,4 +32,13 @@ export const API_LIMITS = {
 
   /** Common relaxed cap: purchase_orders, machines, factories, account_invoices max, account detail invoice navigator, etc. */
   FLEXIBLE_1000: 1000,
+
+  /** GET /work-orders/sheet/ default page size (backend default 50, max 100). */
+  WORK_ORDERS_SHEET_PAGE_SIZE: 50,
+
+  /** GET /work-orders/sheet/ max page size. */
+  WORK_ORDERS_SHEET_PAGE_MAX: 100,
+
+  /** Show a performance warning in the sheet when total exceeds this count. */
+  WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING: 500,
 } as const;

@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import {
+  parsePageFactoryFilterParam,
+  usePageFactoryScope,
+} from '@/hooks/usePageFactoryScope';
 import { format } from 'date-fns';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
@@ -77,6 +81,23 @@ const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
 
 const PurchaseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const factorySeed = parsePageFactoryFilterParam(searchParams.get('factory'));
+  const { factoryFilter, setPageFactory } = usePageFactoryScope({
+    initialOverride: factorySeed,
+  });
+
+  useEffect(() => {
+    if (!searchParams.has('factory')) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('factory');
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
@@ -122,7 +143,6 @@ const PurchaseOrdersPage: React.FC = () => {
     dateRange,
     statusFilters,
     accountFilter,
-    factoryFilter,
     destinationFilter,
     invoiceFilter,
     searchQuery,
@@ -132,13 +152,21 @@ const PurchaseOrdersPage: React.FC = () => {
 
   const commitPurchaseFilters = useCallback(
     (patch: Partial<PurchaseOrderUrlFilters>) => {
+      if (patch.factoryFilter !== undefined) {
+        setPageFactory(patch.factoryFilter);
+      }
+      const { factoryFilter: _factoryPatch, ...urlPatch } = patch;
       setSearchParams(
         (prev) =>
-          writePurchaseOrderParams(prev, { ...urlFilters, ...patch }, poStatusOptions),
+          writePurchaseOrderParams(
+            prev,
+            { ...urlFilters, factoryFilter: 'all', ...urlPatch },
+            poStatusOptions,
+          ),
         { replace: true }
       );
     },
-    [setSearchParams, urlFilters, poStatusOptions]
+    [setSearchParams, urlFilters, setPageFactory, poStatusOptions]
   );
 
   const resolutionMaps = useMemo(

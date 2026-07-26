@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { useAppSelector } from '@/app/hooks';
+import { usePageFactoryScope } from '@/hooks/usePageFactoryScope';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetOrdersOverviewStatsQuery } from '@/features/orders/ordersOverviewApi';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -15,14 +15,11 @@ import {
 import { useOrdersScopeData } from './useOrdersScopeData';
 
 export function useOrdersOverviewPage() {
-  const authFactory = useAppSelector((s) => s.auth.factory);
+  const { factoryFilter, setPageFactory: setFactoryFilter } = usePageFactoryScope();
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-  const [factoryFilter, setFactoryFilter] = useState<string>(() =>
-    authFactory ? String(authFactory.id) : 'all'
-  );
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const {

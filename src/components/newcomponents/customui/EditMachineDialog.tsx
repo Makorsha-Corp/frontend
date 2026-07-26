@@ -59,8 +59,6 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
   const [sectionId, setSectionId] = useState<number | undefined>();
   const [modelNumber, setModelNumber] = useState('');
   const [manufacturer, setManufacturer] = useState('');
-  const [nextMaintenanceSchedule, setNextMaintenanceSchedule] = useState('');
-  const [nextMaintenanceNote, setNextMaintenanceNote] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<MachineItemDraft[]>([]);
   const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
@@ -122,10 +120,6 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
       setSectionId(machine.factory_section_id ?? undefined);
       setModelNumber(machine.model_number ?? '');
       setManufacturer(machine.manufacturer ?? '');
-      setNextMaintenanceSchedule(
-        machine.next_maintenance_schedule ? machine.next_maintenance_schedule.slice(0, 10) : ''
-      );
-      setNextMaintenanceNote(machine.next_maintenance_note ?? '');
       setNote(machine.note ?? '');
     }
   }, [machine, open]);
@@ -228,8 +222,6 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
           factory_section_id: sectionId ?? null,
           model_number: modelNumber.trim() || undefined,
           manufacturer: manufacturer.trim() || undefined,
-          next_maintenance_schedule: nextMaintenanceSchedule || undefined,
-          next_maintenance_note: nextMaintenanceNote.trim() || undefined,
           note: note.trim() || undefined,
         },
       }).unwrap();
@@ -343,28 +335,6 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
           value={manufacturer}
           onChange={(e) => setManufacturer(e.target.value)}
           placeholder="e.g. Acme Corp"
-          className="bg-background"
-        />
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="edit-maintenance">Next Maintenance</Label>
-        <Input
-          id="edit-maintenance"
-          type="date"
-          value={nextMaintenanceSchedule}
-          onChange={(e) => setNextMaintenanceSchedule(e.target.value)}
-          className="bg-background"
-        />
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="edit-maintenanceNote">Maintenance Note</Label>
-        <Input
-          id="edit-maintenanceNote"
-          value={nextMaintenanceNote}
-          onChange={(e) => setNextMaintenanceNote(e.target.value)}
-          placeholder="Notes for next maintenance"
           className="bg-background"
         />
       </div>

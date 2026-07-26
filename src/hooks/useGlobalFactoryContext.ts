@@ -1,7 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useAppSelector } from '@/app/hooks';
 import type { Factory } from '@/types/factory';
+
+/** @deprecated Use parsePageFactoryFilterParam from usePageFactoryScope for deep links. */
+export function resolvePageFactoryFilterFromUrl(rawParam: string | null): string {
+  if (rawParam === 'all') return 'all';
+  if (rawParam != null) {
+    const id = Number(rawParam);
+    if (Number.isFinite(id)) return String(id);
+  }
+  return 'all';
+}
 
 /** Navbar / auth-scoped factory selection (localStorage-backed). */
 export function useGlobalFactory(): Factory | null {

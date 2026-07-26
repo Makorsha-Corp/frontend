@@ -1,4 +1,5 @@
 import { DISCUSSION_URL_HASH } from '@/constants/discussion';
+import { buildWorkOrderHref } from '@/lib/entityLinks';
 import type { BackendNotification } from '@/types/notification';
 import type { AppNotification, NotificationKind, NotificationSeverity } from './notificationTypes';
 
@@ -45,7 +46,7 @@ export function entityTypeToHref(
       path = `/orders/expense?orderId=${entityId}`;
       break;
     case 'work_order':
-      path = `/orders/work?orderId=${entityId}`;
+      path = buildWorkOrderHref(entityId);
       break;
     case 'sales_order':
       path = `/orders/sales?orderId=${entityId}`;

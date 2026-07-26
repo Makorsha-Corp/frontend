@@ -7,6 +7,8 @@ import { Info } from 'lucide-react';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import { WorkOrderTemplateSelectSummaryButton } from './WorkOrderTemplateSelectSummaryButton';
 import WorkOrderTemplateSelectorDialog from './WorkOrderTemplateSelectorDialog';
+import WorkProgramSummaryStrip from './WorkProgramSummaryStrip';
+import { formatRecurrenceCadence } from '@/pages/newpages/orders/workOrderTemplateLabels';
 
 export interface WorkOrderTemplateSelectorProps {
   value: string;
@@ -28,6 +30,8 @@ export interface WorkOrderTemplateSelectorProps {
   defaultMachineId?: number | null;
   machines?: Machine[];
   sections?: FactorySection[];
+  /** When false, recurring cadence strip is omitted (e.g. shown beside work date instead). */
+  showProgramSummary?: boolean;
 }
 
 const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
@@ -50,6 +54,7 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
   defaultMachineId,
   machines,
   sections,
+  showProgramSummary = true,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -111,6 +116,9 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
             : 'Select template'
         }
         selectedName={selectedTemplate?.template_name ?? 'No template'}
+        recurrenceCadence={
+          selectedTemplate?.is_recurring ? formatRecurrenceCadence(selectedTemplate) : null
+        }
         compactLabel={compact}
         className={compact ? 'h-9 text-sm' : 'min-h-10'}
         disabled={disabled}
@@ -118,9 +126,17 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
       />
       {showHint && selectedTemplate && (
         <p className="text-xs text-muted-foreground">
-          From template — choose No template to edit fields.
+          From template — choose No template to edit fields manually.
         </p>
       )}
+      {showProgramSummary && selectedTemplate?.is_recurring ? (
+        <WorkProgramSummaryStrip
+          template={selectedTemplate}
+          machines={machines}
+          sections={sections}
+          className={compact ? 'mt-1' : undefined}
+        />
+      ) : null}
       {helperText ? <p className="text-[10px] text-muted-foreground">{helperText}</p> : null}
       <WorkOrderTemplateSelectorDialog
         open={dialogOpen}
@@ -129,6 +145,7 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
         selectedTemplateId={value || undefined}
         title={dialogTitle}
         description={dialogDescription}
+        mode="pick"
         onSaveFromForm={onSaveFromForm}
         canSaveFromForm={canSaveFromForm}
         defaultSectionId={defaultSectionId}

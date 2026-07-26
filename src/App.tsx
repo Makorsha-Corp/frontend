@@ -22,7 +22,7 @@ import ExpenseOrdersPage from "./pages/newpages/orders/ExpenseOrdersPage";
 import SalesOverviewPage from "./pages/newpages/orders/SalesOverviewPage";
 import SalesPipelinePage from "./pages/newpages/orders/SalesPipelinePage";
 import SalesTeamPage from "./pages/newpages/orders/SalesTeamPage";
-import WorkOrdersPage from "./pages/newpages/orders/WorkOrdersPage";
+import WorkOrdersLegacyRedirect from "./pages/newpages/orders/WorkOrdersLegacyRedirect";
 
 import ProjectsPage from "./pages/newpages/ProjectsPage";
 import ProductionPage from "./pages/newpages/ProductionPage";
@@ -91,7 +91,7 @@ const App: React.FC = () => {
               <Route path="/sales/pipeline" element={<SalesPipelinePage />} />
               <Route path="/sales/team" element={<SalesTeamPage />} />
               <Route path="/orders/sales" element={<Navigate to="/sales/overview" replace />} />
-              <Route path="/orders/work" element={<WorkOrdersPage />} />
+              <Route path="/orders/work" element={<WorkOrdersLegacyRedirect />} />
               <Route path="/management" element={<ManagementPage />} />
               <Route path="/billing/trial" element={<BillingTrialPage />} />
               <Route path="/storage" element={<StoragePage />} />

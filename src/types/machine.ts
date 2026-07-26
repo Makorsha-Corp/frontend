@@ -14,8 +14,6 @@ export interface Machine {
   // Metadata
   model_number: string | null;
   manufacturer: string | null;
-  next_maintenance_schedule: string | null;
-  next_maintenance_note: string | null;
   note: string | null;
 
   // Audit
@@ -40,8 +38,6 @@ export interface CreateMachineRequest {
   factory_section_id?: number | null;
   model_number?: string;
   manufacturer?: string;
-  next_maintenance_schedule?: string;
-  next_maintenance_note?: string;
   note?: string;
 }
 
@@ -51,8 +47,6 @@ export interface UpdateMachineRequest {
   factory_section_id?: number | null;
   model_number?: string;
   manufacturer?: string;
-  next_maintenance_schedule?: string;
-  next_maintenance_note?: string;
   note?: string;
 }
 

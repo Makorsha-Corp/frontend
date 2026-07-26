@@ -123,6 +123,7 @@ export function statusNamesFromIds(
 }
 
 function readNumericFilterParam(value: string | null): string {
+  if (value === 'all') return 'all';
   if (!value) return 'all';
   const id = Number(value);
   return Number.isFinite(id) ? String(id) : 'all';
@@ -192,11 +193,10 @@ export function hasActiveListFilters(
   if (pageKind === 'purchase' && params.get('scope') === 'open') return true;
 
   if (pageKind === 'purchase') {
-    if (params.get('supplier') || params.get('factory') || params.get('destination')) return true;
+    if (params.get('supplier') || params.get('destination')) return true;
     if (params.get('invoice') && params.get('invoice') !== 'all') return true;
   }
   if (pageKind === 'transfer') {
-    if (params.get('factory')) return true;
     if (params.get('source') && params.get('source') !== 'all') return true;
     if (params.get('dest') && params.get('dest') !== 'all') return true;
     if (params.get('scope') === 'open') return true;
@@ -279,7 +279,7 @@ export function parsePurchaseOrderParams(
     dateRange: readDateRange(params),
     statusFilters: readStatusFiltersFromParams(params, allowedStatuses),
     accountFilter: readNumericFilterParam(params.get('supplier')),
-    factoryFilter: readNumericFilterParam(params.get('factory')),
+    factoryFilter: 'all',
     destinationFilter: readDestinationFilter(params.get('destination')),
     invoiceFilter: readInvoiceFilter(params.get('invoice')),
     searchQuery: readSearch(params),
@@ -300,7 +300,7 @@ export function writePurchaseOrderParams(
     'supplier',
     filters.accountFilter === 'all' ? undefined : filters.accountFilter
   );
-  setOrDelete(next, 'factory', filters.factoryFilter === 'all' ? undefined : filters.factoryFilter);
+  next.delete('factory');
   setOrDelete(
     next,
     'destination',
@@ -327,7 +327,7 @@ export function parseTransferOrderParams(
   return {
     dateRange: readDateRange(params),
     statusFilters: readStatusFiltersFromParams(params, allowedStatuses),
-    factoryFilter: readNumericFilterParam(params.get('factory')),
+    factoryFilter: 'all',
     sourceTypeFilter: readTransferLocationFilter(params.get('source')),
     destinationTypeFilter: readTransferLocationFilter(params.get('dest')),
     searchQuery: readSearch(params),
@@ -342,7 +342,7 @@ export function writeTransferOrderParams(
 ): URLSearchParams {
   const next = new URLSearchParams(prev);
   writeSharedFilters(next, filters, allowedStatuses);
-  setOrDelete(next, 'factory', filters.factoryFilter === 'all' ? undefined : filters.factoryFilter);
+  next.delete('factory');
   setOrDelete(
     next,
     'source',

@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { PurchaseOrderEvent } from '@/types/purchaseOrder';
-import { formatRelativeFromApi } from '@/utils/datetime';
+import EventLogTimestamp from '@/components/newcomponents/customui/EventLogTimestamp';
 import { PO_EVENT_VISUALS } from './purchaseOrderEventVisuals';
 
 const initialsOf = (name: string | null | undefined): string => {
@@ -18,9 +18,16 @@ const displayValue = (value: string | null | undefined) => value ?? '—';
 interface PoEventLogRowProps {
   event: PurchaseOrderEvent;
   isLast: boolean;
+  showAbsoluteTimes?: boolean;
+  onToggleTimestampDisplay?: () => void;
 }
 
-const PoEventLogRow: React.FC<PoEventLogRowProps> = ({ event, isLast }) => {
+const PoEventLogRow: React.FC<PoEventLogRowProps> = ({
+  event,
+  isLast,
+  showAbsoluteTimes = false,
+  onToggleTimestampDisplay,
+}) => {
   const [open, setOpen] = useState(false);
   const ev = PO_EVENT_VISUALS[event.event_type] ?? PO_EVENT_VISUALS.default;
   const Icon = ev.icon;
@@ -63,9 +70,11 @@ const PoEventLogRow: React.FC<PoEventLogRowProps> = ({ event, isLast }) => {
                   )}
                 </button>
               </CollapsibleTrigger>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {formatRelativeFromApi(event.created_at)}
-              </span>
+              <EventLogTimestamp
+                createdAt={event.created_at}
+                showAbsoluteTimes={showAbsoluteTimes}
+                onToggle={onToggleTimestampDisplay}
+              />
             </div>
             <CollapsibleContent>
               <ul className="mt-2 space-y-1.5 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
@@ -83,9 +92,11 @@ const PoEventLogRow: React.FC<PoEventLogRowProps> = ({ event, isLast }) => {
         ) : (
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium text-card-foreground">{event.description}</p>
-            <span className="text-xs text-muted-foreground shrink-0">
-              {formatRelativeFromApi(event.created_at)}
-            </span>
+            <EventLogTimestamp
+              createdAt={event.created_at}
+              showAbsoluteTimes={showAbsoluteTimes}
+              onToggle={onToggleTimestampDisplay}
+            />
           </div>
         )}
         {event.user_name && (

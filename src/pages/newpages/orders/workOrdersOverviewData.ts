@@ -1,4 +1,4 @@
-import { endOfDay, isWithinInterval, startOfDay } from 'date-fns';
+import { endOfDay, isAfter, isWithinInterval, parseISO, startOfDay } from 'date-fns';
 import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/workOrder';
 import {
   isWorkOrderOpen,
@@ -9,7 +9,7 @@ import {
 } from './workOrderConstants';
 import { getWorkOrderCalendarDate } from './workOrderDateUtils';
 
-export type WorkOrderStatusFilter = 'all' | WorkOrderStatus;
+export type WorkOrderStatusFilter = 'all' | WorkOrderStatus | 'planned';
 export type WorkTypeFilter = 'all' | number;
 export type WorkOrderPriorityFilter = 'all' | WorkOrderPriority;
 
@@ -38,8 +38,26 @@ export interface WorkOrderSummaryStats {
   totalCost: number;
 }
 
+export function workOrderStatusFilterLabel(status: WorkOrderStatusFilter): string {
+  if (status === 'all') return 'All statuses';
+  if (status === 'planned') return 'Upcoming drafts';
+  return workOrderStatusLabel(status);
+}
+
 function reportDateForWorkOrder(order: WorkOrder): Date {
   return getWorkOrderCalendarDate(order);
+}
+
+function isFuturePlannedDraft(order: WorkOrder): boolean {
+  if (order.status !== 'DRAFT') return false;
+  const planned = order.planned_date?.trim();
+  if (!planned) return false;
+  try {
+    const plannedDay = startOfDay(parseISO(planned.slice(0, 10)));
+    return isAfter(plannedDay, startOfDay(new Date()));
+  } catch {
+    return false;
+  }
 }
 
 export function filterWorkOrders(
@@ -54,7 +72,9 @@ export function filterWorkOrders(
     rows = rows.filter((o) => isWithinInterval(reportDateForWorkOrder(o), interval));
   }
 
-  if (filters.status !== 'all') {
+  if (filters.status === 'planned') {
+    rows = rows.filter(isFuturePlannedDraft);
+  } else if (filters.status !== 'all') {
     rows = rows.filter((o) => o.status === filters.status);
   }
 

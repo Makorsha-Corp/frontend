@@ -75,7 +75,8 @@ export function weekDayColumnHeaderClass(day: WeekDayBandState): string {
 }
 
 export function weekDayCountLabel(day: Pick<WeekDayCell, 'entryCount'>): string {
-  return day.entryCount > 0
-    ? `${day.entryCount} ${day.entryCount === 1 ? 'order' : 'orders'}`
-    : 'No orders';
+  if (day.entryCount > 0) {
+    return `${day.entryCount} ${day.entryCount === 1 ? 'order' : 'orders'}`;
+  }
+  return 'No orders';
 }

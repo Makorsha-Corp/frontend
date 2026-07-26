@@ -429,13 +429,13 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-6">
           <WorkOrderTemplateSelector
-            label="Start from a template"
+            label="Template"
             value={selectedTemplateId}
             onValueChange={(v) => setSelectedTemplateId(v === '__none__' ? '' : v)}
             templates={workOrderTemplates}
             showHint
-            dialogTitle="Start from a template"
-            dialogDescription="Pick a preset to prefill this form, or save your current fields as a template."
+            dialogTitle="Select template"
+            dialogDescription="Prefill defaults from a saved template. For recurring templates, set start + end dates (up to 6 months) before saving."
             onSaveFromForm={handleSaveTemplate}
             canSaveFromForm={Boolean(typeId)}
             defaultSectionId={machine.factory_section_id}

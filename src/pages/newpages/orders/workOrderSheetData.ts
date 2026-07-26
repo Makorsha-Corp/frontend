@@ -19,10 +19,12 @@ import type {
   WorkOrderPriority,
   WorkOrderStatus,
 } from '@/types/workOrder';
-import type { WorkOrderSchedule } from '@/types/workOrderSchedule';
 import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
+import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import { formatRecurrenceCadence } from '@/pages/newpages/orders/workOrderTemplateLabels';
 import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
+import { workOrderStatusShortLabel } from '@/pages/newpages/orders/workOrderConstants';
 
 /** Sunday-start work week (Sun → Sat). */
 export const SHEET_WEEK_STARTS_ON = 0 as const;
@@ -67,11 +69,16 @@ export interface WorkOrderSheetRow {
   priority: WorkOrderPriority;
   hasBilling: boolean;
   hasTemplate: boolean;
+  isRecurringFromTemplate: boolean;
+  recurrenceCadence: string | null;
+  templateName: string | null;
   billingHint: string | null;
   rowTitle: string | null;
   isFirstInGroup: boolean;
   groupRowSpan: number;
 }
+
+export type WorkOrderSheetTableRow = WorkOrderSheetRow;
 
 export interface SheetFlattenLabelContext {
   factoryName: (factoryId: number) => string;
@@ -97,9 +104,18 @@ export function approvalSlotStatus(
 function buildRowMeta(
   order: WorkOrderSheetBundle['order'],
   accountName: (id: number | null) => string | null,
+  templateById?: Map<number, WorkOrderTemplate>,
 ) {
   const hasBilling = order.account_id != null || (order.cost != null && Number(order.cost) > 0);
   const hasTemplate = order.work_order_template_id != null;
+  const template =
+    order.work_order_template_id != null
+      ? templateById?.get(order.work_order_template_id)
+      : undefined;
+  const isRecurringFromTemplate = template?.is_recurring === true;
+  const recurrenceCadence =
+    template && isRecurringFromTemplate ? formatRecurrenceCadence(template) : null;
+  const templateName = template?.name?.trim() ? template.name.trim() : null;
   const parts: string[] = [];
   if (order.priority !== 'MEDIUM') parts.push(`Priority: ${order.priority}`);
   if (order.account_id != null) {
@@ -117,8 +133,46 @@ function buildRowMeta(
     priority: order.priority,
     hasBilling,
     hasTemplate,
+    isRecurringFromTemplate,
+    recurrenceCadence,
+    templateName,
     billingHint,
     rowTitle,
+  };
+}
+
+export function sheetDateStatusSublabelClass(status: WorkOrderStatus): string {
+  switch (status) {
+    case 'DRAFT':
+      return 'text-slate-600 dark:text-slate-400';
+    case 'IN_PROGRESS':
+      return 'text-amber-700 dark:text-amber-400';
+    case 'VOIDED':
+      return 'text-red-700 dark:text-red-400';
+    default:
+      return 'text-muted-foreground';
+  }
+}
+
+/** Date cell lifecycle sublabel — when + status (Recurring for draft rows from recurring templates). */
+export function getSheetDateStatusSublabel(
+  row: Pick<WorkOrderSheetRow, 'status' | 'isRecurringFromTemplate'>,
+): { label: string; className: string } | null {
+  if (row.status === 'COMPLETED') {
+    return {
+      label: workOrderStatusShortLabel(row.status),
+      className: 'text-emerald-700 dark:text-emerald-400',
+    };
+  }
+  if (row.status === 'DRAFT' && row.isRecurringFromTemplate) {
+    return {
+      label: 'Recurring',
+      className: 'text-violet-700 dark:text-violet-400',
+    };
+  }
+  return {
+    label: workOrderStatusShortLabel(row.status),
+    className: sheetDateStatusSublabelClass(row.status),
   };
 }
 
@@ -148,6 +202,7 @@ export function flattenSheetBundles(
   machineName: (id: number | null) => string,
   accountName: (id: number | null) => string | null = () => null,
   labels?: SheetFlattenLabelContext,
+  templateById?: Map<number, WorkOrderTemplate>,
 ): WorkOrderSheetRow[] {
   const rows: WorkOrderSheetRow[] = [];
 
@@ -165,7 +220,7 @@ export function flattenSheetBundles(
     const machineLabel = machineName(order.machine_id);
     const factoryLabel = labels?.factoryName(order.factory_id) ?? `Factory #${order.factory_id}`;
     const sectionLabel = labels?.sectionName(order.machine_id) ?? null;
-    const meta = buildRowMeta(order, accountName);
+    const meta = buildRowMeta(order, accountName, templateById);
 
     if (items.length === 0) {
       rows.push({
@@ -266,19 +321,6 @@ export interface SheetDateGroup {
   isSelected: boolean;
   isEmpty: boolean;
   entryCount: number;
-  stagedCount: number;
-  schedulesForDay: WorkOrderSchedule[];
-}
-
-export function schedulesForDate(
-  schedules: WorkOrderSchedule[],
-  dateIso: string,
-): WorkOrderSchedule[] {
-  return schedules.filter((s) => s.scheduled_date === dateIso);
-}
-
-export function countStagedForDate(schedules: WorkOrderSchedule[], dateIso: string): number {
-  return schedulesForDate(schedules, dateIso).filter((s) => s.status === 'STAGED').length;
 }
 
 function normalizeSheetDateIso(sheetDate: string): string {
@@ -442,22 +484,17 @@ function enumerateDatesInBounds(from: Date, to: Date): string[] {
 function buildDayGroup(
   date: string,
   rowsByDate: Map<string, WorkOrderSheetRow[]>,
-  schedules: WorkOrderSchedule[],
   selectedDate: string,
 ): SheetDateGroup {
   const dateRows = rowsByDate.get(date) ?? [];
-  const daySchedules = schedulesForDate(schedules, date);
   const entryCount = countWorkOrdersForDay(dateRows);
-  const stagedCount = countStagedForDate(schedules, date);
   return {
     date,
     label: format(parseISO(date), 'dd.MM.yyyy (EEE)'),
     rows: dateRows,
     isSelected: date === selectedDate,
-    isEmpty: dateRows.length === 0 && daySchedules.length === 0,
+    isEmpty: dateRows.length === 0,
     entryCount,
-    stagedCount,
-    schedulesForDay: daySchedules,
   };
 }
 
@@ -465,7 +502,6 @@ function buildDaysInBounds(
   rows: WorkOrderSheetRow[],
   from: Date,
   to: Date,
-  schedules: WorkOrderSchedule[],
   selectedDate: string,
   options: { includeAllDays: boolean },
 ): SheetDateGroup[] {
@@ -477,12 +513,6 @@ function buildDaysInBounds(
     }
   }
 
-  for (const schedule of schedules) {
-    if (isDateInPeriod(schedule.scheduled_date, from, to)) {
-      rowsByDate.set(schedule.scheduled_date, rowsByDate.get(schedule.scheduled_date) ?? []);
-    }
-  }
-
   const dates = options.includeAllDays
     ? enumerateDatesInBounds(from, to)
     : Array.from(rowsByDate.keys()).sort(
@@ -490,10 +520,10 @@ function buildDaysInBounds(
       );
 
   if (options.includeAllDays) {
-    return dates.map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
+    return dates.map((date) => buildDayGroup(date, rowsByDate, selectedDate));
   }
 
-  return dates.map((date) => buildDayGroup(date, rowsByDate, schedules, selectedDate));
+  return dates.map((date) => buildDayGroup(date, rowsByDate, selectedDate));
 }
 
 export interface SheetWeekSection {
@@ -510,9 +540,8 @@ export interface SheetWeekSection {
 export function buildSheetWeekSections(
   rows: WorkOrderSheetRow[],
   sheetDate: string,
-  schedules: WorkOrderSchedule[] = [],
 ): SheetWeekSection[] {
-  const pickerSections = buildSheetWeekPickerSections(rows, sheetDate, schedules);
+  const pickerSections = buildSheetWeekPickerSections(rows, sheetDate);
   const prevSection = getWeekSectionByPosition(pickerSections, 'prev')!;
   const anchorSection = getWeekSectionByPosition(pickerSections, 'anchor')!;
   const nextSection = getWeekSectionByPosition(pickerSections, 'next')!;
@@ -527,7 +556,6 @@ export function buildSheetWeekSections(
 export function buildSheetWeekPickerSections(
   rows: WorkOrderSheetRow[],
   sheetDate: string,
-  schedules: WorkOrderSchedule[] = [],
 ): SheetWeekSection[] {
   const selectedDate = normalizeSheetDateIso(sheetDate);
   const { anchor, prev, next } = sheetAdjacentWeekBounds(selectedDate);
@@ -537,7 +565,7 @@ export function buildSheetWeekPickerSections(
     isAnchor: boolean,
     position: SheetWeekSection['position'],
   ): SheetWeekSection => {
-    const days = buildDaysInBounds(rows, bounds.from, bounds.to, schedules, selectedDate, {
+    const days = buildDaysInBounds(rows, bounds.from, bounds.to, selectedDate, {
       includeAllDays: isAnchor,
     });
     const orderCount = days.reduce((sum, day) => sum + day.entryCount, 0);
@@ -645,7 +673,7 @@ export function groupWeekByDay(section: SheetWeekSection, selectedDate: string):
       entryCount: day.entryCount,
       isToday: day.date === today,
       isSelected: day.date === selected,
-      isEmpty: day.entryCount === 0,
+      isEmpty: day.isEmpty,
     }));
 }
 
@@ -691,15 +719,14 @@ export function buildSheetDateGroups(
   rows: WorkOrderSheetRow[],
   dateScope: SheetDateScope,
   sheetDate: string,
-  schedules: WorkOrderSchedule[] = [],
 ): SheetDateGroup[] {
   const selectedDate = normalizeSheetDateIso(sheetDate);
   const { from, to } = sheetPeriodBounds(dateScope, selectedDate);
   const includeAllDays = dateScope === 'week';
-  const days = buildDaysInBounds(rows, from, to, schedules, selectedDate, { includeAllDays });
+  const days = buildDaysInBounds(rows, from, to, selectedDate, { includeAllDays });
 
   if (!days.some((day) => day.date === selectedDate)) {
-    days.push(buildDayGroup(selectedDate, new Map(), schedules, selectedDate));
+    days.push(buildDayGroup(selectedDate, new Map(), selectedDate));
     days.sort((a, b) =>
       dateScope === 'week'
         ? parseISO(a.date).getTime() - parseISO(b.date).getTime()

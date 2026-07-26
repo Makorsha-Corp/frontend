@@ -52,6 +52,7 @@ interface NavItem {
 
 export const SIDEBAR_COLLAPSED_KEY = 'erp-sidebar-collapsed';
 const FACTORIES_EXPANDED_SESSION_KEY = 'erp-navbar-factories-expanded';
+const FACTORIES_LAST_PATH_SESSION_KEY = 'erp-navbar-factories-last-path';
 const ORDERS_EXPANDED_SESSION_KEY = 'erp-navbar-orders-expanded';
 const SALES_EXPANDED_SESSION_KEY = 'erp-navbar-sales-expanded';
 
@@ -66,9 +67,15 @@ interface DashboardNavbarProps {
 const HOVER_ZONE_WIDTH = 56; // Wide enough for button + easy reach once expanded
 const HOVER_EDGE_WIDTH = 8; // Narrow strip for hover detect — must not block main content clicks
 
-const FACTORIES_SUB_PATHS = ['/factories', '/storage', '/project', '/production'];
+const FACTORIES_SUB_PATHS = ['/factories', '/machines', '/storage', '/project', '/production', '/ledgers'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/work'];
 const SALES_SUB_PATHS = ['/sales', '/sales/overview', '/sales/team', '/sales/pipeline'];
+
+function isFactoriesRoute(pathname: string): boolean {
+  return FACTORIES_SUB_PATHS.some(
+    (p) => pathname === p || (p !== '/dashboard' && pathname.startsWith(p + '/'))
+  );
+}
 
 function useMobileNavViewport() {
   const [isMobileNav, setIsMobileNav] = useState(
@@ -182,8 +189,24 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     sessionStorage.setItem(FACTORIES_EXPANDED_SESSION_KEY, String(factoriesExpanded));
   }, [factoriesExpanded]);
 
+  useEffect(() => {
+    if (typeof sessionStorage === 'undefined') return;
+    if (!isFactoriesRoute(location.pathname)) return;
+    sessionStorage.setItem(
+      FACTORIES_LAST_PATH_SESSION_KEY,
+      `${location.pathname}${location.search}`
+    );
+  }, [location.pathname, location.search]);
+
   const handleFactoriesOpenChange = (open: boolean) => {
     setFactoriesExpanded(open);
+  };
+
+  const handleFactoryHeaderClick = () => {
+    setFactoriesExpanded(true);
+    if (location.pathname !== '/factories') {
+      navigate('/factories');
+    }
   };
 
   const [triggerLogout] = useLogoutMutation();
@@ -381,7 +404,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/factories">Factories</Link>
+                      <Link to="/factories">Overview</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/machines">Machines</Link>
@@ -390,10 +413,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       <Link to="/storage">Storage</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/project">Project</Link>
+                      <Link to="/production">Production</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/production">Production</Link>
+                      <Link to="/project">Project</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/ledgers">Ledgers</Link>
@@ -408,17 +431,17 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         : navInactiveClass
                       }`}
                   >
-                    <CollapsibleTrigger asChild>
-                      <button
-                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                        title={factory ? `Factory - ${factory.name}` : 'Factory'}
-                      >
-                        <Factory size={20} className="shrink-0" />
-                        <span className="font-medium flex-1 truncate">
-                          {factory ? factory.abbreviation : 'Factory'}
-                        </span>
-                      </button>
-                    </CollapsibleTrigger>
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      title={factory ? `Factory - ${factory.name}` : 'Factory'}
+                      onClick={handleFactoryHeaderClick}
+                    >
+                      <Factory size={20} className="shrink-0" />
+                      <span className="flex-1 truncate font-medium">
+                        {factory ? factory.abbreviation : 'Factory'}
+                      </span>
+                    </button>
                     {factoriesExpanded && <GlobalFactoryHoverPicker />}
                     <CollapsibleTrigger asChild>
                       <button className="shrink-0 p-1 text-white/80">
@@ -435,16 +458,15 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       <li>
                         <Link
                           to="/factories"
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/factories')
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${location.pathname === '/factories'
                               ? 'bg-brand-primary text-white'
                               : navInactiveClass
                             }`}
                         >
-                          <Factory size={18} />
-                          <span className="text-sm font-medium">Factories</span>
+                          <LayoutDashboard size={18} />
+                          <span className="text-sm font-medium">Overview</span>
                         </Link>
                       </li>
-                      
                       <li>
                         <Link
                           to="/machines"
@@ -472,18 +494,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       </li>
                       <li>
                         <Link
-                          to="/project"
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/project')
-                              ? 'bg-brand-primary text-white'
-                              : navInactiveClass
-                            }`}
-                        >
-                          <FolderKanban size={18} />
-                          <span className="text-sm font-medium">Project</span>
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
                           to="/production"
                           className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/production')
                               ? 'bg-brand-primary text-white'
@@ -492,6 +502,18 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         >
                           <FlaskConical size={18} />
                           <span className="text-sm font-medium">Production</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/project"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/project')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <FolderKanban size={18} />
+                          <span className="text-sm font-medium">Project</span>
                         </Link>
                       </li>
                       <li>

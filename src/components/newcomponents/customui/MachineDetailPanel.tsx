@@ -140,9 +140,6 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
           <CardDescription>
             {machine.model_number && `Model: ${machine.model_number}`}
             {machine.manufacturer && ` • ${machine.manufacturer}`}
-            {machine.next_maintenance_schedule && (
-              <> • Next maintenance: {machine.next_maintenance_schedule.slice(0, 10)}</>
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

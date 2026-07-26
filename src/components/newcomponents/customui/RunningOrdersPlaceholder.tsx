@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { useGetActiveOrdersForContextQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type { ActiveOrderRow, ActiveOrdersScope } from '@/types/purchaseOrder';
+import { buildWorkOrderHref } from '@/lib/entityLinks';
 import { cn } from '@/lib/utils';
 
 function formatAmount(v: string | number | null | undefined): string | null {
@@ -33,7 +34,7 @@ function orderHref(row: ActiveOrderRow): string {
     return `/orders/purchase?orderId=${row.id}`;
   }
   if (row.order_kind === 'work') {
-    return `/orders/work?orderId=${row.id}`;
+    return buildWorkOrderHref(row.id);
   }
   return `/orders/transfer?orderId=${row.id}`;
 }
