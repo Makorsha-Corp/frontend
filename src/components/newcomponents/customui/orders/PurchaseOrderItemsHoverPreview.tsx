@@ -11,7 +11,15 @@ import { useGetPurchaseOrderItemsQuery } from '@/features/purchaseOrders/purchas
 interface PurchaseOrderItemsHoverPreviewProps {
   purchaseOrderId: number;
   itemCount: number;
-  chipClass: string;
+  /** Inline label for list rows (item names only; pair with overflowSuffix). */
+  previewLabel?: string;
+  /** Shown after previewLabel without truncating (e.g. " +2 more"). */
+  overflowSuffix?: string;
+  /** Hover card horizontal alignment (list rows use end). */
+  contentAlign?: 'start' | 'end';
+  /** @deprecated Use className for compact list rows */
+  chipClass?: string;
+  className?: string;
 }
 
 const itemBubbleClass =
@@ -20,32 +28,44 @@ const itemBubbleClass =
 const PurchaseOrderItemsHoverPreview: React.FC<PurchaseOrderItemsHoverPreviewProps> = ({
   purchaseOrderId,
   itemCount,
+  previewLabel,
+  overflowSuffix,
+  contentAlign = 'start',
   chipClass,
+  className,
 }) => {
   const [open, setOpen] = useState(false);
   const { data: items = [] } = useGetPurchaseOrderItemsQuery(purchaseOrderId, { skip: !open });
 
   const itemCountLabel = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+  const triggerLabel = previewLabel ?? itemCountLabel;
+  const triggerClassName =
+    className ??
+    chipClass ??
+    'inline cursor-default text-inherit underline-offset-2 hover:underline';
 
   if (itemCount <= 0) {
-    return <span className={chipClass}>{itemCountLabel}</span>;
+    return <span className={triggerClassName}>{previewLabel ?? itemCountLabel}</span>;
   }
 
   return (
     <HoverCard openDelay={120} closeDelay={80} open={open} onOpenChange={setOpen}>
       <HoverCardTrigger asChild>
         <span
-          className={cn(chipClass, 'cursor-default hover:bg-muted/80 hover:text-foreground')}
+          className={cn('flex min-w-0 max-w-full items-center justify-end text-right', triggerClassName)}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          {itemCountLabel}
+          <span className="min-w-0 truncate">{triggerLabel}</span>
+          {overflowSuffix ? (
+            <span className="shrink-0">{overflowSuffix}</span>
+          ) : null}
         </span>
       </HoverCardTrigger>
       <HoverCardPortal>
         <HoverCardContent
           side="top"
-          align="start"
+          align={contentAlign}
           sideOffset={6}
           collisionPadding={12}
           className="z-[200] w-auto max-w-[min(16rem,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none dark:bg-transparent"

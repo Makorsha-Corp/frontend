@@ -211,6 +211,72 @@ type RecurrenceProgramOrder = Pick<
 
 export type { RecurrenceProgramOrder };
 
+function plannedDateIsoFromOrder(order: Pick<WorkOrder, 'planned_date'>): string | null {
+  const raw = order.planned_date?.trim();
+  return raw ? raw.slice(0, 10) : null;
+}
+
+/** True when anchored template stored range differs from user-picked start/end. */
+export function recurrenceRangeChanged(
+  template: Pick<
+    WorkOrderTemplate,
+    'next_generation_date' | 'recurrence_start_date' | 'recurrence_end_date'
+  >,
+  startIso: string,
+  endIso: string,
+): boolean {
+  if (!template.next_generation_date) return false;
+  const start = startIso.slice(0, 10);
+  const end = endIso.slice(0, 10);
+  const storedStart = template.recurrence_start_date?.slice(0, 10) ?? null;
+  const storedEnd = template.recurrence_end_date?.slice(0, 10) ?? null;
+  return storedStart !== start || storedEnd !== end;
+}
+
+/** Draft orders that would be removed when syncing to a new program range. */
+export function findDraftsOutsideRecurrenceRange(
+  orders: RecurrenceProgramOrder[],
+  templateId: number,
+  machineId: number,
+  rangeStartIso: string,
+  rangeEndIso: string,
+): Array<{ workOrderId: number; plannedDate: string; workOrderNumber: string }> {
+  const rangeStart = rangeStartIso.slice(0, 10);
+  const rangeEnd = rangeEndIso.slice(0, 10);
+  return orders
+    .filter((order) => {
+      if (order.is_deleted || order.status !== 'DRAFT') return false;
+      if (order.work_order_template_id !== templateId || order.machine_id !== machineId) return false;
+      const planned = plannedDateIsoFromOrder(order);
+      if (!planned) return false;
+      return planned < rangeStart || planned > rangeEnd;
+    })
+    .map((order) => ({
+      workOrderId: order.id,
+      plannedDate: plannedDateIsoFromOrder(order)!,
+      workOrderNumber: order.work_order_number,
+    }))
+    .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
+}
+
+export function buildRepickRecurrenceConfirmMessage(params: {
+  draftCount: number;
+  templateName: string;
+  machineName: string;
+  dateLabels: string[];
+  remainingDateCount: number;
+}): string {
+  const { draftCount, templateName, machineName, dateLabels, remainingDateCount } = params;
+  const noun = draftCount === 1 ? 'draft' : 'drafts';
+  const datePreview =
+    dateLabels.length > 0
+      ? `\n\nDrafts outside the new range (${dateLabels.join(', ')}${
+          remainingDateCount > 0 ? ` + ${remainingDateCount} more` : ''
+        }) will be deleted.`
+      : '';
+  return `Reschedule "${templateName}" on ${machineName}? ${draftCount} ${noun} outside the new program range will be removed. Completed and in-progress orders are kept.${datePreview}`;
+}
+
 export interface RecurringProgramListItem {
   templateId: number;
   machineId: number;

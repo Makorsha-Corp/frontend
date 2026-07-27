@@ -9,6 +9,8 @@ import {
   buildRecurrenceProgramSummary,
   buildProgramSummariesByWorkOrderId,
   buildRecurringProgramList,
+  findDraftsOutsideRecurrenceRange,
+  recurrenceRangeChanged,
 } from './workOrderRecurrenceProgram';
 
 function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
@@ -230,5 +232,32 @@ describe('formatRecurrenceDeleteTargetDates', () => {
     expect(dates).toHaveLength(5);
     expect(dates[0]).toMatch(/Aug 2, 2026/);
     expect(remainingCount).toBe(2);
+  });
+
+  it('recurrenceRangeChanged detects anchored template date drift', () => {
+    const template = {
+      next_generation_date: '2026-08-10',
+      recurrence_start_date: '2026-08-03',
+      recurrence_end_date: '2026-08-31',
+    };
+    expect(recurrenceRangeChanged(template, '2026-08-03', '2026-08-31')).toBe(false);
+    expect(recurrenceRangeChanged(template, '2026-09-01', '2026-09-30')).toBe(true);
+  });
+
+  it('findDraftsOutsideRecurrenceRange lists only draft orphans for template+machine', () => {
+    const orders = [
+      order({ id: 1, status: 'DRAFT', planned_date: '2026-08-03' }),
+      order({ id: 2, status: 'DRAFT', planned_date: '2026-08-24' }),
+      order({ id: 3, status: 'COMPLETED', planned_date: '2026-08-31' }),
+      order({ id: 4, status: 'DRAFT', machine_id: 99, planned_date: '2026-08-10' }),
+    ];
+    const orphans = findDraftsOutsideRecurrenceRange(
+      orders,
+      12,
+      5,
+      '2026-08-03',
+      '2026-08-17',
+    );
+    expect(orphans.map((o) => o.workOrderId)).toEqual([2]);
   });
 });

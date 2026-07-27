@@ -140,14 +140,12 @@ const TransferOrderNavigatorPanel: React.FC<TransferOrderNavigatorPanelProps> = 
       </div>
 
       {ordersTotal > 0 ? (
-        <div className="shrink-0 border-t border-border px-3 py-2">
-          <OrderHubPagination
-            page={listPage}
-            total={ordersTotal}
-            isFetching={isFetching}
-            onPageChange={onPageChange}
-          />
-        </div>
+        <OrderHubPagination
+          page={listPage}
+          total={ordersTotal}
+          isFetching={isFetching}
+          onPageChange={onPageChange}
+        />
       ) : null}
     </div>
   );

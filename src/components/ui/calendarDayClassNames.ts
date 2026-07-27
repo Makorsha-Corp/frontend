@@ -34,3 +34,9 @@ export const calendarPlannedRecurrenceModifierClassNames = {
   plannedRecurrence:
     "[&:not([aria-selected=true])]:bg-brand-primary/15 [&:not([aria-selected=true])]:font-medium [&:not([aria-selected=true])]:text-brand-primary dark:[&:not([aria-selected=true])]:bg-brand-primary/20",
 } as const
+
+/** Recurrence start date when picking end date (stronger than planned series). */
+export const calendarRecurrenceStartModifierClassNames = {
+  recurrenceStart:
+    "[&:not([aria-selected=true])]:bg-brand-primary/25 [&:not([aria-selected=true])]:font-semibold [&:not([aria-selected=true])]:text-brand-primary dark:[&:not([aria-selected=true])]:bg-brand-primary/30",
+} as const

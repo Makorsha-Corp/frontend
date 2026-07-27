@@ -170,6 +170,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
           machineId,
           plannedDateFrom: applyDateFilter ? apiDateFrom : undefined,
           plannedDateTo: applyDateFilter ? apiDateTo : undefined,
+          boundedDateRange: dateViewMode === 'week' || dateViewMode === 'day',
         },
       ),
     [
@@ -180,6 +181,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       applyDateFilter,
       apiDateFrom,
       apiDateTo,
+      dateViewMode,
     ],
   );
 
@@ -332,7 +334,12 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   }, [sheetTotal, sheetPage, setSheetPage]);
 
   const showLargeTotalWarning =
-    sheetTotal > API_LIMITS.WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING;
+    !applyDateFilter && sheetTotal > API_LIMITS.WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING;
+
+  const showBoundedPeriodCapWarning =
+    applyDateFilter &&
+    (dateViewMode === 'week' || dateViewMode === 'day') &&
+    sheetTotal > API_LIMITS.WORK_ORDERS_SHEET_PAGE_MAX;
 
   const machinesForToolbarSelect = useMemo(
     () =>
@@ -551,13 +558,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         ) : applyDateFilter ? (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-              {showLargeTotalWarning ? (
+              {showBoundedPeriodCapWarning ? (
                 <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
-                  {sheetTotal.toLocaleString()} work orders match — showing page {sheetPage} of{' '}
-                  {sheetPageCount(sheetTotal)}. Narrow date or filters to load faster.
+                  {sheetTotal.toLocaleString()} work orders this period — showing the first{' '}
+                  {API_LIMITS.WORK_ORDERS_SHEET_PAGE_MAX}. Narrow machine or filters, or switch to
+                  All dates for paging.
                 </p>
               ) : null}
-              <div className="min-h-0 flex-1 overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <WorkOrderWeekRows
                   days={groupedDays}
                   onSelectDay={handleSelectDay}
@@ -568,12 +576,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
                   programSummariesByWorkOrderId={programSummariesByWorkOrderId}
                 />
               </div>
-              <WorkOrdersSheetPagination
-                page={sheetPage}
-                total={sheetTotal}
-                isFetching={isFetching}
-                onPageChange={setSheetPage}
-              />
             </div>
           </div>
         ) : (

@@ -16,10 +16,14 @@ export function buildWorkOrderSheetQueryParams(
     machineId?: number;
     plannedDateFrom?: string;
     plannedDateTo?: string;
+    boundedDateRange?: boolean;
   },
 ): ListWorkOrderSheetParams {
   const { page } = pagination;
   const statusFilter = filters.status;
+  const bounded = Boolean(
+    scope.boundedDateRange && scope.plannedDateFrom && scope.plannedDateTo,
+  );
 
   return {
     factory_id: scope.factoryId,
@@ -34,8 +38,8 @@ export function buildWorkOrderSheetQueryParams(
     priority: filters.priority !== 'all' ? filters.priority : undefined,
     exclude_completed: !filters.showCompleteOrders,
     search: filters.searchQuery.trim() || undefined,
-    skip: Math.max(0, (page - 1) * SHEET_PAGE_SIZE),
-    limit: SHEET_PAGE_SIZE,
+    skip: bounded ? 0 : Math.max(0, (page - 1) * SHEET_PAGE_SIZE),
+    limit: bounded ? API_LIMITS.WORK_ORDERS_SHEET_PAGE_MAX : SHEET_PAGE_SIZE,
   };
 }
 

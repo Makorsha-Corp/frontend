@@ -952,6 +952,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                               ? null
                               : String(draft.destination_id)
                           }
+                          compactLabel
                           className={cn('mt-0', coreDetailsDisabled && 'pointer-events-none')}
                         />
                         <MachineSelectorDialog

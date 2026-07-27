@@ -647,6 +647,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
               }
               selectedLine={selectedDefaultMachine?.name ?? null}
               staleNumericId={selectedDefaultMachine ? null : machineId || null}
+              compactLabel
               className="mt-0 h-10 min-h-10 py-0"
             />
             <MachineSelectorDialog

@@ -48,6 +48,7 @@ export interface PurchaseOrder {
   item_count?: number;
   quantity_ordered_total?: number;
   quantity_received_total?: number;
+  item_names_preview?: string[];
   created_by: number;
   created_at: string;
   updated_by: number | null;

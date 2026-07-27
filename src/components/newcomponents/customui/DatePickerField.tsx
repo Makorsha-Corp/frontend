@@ -4,7 +4,10 @@ import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { calendarPlannedRecurrenceModifierClassNames } from '@/components/ui/calendarDayClassNames';
+import {
+  calendarPlannedRecurrenceModifierClassNames,
+  calendarRecurrenceStartModifierClassNames,
+} from '@/components/ui/calendarDayClassNames';
 import { cn } from '@/lib/utils';
 
 export interface DatePickerFieldProps {
@@ -19,6 +22,8 @@ export interface DatePickerFieldProps {
   'aria-label'?: string;
   /** Extra dates to highlight in the popover calendar (`yyyy-MM-dd`). */
   highlightedDates?: string[];
+  /** Recurrence start date — highlighted when picking end date (`yyyy-MM-dd`). */
+  recurrenceStartDate?: string;
 }
 
 function parseIsoDate(value: string): Date | undefined {
@@ -40,16 +45,29 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
   id,
   'aria-label': ariaLabel,
   highlightedDates = [],
+  recurrenceStartDate,
 }) => {
   const [open, setOpen] = useState(false);
   const selected = parseIsoDate(value);
 
   const calendarModifiers = useMemo(() => {
+    const modifiers: Record<string, Date[]> = {};
     const planned = highlightedDates
       .map((iso) => parseIsoDate(iso))
       .filter((d): d is Date => d != null);
-    return planned.length ? { plannedRecurrence: planned } : undefined;
-  }, [highlightedDates]);
+    if (planned.length) modifiers.plannedRecurrence = planned;
+    const start = parseIsoDate(recurrenceStartDate ?? '');
+    if (start) modifiers.recurrenceStart = [start];
+    return Object.keys(modifiers).length ? modifiers : undefined;
+  }, [highlightedDates, recurrenceStartDate]);
+
+  const calendarModifierClassNames = useMemo(
+    () => ({
+      ...calendarPlannedRecurrenceModifierClassNames,
+      ...(recurrenceStartDate ? calendarRecurrenceStartModifierClassNames : {}),
+    }),
+    [recurrenceStartDate],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,7 +95,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
           selected={selected}
           defaultMonth={selected}
           modifiers={calendarModifiers}
-          modifiersClassNames={calendarPlannedRecurrenceModifierClassNames}
+          modifiersClassNames={calendarModifierClassNames}
           onSelect={(date) => {
             if (!date) return;
             onChange(format(date, 'yyyy-MM-dd'));

@@ -227,28 +227,28 @@ export function useWorkOrdersFilters() {
   const setDateViewMode = useCallback(
     (mode: WorkOrdersDateViewMode) => {
       if (mode === 'all') {
-        patchParams({ woDate: null, woDateScope: null });
+        patchParams({ woDate: null, woDateScope: null, woPage: null });
         return;
       }
       if (mode === 'week') {
-        patchParams({ woDate: todayIso(), woDateScope: null });
+        patchParams({ woDate: todayIso(), woDateScope: null, woPage: null });
         return;
       }
-      patchParams({ woDate: sheetDate || todayIso(), woDateScope: 'day' });
+      patchParams({ woDate: sheetDate || todayIso(), woDateScope: 'day', woPage: null });
     },
     [patchParams, sheetDate],
   );
 
   const pickDate = useCallback(
     (iso: string) => {
-      patchParams({ woDate: iso, woDateScope: 'day' });
+      patchParams({ woDate: iso, woDateScope: 'day', woPage: null });
     },
     [patchParams],
   );
 
   const pickWeek = useCallback(
     (iso: string) => {
-      patchParams({ woDate: iso, woDateScope: null });
+      patchParams({ woDate: iso, woDateScope: null, woPage: null });
     },
     [patchParams],
   );

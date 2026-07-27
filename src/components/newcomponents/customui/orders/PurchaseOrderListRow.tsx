@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -29,12 +29,8 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
   formatDate,
 }) => {
   const itemCount = order.item_count ?? 0;
+  const previewNames = order.item_names_preview ?? [];
   const stageBadges = getPurchaseOrderListRowBadges(order);
-
-  const chipClass =
-    'inline-flex items-center bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded text-[11px]';
-
-  const itemCountLabel = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
 
   const totalOrdered = Number(order.quantity_ordered_total ?? 0);
   const totalReceived = Number(order.quantity_received_total ?? 0);
@@ -43,63 +39,97 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
       ? `${totalReceived}/${totalOrdered} received`
       : null;
 
+  const formattedDate = formatDate(order.created_at);
+
+  const contextTitle = useMemo(
+    () => [accountName, formattedDate, destinationLabel].join(' · '),
+    [accountName, destinationLabel, formattedDate]
+  );
+
+  const hiddenCount =
+    previewNames.length > 0 ? Math.max(0, itemCount - previewNames.length) : 0;
+  const overflowSuffix = hiddenCount > 0 ? ` +${hiddenCount} more` : '';
+
+  const itemNamesLabel = useMemo(() => {
+    if (itemCount === 0) return 'No items';
+    if (previewNames.length === 0) {
+      return `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+    }
+    return previewNames.join(', ');
+  }, [itemCount, previewNames]);
+
+  const itemNamesTitle = useMemo(() => {
+    if (itemCount === 0) return 'No items';
+    if (previewNames.length === 0) return itemNamesLabel;
+    if (hiddenCount > 0) {
+      return `${previewNames.join(', ')} and ${hiddenCount} more`;
+    }
+    return previewNames.join(', ');
+  }, [hiddenCount, itemCount, itemNamesLabel, previewNames]);
+
   return (
     <div
       className={cn(
-        'flex w-full transition-colors',
+        'flex w-full items-center transition-colors',
         isSelected && 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-2 border-brand-primary'
       )}
     >
       <button
         type="button"
         onClick={onClick}
-        className="min-w-0 flex-1 text-left px-4 py-3 hover:bg-muted/50 transition-colors"
+        className="min-w-0 flex-1 text-left px-3.5 py-2 hover:bg-muted/50 transition-colors"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-medium text-card-foreground truncate">{order.po_number}</span>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-            {stageBadges.map((badge) => (
-              <Badge
-                key={badge.label}
-                variant="secondary"
-                className={cn('text-[11px] font-medium', badge.className)}
-              >
-                {badge.label}
-              </Badge>
-            ))}
+        <div className="flex min-w-0 items-center justify-between gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+            <span className="truncate text-sm font-medium text-card-foreground">{order.po_number}</span>
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {stageBadges.map((badge) => (
+                <Badge
+                  key={badge.label}
+                  variant="secondary"
+                  className={cn('text-[11px] font-medium', badge.className)}
+                >
+                  {badge.label}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div className="text-sm text-muted-foreground truncate mt-1">{accountName}</div>
-
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          <span className={chipClass}>{formatDate(order.created_at)}</span>
-          <span className={chipClass}>{destinationLabel}</span>
-          {itemCount > 0 ? (
-            <PurchaseOrderItemsHoverPreview
-              purchaseOrderId={order.id}
-              itemCount={itemCount}
-              chipClass={chipClass}
-            />
-          ) : (
-            <span className={chipClass}>{itemCountLabel}</span>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-            {receivingHint ? (
-              <span className={cn(chipClass, 'font-medium')}>{receivingHint}</span>
-            ) : null}
-          </div>
-          <span className="text-sm font-semibold text-card-foreground">
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-card-foreground">
             {formatCurrency(Number(order.total_amount))}
           </span>
+        </div>
+
+        <div
+          className="mt-0.5 min-w-0 truncate text-xs leading-snug text-muted-foreground"
+          title={contextTitle}
+        >
+          {accountName} · {formattedDate} · {destinationLabel}
+        </div>
+
+        <div
+          className="mt-0.5 flex min-w-0 justify-end text-[11px] leading-tight text-muted-foreground"
+          title={receivingHint ? `${itemNamesTitle} · ${receivingHint}` : itemNamesTitle}
+        >
+          <div className="flex min-w-0 max-w-full items-center justify-end text-right">
+            {itemCount > 0 ? (
+              <PurchaseOrderItemsHoverPreview
+                purchaseOrderId={order.id}
+                itemCount={itemCount}
+                previewLabel={itemNamesLabel}
+                overflowSuffix={overflowSuffix || undefined}
+                contentAlign="end"
+                className="min-w-0 max-w-full cursor-default underline-offset-2 hover:underline"
+              />
+            ) : (
+              <span className="min-w-0 truncate">No items</span>
+            )}
+            {receivingHint ? <span className="shrink-0"> · {receivingHint}</span> : null}
+          </div>
         </div>
       </button>
 
       {isSelected && onDelete && (
-        <div className="flex shrink-0 items-start pt-2.5 pr-2">
+        <div className="flex shrink-0 items-center pr-2">
           <Button
             type="button"
             variant="ghost"

@@ -17,6 +17,8 @@ export interface WorkOrderSheetTableProps {
   currentUserId?: number | null;
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
+  /** Week/day bands already show the day — hide date text, keep status chip (Active, Recurring, …). */
+  hideStartDateLabel?: boolean;
   programSummariesByWorkOrderId?: Map<number, RecurrenceProgramSummary>;
   /** Render table only — no scroll shell, loading, or empty states. */
   embed?: boolean;
@@ -34,6 +36,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
   currentUserId = null,
   onSheetMutated,
   showStartDateColumn = false,
+  hideStartDateLabel = false,
   programSummariesByWorkOrderId,
   embed = false,
   showHeader = true,
@@ -53,13 +56,18 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
         currentUserId={currentUserId}
         onSheetMutated={onSheetMutated}
         showStartDateColumn={showStartDateColumn}
+        hideStartDateLabel={hideStartDateLabel}
         programSummariesByWorkOrderId={programSummariesByWorkOrderId}
       />
     </table>
   );
 
   if (embed) {
-    return rows.length > 0 ? table : null;
+    return rows.length > 0 ? (
+      <div className="overflow-x-auto overscroll-x-contain">
+        <div className={SHEET_TABLE_MIN_W}>{table}</div>
+      </div>
+    ) : null;
   }
 
   if (isLoading) {

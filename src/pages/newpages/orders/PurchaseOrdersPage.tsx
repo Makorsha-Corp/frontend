@@ -50,7 +50,6 @@ import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/A
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
-import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
 import {
@@ -573,11 +572,6 @@ const PurchaseOrdersPage: React.FC = () => {
           </Select>
 
           <div className="ml-auto flex items-center gap-2">
-            <ShowCompleteOrdersSwitchControl
-              checked={showCompleteOrders}
-              onCheckedChange={(value) => commitPurchaseFilters({ showCompleteOrders: value })}
-              context="list"
-            />
             <div className="flex items-center gap-2">
               <Switch
                 id="po-show-voided-filters"
@@ -632,6 +626,10 @@ const PurchaseOrdersPage: React.FC = () => {
             activeFilterCount={activeFilterCount}
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={(value) =>
+              commitPurchaseFilters({ showCompleteOrders: value })
+            }
             emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}

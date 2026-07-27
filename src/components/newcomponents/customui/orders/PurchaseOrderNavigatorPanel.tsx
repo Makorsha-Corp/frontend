@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import PurchaseOrderListRow from '@/components/newcomponents/customui/orders/PurchaseOrderListRow';
 import OrderHubPagination from '@/components/newcomponents/customui/orders/OrderHubPagination';
+import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
 import { ShoppingCart, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
@@ -20,6 +21,8 @@ export interface PurchaseOrderNavigatorPanelProps {
   activeFilterCount: number;
   filtersOpen: boolean;
   onToggleFilters: () => void;
+  showCompleteOrders: boolean;
+  onShowCompleteOrdersChange: (value: boolean) => void;
   emptyHintNoOpen?: boolean;
   onSelectOrder: (id: number) => void;
   onDeleteOrder?: (order: PurchaseOrder) => void;
@@ -43,6 +46,8 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
   activeFilterCount,
   filtersOpen,
   onToggleFilters,
+  showCompleteOrders,
+  onShowCompleteOrdersChange,
   offPageSelectedLabel = null,
   emptyHintNoOpen = false,
   onSelectOrder,
@@ -63,13 +68,20 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
     >
       {/* Header */}
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
             Orders
             <span className="ml-2 font-normal text-muted-foreground">
               ({ordersTotal})
             </span>
           </h2>
+          <ShowCompleteOrdersSwitchControl
+            checked={showCompleteOrders}
+            onCheckedChange={onShowCompleteOrdersChange}
+            context="list"
+            tooltipSide="bottom"
+            tooltipAlign="start"
+          />
         </div>
         <Button
           type="button"
@@ -148,14 +160,12 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
       </div>
 
       {ordersTotal > 0 ? (
-        <div className="shrink-0 border-t border-border px-3 py-2">
-          <OrderHubPagination
-            page={listPage}
-            total={ordersTotal}
-            isFetching={isFetching}
-            onPageChange={onPageChange}
-          />
-        </div>
+        <OrderHubPagination
+          page={listPage}
+          total={ordersTotal}
+          isFetching={isFetching}
+          onPageChange={onPageChange}
+        />
       ) : null}
     </div>
   );

@@ -531,6 +531,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             }
             selectedLine={machineDisplayLine || null}
             staleNumericId={machineDisplayLine ? null : destinationId || null}
+            compactLabel
           />
           <MachineSelectorDialog
             open={machinePickerOpen}

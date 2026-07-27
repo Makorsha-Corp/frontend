@@ -510,11 +510,13 @@ function SheetStartDateCell({
   programSummary,
   onSheetMutated,
   onRowClick,
+  hideDateLabel = false,
 }: {
   row: WorkOrderSheetRow;
   programSummary?: RecurrenceProgramSummary | null;
   onSheetMutated?: () => void;
   onRowClick?: (workOrderId: number) => void;
+  hideDateLabel?: boolean;
 }) {
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const dateRow = {
@@ -538,7 +540,10 @@ function SheetStartDateCell({
     attention.kind === 'completed'
       ? startVarianceUnderlineBarClass(attention.startVarianceTone)
       : null;
-  const useStackedLayout = Boolean(underlineBarClass || statusSublabel);
+  const useStackedLayout = Boolean(
+    !hideDateLabel && (underlineBarClass || statusSublabel),
+  );
+  const statusOnlyLayout = hideDateLabel && statusSublabel;
   const showProgramSection = row.isRecurringFromTemplate && programSummary != null;
 
   const handleOccurrenceClick = (workOrderId: number) => {
@@ -561,19 +566,30 @@ function SheetStartDateCell({
                 : row.status === 'IN_PROGRESS'
                   ? sheetDateActiveBadgeClass()
                   : 'border-transparent text-card-foreground hover:bg-muted/50',
-            useStackedLayout ? 'flex-col gap-0.5 py-1' : null,
+            useStackedLayout || statusOnlyLayout ? 'flex-col gap-0.5 py-1' : null,
           )}
-          aria-label={attention.ariaLabel}
+          aria-label={
+            hideDateLabel && statusSublabel
+              ? statusSublabel.label
+              : attention.ariaLabel
+          }
           title={
-            attention.varianceHeadline
-              ? `${attention.varianceHeadline} (planned ${popoverLines?.plannedLabel ?? ''})`
-              : undefined
+            hideDateLabel
+              ? undefined
+              : attention.varianceHeadline
+                ? `${attention.varianceHeadline} (planned ${popoverLines?.plannedLabel ?? ''})`
+                : undefined
           }
           onClick={(event) => event.stopPropagation()}
         >
-          <span className="leading-none">{displayDate}</span>
+          {!hideDateLabel ? <span className="leading-none">{displayDate}</span> : null}
           {statusSublabel ? (
-            <span className={cn('text-[10px] font-normal leading-none', statusSublabel.className)}>
+            <span
+              className={cn(
+                hideDateLabel ? 'text-xs font-medium leading-none' : 'text-[10px] font-normal leading-none',
+                statusSublabel.className,
+              )}
+            >
               {statusSublabel.label}
             </span>
           ) : null}
@@ -658,6 +674,7 @@ export interface WorkOrderSheetDayRowsProps {
   currentUserId?: number | null;
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
+  hideStartDateLabel?: boolean;
   programSummariesByWorkOrderId?: Map<number, RecurrenceProgramSummary>;
 }
 
@@ -667,6 +684,7 @@ export function WorkOrderSheetDayRows({
   currentUserId = null,
   onSheetMutated,
   showStartDateColumn = false,
+  hideStartDateLabel = false,
   programSummariesByWorkOrderId,
 }: WorkOrderSheetDayRowsProps) {
   const cols = sheetColumnWidths(showStartDateColumn);
@@ -711,6 +729,7 @@ export function WorkOrderSheetDayRows({
                 programSummary={programSummariesByWorkOrderId?.get(workRow.workOrderId)}
                 onSheetMutated={onSheetMutated}
                 onRowClick={onRowClick}
+                hideDateLabel={hideStartDateLabel}
               />
             </td>
           ) : null}

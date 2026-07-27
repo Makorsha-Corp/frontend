@@ -33,7 +33,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
   onSheetMutated,
   programSummariesByWorkOrderId,
 }) => (
-  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+  <div className="flex flex-col">
     {days.map((day) => {
       const hasTable = day.rows.length > 0;
 
@@ -55,7 +55,10 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
               ) : null}
             </button>
 
-            {day.isEmpty ? (
+            <div className="flex shrink-0 items-center gap-2">
+              {!day.isEmpty ? (
+                <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
+              ) : null}
               <button
                 type="button"
                 className={weekDayHeaderAddButtonClass()}
@@ -64,9 +67,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
                 <Plus className="h-3 w-3 shrink-0" />
                 Add work
               </button>
-            ) : (
-              <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
-            )}
+            </div>
           </div>
 
           {hasTable ? (
@@ -74,6 +75,8 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
               <WorkOrderSheetTable
                 embed
                 showHeader={false}
+                showStartDateColumn
+                hideStartDateLabel
                 rows={day.rows}
                 onRowClick={onRowClick}
                 currentUserId={currentUserId}

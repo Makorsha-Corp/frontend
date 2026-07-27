@@ -204,7 +204,7 @@ export function formatProgramSummaryStrip(
 
   if (scope) parts.push(scope.toLowerCase());
 
-  parts.push('Future drafts auto-schedule on first sheet save');
+  parts.push('Program range — change dates below to reschedule');
 
 
 
