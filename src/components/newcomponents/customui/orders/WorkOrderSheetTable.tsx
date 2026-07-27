@@ -3,6 +3,7 @@ import { Loader2, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
 import {
+  WorkOrderSheetColGroup,
   WorkOrderSheetDayRows,
   WorkOrderSheetTableHeader,
 } from './workOrderSheetTableParts';
@@ -44,6 +45,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
 }) => {
   const table = (
     <table className={cn('w-full border-collapse', SHEET_TABLE, tableClassName)}>
+      <WorkOrderSheetColGroup showStartDateColumn={showStartDateColumn} />
       {showHeader ? <WorkOrderSheetTableHeader showStartDateColumn={showStartDateColumn} /> : null}
       <WorkOrderSheetDayRows
         rows={rows}

@@ -1,9 +1,17 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
 import {
   invalidateInvoiceById,
 } from '@/features/cache/invalidateOrderInvoiceCache';
+import {
+  purchaseOrderListCacheTags,
+  purchaseOrderCacheTagsForMutation,
+  PURCHASE_ORDER_LIST_TAG,
+  PURCHASE_ORDER_HUB_LIST_TAG,
+  PURCHASE_ORDER_HUB_STATS_TAG,
+} from '@/features/cache/orderHubCacheTags';
 import type {
   PurchaseOrder,
   PurchaseOrderItem,
@@ -13,6 +21,9 @@ import type {
   UpdatePurchaseOrderItem,
   PurchaseOrderItemSyncRequest,
   ListPurchaseOrdersParams,
+  ListPurchaseOrdersHubParams,
+  PurchaseOrderListResponse,
+  PurchaseOrderHubStatsResponse,
   ActiveOrderRow,
   ActiveOrdersScope,
   PurchaseOrderApprover,
@@ -33,6 +44,41 @@ function activeOrdersQueryString(scope: ActiveOrdersScope): string {
   return params.toString();
 }
 
+function appendPurchaseOrderHubFilters(
+  qs: URLSearchParams,
+  filters: Omit<ListPurchaseOrdersHubParams, 'skip' | 'limit'>,
+) {
+  if (filters.account_id != null) qs.append('account_id', String(filters.account_id));
+  if (filters.invoice_id != null) qs.append('invoice_id', String(filters.invoice_id));
+  if (filters.date_from) qs.append('date_from', filters.date_from);
+  if (filters.date_to) qs.append('date_to', filters.date_to);
+  filters.status_ids?.forEach((id) => qs.append('status_ids', String(id)));
+  if (filters.factory_id != null) qs.append('factory_id', String(filters.factory_id));
+  if (filters.destination_type) qs.append('destination_type', filters.destination_type);
+  if (filters.invoice_filter) qs.append('invoice_filter', filters.invoice_filter);
+  if (filters.search) qs.append('search', filters.search);
+  if (filters.exclude_complete) qs.append('exclude_complete', 'true');
+  if (filters.exclude_voided) qs.append('exclude_voided', 'true');
+}
+
+function buildPurchaseOrderHubQueryString(params: ListPurchaseOrdersHubParams): string {
+  const { skip = 0, limit = 50, ...filters } = params;
+  const qs = new URLSearchParams({
+    skip: skip.toString(),
+    limit: limit.toString(),
+  });
+  appendPurchaseOrderHubFilters(qs, filters);
+  return qs.toString();
+}
+
+function buildPurchaseOrderHubStatsQueryString(
+  filters: Omit<ListPurchaseOrdersHubParams, 'skip' | 'limit'>,
+): string {
+  const qs = new URLSearchParams();
+  appendPurchaseOrderHubFilters(qs, filters);
+  return qs.toString();
+}
+
 export const purchaseOrdersApi = createApi({
   reducerPath: 'purchaseOrdersApi',
   baseQuery: baseQueryWithReauth,
@@ -42,16 +88,21 @@ export const purchaseOrdersApi = createApi({
       query: (scope) => `purchase-orders/active/?${activeOrdersQueryString(scope)}`,
       providesTags: ['ActiveOrders'],
     }),
-    getPurchaseOrders: builder.query<PurchaseOrder[], ListPurchaseOrdersParams>({
-      query: ({ skip = 0, limit = 100, account_id, invoice_id } = {}) => {
-        const params = new URLSearchParams();
-        params.append('skip', skip.toString());
-        params.append('limit', limit.toString());
-        if (account_id) params.append('account_id', account_id.toString());
-        if (invoice_id) params.append('invoice_id', invoice_id.toString());
-        return `purchase-orders/?${params.toString()}`;
-      },
-      providesTags: ['PurchaseOrder'],
+    getPurchaseOrders: builder.query<PurchaseOrder[], ListPurchaseOrdersHubParams>({
+      query: (args = {}) => `purchase-orders/?${buildPurchaseOrderHubQueryString(args)}`,
+      transformResponse: (response: PurchaseOrderListResponse) => response.items,
+      providesTags: [PURCHASE_ORDER_LIST_TAG],
+    }),
+    getPurchaseOrdersPage: builder.query<PurchaseOrderListResponse, ListPurchaseOrdersHubParams>({
+      query: (args) => `purchase-orders/?${buildPurchaseOrderHubQueryString(args)}`,
+      providesTags: [PURCHASE_ORDER_HUB_LIST_TAG],
+    }),
+    getPurchaseOrderHubStats: builder.query<
+      PurchaseOrderHubStatsResponse,
+      Omit<ListPurchaseOrdersHubParams, 'skip' | 'limit'>
+    >({
+      query: (args) => `purchase-orders/stats/?${buildPurchaseOrderHubStatsQueryString(args)}`,
+      providesTags: [PURCHASE_ORDER_HUB_STATS_TAG],
     }),
     getPurchaseOrderById: builder.query<PurchaseOrder, number>({
       query: (id) => `purchase-orders/${id}/`,
@@ -59,13 +110,12 @@ export const purchaseOrdersApi = createApi({
     }),
     createPurchaseOrder: builder.mutation<PurchaseOrder, CreatePurchaseOrder>({
       query: (body) => ({ url: 'purchase-orders/', method: 'POST', body }),
-      invalidatesTags: ['PurchaseOrder', 'ActiveOrders', 'PurchaseOrderItem'],
+      invalidatesTags: [...purchaseOrderListCacheTags, 'ActiveOrders', 'PurchaseOrderItem'],
     }),
     updatePurchaseOrder: builder.mutation<PurchaseOrder, { id: number; data: UpdatePurchaseOrder }>({
       query: ({ id, data }) => ({ url: `purchase-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [
-        { type: 'PurchaseOrder', id },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(id),
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
       ],
@@ -99,8 +149,7 @@ export const purchaseOrdersApi = createApi({
         body: { section, confirmed },
       }),
       invalidatesTags: (_r, _e, { poId }) => [
-        { type: 'PurchaseOrder', id: poId },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(poId),
         { type: 'PurchaseOrderEvents', id: poId },
         { type: 'PurchaseOrderApprovers', id: poId },
       ],
@@ -132,13 +181,12 @@ export const purchaseOrdersApi = createApi({
     }),
     deletePurchaseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `purchase-orders/${id}/`, method: 'DELETE' }),
-      invalidatesTags: ['PurchaseOrder', 'ActiveOrders'],
+      invalidatesTags: [...purchaseOrderListCacheTags, 'ActiveOrders'],
     }),
     createInvoiceFromPurchaseOrder: builder.mutation<PurchaseOrder, number>({
       query: (id) => ({ url: `purchase-orders/${id}/create-invoice`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [
-        { type: 'PurchaseOrder', id },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(id),
         'PurchaseOrderItem',
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
@@ -160,11 +208,20 @@ export const purchaseOrdersApi = createApi({
     markPurchaseOrderComplete: builder.mutation<PurchaseOrder, number>({
       query: (id) => ({ url: `purchase-orders/${id}/complete/`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [
-        { type: 'PurchaseOrder', id },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(id),
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
       ],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => data),
+          );
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     voidPurchaseOrder: builder.mutation<PurchaseOrder, { id: number; void_note: string }>({
       query: ({ id, void_note }) => ({
@@ -173,8 +230,7 @@ export const purchaseOrdersApi = createApi({
         body: { void_note },
       }),
       invalidatesTags: (_r, _e, { id }) => [
-        { type: 'PurchaseOrder', id },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(id),
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
         { type: 'PurchaseOrderApprovers', id },
@@ -185,6 +241,7 @@ export const purchaseOrdersApi = createApi({
           dispatch(
             purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => updated)
           );
+          invalidateInventoryStockCache(dispatch);
           if (updated.invoice_id != null) {
             invalidateInvoiceById(dispatch, updated.invoice_id);
           }
@@ -205,7 +262,7 @@ export const purchaseOrdersApi = createApi({
     }),
     addPurchaseOrderItem: builder.mutation<PurchaseOrderItem, { poId: number; data: CreatePurchaseOrderItem }>({
       query: ({ poId, data }) => ({ url: `purchase-orders/${poId}/items/`, method: 'POST', body: data }),
-      invalidatesTags: (_r, _e, { poId }) => [{ type: 'PurchaseOrderItem', id: poId }, 'PurchaseOrder', 'ActiveOrders'],
+      invalidatesTags: (_r, _e, { poId }) => [{ type: 'PurchaseOrderItem', id: poId }, ...purchaseOrderListCacheTags, 'ActiveOrders'],
     }),
     updatePurchaseOrderItem: builder.mutation<
       PurchaseOrderItem,
@@ -214,7 +271,7 @@ export const purchaseOrdersApi = createApi({
       query: ({ itemId, data }) => ({ url: `purchase-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { poId }) => [
         'PurchaseOrderItem',
-        'PurchaseOrder',
+        ...purchaseOrderListCacheTags,
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id: poId },
       ],
@@ -234,7 +291,7 @@ export const purchaseOrdersApi = createApi({
     }),
     removePurchaseOrderItem: builder.mutation<void, number>({
       query: (itemId) => ({ url: `purchase-orders/items/${itemId}/`, method: 'DELETE' }),
-      invalidatesTags: ['PurchaseOrderItem', 'PurchaseOrder', 'ActiveOrders'],
+      invalidatesTags: ['PurchaseOrderItem', ...purchaseOrderListCacheTags, 'ActiveOrders'],
     }),
     syncPurchaseOrderItems: builder.mutation<
       PurchaseOrder,
@@ -247,8 +304,7 @@ export const purchaseOrdersApi = createApi({
       }),
       invalidatesTags: (_r, _e, { poId }) => [
         { type: 'PurchaseOrderItem', id: poId },
-        { type: 'PurchaseOrder', id: poId },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(poId),
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id: poId },
       ],
@@ -290,8 +346,7 @@ export const purchaseOrdersApi = createApi({
       invalidatesTags: (_r, _e, poId) => [
         { type: 'PurchaseOrderApprovers', id: poId },
         { type: 'PurchaseOrderEvents', id: poId },
-        { type: 'PurchaseOrder', id: poId },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(poId),
       ],
     }),
     unapprovePurchaseOrder: builder.mutation<PurchaseOrderApprover, number>({
@@ -299,8 +354,7 @@ export const purchaseOrdersApi = createApi({
       invalidatesTags: (_r, _e, poId) => [
         { type: 'PurchaseOrderApprovers', id: poId },
         { type: 'PurchaseOrderEvents', id: poId },
-        { type: 'PurchaseOrder', id: poId },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(poId),
       ],
     }),
     // Events
@@ -317,14 +371,14 @@ export const purchaseOrdersApi = createApi({
       query: ({ poId, data }) => ({ url: `purchase-orders/${poId}/receive/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { poId }) => [
         { type: 'PoReceiveEvents', id: poId },
-        { type: 'PurchaseOrder', id: poId },
-        'PurchaseOrder',
+        ...purchaseOrderCacheTagsForMutation(poId),
         { type: 'PurchaseOrderEvents', id: poId },
         { type: 'PurchaseOrderItem', id: poId },
       ],
       async onQueryStarted({ poId }, { dispatch, queryFulfilled, getState }) {
         try {
           await queryFulfilled;
+          invalidateInventoryStockCache(dispatch);
           const cachedPo = purchaseOrdersApi.endpoints.getPurchaseOrderById.select(poId)(
             getState() as RootState
           )?.data;
@@ -342,6 +396,8 @@ export const purchaseOrdersApi = createApi({
 export const {
   useGetActiveOrdersForContextQuery,
   useGetPurchaseOrdersQuery,
+  useGetPurchaseOrdersPageQuery,
+  useGetPurchaseOrderHubStatsQuery,
   useGetPurchaseOrderByIdQuery,
   useCreatePurchaseOrderMutation,
   useUpdatePurchaseOrderMutation,

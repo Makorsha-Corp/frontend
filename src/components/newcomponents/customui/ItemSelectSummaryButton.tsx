@@ -10,6 +10,8 @@ export interface ItemSelectSummaryButtonProps {
   selectedLabel?: string | null;
   staleNumericId?: string | null;
   compactLabel?: boolean;
+  /** Override empty-state label (default: full or compact preset). */
+  emptyLabel?: string;
   className?: string;
 }
 
@@ -22,9 +24,11 @@ export function ItemSelectSummaryButton({
   selectedLabel,
   staleNumericId,
   compactLabel = false,
+  emptyLabel: emptyLabelProp,
   className,
 }: ItemSelectSummaryButtonProps) {
-  const emptyLabel = compactLabel ? EMPTY_LABEL_COMPACT : EMPTY_LABEL_FULL;
+  const emptyLabel =
+    emptyLabelProp ?? (compactLabel ? EMPTY_LABEL_COMPACT : EMPTY_LABEL_FULL);
 
   return (
     <button type="button" onClick={onClick} aria-label={ariaLabel} className={cn(baseClassName, className)}>

@@ -20,10 +20,10 @@ import {
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi';
-import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType } from '@/types/workOrder';
-import { WORK_ORDER_ITEM_ACTION_OPTIONS, WORK_ORDER_ITEM_ACTION_EXPLAINER } from '@/pages/newpages/orders/workOrderConstants';
+import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType, WorkOrderStatus } from '@/types/workOrder';
+import { WORK_ORDER_ITEM_ACTION_OPTIONS, WORK_ORDER_ITEM_ACTION_EXPLAINER, workOrderItemActionLabel } from '@/pages/newpages/orders/workOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { AlertTriangle, Loader2, Lock, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
@@ -51,6 +51,7 @@ export interface EditWorkOrderItemsDialogProps {
   /** When set, Install/Replace/Borrow become available (they only make sense against a
    * machine's own on-hand inventory) alongside the always-available plain "Used up". */
   machineId?: number | null;
+  workOrderStatus: WorkOrderStatus;
   items: WorkOrderItem[];
   onSaved?: () => void;
 }
@@ -62,6 +63,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   factoryId,
   sectionId,
   machineId,
+  workOrderStatus,
   items,
   onSaved,
 }) => {
@@ -72,7 +74,11 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const [actionType, setActionType] = useState<WorkOrderItemActionType>('CONSUME');
   const [replacedItemId, setReplacedItemId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
+  const [voidConfirmItem, setVoidConfirmItem] = useState<WorkOrderItem | null>(null);
+  const [editingItem, setEditingItem] = useState<WorkOrderItem | null>(null);
+  const [editQty, setEditQty] = useState('1');
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [isUpdatingQty, setIsUpdatingQty] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
@@ -99,13 +105,16 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
       setQty('1');
       setSourceType('storage');
       setSourceMachineId(undefined);
-      const lockedAction = items[0]?.action_type;
-      setActionType(lockedAction ?? 'CONSUME');
+      setActionType('CONSUME');
       setReplacedItemId('');
+      setVoidConfirmItem(null);
+      setEditingItem(null);
     }
-  }, [open, items]);
+  }, [open]);
 
-  const actionLocked = items.length > 0;
+  const canEditLines = workOrderStatus === 'DRAFT' || workOrderStatus === 'IN_PROGRESS';
+  const canRemoveLines = canEditLines;
+  const needsVoidConfirm = workOrderStatus === 'IN_PROGRESS';
   const actionOptions = machineId
     ? WORK_ORDER_ITEM_ACTION_OPTIONS
     : WORK_ORDER_ITEM_ACTION_OPTIONS.filter((o) => o.value === 'CONSUME');
@@ -184,6 +193,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
       }).unwrap();
       toast.success('Part added');
       resetDraft();
+      setActionType('CONSUME');
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -193,29 +203,67 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     }
   };
 
-  const handleQtyBlur = async (item: WorkOrderItem, raw: string) => {
-    const next = parseFloat(raw);
-    if (!(next > 0) || next === Number(item.quantity)) {
-      setQtyDrafts((prev) => ({ ...prev, [item.id]: String(item.quantity) }));
-      return;
-    }
+  const performQtyUpdate = async (item: WorkOrderItem, nextQty: number) => {
+    setIsUpdatingQty(true);
     try {
-      await updateItem({ woId, itemId: item.id, data: { quantity: next } }).unwrap();
+      await updateItem({ woId, itemId: item.id, data: { quantity: nextQty } }).unwrap();
+      toast.success(
+        item.consumed_at ? 'Quantity updated — stock adjusted' : 'Quantity updated',
+      );
+      setEditingItem(null);
+      onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to update quantity');
-      setQtyDrafts((prev) => ({ ...prev, [item.id]: String(item.quantity) }));
+    } finally {
+      setIsUpdatingQty(false);
     }
   };
 
+  const openEditLine = (item: WorkOrderItem) => {
+    setEditingItem(item);
+    setEditQty(String(item.quantity));
+  };
+
+  const handleSaveEditLine = async () => {
+    if (!editingItem) return;
+    const next = parseFloat(editQty);
+    if (!(next > 0)) {
+      toast.error('Enter a valid quantity');
+      return;
+    }
+    if (next === Number(editingItem.quantity)) {
+      setEditingItem(null);
+      return;
+    }
+    await performQtyUpdate(editingItem, next);
+  };
+
+  const editQtyDelta =
+    editingItem && parseFloat(editQty) > 0
+      ? parseFloat(editQty) - Number(editingItem.quantity)
+      : 0;
+
   const handleRemove = async (item: WorkOrderItem) => {
+    if (needsVoidConfirm && item.consumed_at) {
+      setVoidConfirmItem(item);
+      return;
+    }
+    await performRemove(item);
+  };
+
+  const performRemove = async (item: WorkOrderItem) => {
+    setIsVoiding(true);
     try {
       await removeItem({ woId, itemId: item.id }).unwrap();
-      toast.success('Part removed');
+      toast.success(item.consumed_at ? 'Part voided — stock returned' : 'Part removed');
+      setVoidConfirmItem(null);
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       toast.error(e?.data?.detail || 'Failed to remove part');
+    } finally {
+      setIsVoiding(false);
     }
   };
 
@@ -235,14 +283,15 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
           <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
             <DialogTitle>Edit parts</DialogTitle>
             <DialogDescription>
-              Same flow as the sheet entry footer — pick what happens, then add parts from storage or machine stock.
+              Add parts at the top. Use Edit on each line to change quantity — stock changes are logged on in-progress
+              orders.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-4">
             <div className="shrink-0 space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
+                <Label className="text-xs text-muted-foreground">What will happen with the next part?</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {actionOptions.map((opt) => (
                     <HoverCard key={opt.value} openDelay={120} closeDelay={80}>
@@ -252,7 +301,6 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                           variant={actionType === opt.value ? 'default' : 'outline'}
                           size="sm"
                           className={`h-8 ${actionType === opt.value ? 'bg-brand-primary hover:bg-brand-primary-hover' : ''}`}
-                          disabled={actionLocked && actionType !== opt.value}
                           onClick={() => setActionType(opt.value)}
                         >
                           {opt.label}
@@ -272,14 +320,10 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                     </HoverCard>
                   ))}
                 </div>
-                {actionLocked ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    Action locked for this order. Remove all parts to change.
-                  </p>
-                ) : null}
               </div>
             </div>
 
+            {canEditLines ? (
             <div className="shrink-0 space-y-3 rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1">
@@ -343,6 +387,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                 Add part
               </Button>
             </div>
+            ) : null}
 
             <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
               {items.length === 0 ? (
@@ -352,28 +397,19 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                   {items.map((item) => (
                     <div key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {item.item_name ?? `Item #${item.item_id}`}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-foreground">
+                            {item.item_name ?? `Item #${item.item_id}`}
+                          </p>
+                          {item.uses_inventory ? (
+                            <Badge variant="secondary" className="font-normal">
+                              {workOrderItemActionLabel(item.action_type)}
+                            </Badge>
+                          ) : null}
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                          {item.consumed_at ? (
-                            <>
-                              {item.quantity}
-                              {item.item_unit ? ` ${item.item_unit}` : ''}
-                            </>
-                          ) : (
-                            <span className="inline-flex items-center gap-2">
-                              <StepNumberInput
-                                min={0.01}
-                                step={1}
-                                className="h-8 w-24"
-                                value={qtyDrafts[item.id] ?? String(item.quantity)}
-                                onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                                onBlur={(e) => handleQtyBlur(item, e.target.value)}
-                              />
-                              {item.item_unit ? <span>{item.item_unit}</span> : null}
-                            </span>
-                          )}
+                          {item.quantity}
+                          {item.item_unit ? ` ${item.item_unit}` : ''}
                           {' · '}
                           {itemLineSourceLabel(item)}
                           {item.uses_inventory && item.action_type === 'REPLACE' && item.replaced_item_name ? (
@@ -386,20 +422,32 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                           </Badge>
                         ) : null}
                       </div>
-                      <div className="shrink-0 pt-0.5">
-                        {item.consumed_at ? (
-                          <Lock className="h-4 w-4 text-muted-foreground" aria-label="Locked — void the order to reverse" />
-                        ) : (
+                      <div className="flex shrink-0 items-center gap-0.5 pt-0.5">
+                        {canEditLines ? (
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            disabled={isUpdatingQty || isVoiding}
+                            onClick={() => openEditLine(item)}
+                            aria-label={`Edit ${item.item_name ?? 'part'}`}
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        ) : null}
+                        {canRemoveLines ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={isVoiding}
                             onClick={() => handleRemove(item)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -412,6 +460,96 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editingItem != null} onOpenChange={(open) => !open && setEditingItem(null)}>
+        <DialogContent className="w-[min(28rem,94vw)] max-w-none">
+          <DialogHeader>
+            <DialogTitle>Edit part line</DialogTitle>
+            <DialogDescription>
+              {editingItem ? (
+                <>
+                  {editingItem.item_name ?? `Item #${editingItem.item_id}`}
+                  {editingItem.uses_inventory ? (
+                    <> · {workOrderItemActionLabel(editingItem.action_type)}</>
+                  ) : null}
+                  {' · '}
+                  {itemLineSourceLabel(editingItem)}
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-1">
+            <Label className="text-xs text-muted-foreground">Quantity</Label>
+            <div className="flex items-center gap-2">
+              <StepNumberInput
+                min={0.01}
+                step={1}
+                className="h-9 w-28"
+                value={editQty}
+                onChange={(e) => setEditQty(e.target.value)}
+                disabled={isUpdatingQty}
+              />
+              {editingItem?.item_unit ? (
+                <span className="text-sm text-muted-foreground">{editingItem.item_unit}</span>
+              ) : null}
+            </div>
+            {editingItem?.consumed_at && editQtyDelta !== 0 ? (
+              <p className="flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {editQtyDelta > 0 ? (
+                  <>
+                    Stock will be deducted for {editQtyDelta} more unit(s). Logged on this work order and in
+                    inventory.
+                  </>
+                ) : (
+                  <>
+                    Stock will be returned for {Math.abs(editQtyDelta)} unit(s). Logged on this work order and in
+                    inventory.
+                  </>
+                )}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setEditingItem(null)} disabled={isUpdatingQty}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={isUpdatingQty || !editingItem} onClick={handleSaveEditLine}>
+              {isUpdatingQty ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voidConfirmItem != null} onOpenChange={(open) => !open && setVoidConfirmItem(null)}>
+        <DialogContent className="w-[min(28rem,94vw)] max-w-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Remove this part line?
+            </DialogTitle>
+            <DialogDescription>
+              Stock already deducted for this line will be returned to its source. Other parts on this order are
+              unchanged.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setVoidConfirmItem(null)} disabled={isVoiding}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isVoiding || !voidConfirmItem}
+              onClick={() => voidConfirmItem && performRemove(voidConfirmItem)}
+            >
+              {isVoiding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Return stock &amp; remove
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -41,13 +41,27 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
 }) => {
   const approveBlocked = !approved && blocked;
   const withdrawIsBlocked = approved && withdrawBlocked;
+  const actionBlocked = approveBlocked || withdrawIsBlocked;
+
+  const hoverHint =
+    iconOnly && !actionBlocked
+      ? approved
+        ? {
+            title: withdrawLabel,
+            reason: 'Remove your approval from this purchase order.',
+          }
+        : {
+            title: approveLabel,
+            reason: 'Record your approval on this purchase order.',
+          }
+      : undefined;
 
   return (
   <BlockedActionButton
     id="po-approve-order-btn"
-    size={size}
+    size={iconOnly ? 'icon' : size}
     variant={approved ? 'outline' : 'default'}
-    blocked={approveBlocked || withdrawIsBlocked}
+    blocked={actionBlocked}
     blockedHint={
       withdrawIsBlocked
         ? {
@@ -62,6 +76,7 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
             }
           : undefined
     }
+    hoverHint={hoverHint}
     isBusy={isBusy}
     onAction={onToggle}
     popoverSide={popoverSide}
@@ -69,7 +84,8 @@ const PoApproveOrderButton: React.FC<PoApproveOrderButtonProps> = ({
       !approved && !blocked && 'bg-brand-primary hover:bg-brand-primary-hover',
       withdrawIsBlocked && 'opacity-60',
       highlighted && 'po-scroll-target-highlight',
-      iconOnly && 'px-0',
+      iconOnly && 'h-7 w-7 shrink-0 rounded-full p-0',
+      approved && iconOnly && 'border-muted-foreground/40 text-muted-foreground hover:text-destructive hover:border-destructive/40',
       className
     )}
     onMouseEnter={() => {

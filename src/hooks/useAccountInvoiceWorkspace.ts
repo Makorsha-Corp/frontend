@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetAccountInvoiceSummaryQuery } from '@/features/accounts/accountsApi';
-import { useGetPurchaseOrdersQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
-import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
-import { buildInvoiceOrderNumberMap } from '@/components/newcomponents/customui/accounts/invoiceDisplayUtils';
+import { useInvoiceOrderNumberMap } from '@/components/newcomponents/customui/accounts/useInvoiceOrderNumberMap';
 import { API_LIMITS } from '@/constants/apiLimits';
 import type { ListAccountInvoicesParams } from '@/types/accountInvoice';
 import type { AccountInvoiceSummaryParams } from '@/types/account';
@@ -149,26 +147,7 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     { skip: !summaryParams }
   );
 
-  const linkedOrdersParams = useMemo(
-    () => ({
-      account_id: accountId!,
-      skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
-    }),
-    [accountId]
-  );
-
-  const { data: purchaseOrdersForInvoices = [] } = useGetPurchaseOrdersQuery(linkedOrdersParams, {
-    skip: !accountId,
-  });
-  const { data: expenseOrdersForInvoices = [] } = useGetExpenseOrdersQuery(linkedOrdersParams, {
-    skip: !accountId,
-  });
-
-  const invoiceOrderNumberMap = useMemo(
-    () => buildInvoiceOrderNumberMap(purchaseOrdersForInvoices, expenseOrdersForInvoices, invoices),
-    [purchaseOrdersForInvoices, expenseOrdersForInvoices, invoices]
-  );
+  const invoiceOrderNumberMap = useInvoiceOrderNumberMap(invoices);
 
   const urlInvoiceId = useMemo(() => {
     const param = searchParams.get('invoiceId');
@@ -213,10 +192,19 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     [invoices, selectedInvoiceId]
   );
 
-  const invoiceCountLabel = String(summary?.invoiceCount ?? 0);
+  const invoiceCount = useMemo(() => {
+    const listCount = invoices.length;
+    const summaryCount = summary?.invoiceCount;
+    if (summaryCount != null && summaryCount >= listCount) {
+      return summaryCount;
+    }
+    return listCount;
+  }, [summary?.invoiceCount, invoices.length]);
+
+  const invoiceCountLabel = String(invoiceCount);
 
   const invoiceListCapped =
-    summary != null && summary.invoiceCount > invoices.length && invoices.length > 0;
+    invoiceCount > invoices.length && invoices.length > 0;
 
   const activeFilterCount = useMemo(() => {
     let count = 0;

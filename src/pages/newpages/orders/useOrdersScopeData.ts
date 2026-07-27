@@ -19,15 +19,15 @@ import { useSalesOrdersForOverview } from './useSalesOrdersForOverview';
 export function useOrdersScopeData() {
   const { data: purchaseOrders = [], isLoading: loadPo, isError: errPo } = useGetPurchaseOrdersQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
   });
   const { data: transferOrders = [], isLoading: loadTo, isError: errTo } = useGetTransferOrdersQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
   });
   const { data: expenseOrders = [], isLoading: loadEo, isError: errEo } = useGetExpenseOrdersQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
   });
   const {
     salesOrders,

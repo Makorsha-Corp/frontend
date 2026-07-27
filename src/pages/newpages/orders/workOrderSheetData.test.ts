@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { getSheetDateStatusSublabel } from './workOrderSheetData';
 
 describe('getSheetDateStatusSublabel', () => {
+  it('shows Complete for completed rows', () => {
+    const sublabel = getSheetDateStatusSublabel({
+      status: 'COMPLETED',
+      isRecurringFromTemplate: false,
+    });
+    expect(sublabel?.label).toBe('Complete');
+    expect(sublabel?.className).toContain('emerald');
+  });
+
   it('shows Recurring for draft rows from a recurring template', () => {
     const sublabel = getSheetDateStatusSublabel({
       status: 'DRAFT',

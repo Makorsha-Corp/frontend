@@ -5,10 +5,14 @@ import {
   isSameDay,
   isSameWeek,
   parseISO,
+  startOfMonth,
   startOfWeek,
 } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
-import { workOrderWeekSelectedModifierClassNames } from '@/components/ui/calendarDayClassNames';
+import {
+  workOrderCalendarHasOrdersModifierClassNames,
+  workOrderWeekSelectedModifierClassNames,
+} from '@/components/ui/calendarDayClassNames';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SHEET_WEEK_STARTS_ON } from '@/pages/newpages/orders/workOrderSheetData';
 import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
@@ -21,6 +25,9 @@ export interface WorkOrdersDateFilterControlsProps {
   onDateViewModeChange: (mode: WorkOrdersDateViewMode) => void;
   onPickDate: (iso: string) => void;
   onPickWeek: (iso: string) => void;
+  orderCountByDate?: Record<string, number>;
+  calendarMonth?: Date;
+  onCalendarMonthChange?: (month: Date) => void;
   className?: string;
 }
 
@@ -36,8 +43,6 @@ function segmentPillClass(active: boolean) {
   );
 }
 
-const weekCalendarModifierClassNames = workOrderWeekSelectedModifierClassNames;
-
 const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> = ({
   dateViewMode,
   sheetDate,
@@ -45,31 +50,80 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
   onDateViewModeChange,
   onPickDate,
   onPickWeek,
+  orderCountByDate = {},
+  calendarMonth,
+  onCalendarMonthChange,
   className,
 }) => {
   const [weekPickerOpen, setWeekPickerOpen] = useState(false);
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
 
   const parsedDate = sheetDate ? parseISO(sheetDate) : undefined;
+  const [internalCalendarMonth, setInternalCalendarMonth] = useState(() =>
+    startOfMonth(sheetDate ? parseISO(sheetDate) : new Date()),
+  );
+  const resolvedCalendarMonth = calendarMonth ?? internalCalendarMonth;
+
+  const handleCalendarMonthChange = (month: Date) => {
+    const normalized = startOfMonth(month);
+    onCalendarMonthChange?.(normalized);
+    if (!calendarMonth) {
+      setInternalCalendarMonth(normalized);
+    }
+  };
+
+  const syncCalendarMonthToSelection = () => {
+    handleCalendarMonthChange(startOfMonth(parsedDate ?? new Date()));
+  };
+
+  const dayHasOrders = useMemo(
+    () => (date: Date) => Boolean(orderCountByDate[format(date, 'yyyy-MM-dd')]),
+    [orderCountByDate],
+  );
+
+  const calendarModifierClassNames = useMemo(
+    () => ({
+      ...workOrderCalendarHasOrdersModifierClassNames,
+      ...workOrderWeekSelectedModifierClassNames,
+    }),
+    [],
+  );
   const dayPillLabel =
     dateViewMode === 'day' && parsedDate ? format(parsedDate, 'd MMM') : 'Date';
   const weekPillLabel =
     dateViewMode === 'week' && weekPeriodLabel ? weekPeriodLabel : 'Week';
 
   const weekCalendarModifiers = useMemo(() => {
-    if (!parsedDate) return {};
+    const base = {
+      hasOrders: dayHasOrders,
+    };
+    if (!parsedDate) return base;
     const weekStart = startOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
     const weekEnd = endOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
     return {
+      ...base,
       selectedWeek: (date: Date) =>
         isSameWeek(date, parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
       selectedWeekStart: (date: Date) => isSameDay(date, weekStart),
       selectedWeekEnd: (date: Date) => isSameDay(date, weekEnd),
     };
-  }, [parsedDate]);
+  }, [parsedDate, dayHasOrders]);
+
+  const dayCalendarModifiers = useMemo(
+    () => ({
+      hasOrders: dayHasOrders,
+    }),
+    [dayHasOrders],
+  );
 
   const handleWeekPickerOpenChange = (open: boolean) => {
     setWeekPickerOpen(open);
+    if (open) syncCalendarMonthToSelection();
+  };
+
+  const handleDayPickerOpenChange = (open: boolean) => {
+    setDayPickerOpen(open);
+    if (open) syncCalendarMonthToSelection();
   };
 
   const handleWeekPillClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -106,8 +160,10 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
               mode="single"
               weekStartsOn={SHEET_WEEK_STARTS_ON}
               selected={parsedDate}
+              month={resolvedCalendarMonth}
+              onMonthChange={handleCalendarMonthChange}
               modifiers={weekCalendarModifiers}
-              modifiersClassNames={weekCalendarModifierClassNames}
+              modifiersClassNames={calendarModifierClassNames}
               onSelect={(date) => {
                 if (!date) return;
                 onPickWeek(format(date, 'yyyy-MM-dd'));
@@ -117,7 +173,7 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
           </PopoverContent>
         </Popover>
 
-        <Popover open={dayPickerOpen} onOpenChange={setDayPickerOpen}>
+        <Popover open={dayPickerOpen} onOpenChange={handleDayPickerOpenChange}>
           <PopoverTrigger asChild>
             <button type="button" className={segmentPillClass(dateViewMode === 'day')}>
               {dayPillLabel}
@@ -127,6 +183,10 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
             <Calendar
               mode="single"
               selected={parsedDate}
+              month={resolvedCalendarMonth}
+              onMonthChange={handleCalendarMonthChange}
+              modifiers={dayCalendarModifiers}
+              modifiersClassNames={workOrderCalendarHasOrdersModifierClassNames}
               onSelect={(d) => {
                 if (d) {
                   onPickDate(format(d, 'yyyy-MM-dd'));

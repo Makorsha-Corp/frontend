@@ -1,17 +1,11 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardPortal,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
-import { useGetPurchaseOrderItemsQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import { getPurchaseOrderListRowBadges } from './purchaseOrderMilestones';
+import PurchaseOrderItemsHoverPreview from './PurchaseOrderItemsHoverPreview';
 
 interface PurchaseOrderListRowProps {
   order: PurchaseOrder;
@@ -34,26 +28,19 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
   formatCurrency,
   formatDate,
 }) => {
-  const { data: items = [] } = useGetPurchaseOrderItemsQuery(order.id);
-
-  const itemCount = items.length;
+  const itemCount = order.item_count ?? 0;
   const stageBadges = getPurchaseOrderListRowBadges(order);
 
   const chipClass =
     'inline-flex items-center bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded text-[11px]';
 
-  const itemBubbleClass =
-    'inline-flex max-w-full items-center rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground';
-
   const itemCountLabel = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
 
+  const totalOrdered = Number(order.quantity_ordered_total ?? 0);
+  const totalReceived = Number(order.quantity_received_total ?? 0);
   const receivingHint =
     (order.current_status_name ?? '') === 'Receiving' && itemCount > 0
-      ? (() => {
-          const totalOrdered = items.reduce((sum, i) => sum + Number(i.quantity_ordered), 0);
-          const totalReceived = items.reduce((sum, i) => sum + Number(i.quantity_received), 0);
-          return `${totalReceived}/${totalOrdered} received`;
-        })()
+      ? `${totalReceived}/${totalOrdered} received`
       : null;
 
   return (
@@ -89,42 +76,11 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
           <span className={chipClass}>{formatDate(order.created_at)}</span>
           <span className={chipClass}>{destinationLabel}</span>
           {itemCount > 0 ? (
-            <HoverCard openDelay={120} closeDelay={80}>
-              <HoverCardTrigger asChild>
-                <span
-                  className={cn(chipClass, 'cursor-default hover:bg-muted/80 hover:text-foreground')}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                >
-                  {itemCountLabel}
-                </span>
-              </HoverCardTrigger>
-              <HoverCardPortal>
-                <HoverCardContent
-                  side="top"
-                  align="start"
-                  sideOffset={6}
-                  collisionPadding={12}
-                  className="z-[200] w-auto max-w-[min(16rem,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none dark:bg-transparent"
-                >
-                  <div className="flex flex-wrap gap-1">
-                    {items.map((item) => {
-                      const name = item.item_name ?? `Item #${item.item_id}`;
-                      const qty = Number(item.quantity_ordered);
-                      const unit = item.item_unit?.trim();
-                      const qtyLabel =
-                        unit && unit.length > 0 ? `${qty} ${unit}` : String(qty);
-                      return (
-                        <span key={item.id} className={itemBubbleClass} title={`${name} · ${qtyLabel}`}>
-                          <span className="truncate">{name}</span>
-                          <span className="ml-1 shrink-0 text-muted-foreground">· {qtyLabel}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </HoverCardContent>
-              </HoverCardPortal>
-            </HoverCard>
+            <PurchaseOrderItemsHoverPreview
+              purchaseOrderId={order.id}
+              itemCount={itemCount}
+              chipClass={chipClass}
+            />
           ) : (
             <span className={chipClass}>{itemCountLabel}</span>
           )}

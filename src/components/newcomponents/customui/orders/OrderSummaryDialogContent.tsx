@@ -19,12 +19,17 @@ import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
+import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { FileSearch, Loader2, Package, Receipt } from 'lucide-react';
 import { deriveExpenseOrderStageFromOrder, eoStageBadgeClassName } from './expenseOrderMilestones';
 import { cn } from '@/lib/utils';
+import {
+  resolvePurchaseOrderDestinationLabel,
+  type PurchaseOrderDestinationLookups,
+} from '@/pages/newpages/orders/resolvePurchaseOrderDestinationLabel';
 
 const formatCurrency = (value: number | null | undefined) =>
   value != null
@@ -99,6 +104,24 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
+  const { data: projectComponents = [] } = useGetProjectComponentsQuery({
+    skip: 0,
+    limit: API_LIMITS.FLEXIBLE_1000,
+  });
+
+  const destinationLookups = useMemo((): PurchaseOrderDestinationLookups => {
+    const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+    return {
+      factories,
+      machines,
+      projectComponents: projectComponents.map((c) => ({
+        id: c.id,
+        name: c.name,
+        project_id: c.project_id,
+        project_name: projectNameById.get(c.project_id) ?? null,
+      })),
+    };
+  }, [factories, machines, projectComponents, projects]);
 
   const accountName = (accountId: number | null | undefined) => {
     if (accountId == null) return '—';
@@ -108,21 +131,8 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
   const statusLabel = (statusId: number) =>
     statuses.find((s) => s.id === statusId)?.name ?? `Status #${statusId}`;
 
-  const destinationLabel = (order: PurchaseOrder) => {
-    if (order.destination_type === 'storage') {
-      const factory = factories.find((f) => f.id === order.destination_id);
-      return factory ? `Storage · ${factory.name}` : 'Storage';
-    }
-    if (order.destination_type === 'machine') {
-      const machine = machines.find((m) => m.id === order.destination_id);
-      return machine ? `Machine · ${machine.name}` : `Machine #${order.destination_id}`;
-    }
-    if (order.destination_type === 'project') {
-      const project = projects.find((p) => p.id === order.destination_id);
-      return project ? `Project · ${project.name}` : `Project #${order.destination_id}`;
-    }
-    return `${order.destination_type} #${order.destination_id}`;
-  };
+  const destinationLabel = (order: PurchaseOrder) =>
+    resolvePurchaseOrderDestinationLabel(order, destinationLookups);
 
   const poReceiving = useMemo(() => {
     const totalOrdered = poItems.reduce((sum, i) => sum + Number(i.quantity_ordered), 0);

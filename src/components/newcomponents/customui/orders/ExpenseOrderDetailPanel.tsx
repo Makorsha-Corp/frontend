@@ -78,6 +78,7 @@ import {
 interface ExpenseOrderDetailPanelProps {
   order: ExpenseOrder;
   onClose: () => void;
+  skipOrderRefetch?: boolean;
   showCompleteOrders?: boolean;
 }
 
@@ -103,6 +104,7 @@ function draftFromOrder(order: ExpenseOrder): EoDraft {
 
 const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   order: orderProp,
+  skipOrderRefetch = false,
   showCompleteOrders = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -118,8 +120,10 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
 
-  const { data: orderFresh } = useGetExpenseOrderByIdQuery(orderProp.id);
-  const order = orderFresh ?? orderProp;
+  const { data: orderFresh } = useGetExpenseOrderByIdQuery(orderProp.id, {
+    skip: skipOrderRefetch,
+  });
+  const order = skipOrderRefetch ? orderProp : (orderFresh ?? orderProp);
 
   const { data: items = [], isLoading: itemsLoading } =
     useGetExpenseOrderItemsQuery(order.id);

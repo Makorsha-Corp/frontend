@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,7 +13,10 @@ import { useCreateWorkOrderSheetEntryMutation } from '@/features/workOrders/work
 import type { Machine } from '@/types/machine';
 import type { WorkOrderType } from '@/types/workOrderType';
 import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
+import { findOpenWorkOrderSlotConflict } from '@/pages/newpages/orders/workOrderSlotConflict';
+import { WorkOrderSlotConflictDialog } from '@/components/newcomponents/customui/orders/WorkOrderSlotConflictDialog';
 import type { Item } from '@/types/item';
+import type { WorkOrder } from '@/types/workOrder';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -23,6 +26,7 @@ export interface SheetInlineRowEditorProps {
   workOrderTypes: WorkOrderType[];
   partItems: Item[];
   defaultMachineId?: number | null;
+  slotCheckOrders?: WorkOrder[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -33,6 +37,7 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
   workOrderTypes,
   partItems,
   defaultMachineId,
+  slotCheckOrders,
   onSuccess,
   onCancel,
 }) => {
@@ -60,8 +65,20 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
     [machineId, worksTypeId],
   );
 
-  const handleSave = async () => {
-    if (!canSave) return;
+  const [slotConflictDialogOpen, setSlotConflictDialogOpen] = useState(false);
+  const bypassSlotConflictRef = useRef(false);
+
+  const slotConflict = useMemo(() => {
+    if (!slotCheckOrders?.length || !machineId || !worksTypeId) return null;
+    return findOpenWorkOrderSlotConflict({
+      orders: slotCheckOrders,
+      machineId: Number(machineId),
+      workOrderTypeId: Number(worksTypeId),
+      plannedDate: sheetDate,
+    });
+  }, [slotCheckOrders, machineId, worksTypeId, sheetDate]);
+
+  const performSave = async () => {
     const hasPart = Boolean(itemId && Number(quantity) > 0);
     try {
       await submitEntry({
@@ -85,8 +102,34 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
     }
   };
 
+  const handleSave = async () => {
+    if (!canSave) return;
+
+    if (slotConflict && !bypassSlotConflictRef.current) {
+      setSlotConflictDialogOpen(true);
+      return;
+    }
+    bypassSlotConflictRef.current = false;
+    await performSave();
+  };
+
+  const handleConfirmSeparateOrder = () => {
+    bypassSlotConflictRef.current = true;
+    setSlotConflictDialogOpen(false);
+    void performSave();
+  };
+
   return (
-    <tr className="border-b border-dashed border-brand-primary/40 bg-brand-primary/5">
+    <>
+      <WorkOrderSlotConflictDialog
+        open={slotConflictDialogOpen}
+        onOpenChange={setSlotConflictDialogOpen}
+        conflict={slotConflict}
+        plannedDate={sheetDate}
+        onConfirm={handleConfirmSeparateOrder}
+        isConfirming={isLoading}
+      />
+      <tr className="border-b border-dashed border-brand-primary/40 bg-brand-primary/5">
       <td className="px-2 py-1.5">
         <Select value={machineId} onValueChange={setMachineId}>
           <SelectTrigger className="h-8 text-xs">
@@ -163,6 +206,7 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
         </div>
       </td>
     </tr>
+    </>
   );
 };
 

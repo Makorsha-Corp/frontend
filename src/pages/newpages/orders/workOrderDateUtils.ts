@@ -84,6 +84,45 @@ function relativeDayLabel(delta: number): string {
 
 }
 
+/**
+ * When false, sheet hides start vs plan early/late/overdue UI until duration-aware rules exist.
+ * Re-enable when expected duration or due-date lateness is defined.
+ */
+export const WORK_ORDER_SHEET_DATE_VARIANCE_UI_ENABLED = false;
+
+/** Factual lifecycle lines only — no early/late/on-plan relative wording. */
+export function buildNeutralLifecycleNotes(
+  startedDay: Date | null,
+  completedDay: Date | null,
+): WorkOrderLifecycleNote[] {
+  if (startedDay && completedDay && isSameDay(startedDay, completedDay)) {
+    return [
+      {
+        tone: 'both',
+        text: `Started & completed ${format(startedDay, 'MMM d')}`,
+      },
+    ];
+  }
+
+  const notes: WorkOrderLifecycleNote[] = [];
+
+  if (startedDay) {
+    notes.push({
+      tone: 'started',
+      text: `Started ${format(startedDay, 'MMM d')}`,
+    });
+  }
+
+  if (completedDay && (!startedDay || !isSameDay(startedDay, completedDay))) {
+    notes.push({
+      tone: 'completed',
+      text: `Completed ${format(completedDay, 'MMM d')}`,
+    });
+  }
+
+  return notes;
+}
+
 /** Calendar-day delta vs planned day — for schedule summary and event hints. */
 export function formatWorkOrderVarianceVsPlanned(
   plannedDay: Date,
@@ -248,6 +287,53 @@ export function getWorkOrderSheetDisplayDate(row: {
   return format(startOfDay(parseISO(fallback)), 'MMM d');
 }
 
+export type WorkOrderRetrospectiveLogRow = WorkOrderSheetDateRow & {
+  updatedAt?: string | null;
+};
+
+/**
+ * Backfilled completion (Complete as planned): stamped on the planned day but saved later.
+ * Uses updated_at vs planned/completed days, with same-instant start+complete as fallback.
+ */
+export function isWorkOrderLoggedRetrospectively(row: WorkOrderRetrospectiveLogRow): boolean {
+  if (!row.completedAt?.trim()) return false;
+
+  const plannedDay = getWorkOrderPlannedDay(row);
+  const completedRaw = parseApiDateTime(row.completedAt);
+  if (!completedRaw) return false;
+  const completedDay = startOfDay(completedRaw);
+
+  const updatedRaw = row.updatedAt?.trim() ? parseApiDateTime(row.updatedAt) : null;
+  const updatedDay = updatedRaw ? startOfDay(updatedRaw) : null;
+
+  if (
+    updatedDay &&
+    !isSameDay(updatedDay, plannedDay) &&
+    (isSameDay(completedDay, plannedDay) || completedDay < plannedDay)
+  ) {
+    return true;
+  }
+
+  if (!row.startedAt?.trim()) return false;
+  const startedRaw = parseApiDateTime(row.startedAt);
+  if (!startedRaw) return false;
+
+  return (
+    startedRaw.getTime() === completedRaw.getTime() &&
+    isSameDay(completedDay, plannedDay)
+  );
+}
+
+/** Popover detail under "Logged later" headline. */
+export function getWorkOrderLoggedLaterDetail(row: WorkOrderRetrospectiveLogRow): string | null {
+  if (!isWorkOrderLoggedRetrospectively(row)) return null;
+  const updatedRaw = row.updatedAt?.trim() ? parseApiDateTime(row.updatedAt) : null;
+  if (updatedRaw) {
+    return `Stamped on planned date · logged ${format(startOfDay(updatedRaw), 'MMM d, yyyy')}`;
+  }
+  return 'Stamped on planned date';
+}
+
 
 
 export type WorkOrderSheetDateRow = {
@@ -269,6 +355,8 @@ export interface WorkOrderSheetDateAttention {
   ariaLabel: string;
   overdueHeadline: string | null;
   varianceHeadline: string | null;
+  /** Backfilled via Complete as planned — shown in date popover only. */
+  loggedLaterHeadline: string | null;
   /** Start vs plan only — drives open-work cell badge color; null when no badge. */
   startVarianceTone: 'early' | 'late' | null;
   popoverLines: WorkOrderDatePopoverLines | null;
@@ -324,23 +412,59 @@ function lifecycleVarianceAriaLabel(row: WorkOrderSheetDateRow): string {
   return `${headline} — ${text} vs plan`;
 }
 
+function getWorkOrderSheetDateAttentionWithoutVariance(
+  row: WorkOrderSheetDateRow & { status: string },
+  popoverLines: WorkOrderDatePopoverLines,
+): WorkOrderSheetDateAttention {
+  if (row.status === 'COMPLETED') {
+    return {
+      kind: 'completed',
+      ariaLabel: 'Completed — view planned and start dates',
+      overdueHeadline: null,
+      varianceHeadline: null,
+      loggedLaterHeadline: null,
+      startVarianceTone: null,
+      popoverLines,
+    };
+  }
+
+  return {
+    kind: 'none',
+    ariaLabel: 'View planned and start dates',
+    overdueHeadline: null,
+    varianceHeadline: null,
+    loggedLaterHeadline: null,
+    startVarianceTone: null,
+    popoverLines,
+  };
+}
+
 /** Sheet Date column attention: overdue (open) vs planned/actual lifecycle variance. */
 export function getWorkOrderSheetDateAttention(
-  row: WorkOrderSheetDateRow & { status: string },
+  row: WorkOrderSheetDateRow & { status: string; updatedAt?: string | null },
   referenceDate: Date = startOfDay(new Date())
 ): WorkOrderSheetDateAttention {
   const popoverLines = formatWorkOrderDatePopoverLines(row);
+
+  if (!WORK_ORDER_SHEET_DATE_VARIANCE_UI_ENABLED) {
+    return getWorkOrderSheetDateAttentionWithoutVariance(row, popoverLines);
+  }
+
   const varianceHeadline = getWorkOrderStartVarianceHeadline(row);
   const startVarianceTone = startVarianceToneForBadge(row);
+  const loggedLater = isWorkOrderLoggedRetrospectively(row);
 
   if (row.status === 'COMPLETED') {
     return {
       kind: 'completed',
-      ariaLabel: varianceHeadline
-        ? lifecycleVarianceAriaLabel(row)
-        : 'Completed — view planned and start dates',
+      ariaLabel: loggedLater
+        ? 'Logged later — view planned and completion dates'
+        : varianceHeadline
+          ? lifecycleVarianceAriaLabel(row)
+          : 'Completed — view planned and start dates',
       overdueHeadline: null,
       varianceHeadline,
+      loggedLaterHeadline: loggedLater ? 'Logged later' : null,
       startVarianceTone,
       popoverLines,
     };
@@ -366,6 +490,7 @@ export function getWorkOrderSheetDateAttention(
       ariaLabel: 'Overdue — in progress',
       overdueHeadline: 'Overdue — in progress',
       varianceHeadline: null,
+      loggedLaterHeadline: null,
       startVarianceTone: null,
       popoverLines: { ...popoverLines, lifecycleNotes },
     };
@@ -377,6 +502,7 @@ export function getWorkOrderSheetDateAttention(
       ariaLabel: lifecycleVarianceAriaLabel(row),
       overdueHeadline: null,
       varianceHeadline,
+      loggedLaterHeadline: null,
       startVarianceTone,
       popoverLines,
     };
@@ -387,6 +513,7 @@ export function getWorkOrderSheetDateAttention(
     ariaLabel: 'View planned and start dates',
     overdueHeadline: null,
     varianceHeadline: null,
+    loggedLaterHeadline: null,
     startVarianceTone: null,
     popoverLines,
   };
@@ -473,22 +600,26 @@ export interface WorkOrderDatePopoverLines {
 
 /** Popover body when planned vs actual start/completion days differ. */
 
-export function formatWorkOrderDatePopoverLines(row: WorkOrderSheetDateRow): WorkOrderDatePopoverLines {
-
+export function formatWorkOrderDatePopoverLines(
+  row: WorkOrderSheetDateRow & { updatedAt?: string | null },
+): WorkOrderDatePopoverLines {
   const plannedDay = getWorkOrderPlannedDay(row);
+  const { startedDay, completedDay } = lifecycleDaysFromRow(row);
 
-  const { lifecycleNotes } = formatWorkOrderStartColumnFromRow(row);
-
-
+  const lifecycleNotes = WORK_ORDER_SHEET_DATE_VARIANCE_UI_ENABLED
+    ? (() => {
+        const { lifecycleNotes: varianceNotes } = formatWorkOrderStartColumnFromRow(row);
+        const loggedLaterDetail = getWorkOrderLoggedLaterDetail(row);
+        return loggedLaterDetail
+          ? [{ tone: 'completed' as const, text: loggedLaterDetail }, ...varianceNotes]
+          : varianceNotes;
+      })()
+    : buildNeutralLifecycleNotes(startedDay, completedDay);
 
   return {
-
     plannedLabel: format(plannedDay, 'MMM d, yyyy'),
-
     lifecycleNotes,
-
   };
-
 }
 
 

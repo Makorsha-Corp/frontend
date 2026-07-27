@@ -19,6 +19,8 @@ export interface VoidPurchaseOrderDialogProps {
   poNumber: string;
   hasConfirmedInvoice: boolean;
   hasDraftInvoice: boolean;
+  hasPostedReceiving?: boolean;
+  isOrderComplete?: boolean;
 }
 
 const VoidPurchaseOrderDialog: React.FC<VoidPurchaseOrderDialogProps> = ({
@@ -29,6 +31,8 @@ const VoidPurchaseOrderDialog: React.FC<VoidPurchaseOrderDialogProps> = ({
   poNumber,
   hasConfirmedInvoice,
   hasDraftInvoice,
+  hasPostedReceiving = false,
+  isOrderComplete = false,
 }) => {
   const [voidNote, setVoidNote] = useState('');
   const [ackPo, setAckPo] = useState(false);
@@ -67,6 +71,15 @@ const VoidPurchaseOrderDialog: React.FC<VoidPurchaseOrderDialogProps> = ({
         <div className="space-y-4">
           <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive space-y-1">
             <p className="font-semibold">This action is permanent and cannot be undone.</p>
+            {hasPostedReceiving && (
+              <p>
+                Posted inventory from receiving will be reversed. Void fails if stock was already
+                consumed or transferred — return stock first.
+              </p>
+            )}
+            {isOrderComplete && (
+              <p>This order is marked complete — voiding will reverse inventory and void the linked invoice.</p>
+            )}
             {hasConfirmedInvoice && (
               <p>The linked invoice will be voided and all active payments against it will be zeroed out.</p>
             )}

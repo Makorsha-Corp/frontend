@@ -39,6 +39,15 @@ export const API_LIMITS = {
   /** GET /work-orders/sheet/ max page size. */
   WORK_ORDERS_SHEET_PAGE_MAX: 100,
 
+  /** GET /items/ catalog page size (backend max 100). */
+  ITEMS_CATALOG_PAGE_SIZE: 50,
+
+  /** Purchase / expense / transfer order hub list page size (backend default 50, max 100). */
+  ORDER_HUB_PAGE_SIZE: 50,
+
+  /** Max `limit` for GET /purchase-orders/, /expense-orders/, /transfer-orders/ list routes. */
+  ORDER_HUB_LIST_MAX: 100,
+
   /** Show a performance warning in the sheet when total exceeds this count. */
   WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING: 500,
 } as const;

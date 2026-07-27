@@ -168,14 +168,33 @@ export function formatRecurrenceProgramDateLabel(isoDate: string): string {
   }
 }
 
+export const RECURRENCE_DELETE_SCOPE_HELPER =
+  'Deletes upcoming drafts after today. Completed and in-progress orders are kept.';
+
+/** Planned dates (formatted) for drafts removed by Delete remaining. */
+export function formatRecurrenceDeleteTargetDates(
+  program: Pick<RecurrenceProgramSummary, 'futureDrafts'>,
+  options?: { maxDates?: number },
+): { dates: string[]; remainingCount: number } {
+  const maxDates = options?.maxDates ?? RECURRENCE_PROGRAM_POPOVER_MAX_DATES;
+  const allDates = program.futureDrafts.map((draft) => formatRecurrenceProgramDateLabel(draft.plannedDate));
+  if (allDates.length <= maxDates) {
+    return { dates: allDates, remainingCount: 0 };
+  }
+  return {
+    dates: allDates.slice(0, maxDates),
+    remainingCount: allDates.length - maxDates,
+  };
+}
+
 export function buildBulkDeleteRecurrenceConfirmMessage(params: {
   futureDraftCount: number;
   templateName: string;
   machineName: string;
 }): string {
   const { futureDraftCount, templateName, machineName } = params;
-  const noun = futureDraftCount === 1 ? 'draft work order' : 'draft work orders';
-  return `Delete ${futureDraftCount} ${noun} scheduled after today for "${templateName}" on ${machineName}? Past and in-progress work orders are not affected.`;
+  const noun = futureDraftCount === 1 ? 'upcoming draft' : 'upcoming drafts';
+  return `Delete ${futureDraftCount} ${noun} after today for "${templateName}" on ${machineName}? Completed and in-progress orders are kept. Includes this order if it is still a future draft.`;
 }
 
 type RecurrenceProgramOrder = Pick<

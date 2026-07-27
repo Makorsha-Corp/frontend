@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type {
@@ -31,7 +32,7 @@ export interface AccountInvoiceFiltersBarProps {
   dueDateTo: string;
   onDueDateToChange: (value: string) => void;
   filtersExpanded: boolean;
-  onToggleFiltersExpanded: () => void;
+  onFiltersExpandedChange: (open: boolean) => void;
   activeFilterCount: number;
   onClearFilters: () => void;
   /** When true, omit outer toolbar chrome (used inside AccountInvoiceToolbar). */
@@ -55,12 +56,26 @@ const AccountInvoiceFiltersBar: React.FC<AccountInvoiceFiltersBarProps> = ({
   dueDateTo,
   onDueDateToChange,
   filtersExpanded,
-  onToggleFiltersExpanded,
+  onFiltersExpandedChange,
   activeFilterCount,
   onClearFilters,
   embedded = false,
   className,
 }) => {
+  const advancedFilterCount = useMemo(() => {
+    let count = 0;
+    if (invoiceDateFrom || invoiceDateTo) count += 1;
+    if (dueDateFrom || dueDateTo) count += 1;
+    return count;
+  }, [invoiceDateFrom, invoiceDateTo, dueDateFrom, dueDateTo]);
+
+  const clearAdvancedFilters = () => {
+    onInvoiceDateFromChange('');
+    onInvoiceDateToChange('');
+    onDueDateFromChange('');
+    onDueDateToChange('');
+  };
+
   return (
     <div
       id={embedded ? undefined : 'account-invoice-filters-bar'}
@@ -114,23 +129,81 @@ const AccountInvoiceFiltersBar: React.FC<AccountInvoiceFiltersBarProps> = ({
         </SelectContent>
       </Select>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-9 shrink-0"
-        onClick={onToggleFiltersExpanded}
-        aria-expanded={filtersExpanded}
-        aria-controls="account-invoice-advanced-filters"
-      >
-        <SlidersHorizontal className="mr-2 h-4 w-4" />
-        More
-        {activeFilterCount > 0 ? (
-          <span className="ml-1.5 rounded-full bg-brand-primary/15 px-1.5 text-xs font-medium text-brand-primary">
-            {activeFilterCount}
-          </span>
-        ) : null}
-      </Button>
+      <Popover open={filtersExpanded} onOpenChange={onFiltersExpandedChange}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant={advancedFilterCount > 0 ? 'secondary' : 'outline'}
+            size="sm"
+            className="h-9 shrink-0"
+            aria-expanded={filtersExpanded}
+            aria-controls="account-invoice-advanced-filters"
+          >
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            More
+            {advancedFilterCount > 0 ? (
+              <span className="ml-1.5 rounded-full bg-brand-primary/15 px-1.5 text-xs font-medium text-brand-primary">
+                {advancedFilterCount}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[min(20rem,94vw)] p-4">
+          <div id="account-invoice-advanced-filters" className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-card-foreground">Invoice date</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="date"
+                  value={invoiceDateFrom}
+                  onChange={(e) => onInvoiceDateFromChange(e.target.value)}
+                  className="h-9 w-[140px] text-sm"
+                  aria-label="Invoice date from"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={invoiceDateTo}
+                  onChange={(e) => onInvoiceDateToChange(e.target.value)}
+                  className="h-9 w-[140px] text-sm"
+                  aria-label="Invoice date to"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-card-foreground">Due date</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="date"
+                  value={dueDateFrom}
+                  onChange={(e) => onDueDateFromChange(e.target.value)}
+                  className="h-9 w-[140px] text-sm"
+                  aria-label="Due date from"
+                />
+                <span className="text-xs text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={dueDateTo}
+                  onChange={(e) => onDueDateToChange(e.target.value)}
+                  className="h-9 w-[140px] text-sm"
+                  aria-label="Due date to"
+                />
+              </div>
+            </div>
+            {advancedFilterCount > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                onClick={clearAdvancedFilters}
+              >
+                Clear date filters
+              </Button>
+            ) : null}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {activeFilterCount > 0 ? (
         <Button
@@ -144,46 +217,6 @@ const AccountInvoiceFiltersBar: React.FC<AccountInvoiceFiltersBarProps> = ({
         >
           <X className="h-4 w-4" />
         </Button>
-      ) : null}
-
-      {filtersExpanded ? (
-        <div
-          id="account-invoice-advanced-filters"
-          className="flex w-full flex-wrap items-center gap-2 border-t border-border pt-2"
-        >
-          <span className="text-xs text-muted-foreground shrink-0">Invoice date</span>
-          <Input
-            type="date"
-            value={invoiceDateFrom}
-            onChange={(e) => onInvoiceDateFromChange(e.target.value)}
-            className="h-8 w-[140px] text-xs"
-            aria-label="Invoice date from"
-          />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input
-            type="date"
-            value={invoiceDateTo}
-            onChange={(e) => onInvoiceDateToChange(e.target.value)}
-            className="h-8 w-[140px] text-xs"
-            aria-label="Invoice date to"
-          />
-          <span className="text-xs text-muted-foreground shrink-0 ml-2">Due date</span>
-          <Input
-            type="date"
-            value={dueDateFrom}
-            onChange={(e) => onDueDateFromChange(e.target.value)}
-            className="h-8 w-[140px] text-xs"
-            aria-label="Due date from"
-          />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input
-            type="date"
-            value={dueDateTo}
-            onChange={(e) => onDueDateToChange(e.target.value)}
-            className="h-8 w-[140px] text-xs"
-            aria-label="Due date to"
-          />
-        </div>
       ) : null}
     </div>
   );

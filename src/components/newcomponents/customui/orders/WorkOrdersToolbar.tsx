@@ -2,20 +2,15 @@ import React from 'react';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import WorkOrdersDateFilterControls from '@/components/newcomponents/customui/orders/WorkOrdersDateFilterControls';
+import WorkOrdersMachineFilter from '@/components/newcomponents/customui/orders/WorkOrdersMachineFilter';
+import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import type { Factory } from '@/types/factory';
+import type { FactorySection } from '@/types/factorySection';
 import type { Machine } from '@/types/machine';
 import { cn } from '@/lib/utils';
 
@@ -30,12 +25,19 @@ export interface WorkOrdersToolbarProps {
   onSearchChange: (value: string) => void;
   popoverFilterCount: number;
   filtersPopover: React.ReactNode;
-  machineFilter: string;
-  onMachineChange: (value: string) => void;
-  machines: Machine[];
-  machineSelectDisabled?: boolean;
   showCompleteOrders: boolean;
   onShowCompleteOrdersChange: (value: boolean) => void;
+  orderCountByDate?: Record<string, number>;
+  calendarMonth?: Date;
+  onCalendarMonthChange?: (month: Date) => void;
+  machineFilter: string;
+  onMachineChange: (value: string) => void;
+  machineSelectDisabled?: boolean;
+  factoryFilter: string;
+  sectionFilter: string;
+  machines: Machine[];
+  factories: Factory[];
+  sections: FactorySection[];
 }
 
 const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
@@ -49,12 +51,19 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
   onSearchChange,
   popoverFilterCount,
   filtersPopover,
-  machineFilter,
-  onMachineChange,
-  machines,
-  machineSelectDisabled = false,
   showCompleteOrders,
   onShowCompleteOrdersChange,
+  orderCountByDate,
+  calendarMonth,
+  onCalendarMonthChange,
+  machineFilter,
+  onMachineChange,
+  machineSelectDisabled,
+  factoryFilter,
+  sectionFilter,
+  machines,
+  factories,
+  sections,
 }) => (
   <div className="shrink-0 border-b border-border bg-card/50 px-4 py-2.5 flex flex-wrap items-center gap-2 lg:flex-nowrap">
     <WorkOrdersDateFilterControls
@@ -64,27 +73,22 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
       onDateViewModeChange={onDateViewModeChange}
       onPickDate={onPickDate}
       onPickWeek={onPickWeek}
+      orderCountByDate={orderCountByDate}
+      calendarMonth={calendarMonth}
+      onCalendarMonthChange={onCalendarMonthChange}
     />
 
     <div className="ml-auto flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:flex-nowrap">
-      <Select value={machineFilter} onValueChange={onMachineChange} disabled={machineSelectDisabled}>
-        <SelectTrigger
-          className={cn(
-            'h-9 w-[min(180px,40vw)] border-border bg-background text-sm',
-            appShellHeaderControlClass,
-          )}
-        >
-          <SelectValue placeholder="Machine" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All machines</SelectItem>
-          {machines.map((m) => (
-            <SelectItem key={m.id} value={String(m.id)}>
-              {m.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <WorkOrdersMachineFilter
+        machineFilter={machineFilter}
+        onMachineChange={onMachineChange}
+        disabled={machineSelectDisabled}
+        factoryFilter={factoryFilter}
+        sectionFilter={sectionFilter}
+        machines={machines}
+        factories={factories}
+        sections={sections}
+      />
 
       <div className="relative min-w-[200px] max-w-md flex-1 sm:w-56 sm:flex-none">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -96,20 +100,12 @@ const WorkOrdersToolbar: React.FC<WorkOrdersToolbarProps> = ({
         />
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        <Switch
-          id="wo-show-complete-toolbar"
-          checked={showCompleteOrders}
-          onCheckedChange={onShowCompleteOrdersChange}
-          aria-label="Show complete work orders"
-        />
-        <Label
-          htmlFor="wo-show-complete-toolbar"
-          className="cursor-pointer whitespace-nowrap text-sm font-normal text-muted-foreground"
-        >
-          Show complete
-        </Label>
-      </div>
+      <ShowCompleteOrdersSwitchControl
+        checked={showCompleteOrders}
+        onCheckedChange={onShowCompleteOrdersChange}
+        context="sheet"
+        ariaLabel="Show completed work orders"
+      />
 
       <Popover>
         <PopoverTrigger asChild>

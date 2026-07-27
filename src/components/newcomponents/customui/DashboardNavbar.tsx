@@ -100,6 +100,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const { user, factory, workspace } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme, iconAnimating } = useTheme();
   const [factoryDialogOpen, setFactoryDialogOpen] = useState(false);
+  const [factoryCompactMenuOpen, setFactoryCompactMenuOpen] = useState(false);
   const [factoriesExpanded, setFactoriesExpanded] = useState(() => {
     if (typeof sessionStorage === 'undefined') return false;
     return sessionStorage.getItem(FACTORIES_EXPANDED_SESSION_KEY) === 'true';
@@ -202,8 +203,37 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     setFactoriesExpanded(open);
   };
 
+  useEffect(() => {
+    if (isExpanded) setFactoryCompactMenuOpen(false);
+  }, [isExpanded]);
+
+  useEffect(() => {
+    if (!isExpanded && factoryCompactMenuOpen && location.pathname !== '/factories') {
+      setFactoryCompactMenuOpen(false);
+    }
+  }, [location.pathname, isExpanded, factoryCompactMenuOpen]);
+
   const handleFactoryHeaderClick = () => {
     setFactoriesExpanded(true);
+    if (location.pathname !== '/factories') {
+      navigate('/factories');
+    }
+  };
+
+  const handleFactoryCompactMenuOpenChange = (open: boolean) => {
+    if (open && location.pathname !== '/factories') {
+      return;
+    }
+    setFactoryCompactMenuOpen(open);
+  };
+
+  const handleCompactFactoryTriggerPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (location.pathname !== '/factories') {
+      event.preventDefault();
+    }
+  };
+
+  const handleCompactFactoryTriggerClick = () => {
     if (location.pathname !== '/factories') {
       navigate('/factories');
     }
@@ -382,17 +412,20 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             {/* Factories expandable section */}
             <li>
               {!isExpanded ? (
-                <DropdownMenu>
+                <DropdownMenu open={factoryCompactMenuOpen} onOpenChange={handleFactoryCompactMenuOpenChange}>
                   <DropdownMenuTrigger asChild>
-                    <div
+                    <button
+                      type="button"
                       className={`flex items-center justify-center w-full px-2 py-3 rounded-lg cursor-pointer ${isFactoriesActive
                           ? 'bg-brand-primary text-white'
                           : navInactiveClass
                         }`}
                       title={factory ? `Factory - ${factory.name}` : 'Factory'}
+                      onPointerDown={handleCompactFactoryTriggerPointerDown}
+                      onClick={handleCompactFactoryTriggerClick}
                     >
                       <Factory size={20} className="shrink-0" />
-                    </div>
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
                     <DropdownMenuItem

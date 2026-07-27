@@ -376,6 +376,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
               order={selectedOrder}
               onClose={() => setSelectedOrder(null)}
               onDelete={() => handleDelete(selectedOrder)}
+              onNavigateToOrder={(id) => setSelectedOrder(id)}
             />
           ) : (
             <WorkOrdersOverviewPanel

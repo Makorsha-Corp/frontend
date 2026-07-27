@@ -3,10 +3,29 @@
  */
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import type { Item, CreateItemRequest, UpdateItemRequest, ListItemsParams, SimilarItemsResponse, GetSimilarItemsParams } from '@/types/item';
+import type { Item, CreateItemRequest, UpdateItemRequest, ListItemsParams, ListItemsPageParams, ItemsListResponse, SimilarItemsResponse, GetSimilarItemsParams } from '@/types/item';
 import type { ItemSummary } from '@/types/itemSummary';
 import type { GetItemOrdersParams, ItemOrdersListResponse } from '@/types/itemOrders';
 import { invalidateItemTags } from './invalidateItemTags';
+
+function buildItemsQueryString({
+  skip = 0,
+  limit = 100,
+  search,
+  unit,
+  tag_ids,
+}: ListItemsPageParams): string {
+  const params = new URLSearchParams({
+    skip: skip.toString(),
+    limit: limit.toString(),
+  });
+
+  if (search) params.append('search', search);
+  if (unit) params.append('unit', unit);
+  tag_ids?.forEach((tagId) => params.append('tag_ids', String(tagId)));
+
+  return params.toString();
+}
 
 export const itemsApi = createApi({
   reducerPath: 'itemsApi',
@@ -15,18 +34,9 @@ export const itemsApi = createApi({
   endpoints: (builder) => ({
     // Get all items with pagination and search
     getItems: builder.query<Item[], ListItemsParams>({
-      query: ({ skip = 0, limit = 100, search }) => {
-        const params = new URLSearchParams({
-          skip: skip.toString(),
-          limit: limit.toString(),
-        });
-
-        if (search) {
-          params.append('search', search);
-        }
-
-        return `items/?${params.toString()}`;
-      },
+      query: ({ skip = 0, limit = 100, search }) =>
+        `items/?${buildItemsQueryString({ skip, limit, search })}`,
+      transformResponse: (response: ItemsListResponse) => response.items,
       providesTags: (result) =>
         result
           ? [
@@ -34,6 +44,22 @@ export const itemsApi = createApi({
               { type: 'Item', id: 'LIST' },
             ]
           : [{ type: 'Item', id: 'LIST' }],
+    }),
+
+    getItemsPage: builder.query<ItemsListResponse, ListItemsPageParams>({
+      query: (args) => `items/?${buildItemsQueryString(args)}`,
+      providesTags: (result) =>
+        result?.items
+          ? [
+              ...result.items.map(({ id }) => ({ type: 'Item' as const, id })),
+              { type: 'Item', id: 'LIST' },
+            ]
+          : [{ type: 'Item', id: 'LIST' }],
+    }),
+
+    getItemUnits: builder.query<string[], void>({
+      query: () => 'items/units/',
+      providesTags: [{ type: 'Item', id: 'UNITS' }],
     }),
 
     // Get single item by ID
@@ -78,7 +104,7 @@ export const itemsApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: [{ type: 'Item', id: 'LIST' }],
+      invalidatesTags: [{ type: 'Item', id: 'LIST' }, { type: 'Item', id: 'UNITS' }],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -99,6 +125,7 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
+        { type: 'Item', id: 'UNITS' },
         { type: 'ItemSummary', id },
         { type: 'ItemOrders', id },
       ],
@@ -121,6 +148,7 @@ export const itemsApi = createApi({
       invalidatesTags: (result, error, id) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
+        { type: 'Item', id: 'UNITS' },
         { type: 'ItemSummary', id },
         { type: 'ItemOrders', id },
       ],
@@ -138,6 +166,8 @@ export const itemsApi = createApi({
 
 export const {
   useGetItemsQuery,
+  useGetItemsPageQuery,
+  useGetItemUnitsQuery,
   useGetItemByIdQuery,
   useGetItemSummaryQuery,
   useGetItemOrdersQuery,

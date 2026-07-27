@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { ExpenseOrder } from '@/types/expenseOrder';
+import type { ExpenseOrderHubStatsResponse } from '@/types/expenseOrder';
 import type { ExpenseOrderSummaryStats } from '@/pages/newpages/orders/expenseOrdersOverviewData';
+import { recentSummaryToExpenseOrder } from '@/pages/newpages/orders/orderHubStatsMappers';
 import { expenseCategoryLabel } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import {
   deriveExpenseOrderStageFromOrder,
@@ -17,8 +19,8 @@ import { cn } from '@/lib/utils';
 interface ExpenseOrdersOverviewPanelProps {
   orders: ExpenseOrder[];
   stats: ExpenseOrderSummaryStats;
+  hubStats?: ExpenseOrderHubStatsResponse | null;
   isLoading?: boolean;
-  mayTruncate?: boolean;
   accountName: (id: number | null) => string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
@@ -28,13 +30,20 @@ interface ExpenseOrdersOverviewPanelProps {
 const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
   orders,
   stats,
+  hubStats,
   isLoading,
-  mayTruncate,
   accountName,
   formatCurrency,
   formatDate,
   onSelectOrder,
 }) => {
+  const tableOrders = useMemo(() => {
+    if (hubStats?.recent_orders?.length) {
+      return hubStats.recent_orders.map(recentSummaryToExpenseOrder);
+    }
+    return orders;
+  }, [hubStats?.recent_orders, orders]);
+
   const formatCompactCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -109,12 +118,6 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
 
   return (
     <div className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6">
-      {mayTruncate && (
-        <p className="text-xs text-muted-foreground">
-          Showing the first 1,000 expense orders. Narrow filters or ask for server-side pagination if you need more.
-        </p>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="border-border">
           <CardHeader className="pb-2">
@@ -158,9 +161,9 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
 
       <OrdersOverviewTable
         title="Expense orders"
-        subtitle="Click a row to open details"
+        subtitle="Recent orders in current filter scope"
         columns={expenseOrderColumns}
-        rows={orders}
+        rows={tableOrders}
         onRowClick={(o) => onSelectOrder(o.id)}
         emptyIcon={<Receipt className="h-12 w-12 mb-3 opacity-40" />}
         emptyMessage="No expense orders match these filters."

@@ -45,6 +45,7 @@ import {
   Send,
   Check,
   X,
+  Pencil,
 } from 'lucide-react';
 import { SectionConfirmActions } from './PoSectionConfirmButton';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
@@ -141,6 +142,8 @@ interface PurchaseOrderDetailPanelProps {
   order: PurchaseOrder;
   onClose: () => void;
   onUpdated?: () => void;
+  /** When true, use the list row only (hub navigator already loaded this order). */
+  skipOrderRefetch?: boolean;
   /** When false, completed orders are hidden from the sidebar list. */
   showCompleteOrders?: boolean;
 }
@@ -201,10 +204,13 @@ const draftFromOrder = (o: PurchaseOrder): PoDraft => ({
 const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   order: orderFromList,
   onUpdated,
+  skipOrderRefetch = false,
   showCompleteOrders = false,
 }) => {
-  const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id);
-  const order = orderDetail ?? orderFromList;
+  const { data: orderDetail } = useGetPurchaseOrderByIdQuery(orderFromList.id, {
+    skip: skipOrderRefetch,
+  });
+  const order = skipOrderRefetch ? orderFromList : (orderDetail ?? orderFromList);
 
   const [updatePurchaseOrder, { isLoading: isSaving }] = useUpdatePurchaseOrderMutation();
   const [setSectionConfirm] = useSetPurchaseOrderSectionConfirmMutation();
@@ -226,6 +232,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     'supplier' | 'details' | 'items' | 'invoice' | null
   >(null);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [editItemsFocusLineId, setEditItemsFocusLineId] = useState<number | null>(null);
   const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
   const [pendingUnconfirmSection, setPendingUnconfirmSection] =
     useState<PoSectionConfirmKey | null>(null);
@@ -789,6 +796,17 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     setReceivingOpen(true);
   };
 
+  const openEditItems = (lineId?: number) => {
+    if (invoiceLocked) return;
+    setEditItemsFocusLineId(lineId ?? null);
+    setEditItemsOpen(true);
+  };
+
+  const handleEditItemsOpenChange = (open: boolean) => {
+    setEditItemsOpen(open);
+    if (!open) setEditItemsFocusLineId(null);
+  };
+
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
   const formatDate = (d: string | null | undefined) =>
@@ -846,7 +864,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           onManage={openManageApprovals}
           onToggleMyApproval={handleToggleMyApproval}
           isVoided={isPoVoided}
-          onVoidOrder={isPoCompleted ? undefined : () => setVoidPoOpen(true)}
+          onVoidOrder={() => setVoidPoOpen(true)}
         />
 
         <div className={cn('space-y-6', isPoVoided && 'opacity-40 pointer-events-none select-none')}>
@@ -1294,7 +1312,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                               {item.unit_price != null ? (
                                 formatCurrency(Number(item.unit_price))
                               ) : needsPrice ? (
-                                <span className="text-amber-700 dark:text-amber-400">Set price</span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto h-7 shrink-0 border-amber-400/70 bg-amber-50/90 px-2.5 text-xs font-medium text-amber-800 shadow-sm hover:bg-amber-100 dark:border-amber-600/70 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-950/70"
+                                  onClick={() => openEditItems(item.id)}
+                                >
+                                  <Pencil className="mr-1 h-3 w-3" />
+                                  Set price
+                                </Button>
                               ) : (
                                 '—'
                               )}
@@ -1339,7 +1366,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                 {!invoiceLocked && (
                   <PoEditOrderItemsButton
                     itemsConfirmed={itemsConfirmed}
-                    onEdit={() => setEditItemsOpen(true)}
+                    onEdit={() => openEditItems()}
                     className="h-8 w-fit"
                   />
                 )}
@@ -1534,9 +1561,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
       <EditPurchaseOrderItemsDialog
         open={editItemsOpen}
-        onOpenChange={setEditItemsOpen}
+        onOpenChange={handleEditItemsOpenChange}
         poId={order.id}
         items={items}
+        focusLineId={editItemsFocusLineId}
         onSaved={onUpdated}
       />
 
@@ -1548,6 +1576,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         poNumber={order.po_number}
         hasConfirmedInvoice={linkedInvoiceStatus === 'confirmed'}
         hasDraftInvoice={linkedInvoiceStatus === 'draft'}
+        hasPostedReceiving={totalReceived > 0}
+        isOrderComplete={isPoCompleted}
       />
 
       <ManagePoApprovalsDialog

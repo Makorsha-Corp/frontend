@@ -59,6 +59,7 @@ export interface WorkOrderSheetRow {
   actionType: WorkOrderItemActionType | null;
   startedAt: string | null;
   completedAt: string | null;
+  updatedAt: string | null;
   quantity: number | null;
   unit: string;
   workers: string;
@@ -241,6 +242,7 @@ export function flattenSheetBundles(
         actionType: null,
         startedAt: order.started_at,
         completedAt: order.completed_at,
+        updatedAt: order.updated_at,
         quantity: null,
         unit: '—',
         workers,
@@ -274,6 +276,7 @@ export function flattenSheetBundles(
         actionType: item.action_type,
         startedAt: order.started_at,
         completedAt: order.completed_at,
+        updatedAt: order.updated_at,
         quantity: Number(item.quantity),
         unit: item.item_unit ?? '—',
         workers,

@@ -1,3 +1,5 @@
+import type { OrderHubRecentSummary } from './orderHub';
+
 export interface ExpenseOrderItem {
   id: number;
   workspace_id: number;
@@ -93,6 +95,33 @@ export interface ListExpenseOrdersParams {
   expense_category?: string;
   account_id?: number;
   invoice_id?: number;
+}
+
+export interface ListExpenseOrdersHubParams extends ListExpenseOrdersParams {
+  date_from?: string;
+  date_to?: string;
+  status_ids?: number[];
+  invoice_filter?: string;
+  search?: string;
+  exclude_complete?: boolean;
+  exclude_voided?: boolean;
+}
+
+export interface ExpenseOrderListResponse {
+  items: ExpenseOrder[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface ExpenseOrderHubStatsResponse {
+  total_count: number;
+  total_value: number;
+  open_count: number;
+  open_value: number;
+  not_invoiced_count: number;
+  recent_orders?: OrderHubRecentSummary[];
 }
 
 export interface ExpenseOrderApprover {

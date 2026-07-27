@@ -20,8 +20,6 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -32,7 +30,9 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  useGetTransferOrdersQuery,
+  useGetTransferOrdersPageQuery,
+  useGetTransferOrderHubStatsQuery,
+  useGetTransferOrderByIdQuery,
   useDeleteTransferOrderMutation,
 } from '@/features/transferOrders/transferOrdersApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
@@ -46,19 +46,14 @@ import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
 import TransferOrderNavigatorPanel from '@/components/newcomponents/customui/orders/TransferOrderNavigatorPanel';
+import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
 import AddTransferOrderDialog from '@/components/newcomponents/customui/orders/AddTransferOrderDialog';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
-  buildMachineIdToFactoryId,
-  buildProjectIdToFactoryId,
-} from './ordersOverviewData';
-import {
-  filterTransferOrders,
-  isTransferOrderComplete,
-  transferOrderSummaryStats,
   type TransferLocationTypeFilter,
+  type TransferOrderSummaryStats,
 } from './transferOrdersOverviewData';
 import {
   type TransferLocationLabelContext,
@@ -73,8 +68,17 @@ import {
   writeTransferOrderParams,
   type TransferOrderUrlFilters,
 } from './orderListUrlParams';
-
-const TR_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
+import {
+  ORDER_HUB_PAGE_PARAMS,
+  parseOrderHubPage,
+} from './orderHubApiParams';
+import {
+  buildTransferOrderHubFilterParams,
+  buildTransferOrderHubListParams,
+} from './transferOrderHubApiParams';
+import { useOrderHubPageClamp } from './useOrderHubPageClamp';
+import OrderHubOffPageSelectionBanner from '@/components/newcomponents/customui/orders/OrderHubOffPageSelectionBanner';
+import { isOrderSelectedOffFilteredPage } from './orderHubSelection';
 
 const LOCATION_TYPE_OPTIONS: { value: TransferLocationTypeFilter; label: string }[] = [
   { value: 'all', label: 'All types' },
@@ -108,12 +112,8 @@ const TransferOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'transfer')
   );
+  const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
-
-  const { data: orders = [], isLoading } = useGetTransferOrdersQuery({
-    skip: 0,
-    limit: TR_LIST_LIMIT,
-  });
   const { data: statuses = [] } = useGetStatusesQuery({
     skip: 0,
     limit: API_LIMITS.STRICT_100,
@@ -139,6 +139,8 @@ const TransferOrdersPage: React.FC = () => {
     [searchParams, trStatusOptions]
   );
 
+  const listPage = parseOrderHubPage(searchParams.get(ORDER_HUB_PAGE_PARAMS.transfer));
+
   const {
     dateRange,
     statusFilters,
@@ -149,93 +151,135 @@ const TransferOrdersPage: React.FC = () => {
   } = urlFilters;
 
   const commitTransferFilters = useCallback(
-    (patch: Partial<TransferOrderUrlFilters>) => {
+    (patch: Partial<TransferOrderUrlFilters & { page?: number }>) => {
       if (patch.factoryFilter !== undefined) {
         setPageFactory(patch.factoryFilter);
       }
-      const { factoryFilter: _factoryPatch, ...urlPatch } = patch;
+      const { factoryFilter: _factoryPatch, page: pagePatch, ...urlPatch } = patch;
       setSearchParams(
-        (prev) =>
-          writeTransferOrderParams(
+        (prev) => {
+          const next = writeTransferOrderParams(
             prev,
             { ...urlFilters, factoryFilter: 'all', ...urlPatch },
             trStatusOptions,
-          ),
-        { replace: true }
+          );
+          if (pagePatch != null) {
+            if (pagePatch > 1) next.set(ORDER_HUB_PAGE_PARAMS.transfer, String(pagePatch));
+            else next.delete(ORDER_HUB_PAGE_PARAMS.transfer);
+          } else if (Object.keys(urlPatch).length > 0 || patch.factoryFilter !== undefined) {
+            next.delete(ORDER_HUB_PAGE_PARAMS.transfer);
+          }
+          return next;
+        },
+        { replace: true },
       );
     },
-    [setSearchParams, urlFilters, setPageFactory, trStatusOptions]
+    [setSearchParams, urlFilters, setPageFactory, trStatusOptions],
   );
 
-  const resolutionMaps = useMemo(
-    () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines),
-      projectIdToFactoryId: buildProjectIdToFactoryId(projects),
-    }),
-    [machines, projects]
+  useEffect(() => {
+    setSearchInput(urlFilters.searchQuery);
+  }, [urlFilters.searchQuery]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const trimmed = searchInput.trim();
+      if (trimmed === urlFilters.searchQuery.trim()) return;
+      commitTransferFilters({ searchQuery: trimmed });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput, urlFilters.searchQuery, commitTransferFilters]);
+
+  const hubFilterParams = useMemo(
+    () => buildTransferOrderHubFilterParams(urlFilters, factoryFilter),
+    [urlFilters, factoryFilter],
   );
+
+  const listQueryParams = useMemo(
+    () => buildTransferOrderHubListParams(urlFilters, factoryFilter, listPage),
+    [urlFilters, factoryFilter, listPage],
+  );
+
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+  } = useGetTransferOrdersPageQuery(listQueryParams, { keepPreviousData: true });
+  const { data: hubStats, isLoading: statsLoading } = useGetTransferOrderHubStatsQuery(hubFilterParams);
+
+  const orders = pageData?.items ?? [];
+  const ordersTotal = pageData?.total ?? 0;
+
+  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.transfer, setSearchParams);
 
   const labelCtx: TransferLocationLabelContext = useMemo(
     () => ({ factories, machines, projects }),
     [factories, machines, projects]
   );
 
-  const filterOpts = useMemo(
-    () => ({
-      from: dateRange.from,
-      to: dateRange.to,
-      statusIds: statusFilters,
-      factoryId: factoryFilter,
-      sourceType: sourceTypeFilter,
-      destinationType: destinationTypeFilter,
-      searchQuery,
-      showCompleteOrders,
-    }),
-    [
-      dateRange.from,
-      dateRange.to,
-      statusFilters,
-      factoryFilter,
-      sourceTypeFilter,
-      destinationTypeFilter,
-      searchQuery,
-      showCompleteOrders,
-    ]
-  );
+  const overviewStats = useMemo((): TransferOrderSummaryStats => {
+    if (!hubStats) {
+      return {
+        totalCount: 0,
+        openCount: 0,
+        completedCount: 0,
+        machineInvolvedCount: 0,
+      };
+    }
+    return {
+      totalCount: hubStats.total_count,
+      openCount: hubStats.open_count,
+      completedCount: hubStats.completed_count,
+      machineInvolvedCount: hubStats.machine_involved_count ?? 0,
+    };
+  }, [hubStats]);
 
-  const filteredOrders = useMemo(
-    () => filterTransferOrders(orders, filterOpts, resolutionMaps, labelCtx),
-    [orders, filterOpts, resolutionMaps, labelCtx]
+  const selectedFromList = useMemo(
+    () => orders.find((o) => o.id === selectedOrderId) ?? null,
+    [orders, selectedOrderId],
   );
-
-  const overviewStats = useMemo(
-    () => transferOrderSummaryStats(filteredOrders),
-    [filteredOrders]
-  );
-
-  const mayTruncate = orders.length >= TR_LIST_LIMIT;
-
-  const selectedOrder = useMemo(
-    () =>
-      filteredOrders.find((o) => o.id === selectedOrderId) ??
-      orders.find((o) => o.id === selectedOrderId) ??
-      null,
-    [filteredOrders, orders, selectedOrderId]
-  );
-
-  const hasHiddenCompleteOrders = useMemo(
-    () => !showCompleteOrders && orders.some((o) => isTransferOrderComplete(o)),
-    [showCompleteOrders, orders]
-  );
+  const { data: selectedById, isError: selectedByIdError } = useGetTransferOrderByIdQuery(selectedOrderId!, {
+    skip: selectedOrderId == null || selectedFromList != null,
+  });
+  const selectedOrder = selectedFromList ?? selectedById ?? null;
+  const isOffFilteredPage = isOrderSelectedOffFilteredPage({
+    selectedOrderId,
+    selectedFromList,
+    selectedById,
+    selectedByIdError,
+  });
 
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
     if (!selectedOrderFromUrl) return;
     const parsed = Number(selectedOrderFromUrl);
-    if (Number.isNaN(parsed)) return;
+    if (Number.isNaN(parsed)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     setSelectedOrderId(parsed);
-  }, [selectedOrderFromUrl]);
+  }, [selectedOrderFromUrl, setSearchParams]);
+
+  useEffect(() => {
+    if (selectedOrderId == null || selectedFromList != null || !selectedByIdError) return;
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [selectedOrderId, selectedFromList, selectedByIdError, setSearchParams]);
 
   const setSelectedOrder = (orderId: number | null) => {
     setSelectedOrderId(orderId);
@@ -276,6 +320,7 @@ const TransferOrdersPage: React.FC = () => {
     if (factoryFilter !== 'all') count += 1;
     if (sourceTypeFilter !== 'all') count += 1;
     if (destinationTypeFilter !== 'all') count += 1;
+    if (searchQuery.trim().length > 0) count += 1;
     return count;
   }, [
     dateRange.from,
@@ -284,10 +329,20 @@ const TransferOrdersPage: React.FC = () => {
     factoryFilter,
     sourceTypeFilter,
     destinationTypeFilter,
+    searchQuery,
   ]);
 
   const clearFilters = () => {
-    setSearchParams((prev) => clearTransferOrderFilterParams(prev), { replace: true });
+    setPageFactory('all');
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = clearTransferOrderFilterParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const handleDelete = async (o: TransferOrder) => {
@@ -346,8 +401,8 @@ const TransferOrdersPage: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="Search by TR# or route..."
-                  value={searchQuery}
-                  onChange={(e) => commitTransferFilters({ searchQuery: e.target.value })}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
@@ -398,6 +453,7 @@ const TransferOrdersPage: React.FC = () => {
                 />
               </PopoverContent>
             </Popover>
+            <span className="text-xs text-muted-foreground">Filters by created date</span>
 
             <OrderStatusMultiFilter
               options={trStatusOptions}
@@ -464,22 +520,13 @@ const TransferOrdersPage: React.FC = () => {
             </Select>
 
             <div className="ml-auto flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="tr-show-complete-filters"
-                  checked={showCompleteOrders}
-                  onCheckedChange={(value) =>
-                    commitTransferFilters({ showCompleteOrders: value })
-                  }
-                  aria-label="Show complete orders"
-                />
-                <Label
-                  htmlFor="tr-show-complete-filters"
-                  className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
-                >
-                  Show complete orders
-                </Label>
-              </div>
+              <ShowCompleteOrdersSwitchControl
+                checked={showCompleteOrders}
+                onCheckedChange={(value) =>
+                  commitTransferFilters({ showCompleteOrders: value })
+                }
+                context="list"
+              />
               {activeFilterCount > 0 ? (
                 <Button
                   type="button"
@@ -503,18 +550,21 @@ const TransferOrdersPage: React.FC = () => {
               selectedOrder && 'max-lg:hidden',
               !isLgScreen && 'flex-1 border-r-0'
             )}
-            filteredOrders={filteredOrders}
+            orders={orders}
+            ordersTotal={ordersTotal}
+            listPage={listPage}
+            isFetching={isFetching}
+            onPageChange={(page) => commitTransferFilters({ page })}
             selectedOrderId={selectedOrderId}
+            offPageSelectedLabel={
+              isOffFilteredPage && selectedOrder ? selectedOrder.transfer_number : null
+            }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
             activeFilterCount={activeFilterCount}
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
-            showCompleteOrders={showCompleteOrders}
-            onShowCompleteOrdersChange={(value) =>
-              commitTransferFilters({ showCompleteOrders: value })
-            }
-            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
+            emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
@@ -529,17 +579,25 @@ const TransferOrdersPage: React.FC = () => {
             )}
           >
             {selectedOrder ? (
-              <TransferOrderDetailPanel
-                order={selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                showCompleteOrders={showCompleteOrders}
-              />
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                {isOffFilteredPage ? (
+                  <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.transfer_number} />
+                ) : null}
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <TransferOrderDetailPanel
+                    order={selectedOrder}
+                    onClose={() => setSelectedOrder(null)}
+                    skipOrderRefetch={selectedFromList != null}
+                    showCompleteOrders={showCompleteOrders}
+                  />
+                </div>
+              </div>
             ) : isLgScreen ? (
               <TransferOrdersOverviewPanel
-                orders={filteredOrders}
+                orders={orders}
                 stats={overviewStats}
-                isLoading={isLoading}
-                mayTruncate={mayTruncate}
+                hubStats={hubStats}
+                isLoading={isLoading || statsLoading}
                 routeSubtext={(o) => transferRouteLabel(o, labelCtx)}
                 onSelectOrder={(id) => setSelectedOrder(id)}
               />

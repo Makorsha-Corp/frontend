@@ -1,3 +1,5 @@
+import type { OrderHubPendingHighlight, OrderHubRecentSummary } from './orderHub';
+
 export interface PurchaseOrderItem {
   id: number;
   workspace_id: number;
@@ -43,6 +45,9 @@ export interface PurchaseOrder {
   voided_at: string | null;
   voided_by: number | null;
   invoice_payment_status: string | null;
+  item_count?: number;
+  quantity_ordered_total?: number;
+  quantity_received_total?: number;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -232,6 +237,40 @@ export interface ListPurchaseOrdersParams {
   limit?: number;
   account_id?: number;
   invoice_id?: number;
+}
+
+export interface ListPurchaseOrdersHubParams extends ListPurchaseOrdersParams {
+  date_from?: string;
+  date_to?: string;
+  status_ids?: number[];
+  factory_id?: number;
+  destination_type?: string;
+  invoice_filter?: string;
+  search?: string;
+  exclude_complete?: boolean;
+  exclude_voided?: boolean;
+}
+
+export interface PurchaseOrderListResponse {
+  items: PurchaseOrder[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface PurchaseOrderHubStatsResponse {
+  total_count: number;
+  total_value: number;
+  open_count: number;
+  open_value: number;
+  not_invoiced_count: number;
+  recent_orders?: OrderHubRecentSummary[];
+  pending_planning_count?: number;
+  pending_planning?: OrderHubPendingHighlight[];
+  missing_invoice_count?: number;
+  missing_invoice?: OrderHubPendingHighlight[];
+  oldest_drafts?: OrderHubPendingHighlight[];
 }
 
 export type ActiveOrderKind = 'purchase' | 'transfer' | 'work';

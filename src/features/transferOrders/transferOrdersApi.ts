@@ -8,25 +8,77 @@ import type {
   CreateTransferOrderItem,
   UpdateTransferOrderItem,
   ListTransferOrdersParams,
+  ListTransferOrdersHubParams,
+  TransferOrderListResponse,
+  TransferOrderHubStatsResponse,
   TransferOrderApproversList,
   TransferOrderApprover,
   TransferOrderEvent,
 } from '../../types/transferOrder';
+import { invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
+import {
+  transferOrderListCacheTags,
+  transferOrderCacheTagsForMutation,
+  TRANSFER_ORDER_LIST_TAG,
+  TRANSFER_ORDER_HUB_LIST_TAG,
+  TRANSFER_ORDER_HUB_STATS_TAG,
+} from '@/features/cache/orderHubCacheTags';
 import { purchaseOrdersApi } from '../purchaseOrders/purchaseOrdersApi';
+
+function appendTransferOrderHubFilters(
+  qs: URLSearchParams,
+  filters: Omit<ListTransferOrdersHubParams, 'skip' | 'limit'>,
+) {
+  if (filters.date_from) qs.append('date_from', filters.date_from);
+  if (filters.date_to) qs.append('date_to', filters.date_to);
+  filters.status_ids?.forEach((id) => qs.append('status_ids', String(id)));
+  if (filters.factory_id != null) qs.append('factory_id', String(filters.factory_id));
+  if (filters.source_location_type) qs.append('source_location_type', filters.source_location_type);
+  if (filters.destination_location_type) {
+    qs.append('destination_location_type', filters.destination_location_type);
+  }
+  if (filters.search) qs.append('search', filters.search);
+  if (filters.exclude_complete) qs.append('exclude_complete', 'true');
+}
+
+function buildTransferOrderHubQueryString(params: ListTransferOrdersHubParams): string {
+  const { skip = 0, limit = 50, ...filters } = params;
+  const qs = new URLSearchParams({
+    skip: skip.toString(),
+    limit: limit.toString(),
+  });
+  appendTransferOrderHubFilters(qs, filters);
+  return qs.toString();
+}
+
+function buildTransferOrderHubStatsQueryString(
+  filters: Omit<ListTransferOrdersHubParams, 'skip' | 'limit'>,
+): string {
+  const qs = new URLSearchParams();
+  appendTransferOrderHubFilters(qs, filters);
+  return qs.toString();
+}
 
 export const transferOrdersApi = createApi({
   reducerPath: 'transferOrdersApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['TransferOrder', 'TransferOrderItem', 'TransferOrderApprovers', 'TransferOrderEvents'],
   endpoints: (builder) => ({
-    getTransferOrders: builder.query<TransferOrder[], ListTransferOrdersParams>({
-      query: ({ skip = 0, limit = 100 } = {}) => {
-        const params = new URLSearchParams();
-        params.append('skip', skip.toString());
-        params.append('limit', limit.toString());
-        return `transfer-orders/?${params.toString()}`;
-      },
-      providesTags: ['TransferOrder'],
+    getTransferOrders: builder.query<TransferOrder[], ListTransferOrdersHubParams>({
+      query: (args = {}) => `transfer-orders/?${buildTransferOrderHubQueryString(args)}`,
+      transformResponse: (response: TransferOrderListResponse) => response.items,
+      providesTags: [TRANSFER_ORDER_LIST_TAG],
+    }),
+    getTransferOrdersPage: builder.query<TransferOrderListResponse, ListTransferOrdersHubParams>({
+      query: (args) => `transfer-orders/?${buildTransferOrderHubQueryString(args)}`,
+      providesTags: [TRANSFER_ORDER_HUB_LIST_TAG],
+    }),
+    getTransferOrderHubStats: builder.query<
+      TransferOrderHubStatsResponse,
+      Omit<ListTransferOrdersHubParams, 'skip' | 'limit'>
+    >({
+      query: (args) => `transfer-orders/stats/?${buildTransferOrderHubStatsQueryString(args)}`,
+      providesTags: [TRANSFER_ORDER_HUB_STATS_TAG],
     }),
     getTransferOrderById: builder.query<TransferOrder, number>({
       query: (id) => `transfer-orders/${id}/`,
@@ -34,7 +86,7 @@ export const transferOrdersApi = createApi({
     }),
     createTransferOrder: builder.mutation<TransferOrder, CreateTransferOrder>({
       query: (body) => ({ url: 'transfer-orders/', method: 'POST', body }),
-      invalidatesTags: ['TransferOrder'],
+      invalidatesTags: transferOrderListCacheTags,
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -47,8 +99,7 @@ export const transferOrdersApi = createApi({
     updateTransferOrder: builder.mutation<TransferOrder, { id: number; data: UpdateTransferOrder }>({
       query: ({ id, data }) => ({ url: `transfer-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [
-        { type: 'TransferOrder', id },
-        'TransferOrder',
+        ...transferOrderCacheTagsForMutation(id),
         { type: 'TransferOrderEvents', id },
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
@@ -63,8 +114,7 @@ export const transferOrdersApi = createApi({
     markTransferOrderComplete: builder.mutation<TransferOrder, number>({
       query: (id) => ({ url: `transfer-orders/${id}/complete/`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [
-        { type: 'TransferOrder', id },
-        'TransferOrder',
+        ...transferOrderCacheTagsForMutation(id),
         { type: 'TransferOrderEvents', id },
         { type: 'TransferOrderItem', id },
       ],
@@ -72,6 +122,7 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
+          invalidateInventoryStockCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -79,7 +130,7 @@ export const transferOrdersApi = createApi({
     }),
     deleteTransferOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `transfer-orders/${id}/`, method: 'DELETE' }),
-      invalidatesTags: ['TransferOrder'],
+      invalidatesTags: transferOrderListCacheTags,
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -119,8 +170,7 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, toId) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
-        { type: 'TransferOrder', id: toId },
-        'TransferOrder',
+        ...transferOrderCacheTagsForMutation(toId),
       ],
     }),
     unapproveTransferOrder: builder.mutation<TransferOrderApprover, number>({
@@ -128,8 +178,7 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, toId) => [
         { type: 'TransferOrderApprovers', id: toId },
         { type: 'TransferOrderEvents', id: toId },
-        { type: 'TransferOrder', id: toId },
-        'TransferOrder',
+        ...transferOrderCacheTagsForMutation(toId),
       ],
     }),
     getTransferOrderEvents: builder.query<TransferOrderEvent[], number>({
@@ -145,6 +194,7 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, { toId }) => [
         { type: 'TransferOrderItem', id: toId },
         { type: 'TransferOrderEvents', id: toId },
+        ...transferOrderListCacheTags,
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
@@ -159,8 +209,7 @@ export const transferOrdersApi = createApi({
       query: ({ itemId, data }) => ({ url: `transfer-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { toId }) => [
         'TransferOrderItem',
-        { type: 'TransferOrder', id: toId },
-        'TransferOrder',
+        ...(toId != null ? transferOrderCacheTagsForMutation(toId) : transferOrderListCacheTags),
         ...(toId != null ? [{ type: 'TransferOrderEvents' as const, id: toId }] : []),
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
@@ -177,6 +226,7 @@ export const transferOrdersApi = createApi({
       invalidatesTags: (_r, _e, { toId }) => [
         { type: 'TransferOrderItem', id: toId },
         { type: 'TransferOrderEvents', id: toId },
+        ...transferOrderListCacheTags,
       ],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
@@ -192,6 +242,8 @@ export const transferOrdersApi = createApi({
 
 export const {
   useGetTransferOrdersQuery,
+  useGetTransferOrdersPageQuery,
+  useGetTransferOrderHubStatsQuery,
   useGetTransferOrderByIdQuery,
   useCreateTransferOrderMutation,
   useUpdateTransferOrderMutation,

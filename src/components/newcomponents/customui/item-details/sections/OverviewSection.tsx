@@ -1,22 +1,28 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowLeftRight, ChevronRight, MapPin, ShoppingCart } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, Loader2, MapPin, ShoppingCart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useGetItemOrdersQuery } from '@/features/items/itemsApi';
+import type { ItemOrderRow } from '@/types/itemOrders';
 import type { ItemSummary, ItemSummaryRecentActivity } from '@/types/itemSummary';
 import { cn } from '@/lib/utils';
-import { formatDateTime, formatMoney, formatQty } from '../itemDetailsFormatters';
+import { formatDateTime, formatMoney, formatOrderDate, formatQty } from '../itemDetailsFormatters';
 import type { ItemDetailsSectionId } from '../itemDetailsTypes';
 import { OverviewKpiStrip } from './OverviewKpiStrip';
 
 interface OverviewSectionProps {
   summary: ItemSummary;
   unit: string;
+  itemId: number;
+  dialogOpen: boolean;
   onGoToTab: (section: ItemDetailsSectionId) => void;
   showPlacement: boolean;
   showActivity: boolean;
 }
 
 type OverviewCardRow = { label: string; value: string; multiline?: boolean };
+
+type OverviewRecentEntry = { key: string; primary: string; secondary?: string };
 
 type OverviewFeaturedBlock = {
   label: string;
@@ -44,6 +50,9 @@ function OverviewNavCard({
   title,
   headline,
   rows = [],
+  recentEntries,
+  recentEntriesLoading = false,
+  recentEntriesEmptyLabel = 'None yet',
   featuredBlock,
   badge,
   badgeVariant = 'secondary',
@@ -54,6 +63,9 @@ function OverviewNavCard({
   title: string;
   headline?: string;
   rows?: OverviewCardRow[];
+  recentEntries?: OverviewRecentEntry[];
+  recentEntriesLoading?: boolean;
+  recentEntriesEmptyLabel?: string;
   featuredBlock?: OverviewFeaturedBlock;
   badge?: string;
   badgeVariant?: 'secondary' | 'destructive' | 'outline';
@@ -104,6 +116,34 @@ function OverviewNavCard({
               <p className="mt-2 text-xs text-muted-foreground">{featuredBlock.meta}</p>
             ) : null}
           </div>
+        </div>
+      ) : recentEntries !== undefined ? (
+        <div className="mt-3 min-h-0 flex-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Recent purchases
+          </span>
+          {recentEntriesLoading ? (
+            <div className="mt-2 flex items-center gap-2 py-6 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              Loading…
+            </div>
+          ) : recentEntries.length > 0 ? (
+            <ul className="mt-1.5 space-y-1.5">
+              {recentEntries.map((entry) => (
+                <li
+                  key={entry.key}
+                  className="rounded-md border border-border/60 bg-muted/25 px-2 py-1.5"
+                >
+                  <p className="truncate text-xs font-medium text-card-foreground">{entry.primary}</p>
+                  {entry.secondary ? (
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{entry.secondary}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">{recentEntriesEmptyLabel}</p>
+          )}
         </div>
       ) : rows.length > 0 ? (
         <div className="mt-3 min-h-0 flex-1 space-y-2">
@@ -206,44 +246,33 @@ function getPlacementContent(summary: ItemSummary): {
   };
 }
 
-function getPurchasingContent(summary: ItemSummary): {
-  headline: string;
-  rows: OverviewCardRow[];
-} {
-  const { pricing, supplier_stats } = summary;
-  let headline: string;
+function getPurchasingHeadline(summary: ItemSummary): string {
+  const { pricing } = summary;
 
   if (pricing.open_po_line_count > 0) {
-    headline =
-      pricing.open_po_line_count === 1
-        ? '1 open PO'
-        : `${pricing.open_po_line_count} open POs`;
-  } else if (pricing.last_unit_price != null) {
-    headline = `Last $${formatMoney(pricing.last_unit_price)}`;
-  } else {
-    headline = 'No history';
+    return pricing.open_po_line_count === 1
+      ? '1 open PO'
+      : `${pricing.open_po_line_count} open POs`;
   }
 
-  const rows: OverviewCardRow[] = [];
-  const { cheapest } = supplier_stats.period.all_time.highlights;
-  const avgPrice = pricing.period.all_time.avg_unit_price_weighted;
-
-  if (cheapest) {
-    const price =
-      cheapest.avg_unit_price_weighted != null
-        ? `$${formatMoney(cheapest.avg_unit_price_weighted)}`
-        : null;
-    rows.push({
-      label: 'Cheapest',
-      value: price ? `${cheapest.account_name} · ${price}` : cheapest.account_name,
-    });
+  if (pricing.last_unit_price != null) {
+    return `Last $${formatMoney(pricing.last_unit_price)}`;
   }
 
-  if (avgPrice != null) {
-    rows.push({ label: 'Avg price', value: `$${formatMoney(avgPrice)}` });
-  }
+  return 'No history';
+}
 
-  return { headline, rows };
+function formatPurchaseEntry(row: ItemOrderRow, unit: string): OverviewRecentEntry {
+  const qty = formatQty(row.quantity, unit);
+  const price = row.unit_price != null ? `$${formatMoney(row.unit_price)}` : null;
+  const date = formatOrderDate(row.order_date);
+  const secondaryParts = [row.account_name, qty, price, date].filter(Boolean);
+
+  return {
+    key: `${row.order_type}-${row.order_id}`,
+    primary: row.order_number,
+    secondary: secondaryParts.length > 0 ? secondaryParts.join(' · ') : undefined,
+  };
 }
 
 function getActivityLatestBlock(
@@ -297,13 +326,29 @@ export function OverviewSection({
   showPlacement,
   showActivity,
   unit,
+  itemId,
+  dialogOpen,
 }: OverviewSectionProps) {
   const placement = getPlacementContent(summary);
-  const purchasing = getPurchasingContent(summary);
+  const purchasingHeadline = getPurchasingHeadline(summary);
   const activity = getActivityContent(summary, unit);
 
+  const {
+    data: purchaseOrders,
+    isLoading: purchasesLoading,
+    isFetching: purchasesFetching,
+  } = useGetItemOrdersQuery(
+    { itemId, limit: 5, order_type: 'purchase_order' },
+    { skip: !dialogOpen || !itemId }
+  );
+
+  const recentPurchases = (purchaseOrders?.items ?? []).map((row) =>
+    formatPurchaseEntry(row, unit)
+  );
+  const purchasesLoadingState = purchasesLoading || (purchasesFetching && !purchaseOrders);
+
   return (
-    <div className="flex min-h-[min(18rem,42vh)] flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4">
       <OverviewKpiStrip summary={summary} unit={unit} />
 
       <div className="grid min-h-0 flex-1 grid-cols-3 gap-3">
@@ -320,8 +365,10 @@ export function OverviewSection({
         <OverviewNavCard
           icon={ShoppingCart}
           title="Purchasing"
-          headline={purchasing.headline}
-          rows={purchasing.rows}
+          headline={purchasingHeadline}
+          recentEntries={recentPurchases}
+          recentEntriesLoading={purchasesLoadingState}
+          recentEntriesEmptyLabel="No purchases yet"
           onClick={() => onGoToTab('purchasing')}
         />
 

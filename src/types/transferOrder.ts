@@ -1,3 +1,5 @@
+import type { OrderHubRecentSummary, OrderHubPendingHighlight } from './orderHub';
+
 export interface TransferOrderItem {
   id: number;
   workspace_id: number;
@@ -73,6 +75,38 @@ export interface UpdateTransferOrderItem {
 export interface ListTransferOrdersParams {
   skip?: number;
   limit?: number;
+}
+
+export interface ListTransferOrdersHubParams extends ListTransferOrdersParams {
+  date_from?: string;
+  date_to?: string;
+  status_ids?: number[];
+  factory_id?: number;
+  source_location_type?: string;
+  destination_location_type?: string;
+  search?: string;
+  exclude_complete?: boolean;
+}
+
+export interface TransferOrderListResponse {
+  items: TransferOrder[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface TransferOrderHubStatsResponse {
+  total_count: number;
+  open_count: number;
+  completed_count: number;
+  machine_involved_count?: number;
+  recent_orders?: OrderHubRecentSummary[];
+  pending_planned_count?: number;
+  pending_planned?: OrderHubPendingHighlight[];
+  awaiting_setup_count?: number;
+  awaiting_setup?: OrderHubPendingHighlight[];
+  oldest_drafts?: OrderHubPendingHighlight[];
 }
 
 export interface TransferOrderApprover {

@@ -253,7 +253,7 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
           <>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="po-rcc">RCC <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Label htmlFor="po-rcc">RCC / MRR number <span className="text-muted-foreground font-normal">(optional)</span></Label>
                 <Input
                   id="po-rcc"
                   placeholder="Receive confirmation code"

@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
   useAddWorkOrderApproverMutation,
@@ -76,9 +77,17 @@ import EditWorkOrderItemsDialog from './EditWorkOrderItemsDialog';
 import VoidWorkOrderDialog from './VoidWorkOrderDialog';
 import CompleteWorkOrderDialog from './CompleteWorkOrderDialog';
 import WoEventLogRow from './WoEventLogRow';
-import WorkOrderRecurringProgramCard from './WorkOrderRecurringProgramCard';
+import {
+  useWorkOrderRecurringProgram,
+  WorkOrderRecurringProgramPopover,
+  workOrderDetailHeaderBadgeAmberClass,
+} from './WorkOrderRecurringProgramCard';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import { buildWorkOrderEventLogEntries } from '@/pages/newpages/orders/workOrderScheduleTimeline';
+import {
+  getWorkOrderCalendarDateString,
+  getWorkOrderLoggedLaterDetail,
+} from '@/pages/newpages/orders/workOrderDateUtils';
 
 const detailNestedTableShellClass = 'border border-border rounded-lg overflow-hidden';
 
@@ -100,6 +109,8 @@ interface WorkOrderDetailPanelProps {
   order: WorkOrder;
   onClose: () => void;
   onDelete: () => void;
+  /** Switch detail panel to another work order in the same view. */
+  onNavigateToOrder?: (workOrderId: number) => void;
   /** 'page' (default) shows a back button in the header for the full-page split view.
    * 'modal' hides it — used when this panel is embedded in a Dialog, which already
    * provides its own close affordance. */
@@ -113,6 +124,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   order: orderProp,
   onClose,
   onDelete,
+  onNavigateToOrder,
   variant = 'page',
   autoOpenItemsSourceHint,
 }) => {
@@ -193,6 +205,19 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const accountName = order.account_id
     ? accounts.find((a) => a.id === order.account_id)?.name ?? `#${order.account_id}`
     : null;
+
+  const loggedLaterDetail = useMemo(() => {
+    if (order.status !== 'COMPLETED') return null;
+    return getWorkOrderLoggedLaterDetail({
+      plannedDate: order.planned_date?.trim() ? order.planned_date.slice(0, 10) : null,
+      calendarDate: getWorkOrderCalendarDateString(order),
+      startedAt: order.started_at,
+      completedAt: order.completed_at,
+      updatedAt: order.updated_at,
+    });
+  }, [order]);
+
+  const recurringProgram = useWorkOrderRecurringProgram(order);
 
   const scrollToApprovals = () => {
     document.getElementById('wo-section-approvals')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -378,17 +403,67 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader className="p-4 pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                  Work order details
-                </CardTitle>
-                {isLocked && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isVoided
-                      ? 'This order is voided and cannot be edited.'
-                      : 'This order is completed and cannot be edited.'}
-                  </p>
-                )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Wrench className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      Work order details
+                    </CardTitle>
+                    {isLocked && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {isVoided
+                          ? 'This order is voided and cannot be edited.'
+                          : 'This order is completed and cannot be edited.'}
+                      </p>
+                    )}
+                  </div>
+                  {loggedLaterDetail || recurringProgram ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {loggedLaterDetail ? (
+                        <Popover modal={false}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className={workOrderDetailHeaderBadgeAmberClass}
+                              aria-label="Logged later — view details"
+                            >
+                              Logged later
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-64 space-y-2 p-3"
+                            align="end"
+                            onOpenAutoFocus={(event) => event.preventDefault()}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Logged later</p>
+                            <p className="text-xs leading-snug text-muted-foreground">
+                              Completion was stamped on the planned work day but recorded afterward.
+                            </p>
+                            <dl className="space-y-1 text-xs">
+                              <div className="flex justify-between gap-3">
+                                <dt className="text-muted-foreground">Planned</dt>
+                                <dd className="font-medium text-foreground">{formatDate(order.planned_date)}</dd>
+                              </div>
+                              <div className="flex justify-between gap-3">
+                                <dt className="text-muted-foreground">Logged</dt>
+                                <dd className="font-medium text-foreground">{formatDate(order.updated_at)}</dd>
+                              </div>
+                            </dl>
+                          </PopoverContent>
+                        </Popover>
+                      ) : null}
+                      {recurringProgram ? (
+                        <WorkOrderRecurringProgramPopover
+                          order={order}
+                          machineName={machineName ?? 'Unknown machine'}
+                          programState={recurringProgram}
+                          onOccurrenceClick={onNavigateToOrder}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <div className="border-b border-border pb-3">
@@ -517,16 +592,6 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
               </CardContent>
             </Card>
 
-            <WorkOrderRecurringProgramCard
-              order={order}
-              machineName={machineName ?? 'Unknown machine'}
-              onProgramChanged={(result) => {
-                if (result.deleted_ids.includes(order.id)) {
-                  onClose();
-                }
-              }}
-            />
-
             <Card>
               <CardHeader className="p-4 pb-3 flex flex-row items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -549,7 +614,9 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                       Edit parts
                     </Button>
                     {isInProgress && (
-                      <p className="text-xs text-muted-foreground max-w-[10rem]">Consumed lines cannot be changed</p>
+                      <p className="text-xs text-muted-foreground max-w-[10rem]">
+                        Edit qty or remove lines — stock adjusts and logs
+                      </p>
                     )}
                   </div>
                 )}
@@ -746,6 +813,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
             : null
         }
         machineId={order.machine_id}
+        workOrderStatus={order.status}
         items={items}
       />
 

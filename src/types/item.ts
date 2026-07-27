@@ -67,6 +67,20 @@ export interface ListItemsParams extends PaginationParams {
   search?: string;  // Search by item name
 }
 
+export interface ListItemsPageParams extends PaginationParams {
+  search?: string;
+  unit?: string;
+  tag_ids?: number[];
+}
+
+export interface ItemsListResponse {
+  items: Item[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
 /** Match from GET /items/similar/ */
 export type SimilarItemMatchType = 'exact_normalized' | 'fuzzy';
 

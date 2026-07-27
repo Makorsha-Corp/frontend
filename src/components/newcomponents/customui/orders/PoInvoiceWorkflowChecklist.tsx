@@ -271,9 +271,9 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   const completeStepDescription =
     destinationType === 'storage'
       ? storageFactoryName
-        ? `All items are received. Close this order to add items to ${storageFactoryName} storage. The order moves to Complete; payment status syncs from the linked invoice.`
-        : 'All items are received. Close this order to add items to factory storage. The order moves to Complete; payment status syncs from the linked invoice.'
-      : 'All items are received. Close this order to move it to Complete. If the invoice is already paid, the order is marked paid automatically.';
+        ? `All items are received and posted to ${storageFactoryName} storage. Close this order administratively — payment status syncs from the linked invoice.`
+        : 'All items are received and posted to factory storage. Close this order administratively — payment status syncs from the linked invoice.'
+      : 'All items are received and inventory is updated. Close this order administratively — payment status syncs from the linked invoice.';
 
   const renderCompletedSections = phase !== 'sections';
   const renderCompletedApproval = ['finalize', 'receiving', 'complete', 'payment', 'done'].includes(phase);
@@ -296,9 +296,9 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
     items.length === 0
       ? 'Add line items before recording receiving'
       : totalReceived <= 0
-        ? 'Record quantities received on order items'
+        ? 'Confirm receipt to post quantities to inventory'
         : receivingComplete
-          ? 'All ordered units have been received'
+          ? 'All ordered units received — inventory updated on each receipt'
           : `${totalOrdered - totalReceived} unit(s) still outstanding across this order`;
 
   const paymentDescription =

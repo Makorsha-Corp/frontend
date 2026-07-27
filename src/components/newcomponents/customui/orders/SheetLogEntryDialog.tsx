@@ -13,6 +13,7 @@ import type { Item } from '@/types/item';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { Account } from '@/types/account';
 import type { WorkspaceMember } from '@/types/workspace';
+import type { WorkOrder } from '@/types/workOrder';
 
 export interface SheetLogEntryDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export interface SheetLogEntryDialogProps {
   accounts: Account[];
   members: WorkspaceMember[];
   defaultMachineId?: number | null;
+  slotCheckOrders?: WorkOrder[];
   mode?: 'create' | 'edit';
   workOrderId?: number;
   onSuccess?: () => void;
@@ -45,6 +47,7 @@ const SheetLogEntryDialog: React.FC<SheetLogEntryDialogProps> = ({
   accounts,
   members,
   defaultMachineId,
+  slotCheckOrders,
   mode = 'create',
   workOrderId,
   onSuccess,
@@ -76,6 +79,7 @@ const SheetLogEntryDialog: React.FC<SheetLogEntryDialogProps> = ({
             accounts={accounts}
             members={members}
             defaultMachineId={defaultMachineId}
+            slotCheckOrders={slotCheckOrders}
             showWorkDate={!isEdit}
             onCancel={() => onOpenChange(false)}
             onSuccess={() => {

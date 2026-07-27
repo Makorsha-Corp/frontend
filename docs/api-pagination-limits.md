@@ -21,9 +21,13 @@ Regenerate or spot-check with ripgrep when changing the API:
 | Typical `le` | Example endpoints |
 |--------------|-------------------|
 | **100** | `items`, `sales_orders`, **`GET /accounts/`** (default / many deployed envs), `sales_deliveries`, `statuses`, `ledgers`, `storage_items`, `project_component_*`, `production_lines`, `production_formulas`, `production_batches`, `orders`, `access_control`, … |
+
+**Items catalog:** `GET /items/` returns `{ items, total, skip, limit, has_more }`. The Items page uses **`API_LIMITS.ITEMS_CATALOG_PAGE_SIZE` (50)** per request. Filter params: `search`, `unit`, `tag_ids` (repeatable). Distinct units: `GET /items/units/`.
+
+**Purchase / expense / transfer order hubs:** list routes return `{ items, total, skip, limit, has_more }` (default **`limit=50`**, max **100**). PO list items include **`item_count`**, **`quantity_ordered_total`**, and **`quantity_received_total`** for navigator rows (no per-row items fetch on page load). KPI strips use **`GET /{type}/stats/`** with the same filter query params (no pagination). Hub pages use **`API_LIMITS.ORDER_HUB_PAGE_SIZE` (50)** and URL page params **`poPage`**, **`eoPage`**, **`trPage`**. Legacy `useGet*OrdersQuery` hooks unwrap `.items` via `transformResponse` for other callers.
 | **200** | `financial_audit_logs` (multiple list routes) |
 | **500** | **`GET /accounts/`** in **this repo** after deploy (accounts hub); not necessarily on Railway until shipped |
-| **1000** | `purchase_orders`, `transfer_orders`, `expense_orders`, `work_orders`, `account_invoices`, `invoice_payments`, `machines`, `factories`, `projects`, `inventory`, `products`, … |
+| **1000** | `work_orders`, `account_invoices`, `invoice_payments`, `machines`, `factories`, `projects`, `inventory`, `products`, … |
 
 This table is **not exhaustive**; always confirm in `backend/app/api/v1/endpoints/*.py`.
 

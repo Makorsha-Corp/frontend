@@ -36,48 +36,12 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
-import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import toast from 'react-hot-toast';
 import CreateEditWorkOrderTemplateDialog from './CreateEditWorkOrderTemplateDialog';
-import RecurringProgramsManagerTab from './RecurringProgramsManagerTab';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
-import {
-  EmphasisTabsList,
-  EmphasisTabsProvider,
-  EmphasisTabsTrigger,
-} from '@/components/newcomponents/customui/EmphasisTabSwitcher';
 
 export type TemplatePickerMode = 'pick' | 'manage';
 
-const MANAGE_TAB_HINTS = {
-  templates: 'Create and edit templates. Turn on recurrence for Plan-day drafts.',
-  programs: 'Active recurring series on machines in your current view.',
-} as const;
-
-function ManageTabHint({
-  hint,
-  children,
-}: {
-  hint: string;
-  children: React.ReactElement;
-}) {
-  return (
-    <HoverCard openDelay={120} closeDelay={80}>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
-      <HoverCardPortal>
-        <HoverCardContent
-          side="bottom"
-          align="center"
-          sideOffset={6}
-          collisionPadding={12}
-          className="z-[200] w-auto max-w-[min(20rem,calc(100vw-2rem))] p-3 text-xs leading-snug text-muted-foreground"
-        >
-          {hint}
-        </HoverCardContent>
-      </HoverCardPortal>
-    </HoverCard>
-  );
-}
+const MANAGE_MODE_HINT = 'Create and edit templates. Turn on recurrence for Plan-day drafts.';
 
 export interface WorkOrderTemplateSelectorDialogProps {
   open: boolean;
@@ -95,8 +59,6 @@ export interface WorkOrderTemplateSelectorDialogProps {
   machineId?: number | null;
   machines?: Machine[];
   sections?: FactorySection[];
-  onProgramsChanged?: () => void;
-  onOpenWorkOrder?: (workOrderId: number) => void;
 }
 
 function sortTemplatesByName(templates: WorkOrderTemplate[]): WorkOrderTemplate[] {
@@ -129,12 +91,9 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
   machineId = null,
   machines = [],
   sections = [],
-  onProgramsChanged,
-  onOpenWorkOrder,
 }) => {
   const isManageMode = mode === 'manage';
 
-  const [manageTab, setManageTab] = useState<'templates' | 'programs'>('templates');
   const [search, setSearch] = useState('');
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [highlightNone, setHighlightNone] = useState(false);
@@ -173,13 +132,12 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
   const dialogDescription =
     description ??
     (isManageMode
-      ? MANAGE_TAB_HINTS[manageTab]
+      ? MANAGE_MODE_HINT
       : 'Prefill this row. Set the planned date on the entry.');
 
   useEffect(() => {
     if (!open) {
       setSearch('');
-      setManageTab('templates');
       setHighlightedId(null);
       setHighlightNone(false);
       setSavePopoverOpen(false);
@@ -413,106 +371,55 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[min(70vh,640px)] w-[min(48rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
           {isManageMode ? (
-            <EmphasisTabsProvider value={manageTab}>
-              <Tabs
-                value={manageTab}
-                onValueChange={(value) => setManageTab(value as 'templates' | 'programs')}
-                className="flex min-h-0 flex-1 flex-col overflow-hidden"
-              >
-                <DialogHeader className="shrink-0 border-b border-border py-4 pl-6 pr-14">
-                  <div className="grid grid-cols-[minmax(0,1fr)_8.75rem] items-center gap-3">
-                    <EmphasisTabsList className="h-11 min-w-0 w-full max-w-xl gap-1.5 rounded-xl p-1.5">
-                      <ManageTabHint hint={MANAGE_TAB_HINTS.templates}>
-                        <EmphasisTabsTrigger
-                          value="templates"
-                          className="h-9 flex-1 px-4 text-sm font-medium leading-none data-[state=active]:text-sm data-[state=active]:font-medium"
-                        >
-                          <span className="inline-flex items-center gap-2">
-                            <LayoutTemplate className="h-4 w-4 shrink-0" />
-                            <span>Templates</span>
-                          </span>
-                        </EmphasisTabsTrigger>
-                      </ManageTabHint>
-                      <ManageTabHint hint={MANAGE_TAB_HINTS.programs}>
-                        <EmphasisTabsTrigger
-                          value="programs"
-                          className="h-9 flex-1 px-4 text-sm font-medium leading-none data-[state=active]:text-sm data-[state=active]:font-medium"
-                        >
-                          <span className="inline-flex items-center gap-2">
-                            <Repeat2 className="h-4 w-4 shrink-0" />
-                            <span>Recurring programs</span>
-                          </span>
-                        </EmphasisTabsTrigger>
-                      </ManageTabHint>
-                    </EmphasisTabsList>
-                    <div className="flex h-11 items-center justify-end">
-                      {manageTab === 'templates' ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-11 w-full px-4 bg-brand-primary hover:bg-brand-primary-hover"
-                          onClick={openCreate}
-                        >
-                          <Plus className="mr-1 h-4 w-4" />
-                          New template
-                        </Button>
-                      ) : null}
-                    </div>
+            <>
+              <DialogHeader className="shrink-0 space-y-1 border-b border-border py-4 pl-6 pr-14">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <DialogTitle className="flex items-center gap-2 text-base">
+                      <LayoutTemplate className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {dialogTitle}
+                    </DialogTitle>
+                    <DialogDescription>{dialogDescription}</DialogDescription>
                   </div>
-                  <DialogDescription className="sr-only">{dialogDescription}</DialogDescription>
-                </DialogHeader>
-
-                <TabsContent
-                  value="templates"
-                  className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 py-4 data-[state=inactive]:hidden"
-                >
-                  <div className="relative shrink-0">
-                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search templates…"
-                      className="h-9 pl-8"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-                    {renderListBody()}
-                  </div>
-                </TabsContent>
-
-                <TabsContent
-                  value="programs"
-                  className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4 data-[state=inactive]:hidden"
-                >
-                  <RecurringProgramsManagerTab
-                    enabled={open && manageTab === 'programs'}
-                    factoryId={factoryId}
-                    machineId={machineId}
-                    machinesInScope={machines}
-                    onEditTemplate={openEdit}
-                    onProgramsChanged={onProgramsChanged}
-                    onOpenWorkOrder={(workOrderId) => {
-                      onOpenChange(false);
-                      onOpenWorkOrder?.(workOrderId);
-                    }}
-                  />
-                </TabsContent>
-
-                <DialogFooter className="flex shrink-0 flex-col gap-3 border-t border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    {manageTab === 'programs'
-                      ? `${machines.length} machine${machines.length === 1 ? '' : 's'} in current view`
-                      : highlighted
-                        ? `Selected: ${highlighted.template_name}`
-                        : 'Create, edit, or deactivate templates.'}
-                  </p>
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                    Close
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-brand-primary hover:bg-brand-primary-hover"
+                    onClick={openCreate}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    New template
                   </Button>
-                </DialogFooter>
-              </Tabs>
-            </EmphasisTabsProvider>
+                </div>
+              </DialogHeader>
+
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6 py-4">
+                <div className="relative shrink-0">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search templates…"
+                    className="h-9 pl-8"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+                  {renderListBody()}
+                </div>
+              </div>
+
+              <DialogFooter className="flex shrink-0 flex-col gap-3 border-t border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {highlighted
+                    ? `Selected: ${highlighted.template_name}`
+                    : 'Create, edit, or deactivate templates.'}
+                </p>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
           ) : (
             <>
               <DialogHeader className="shrink-0 space-y-1 border-b border-border py-4 pl-6 pr-14">

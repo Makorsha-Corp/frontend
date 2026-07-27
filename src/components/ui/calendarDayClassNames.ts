@@ -15,6 +15,12 @@ export const calendarDayOutsideClass =
 export const calendarDayRangeMiddleClass =
   "aria-selected:bg-muted/30 aria-selected:text-foreground dark:aria-selected:bg-muted/50 dark:aria-selected:text-foreground"
 
+/** Small dot under days that have work orders (sheet / week pickers). */
+export const workOrderCalendarHasOrdersModifierClassNames = {
+  hasOrders:
+    'relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-brand-primary aria-selected:after:bg-primary-foreground',
+} as const
+
 /** Week-band highlight for Work Orders week pickers (extends base day_selected). */
 export const workOrderWeekSelectedModifierClassNames = {
   selectedWeek:

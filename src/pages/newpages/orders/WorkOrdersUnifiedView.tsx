@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
+import { startOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ import {
   useDeleteWorkOrderMutation,
   useGetWorkOrderByIdQuery,
   useGetWorkOrdersSheetQuery,
+  useGetWorkOrderSheetDailyCountsQuery,
 } from '@/features/workOrders/workOrdersApi';
 import {
   useGetWorkOrderTemplatesQuery,
@@ -29,18 +31,19 @@ import WorkOrdersSheetPagination from '@/components/newcomponents/customui/order
 import WorkOrderWeekRows from '@/components/newcomponents/customui/orders/WorkOrderWeekRows';
 import SheetLogEntryFooter from '@/components/newcomponents/customui/orders/SheetLogEntryFooter';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
-import AddWorkOrderDialog from '@/components/newcomponents/customui/orders/AddWorkOrderDialog';
-import MaintenanceWizardDialog from '@/components/newcomponents/customui/orders/MaintenanceWizardDialog';
 import WorkOrderTemplateSelectorDialog from '@/components/newcomponents/customui/orders/WorkOrderTemplateSelectorDialog';
+import RecurringProgramsManagerDialog from '@/components/newcomponents/customui/orders/RecurringProgramsManagerDialog';
 import { useWorkOrdersFilters } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import {
   buildSheetDateGroups,
   buildSheetPeriodLabel,
   flattenSheetBundles,
   flattenSheetBundlesToOrders,
+  sheetCalendarGridBounds,
   sheetDateGroupsToWeekDayCells,
 } from '@/pages/newpages/orders/workOrderSheetData';
 import {
+  buildWorkOrderSheetDailyCountsParams,
   buildWorkOrderSheetQueryParams,
   sheetPageCount,
 } from '@/pages/newpages/orders/workOrderSheetApiParams';
@@ -70,15 +73,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [footerDrawerOpen, setFooterDrawerOpen] = useState(false);
   const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
+  const [recurringProgramsOpen, setRecurringProgramsOpen] = useState(false);
   const [factoryPickerOpen, setFactoryPickerOpen] = useState(false);
   const {
     highlighted: factoryPickerHighlight,
     pulseHighlight: pulseFactoryPickerHighlight,
     dismissHighlight: dismissFactoryPickerHighlight,
   } = useScrollTargetHighlight();
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [advancedWizardOpen, setAdvancedWizardOpen] = useState(false);
-  const [advancedMachineId, setAdvancedMachineId] = useState<number | null>(null);
+  const [pickerCalendarMonth, setPickerCalendarMonth] = useState(() => startOfMonth(new Date()));
 
   const {
     filters,
@@ -135,6 +137,27 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       showCompleteOrders: filters.showCompleteOrders,
     }),
     [filters, resolvedMachineFilter],
+  );
+
+  const pickerCalendarBounds = useMemo(
+    () => sheetCalendarGridBounds(pickerCalendarMonth),
+    [pickerCalendarMonth],
+  );
+
+  const dailyCountsParams = useMemo(
+    () =>
+      buildWorkOrderSheetDailyCountsParams(sheetFilterOpts, {
+        factoryId,
+        machineId,
+        plannedDateFrom: format(pickerCalendarBounds.from, 'yyyy-MM-dd'),
+        plannedDateTo: format(pickerCalendarBounds.to, 'yyyy-MM-dd'),
+      }),
+    [sheetFilterOpts, factoryId, machineId, pickerCalendarBounds],
+  );
+
+  const { data: orderCountByDate = {} } = useGetWorkOrderSheetDailyCountsQuery(
+    dailyCountsParams,
+    { skip: selectedOrderId != null },
   );
 
   const sheetQueryParams = useMemo(
@@ -249,6 +272,11 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       templateById,
     });
   }, [bundles, programOrdersForPage, templateById]);
+
+  const slotCheckOrders = useMemo(
+    () => flattenSheetBundlesToOrders(bundles),
+    [bundles],
+  );
 
   const listSheetRows = useMemo(
     () => flattenSheetBundles(bundles, machineName, accountName, sheetLabelCtx, templateById),
@@ -436,23 +464,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     }
   };
 
-  const openAdvancedMaintenance = () => {
-    const mid =
-      resolvedMachineFilter !== 'all'
-        ? Number(resolvedMachineFilter)
-        : machines[0]?.id ?? null;
-    if (!mid) {
-      toast.error('Select a machine for advanced maintenance');
-      return;
-    }
-    setAdvancedMachineId(mid);
-    setAdvancedWizardOpen(true);
-  };
-
-  const advancedMachine = advancedMachineId
-    ? machines.find((m) => m.id === advancedMachineId) ?? null
-    : null;
-
   const sheetErrorDetail =
     error && 'data' in error
       ? (error.data as { detail?: string })?.detail
@@ -465,8 +476,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         onTabChange={onTabChange}
         onAddWork={focusFooterForAdd}
         onManagePresetsPrograms={() => setTemplatesManagerOpen(true)}
-        onAdd={() => setIsAddOpen(true)}
-        onAdvancedMaintenance={openAdvancedMaintenance}
+        onManageRecurringPrograms={() => setRecurringProgramsOpen(true)}
         factories={factories}
         sections={sections}
         factoryFilter={filters.factoryFilter}
@@ -506,12 +516,19 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
               workOrderTypes={workOrderTypes}
             />
           }
-          machineFilter={resolvedMachineFilter}
-          onMachineChange={setMachineFilter}
-          machines={machinesForToolbarSelect}
-          machineSelectDisabled={defaultMachineId != null}
           showCompleteOrders={filters.showCompleteOrders}
           onShowCompleteOrdersChange={setShowCompleteOrders}
+          orderCountByDate={orderCountByDate}
+          calendarMonth={pickerCalendarMonth}
+          onCalendarMonthChange={setPickerCalendarMonth}
+          machineFilter={resolvedMachineFilter}
+          onMachineChange={setMachineFilter}
+          machineSelectDisabled={defaultMachineId != null}
+          factoryFilter={filters.factoryFilter}
+          sectionFilter={filters.sectionFilter}
+          machines={machinesForToolbarSelect}
+          factories={factories}
+          sections={sections}
         />
       ) : null}
 
@@ -529,6 +546,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
             order={selectedOrder}
             onClose={() => setSelectedOrder(null)}
             onDelete={() => handleDelete(selectedOrder)}
+            onNavigateToOrder={(id) => setSelectedOrder(id)}
           />
         ) : applyDateFilter ? (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
@@ -610,33 +628,11 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
           accounts={accounts}
           members={members}
           defaultMachineId={defaultMachineId}
+          slotCheckOrders={slotCheckOrders}
           onSuccess={() => refetch()}
           onRequestFactorySelect={promptFactorySelect}
         />
       ) : null}
-
-      <AddWorkOrderDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        onSuccess={(order) => {
-          setSelectedOrder(order.id);
-          setIsAddOpen(false);
-          refetch();
-        }}
-      />
-
-      {advancedMachine && (
-        <MaintenanceWizardDialog
-          open={advancedWizardOpen}
-          onOpenChange={setAdvancedWizardOpen}
-          machine={advancedMachine}
-          onCreated={(id) => {
-            setAdvancedWizardOpen(false);
-            setSelectedOrder(id);
-            refetch();
-          }}
-        />
-      )}
 
       <WorkOrderTemplateSelectorDialog
         open={templatesManagerOpen}
@@ -646,6 +642,15 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         machineId={machineId ?? null}
         defaultSectionId={sectionId ?? null}
         defaultMachineId={defaultMachineId ?? null}
+        machines={machinesInScope}
+        sections={sections}
+      />
+
+      <RecurringProgramsManagerDialog
+        open={recurringProgramsOpen}
+        onOpenChange={setRecurringProgramsOpen}
+        factoryId={resolvedFactoryId}
+        machineId={machineId ?? null}
         machines={machinesInScope}
         sections={sections}
         onProgramsChanged={refetch}

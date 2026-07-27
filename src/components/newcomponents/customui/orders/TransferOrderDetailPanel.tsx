@@ -81,6 +81,7 @@ const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
 interface TransferOrderDetailPanelProps {
   order: TransferOrder;
   onClose: () => void;
+  skipOrderRefetch?: boolean;
   showCompleteOrders?: boolean;
 }
 
@@ -113,6 +114,7 @@ function getLocationDisplay(
 
 const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   order: orderProp,
+  skipOrderRefetch = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
@@ -127,8 +129,10 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
 
-  const { data: orderFresh } = useGetTransferOrderByIdQuery(orderProp.id);
-  const order = orderFresh ?? orderProp;
+  const { data: orderFresh } = useGetTransferOrderByIdQuery(orderProp.id, {
+    skip: skipOrderRefetch,
+  });
+  const order = skipOrderRefetch ? orderProp : (orderFresh ?? orderProp);
 
   const { data: items = [], isLoading: itemsLoading } =
     useGetTransferOrderItemsQuery(order.id);

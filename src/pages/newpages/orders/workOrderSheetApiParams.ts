@@ -49,3 +49,26 @@ export function sheetPageCount(total: number, pageSize: number = SHEET_PAGE_SIZE
   if (total <= 0) return 1;
   return Math.max(1, Math.ceil(total / pageSize));
 }
+
+export function buildWorkOrderSheetDailyCountsParams(
+  filters: WorkOrderFilters,
+  scope: {
+    factoryId?: number;
+    machineId?: number;
+    plannedDateFrom: string;
+    plannedDateTo: string;
+  },
+) {
+  const statusFilter = filters.status;
+
+  return {
+    factory_id: scope.factoryId,
+    machine_id: scope.machineId,
+    planned_date_from: scope.plannedDateFrom,
+    planned_date_to: scope.plannedDateTo,
+    status:
+      statusFilter !== 'all' && statusFilter !== 'planned' ? statusFilter : undefined,
+    work_order_type_id: filters.workType !== 'all' ? filters.workType : undefined,
+    priority: filters.priority !== 'all' ? filters.priority : undefined,
+  };
+}

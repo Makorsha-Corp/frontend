@@ -1,35 +1,42 @@
-import React, { useMemo } from 'react';
-import { format, startOfDay } from 'date-fns';
+import React, { useMemo, useState } from 'react';
 import { Loader2, Repeat2 } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { API_LIMITS } from '@/constants/apiLimits';
-import {
-  useGetWorkOrdersQuery,
-} from '@/features/workOrders/workOrdersApi';
+import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
 import { useGetWorkOrderTemplatesQuery } from '@/features/workOrderTemplates/workOrderTemplatesApi';
-import type { BulkDeleteFutureRecurrenceDraftsResponse, WorkOrder } from '@/types/workOrder';
+import type { WorkOrder } from '@/types/workOrder';
+import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import {
   buildRecurrenceProgramSummary,
-  formatRecurrenceProgramDateLabel,
   type RecurrenceProgramSummary,
 } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
 import { formatRecurrenceCadence } from '@/pages/newpages/orders/workOrderTemplateLabels';
-import RecurringProgramDeleteButton from './RecurringProgramDeleteButton';
+import { RecurrenceProgramPopoverSections } from './RecurrenceProgramPopoverSections';
 
-export interface WorkOrderRecurringProgramCardProps {
-  order: WorkOrder;
-  machineName: string;
-  onProgramChanged?: (result: BulkDeleteFutureRecurrenceDraftsResponse) => void;
+/** Detail header meta badges — ~20% larger than original 10px chips. */
+export const workOrderDetailHeaderBadgeClass =
+  'inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-normal leading-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+export const workOrderDetailHeaderBadgeAmberClass = cn(
+  workOrderDetailHeaderBadgeClass,
+  'border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400',
+);
+
+export const workOrderDetailHeaderBadgeVioletClass = cn(
+  workOrderDetailHeaderBadgeClass,
+  'border-violet-500/40 bg-violet-500/10 text-violet-700 hover:bg-violet-500/15 dark:text-violet-400',
+);
+
+export interface WorkOrderRecurringProgramState {
+  template: WorkOrderTemplate;
+  cadence: string;
+  program: RecurrenceProgramSummary | null;
+  isLoading: boolean;
 }
 
-const WorkOrderRecurringProgramCard: React.FC<WorkOrderRecurringProgramCardProps> = ({
-  order,
-  machineName,
-  onProgramChanged,
-}) => {
+export function useWorkOrderRecurringProgram(order: WorkOrder): WorkOrderRecurringProgramState | null {
   const templateId = order.work_order_template_id;
   const machineId = order.machine_id;
 
@@ -44,15 +51,13 @@ const WorkOrderRecurringProgramCard: React.FC<WorkOrderRecurringProgramCardProps
     [templateId, templates],
   );
 
-  const shouldFetchProgram =
-    Boolean(templateId && machineId && template?.is_recurring);
+  const shouldFetchProgram = Boolean(templateId && machineId && template?.is_recurring);
 
   const { data: programOrders = [], isLoading: ordersLoading } = useGetWorkOrdersQuery(
     {
       work_order_template_id: templateId ?? undefined,
       machine_id: machineId ?? undefined,
-      status: 'DRAFT',
-      limit: API_LIMITS.FLEXIBLE_1000,
+      limit: 100,
     },
     { skip: !shouldFetchProgram },
   );
@@ -67,90 +72,154 @@ const WorkOrderRecurringProgramCard: React.FC<WorkOrderRecurringProgramCardProps
     });
   }, [order, programOrders, template, templateId, machineId]);
 
-  if (!templateId || !machineId) return null;
-  if (templatesLoading) return null;
-  if (!template?.is_recurring) return null;
+  if (!templateId || !machineId || templatesLoading || !template?.is_recurring) {
+    return null;
+  }
 
-  const cadence = formatRecurrenceCadence(template) ?? 'Recurring';
-  const isLoading = ordersLoading;
-  const canDelete = order.status === 'DRAFT';
+  return {
+    template,
+    cadence: formatRecurrenceCadence(template) ?? 'Recurring',
+    program,
+    isLoading: ordersLoading,
+  };
+}
+
+export interface WorkOrderRecurringProgramBadgeProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  templateName: string;
+  cadence: string;
+}
+
+export const WorkOrderRecurringProgramBadge = React.forwardRef<
+  HTMLButtonElement,
+  WorkOrderRecurringProgramBadgeProps
+>(function WorkOrderRecurringProgramBadge(
+  { templateName, cadence, className, type = 'button', ...props },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      aria-label={`Recurring program — ${templateName}, ${cadence}. Click for details.`}
+      title={`${templateName} · ${cadence}`}
+      className={cn(workOrderDetailHeaderBadgeVioletClass, className)}
+      {...props}
+    >
+      <Repeat2 className="h-3 w-3 shrink-0" aria-hidden />
+      {cadence}
+    </button>
+  );
+});
+
+export interface WorkOrderRecurringProgramPopoverProps {
+  order: WorkOrder;
+  machineName: string;
+  programState: WorkOrderRecurringProgramState;
+  onOccurrenceClick?: (workOrderId: number) => void;
+}
+
+export function WorkOrderRecurringProgramPopover({
+  order,
+  machineName,
+  programState,
+  onOccurrenceClick,
+}: WorkOrderRecurringProgramPopoverProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleOccurrenceClick = (workOrderId: number) => {
+    setOpen(false);
+    onOccurrenceClick?.(workOrderId);
+  };
 
   return (
-    <Card>
-      <CardHeader className="p-4 pb-3 flex flex-row items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Repeat2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            Recurring program
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1 truncate">
-            {template.template_name} · {cadence}
-          </p>
+    <Popover modal={false} open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <WorkOrderRecurringProgramBadge
+          templateName={programState.template.template_name}
+          cadence={programState.cadence}
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-80 p-3"
+        align="end"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <WorkOrderRecurringProgramPanel
+          order={order}
+          machineName={machineName}
+          programState={programState}
+          onOccurrenceClick={onOccurrenceClick ? handleOccurrenceClick : undefined}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export interface WorkOrderRecurringProgramPanelProps {
+  order: WorkOrder;
+  machineName: string;
+  programState: WorkOrderRecurringProgramState;
+  onOccurrenceClick?: (workOrderId: number) => void;
+}
+
+export function WorkOrderRecurringProgramPanel({
+  order: _order,
+  machineName: _machineName,
+  programState,
+  onOccurrenceClick,
+}: WorkOrderRecurringProgramPanelProps) {
+  const { template, cadence, program, isLoading } = programState;
+
+  return (
+    <div className="space-y-3">
+      <div className="min-w-0 pr-2">
+        <p className="text-sm font-medium text-foreground">Recurring program</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted-foreground break-words">
+          {template.template_name} · {cadence}
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading program…
         </div>
-        {program && canDelete ? (
-          <RecurringProgramDeleteButton
-            program={program}
-            machineName={machineName}
-            onDeleted={onProgramChanged}
-            className="shrink-0"
-          />
-        ) : null}
-      </CardHeader>
-      <CardContent className="pt-0">
-        {isLoading ? (
-          <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading program drafts…
-          </div>
-        ) : !program || program.allDrafts.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">No draft orders in this program.</p>
-        ) : (
-          <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
-            {program.allDrafts.map((draft) => {
-              const isFuture = draft.isFuture;
-              const isToday =
-                draft.plannedDate === format(startOfDay(new Date()), 'yyyy-MM-dd');
-              return (
-                <li
-                  key={draft.workOrderId}
-                  className={cn(
-                    'flex items-center justify-between gap-2 rounded-md border border-border/60 px-2.5 py-1.5 text-sm',
-                    draft.isCurrentRow && 'border-violet-500/40 bg-violet-500/5',
-                  )}
-                >
-                  <span className="font-medium">{formatRecurrenceProgramDateLabel(draft.plannedDate)}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {draft.isCurrentRow ? (
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
-                        This order
-                      </Badge>
-                    ) : null}
-                    {isFuture ? (
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">
-                        Future
-                      </Badge>
-                    ) : isToday ? (
-                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">
-                        Today
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
-                        Past
-                      </Badge>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {program && program.futureDraftCount > 0 && !canDelete ? (
-          <p className="text-xs text-muted-foreground mt-3">
-            {program.futureDraftCount} future draft{program.futureDraftCount === 1 ? '' : 's'} in this program.
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : !program ? (
+        <p className="text-sm text-muted-foreground">No program data.</p>
+      ) : (
+        <RecurrenceProgramPopoverSections
+          program={program}
+          variant="detailed"
+          onOccurrenceClick={onOccurrenceClick}
+        />
+      )}
+
+      {program && program.futureDraftCount > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {program.futureDraftCount} future draft{program.futureDraftCount === 1 ? '' : 's'} in this program.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export interface WorkOrderRecurringProgramCardProps {
+  order: WorkOrder;
+  machineName: string;
+}
+
+/** @deprecated Use badge + panel in WorkOrderDetailPanel instead. Kept for any legacy imports. */
+const WorkOrderRecurringProgramCard: React.FC<WorkOrderRecurringProgramCardProps> = (props) => {
+  const programState = useWorkOrderRecurringProgram(props.order);
+  if (!programState) return null;
+  return (
+    <WorkOrderRecurringProgramPanel
+      order={props.order}
+      machineName={props.machineName}
+      programState={programState}
+    />
   );
 };
 

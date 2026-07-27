@@ -143,6 +143,8 @@ const AccountDetailPage: React.FC = () => {
         ) : (
           <>
             <AccountInvoiceToolbar
+              accountName={account.name}
+              accountTags={account.account_tags}
               invoiced={workspace.summary?.invoiced ?? 0}
               paid={workspace.summary?.paid ?? 0}
               outstanding={workspace.summary?.outstanding ?? 0}
@@ -162,7 +164,7 @@ const AccountDetailPage: React.FC = () => {
               dueDateTo={workspace.dueDateTo}
               onDueDateToChange={workspace.setDueDateTo}
               filtersExpanded={workspace.filtersExpanded}
-              onToggleFiltersExpanded={() => workspace.setFiltersExpanded((v) => !v)}
+              onFiltersExpandedChange={workspace.setFiltersExpanded}
               activeFilterCount={workspace.activeFilterCount}
               onClearFilters={workspace.clearFilters}
             />

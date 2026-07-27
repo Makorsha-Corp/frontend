@@ -2,12 +2,15 @@ import React from 'react';
 import AccountInvoiceKpiStrip from './AccountInvoiceKpiStrip';
 import AccountInvoiceFiltersBar from './AccountInvoiceFiltersBar';
 import { cn } from '@/lib/utils';
+import type { AccountTagInfo } from '@/types/account';
 import type {
   AccountInvoiceStatusFilter,
   AccountInvoiceTypeFilter,
 } from '@/hooks/useAccountInvoiceWorkspace';
 
 export interface AccountInvoiceToolbarProps {
+  accountName: string;
+  accountTags?: AccountTagInfo[];
   invoiced: number;
   paid: number;
   outstanding: number;
@@ -27,13 +30,15 @@ export interface AccountInvoiceToolbarProps {
   dueDateTo: string;
   onDueDateToChange: (value: string) => void;
   filtersExpanded: boolean;
-  onToggleFiltersExpanded: () => void;
+  onFiltersExpandedChange: (open: boolean) => void;
   activeFilterCount: number;
   onClearFilters: () => void;
   className?: string;
 }
 
 const AccountInvoiceToolbar: React.FC<AccountInvoiceToolbarProps> = ({
+  accountName,
+  accountTags = [],
   invoiced,
   paid,
   outstanding,
@@ -53,11 +58,13 @@ const AccountInvoiceToolbar: React.FC<AccountInvoiceToolbarProps> = ({
   dueDateTo,
   onDueDateToChange,
   filtersExpanded,
-  onToggleFiltersExpanded,
+  onFiltersExpandedChange,
   activeFilterCount,
   onClearFilters,
   className,
 }) => {
+  const primaryTag = accountTags[0];
+
   return (
     <div
       id="account-invoice-toolbar"
@@ -67,6 +74,29 @@ const AccountInvoiceToolbar: React.FC<AccountInvoiceToolbarProps> = ({
       )}
     >
       <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-0">
+        <div
+          className="min-w-0 shrink-0 lg:max-w-[min(16rem,22vw)] lg:pr-4"
+          data-testid="account-invoice-toolbar-account"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            {primaryTag?.name ?? 'Account'}
+          </p>
+          <p
+            className="mt-0.5 truncate text-base font-semibold leading-tight text-card-foreground sm:text-lg"
+            data-testid="account-invoice-toolbar-name"
+            title={accountName}
+          >
+            {accountName}
+          </p>
+        </div>
+
+        <div
+          className="hidden lg:block w-px self-stretch min-h-[2.75rem] bg-border shrink-0"
+          aria-hidden
+        />
+
+        <div className="h-px w-full bg-border lg:hidden" aria-hidden />
+
         <AccountInvoiceKpiStrip
           invoiced={invoiced}
           paid={paid}
@@ -101,7 +131,7 @@ const AccountInvoiceToolbar: React.FC<AccountInvoiceToolbarProps> = ({
           dueDateTo={dueDateTo}
           onDueDateToChange={onDueDateToChange}
           filtersExpanded={filtersExpanded}
-          onToggleFiltersExpanded={onToggleFiltersExpanded}
+          onFiltersExpandedChange={onFiltersExpandedChange}
           activeFilterCount={activeFilterCount}
           onClearFilters={onClearFilters}
           className="shrink-0 lg:pl-4"

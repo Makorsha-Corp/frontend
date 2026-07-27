@@ -32,7 +32,9 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  useGetPurchaseOrdersQuery,
+  useGetPurchaseOrdersPageQuery,
+  useGetPurchaseOrderHubStatsQuery,
+  useGetPurchaseOrderByIdQuery,
   useDeletePurchaseOrderMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
@@ -40,26 +42,21 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
+import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { ShoppingCart, Plus, Loader2, Search, CalendarIcon, X } from 'lucide-react';
+import { ShoppingCart, Plus, Search, CalendarIcon, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
+import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
-import { API_LIMITS } from '@/constants/apiLimits';
 import {
-  buildMachineIdToFactoryId,
-  buildProjectIdToFactoryId,
-} from './ordersOverviewData';
-import {
-  filterPurchaseOrders,
-  isPurchaseOrderComplete,
-  purchaseOrderSummaryStats,
   type DestinationTypeFilter,
   type InvoiceFilter,
+  type PurchaseOrderSummaryStats,
 } from './purchaseOrdersOverviewData';
 import { statusesForPoWorkflowFilter } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
 import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
@@ -70,7 +67,22 @@ import {
   writePurchaseOrderParams,
   type PurchaseOrderUrlFilters,
 } from './orderListUrlParams';
-const PO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
+import {
+  ORDER_HUB_PAGE_PARAMS,
+  parseOrderHubPage,
+} from './orderHubApiParams';
+import {
+  buildPurchaseOrderHubFilterParams,
+  buildPurchaseOrderHubListParams,
+} from './purchaseOrderHubApiParams';
+import { API_LIMITS } from '@/constants/apiLimits';
+import { useOrderHubPageClamp } from './useOrderHubPageClamp';
+import OrderHubOffPageSelectionBanner from '@/components/newcomponents/customui/orders/OrderHubOffPageSelectionBanner';
+import { isOrderSelectedOffFilteredPage } from './orderHubSelection';
+import {
+  resolvePurchaseOrderDestinationLabel,
+  type PurchaseOrderDestinationLookups,
+} from './resolvePurchaseOrderDestinationLabel';
 
 const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
   all: 'All destinations',
@@ -103,11 +115,8 @@ const PurchaseOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'purchase')
   );
+  const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
-  const { data: orders = [], isLoading } = useGetPurchaseOrdersQuery({
-    skip: 0,
-    limit: PO_LIST_LIMIT,
-  });
   const { data: accounts = [] } = useGetAccountsQuery({
     skip: 0,
     limit: API_LIMITS.ACCOUNTS_LIST_MAX,
@@ -128,6 +137,10 @@ const PurchaseOrdersPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
+  const { data: projectComponents = [] } = useGetProjectComponentsQuery({
+    skip: 0,
+    limit: API_LIMITS.FLEXIBLE_1000,
+  });
   const [deleteOrder] = useDeletePurchaseOrderMutation();
 
   const statusMap = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
@@ -138,6 +151,8 @@ const PurchaseOrdersPage: React.FC = () => {
     () => parsePurchaseOrderParams(searchParams, poStatusOptions),
     [searchParams, poStatusOptions]
   );
+
+  const listPage = parseOrderHubPage(searchParams.get(ORDER_HUB_PAGE_PARAMS.purchase));
 
   const {
     dateRange,
@@ -151,91 +166,146 @@ const PurchaseOrdersPage: React.FC = () => {
   } = urlFilters;
 
   const commitPurchaseFilters = useCallback(
-    (patch: Partial<PurchaseOrderUrlFilters>) => {
+    (patch: Partial<PurchaseOrderUrlFilters & { page?: number }>) => {
       if (patch.factoryFilter !== undefined) {
         setPageFactory(patch.factoryFilter);
       }
-      const { factoryFilter: _factoryPatch, ...urlPatch } = patch;
+      const { factoryFilter: _factoryPatch, page: pagePatch, ...urlPatch } = patch;
       setSearchParams(
-        (prev) =>
-          writePurchaseOrderParams(
+        (prev) => {
+          const next = writePurchaseOrderParams(
             prev,
             { ...urlFilters, factoryFilter: 'all', ...urlPatch },
             poStatusOptions,
-          ),
-        { replace: true }
+          );
+          if (pagePatch != null) {
+            if (pagePatch > 1) next.set(ORDER_HUB_PAGE_PARAMS.purchase, String(pagePatch));
+            else next.delete(ORDER_HUB_PAGE_PARAMS.purchase);
+          } else if (Object.keys(urlPatch).length > 0 || patch.factoryFilter !== undefined) {
+            next.delete(ORDER_HUB_PAGE_PARAMS.purchase);
+          }
+          return next;
+        },
+        { replace: true },
       );
     },
-    [setSearchParams, urlFilters, setPageFactory, poStatusOptions]
+    [setSearchParams, urlFilters, setPageFactory, poStatusOptions],
   );
 
-  const resolutionMaps = useMemo(
-    () => ({
-      machineIdToFactoryId: buildMachineIdToFactoryId(machines),
-      projectIdToFactoryId: buildProjectIdToFactoryId(projects),
-    }),
-    [machines, projects]
+  useEffect(() => {
+    setSearchInput(urlFilters.searchQuery);
+  }, [urlFilters.searchQuery]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const trimmed = searchInput.trim();
+      if (trimmed === urlFilters.searchQuery.trim()) return;
+      commitPurchaseFilters({ searchQuery: trimmed });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput, urlFilters.searchQuery, commitPurchaseFilters]);
+
+  const hubFilterParams = useMemo(
+    () => buildPurchaseOrderHubFilterParams(urlFilters, factoryFilter),
+    [urlFilters, factoryFilter],
   );
 
-  const filterOpts = useMemo(
-    () => ({
-      from: dateRange.from,
-      to: dateRange.to,
-      statusIds: statusFilters,
-      accountId: accountFilter,
-      factoryId: factoryFilter,
-      destinationType: destinationFilter,
-      invoice: invoiceFilter,
-      searchQuery,
-      showCompleteOrders,
-      showVoidedOrders,
-    }),
-    [
-      dateRange.from,
-      dateRange.to,
-      statusFilters,
-      accountFilter,
-      factoryFilter,
-      destinationFilter,
-      invoiceFilter,
-      searchQuery,
-      showCompleteOrders,
-      showVoidedOrders,
-    ]
+  const listQueryParams = useMemo(
+    () => buildPurchaseOrderHubListParams(urlFilters, factoryFilter, listPage),
+    [urlFilters, factoryFilter, listPage],
   );
 
-  const filteredOrders = useMemo(
-    () => filterPurchaseOrders(orders, filterOpts, accounts, resolutionMaps),
-    [orders, filterOpts, accounts, resolutionMaps]
-  );
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+  } = useGetPurchaseOrdersPageQuery(listQueryParams, { keepPreviousData: true });
+  const { data: hubStats, isLoading: statsLoading } = useGetPurchaseOrderHubStatsQuery(hubFilterParams);
 
-  const overviewStats = useMemo(
-    () => purchaseOrderSummaryStats(filteredOrders, statusMap),
-    [filteredOrders, statusMap]
-  );
+  const orders = pageData?.items ?? [];
+  const ordersTotal = pageData?.total ?? 0;
 
-  const mayTruncate = orders.length >= PO_LIST_LIMIT;
+  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.purchase, setSearchParams);
 
-  const selectedOrder = useMemo(
-    () =>
-      filteredOrders.find((o) => o.id === selectedOrderId) ??
-      orders.find((o) => o.id === selectedOrderId) ??
-      null,
-    [filteredOrders, orders, selectedOrderId]
-  );
+  const overviewStats = useMemo((): PurchaseOrderSummaryStats => {
+    if (!hubStats) {
+      return {
+        totalCount: 0,
+        totalValue: 0,
+        openCount: 0,
+        openValue: 0,
+        notInvoicedCount: 0,
+      };
+    }
+    return {
+      totalCount: hubStats.total_count,
+      totalValue: Number(hubStats.total_value),
+      openCount: hubStats.open_count,
+      openValue: Number(hubStats.open_value),
+      notInvoicedCount: hubStats.not_invoiced_count,
+    };
+  }, [hubStats]);
 
-  const hasHiddenCompleteOrders = useMemo(
-    () => !showCompleteOrders && orders.some(isPurchaseOrderComplete),
-    [showCompleteOrders, orders]
+  const selectedFromList = useMemo(
+    () => orders.find((o) => o.id === selectedOrderId) ?? null,
+    [orders, selectedOrderId],
   );
+  const { data: selectedById, isError: selectedByIdError } = useGetPurchaseOrderByIdQuery(selectedOrderId!, {
+    skip: selectedOrderId == null || selectedFromList != null,
+  });
+  const selectedOrder = selectedFromList ?? selectedById ?? null;
+  const isOffFilteredPage = isOrderSelectedOffFilteredPage({
+    selectedOrderId,
+    selectedFromList,
+    selectedById,
+    selectedByIdError,
+  });
+
+  const destinationLookups = useMemo((): PurchaseOrderDestinationLookups => {
+    const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+    return {
+      factories,
+      machines,
+      projectComponents: projectComponents.map((c) => ({
+        id: c.id,
+        name: c.name,
+        project_id: c.project_id,
+        project_name: projectNameById.get(c.project_id) ?? null,
+      })),
+    };
+  }, [factories, machines, projectComponents, projects]);
+
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
     if (!selectedOrderFromUrl) return;
     const parsed = Number(selectedOrderFromUrl);
-    if (Number.isNaN(parsed)) return;
+    if (Number.isNaN(parsed)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     setSelectedOrderId(parsed);
-  }, [selectedOrderFromUrl]);
+  }, [selectedOrderFromUrl, setSearchParams]);
+
+  useEffect(() => {
+    if (selectedOrderId == null || selectedFromList != null || !selectedByIdError) return;
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [selectedOrderId, selectedFromList, selectedByIdError, setSearchParams]);
 
   const setSelectedOrder = (orderId: number | null) => {
     setSelectedOrderId(orderId);
@@ -266,21 +336,8 @@ const PurchaseOrdersPage: React.FC = () => {
   const accountName = (id: number | null) =>
     id == null ? 'No supplier' : accounts.find((a) => a.id === id)?.name ?? `Account #${id}`;
   const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
-  const destinationLabel = (order: PurchaseOrder) => {
-    if (order.destination_type === 'storage') {
-      const factory = factories.find((f) => f.id === order.destination_id);
-      return factory ? `Storage (${factory.name})` : 'Storage';
-    }
-    if (order.destination_type === 'machine') {
-      const machine = machines.find((m) => m.id === order.destination_id);
-      return machine ? `Machine (${machine.name})` : `Machine #${order.destination_id}`;
-    }
-    if (order.destination_type === 'project') {
-      const project = projects.find((p) => p.id === order.destination_id);
-      return project ? `Project (${project.name})` : `Project #${order.destination_id}`;
-    }
-    return `${order.destination_type} #${order.destination_id}`;
-  };
+  const destinationLabel = (order: PurchaseOrder) =>
+    resolvePurchaseOrderDestinationLabel(order, destinationLookups);
   const formatDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString() : '—');
 
   const hasActiveFilters =
@@ -301,6 +358,8 @@ const PurchaseOrdersPage: React.FC = () => {
     if (factoryFilter !== 'all') count += 1;
     if (destinationFilter !== 'all') count += 1;
     if (invoiceFilter !== 'all') count += 1;
+    if (searchQuery.trim().length > 0) count += 1;
+    if (showVoidedOrders) count += 1;
     return count;
   }, [
     dateRange.from,
@@ -310,10 +369,21 @@ const PurchaseOrdersPage: React.FC = () => {
     factoryFilter,
     destinationFilter,
     invoiceFilter,
+    searchQuery,
+    showVoidedOrders,
   ]);
 
   const clearFilters = () => {
-    setSearchParams((prev) => clearPurchaseOrderFilterParams(prev), { replace: true });
+    setPageFactory('all');
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = clearPurchaseOrderFilterParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const handleDelete = async (o: PurchaseOrder) => {
@@ -372,8 +442,8 @@ const PurchaseOrdersPage: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="Search by PO# or supplier..."
-                  value={searchQuery}
-                  onChange={(e) => commitPurchaseFilters({ searchQuery: e.target.value })}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
@@ -425,6 +495,7 @@ const PurchaseOrdersPage: React.FC = () => {
               />
             </PopoverContent>
           </Popover>
+          <span className="text-xs text-muted-foreground">Filters by created date</span>
 
           <OrderStatusMultiFilter
             options={poStatusOptions}
@@ -502,20 +573,11 @@ const PurchaseOrdersPage: React.FC = () => {
           </Select>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="po-show-complete-filters"
-                checked={showCompleteOrders}
-                onCheckedChange={(value) => commitPurchaseFilters({ showCompleteOrders: value })}
-                aria-label="Show complete orders"
-              />
-              <Label
-                htmlFor="po-show-complete-filters"
-                className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
-              >
-                Show complete
-              </Label>
-            </div>
+            <ShowCompleteOrdersSwitchControl
+              checked={showCompleteOrders}
+              onCheckedChange={(value) => commitPurchaseFilters({ showCompleteOrders: value })}
+              context="list"
+            />
             <div className="flex items-center gap-2">
               <Switch
                 id="po-show-voided-filters"
@@ -556,18 +618,21 @@ const PurchaseOrdersPage: React.FC = () => {
               selectedOrder && 'max-lg:hidden',
               !isLgScreen && 'flex-1 border-r-0'
             )}
-            filteredOrders={filteredOrders}
+            orders={orders}
+            ordersTotal={ordersTotal}
+            listPage={listPage}
+            isFetching={isFetching}
+            onPageChange={(page) => commitPurchaseFilters({ page })}
             selectedOrderId={selectedOrderId}
+            offPageSelectedLabel={
+              isOffFilteredPage && selectedOrder ? selectedOrder.po_number : null
+            }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
             activeFilterCount={activeFilterCount}
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
-            showCompleteOrders={showCompleteOrders}
-            onShowCompleteOrdersChange={(value) =>
-              commitPurchaseFilters({ showCompleteOrders: value })
-            }
-            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
+            emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
@@ -585,17 +650,25 @@ const PurchaseOrdersPage: React.FC = () => {
             )}
           >
             {selectedOrder ? (
-              <PurchaseOrderDetailPanel
-                order={selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                showCompleteOrders={showCompleteOrders}
-              />
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                {isOffFilteredPage ? (
+                  <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.po_number} />
+                ) : null}
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <PurchaseOrderDetailPanel
+                    order={selectedOrder}
+                    onClose={() => setSelectedOrder(null)}
+                    skipOrderRefetch={selectedFromList != null}
+                    showCompleteOrders={showCompleteOrders}
+                  />
+                </div>
+              </div>
             ) : isLgScreen ? (
               <PurchaseOrdersOverviewPanel
-                orders={filteredOrders}
+                orders={orders}
                 stats={overviewStats}
-                isLoading={isLoading}
-                mayTruncate={mayTruncate}
+                hubStats={hubStats}
+                isLoading={isLoading || statsLoading}
                 accountName={accountName}
                 statusLabel={statusLabel}
                 onSelectOrder={(id) => setSelectedOrder(id)}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
@@ -11,7 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useGetItemsQuery, useGetItemByIdQuery, useDeleteItemMutation } from '@/features/items/itemsApi';
+import {
+  useGetItemsPageQuery,
+  useGetItemByIdQuery,
+  useGetItemUnitsQuery,
+  useDeleteItemMutation,
+} from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import { Package2, Plus, Search, Tag, X } from 'lucide-react';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
@@ -19,12 +24,16 @@ import EditItemDialog from '@/components/newcomponents/customui/EditItemDialog';
 import ItemTagsFilterPanel from '@/components/newcomponents/customui/items/ItemTagsFilterPanel';
 import ItemDetailsDialog from '@/components/newcomponents/customui/item-details/ItemDetailsDialog';
 import ItemsOverviewPanel from '@/components/newcomponents/customui/items/ItemsOverviewPanel';
+import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { filterItems, uniqueUnitsFromItems } from '@/features/items/itemsOverviewData';
+import {
+  buildItemsCatalogQueryParams,
+  itemsPageCount,
+  parseItemsCatalogFilters,
+  parseItemsCatalogPage,
+} from '@/features/items/itemsCatalogParams';
 import toast, { Toaster } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
-
-const ITEMS_LIST_LIMIT = API_LIMITS.STRICT_100;
 
 const ItemsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,9 +41,13 @@ const ItemsPage: React.FC = () => {
   const detailsParam = searchParams.get('details');
   const deepLinkItemId = itemIdParam ? parseInt(itemIdParam, 10) : null;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterUnit, setFilterUnit] = useState('');
-  const [filterTagIds, setFilterTagIds] = useState<number[]>([]);
+  const catalogFilters = useMemo(() => parseItemsCatalogFilters(searchParams), [searchParams]);
+  const catalogPage = parseItemsCatalogPage(searchParams.get('itemPage'));
+
+  const [searchInput, setSearchInput] = useState(catalogFilters.searchQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(catalogFilters.searchQuery);
+  const [filterUnit, setFilterUnit] = useState(catalogFilters.unitFilter);
+  const [filterTagIds, setFilterTagIds] = useState<number[]>(catalogFilters.tagFilterIds);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isTagsPanelOpen, setIsTagsPanelOpen] = useState(false);
@@ -43,10 +56,82 @@ const ItemsPage: React.FC = () => {
 
   const [deleteItem] = useDeleteItemMutation();
 
-  const { data: allItems = [], isLoading, error } = useGetItemsQuery({
-    skip: 0,
-    limit: ITEMS_LIST_LIMIT,
+  useEffect(() => {
+    setSearchInput(catalogFilters.searchQuery);
+    setDebouncedSearch(catalogFilters.searchQuery);
+    setFilterUnit(catalogFilters.unitFilter);
+    setFilterTagIds(catalogFilters.tagFilterIds);
+  }, [catalogFilters.searchQuery, catalogFilters.unitFilter, catalogFilters.tagFilterIds]);
+
+  const activeFilters = useMemo(
+    () => ({
+      searchQuery: catalogFilters.searchQuery,
+      unitFilter: catalogFilters.unitFilter,
+      tagFilterIds: catalogFilters.tagFilterIds,
+    }),
+    [catalogFilters.searchQuery, catalogFilters.unitFilter, catalogFilters.tagFilterIds],
+  );
+
+  const patchCatalogParams = useCallback(
+    (
+      patch: Partial<{ searchQuery: string; unitFilter: string; tagFilterIds: number[]; page: number }>,
+      options?: { resetPage?: boolean },
+    ) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        const current = parseItemsCatalogFilters(prev);
+        const merged = {
+          searchQuery: patch.searchQuery ?? current.searchQuery,
+          unitFilter: patch.unitFilter ?? current.unitFilter,
+          tagFilterIds: patch.tagFilterIds ?? current.tagFilterIds,
+          page: patch.page ?? parseItemsCatalogPage(prev.get('itemPage')),
+        };
+
+        if (options?.resetPage !== false && patch.page == null) {
+          merged.page = 1;
+        }
+
+        const search = merged.searchQuery.trim();
+        if (search) next.set('itemSearch', search);
+        else next.delete('itemSearch');
+
+        if (merged.unitFilter) next.set('itemUnit', merged.unitFilter);
+        else next.delete('itemUnit');
+
+        if (merged.tagFilterIds.length > 0) next.set('itemTags', merged.tagFilterIds.join(','));
+        else next.delete('itemTags');
+
+        if (merged.page > 1) next.set('itemPage', String(merged.page));
+        else next.delete('itemPage');
+
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (debouncedSearch === catalogFilters.searchQuery) return;
+    patchCatalogParams({ searchQuery: debouncedSearch });
+  }, [debouncedSearch, catalogFilters.searchQuery, patchCatalogParams]);
+
+  const queryParams = useMemo(
+    () => buildItemsCatalogQueryParams(activeFilters, { page: catalogPage }),
+    [activeFilters, catalogPage],
+  );
+
+  const { data: itemsPage, isLoading, isFetching, error } = useGetItemsPageQuery(queryParams, {
+    keepPreviousData: true,
   });
+  const { data: unitOptions = [] } = useGetItemUnitsQuery();
+
+  const items = itemsPage?.items ?? [];
+  const itemsTotal = itemsPage?.total ?? 0;
 
   const { data: deepLinkItem } = useGetItemByIdQuery(deepLinkItemId ?? 0, {
     skip: deepLinkItemId == null || !Number.isFinite(deepLinkItemId),
@@ -55,7 +140,7 @@ const ItemsPage: React.FC = () => {
   useEffect(() => {
     if (detailsParam !== '1' || deepLinkItemId == null || !Number.isFinite(deepLinkItemId)) return;
 
-    const fromList = allItems.find((item) => item.id === deepLinkItemId);
+    const fromList = items.find((item) => item.id === deepLinkItemId);
     const item = fromList ?? deepLinkItem;
     if (!item) return;
 
@@ -67,34 +152,30 @@ const ItemsPage: React.FC = () => {
         next.delete('details');
         return next;
       },
-      { replace: true }
+      { replace: true },
     );
-  }, [detailsParam, deepLinkItemId, allItems, deepLinkItem, setSearchParams]);
+  }, [detailsParam, deepLinkItemId, items, deepLinkItem, setSearchParams]);
 
-  const filterOpts = useMemo(
-    () => ({
-      searchQuery,
-      unitFilter: filterUnit,
-      tagFilterIds: filterTagIds,
-    }),
-    [searchQuery, filterUnit, filterTagIds]
+  useEffect(() => {
+    const maxPage = itemsPageCount(itemsTotal);
+    if (catalogPage <= maxPage) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (maxPage <= 1) next.delete('itemPage');
+      else next.set('itemPage', String(maxPage));
+      return next;
+    });
+  }, [itemsTotal, catalogPage, setSearchParams]);
+
+  const hasActiveFilters = Boolean(
+    activeFilters.searchQuery || activeFilters.unitFilter || activeFilters.tagFilterIds.length > 0,
   );
-
-  const filteredItems = useMemo(
-    () => filterItems(allItems, filterOpts),
-    [allItems, filterOpts]
-  );
-
-  const uniqueUnits = useMemo(() => uniqueUnitsFromItems(allItems), [allItems]);
-
-  const mayTruncate = allItems.length >= ITEMS_LIST_LIMIT;
-
-  const hasActiveFilters = Boolean(searchQuery.trim() || filterUnit || filterTagIds.length > 0);
 
   const clearFilters = () => {
-    setSearchQuery('');
+    setSearchInput('');
     setFilterUnit('');
     setFilterTagIds([]);
+    patchCatalogParams({ searchQuery: '', unitFilter: '', tagFilterIds: [] });
   };
 
   const handleEdit = (item: Item) => {
@@ -110,7 +191,7 @@ const ItemsPage: React.FC = () => {
   const handleDelete = async (item: Item) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete "${item.name}"? This will set it as inactive.`
+        `Are you sure you want to delete "${item.name}"? This will set it as inactive.`,
       )
     ) {
       return;
@@ -156,27 +237,40 @@ const ItemsPage: React.FC = () => {
         </AppShellHeader>
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-6">
             <ItemsOverviewPanel
-              items={filteredItems}
+              items={items}
               isLoading={isLoading}
+              isFetching={isFetching}
               error={error}
-              mayTruncate={mayTruncate}
               onView={handleView}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              paginationFooter={
+                <ListPagePagination
+                  page={catalogPage}
+                  total={itemsTotal}
+                  pageSize={API_LIMITS.ITEMS_CATALOG_PAGE_SIZE}
+                  isFetching={isFetching}
+                  onPageChange={(page) => patchCatalogParams({ page }, { resetPage: false })}
+                />
+              }
               headerActions={
                 <>
                   <Select
                     value={filterUnit || 'all'}
-                    onValueChange={(value) => setFilterUnit(value === 'all' ? '' : value)}
+                    onValueChange={(value) => {
+                      const unit = value === 'all' ? '' : value;
+                      setFilterUnit(unit);
+                      patchCatalogParams({ unitFilter: unit });
+                    }}
                   >
                     <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
                       <SelectValue placeholder="Unit" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All units</SelectItem>
-                      {uniqueUnits.map((unit) => (
+                      {unitOptions.map((unit) => (
                         <SelectItem key={unit} value={unit}>
                           {unit}
                         </SelectItem>
@@ -188,8 +282,8 @@ const ItemsPage: React.FC = () => {
                     <Input
                       type="text"
                       placeholder="Search items..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
                       className="pl-9 h-9 bg-background"
                     />
                   </div>
@@ -210,7 +304,7 @@ const ItemsPage: React.FC = () => {
                     className={cn(
                       'h-9',
                       (isTagsPanelOpen || filterTagIds.length > 0) &&
-                        'border-brand-primary/40 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15 hover:text-brand-primary'
+                        'border-brand-primary/40 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15 hover:text-brand-primary',
                     )}
                   >
                     <Tag className="mr-2 h-4 w-4" />
@@ -240,7 +334,10 @@ const ItemsPage: React.FC = () => {
           {isTagsPanelOpen ? (
             <ItemTagsFilterPanel
               selectedTagIds={filterTagIds}
-              onSelectedTagIdsChange={setFilterTagIds}
+              onSelectedTagIdsChange={(tagIds) => {
+                setFilterTagIds(tagIds);
+                patchCatalogParams({ tagFilterIds: tagIds });
+              }}
               onClose={() => setIsTagsPanelOpen(false)}
             />
           ) : null}

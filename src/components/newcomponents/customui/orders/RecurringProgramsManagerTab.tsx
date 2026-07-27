@@ -186,7 +186,7 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
         <Repeat2 className="mb-2 h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">No recurring templates yet</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Create one on the Templates tab and turn on recurrence.
+          Create one with Templates in the header and turn on recurrence.
         </p>
       </div>
     );

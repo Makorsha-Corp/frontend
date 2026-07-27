@@ -16,8 +16,6 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -28,7 +26,9 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  useGetExpenseOrdersQuery,
+  useGetExpenseOrdersPageQuery,
+  useGetExpenseOrderHubStatsQuery,
+  useGetExpenseOrderByIdQuery,
   useDeleteExpenseOrderMutation,
 } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
@@ -40,6 +40,7 @@ import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/or
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
 import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/ExpenseOrdersOverviewPanel';
 import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
+import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
 import {
@@ -47,10 +48,8 @@ import {
 } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
-  filterExpenseOrders,
-  expenseOrderSummaryStats,
-  isExpenseOrderComplete,
   type InvoiceFilter,
+  type ExpenseOrderSummaryStats,
 } from './expenseOrdersOverviewData';
 import { EO_STAGE_FILTER_OPTIONS } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
@@ -61,8 +60,17 @@ import {
   writeExpenseOrderParams,
   type ExpenseOrderUrlFilters,
 } from './orderListUrlParams';
-
-const EO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
+import {
+  ORDER_HUB_PAGE_PARAMS,
+  parseOrderHubPage,
+} from './orderHubApiParams';
+import {
+  buildExpenseOrderHubFilterParams,
+  buildExpenseOrderHubListParams,
+} from './expenseOrderHubApiParams';
+import { useOrderHubPageClamp } from './useOrderHubPageClamp';
+import OrderHubOffPageSelectionBanner from '@/components/newcomponents/customui/orders/OrderHubOffPageSelectionBanner';
+import { isOrderSelectedOffFilteredPage } from './orderHubSelection';
 
 const ExpenseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,12 +80,8 @@ const ExpenseOrdersPage: React.FC = () => {
   const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
     hasActiveListFilters(new URLSearchParams(window.location.search), 'expense')
   );
+  const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
-
-  const { data: orders = [], isLoading } = useGetExpenseOrdersQuery({
-    skip: 0,
-    limit: EO_LIST_LIMIT,
-  });
   const { data: accounts = [] } = useGetAccountsQuery({
     skip: 0,
     limit: API_LIMITS.ACCOUNTS_LIST_MAX,
@@ -91,6 +95,8 @@ const ExpenseOrdersPage: React.FC = () => {
     [searchParams, eoStatusOptions]
   );
 
+  const listPage = parseOrderHubPage(searchParams.get(ORDER_HUB_PAGE_PARAMS.expense));
+
   const {
     dateRange,
     statusFilters,
@@ -102,72 +108,129 @@ const ExpenseOrdersPage: React.FC = () => {
   } = urlFilters;
 
   const commitExpenseFilters = useCallback(
-    (patch: Partial<ExpenseOrderUrlFilters>) => {
+    (patch: Partial<ExpenseOrderUrlFilters & { page?: number }>) => {
+      const { page: pagePatch, ...urlPatch } = patch;
       setSearchParams(
-        (prev) =>
-          writeExpenseOrderParams(prev, { ...urlFilters, ...patch }, eoStatusOptions),
-        { replace: true }
+        (prev) => {
+          const next = writeExpenseOrderParams(
+            prev,
+            { ...urlFilters, ...urlPatch },
+            eoStatusOptions,
+          );
+          if (pagePatch != null) {
+            if (pagePatch > 1) next.set(ORDER_HUB_PAGE_PARAMS.expense, String(pagePatch));
+            else next.delete(ORDER_HUB_PAGE_PARAMS.expense);
+          } else if (Object.keys(urlPatch).length > 0) {
+            next.delete(ORDER_HUB_PAGE_PARAMS.expense);
+          }
+          return next;
+        },
+        { replace: true },
       );
     },
-    [setSearchParams, urlFilters, eoStatusOptions]
+    [setSearchParams, urlFilters, eoStatusOptions],
   );
 
-  const filterOpts = useMemo(
-    () => ({
-      from: dateRange.from,
-      to: dateRange.to,
-      statusIds: statusFilters,
-      accountId: accountFilter,
-      categoryFilter,
-      invoice: invoiceFilter,
-      searchQuery,
-      showCompleteOrders,
-    }),
-    [
-      dateRange.from,
-      dateRange.to,
-      statusFilters,
-      accountFilter,
-      categoryFilter,
-      invoiceFilter,
-      searchQuery,
-      showCompleteOrders,
-    ]
+  useEffect(() => {
+    setSearchInput(urlFilters.searchQuery);
+  }, [urlFilters.searchQuery]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const trimmed = searchInput.trim();
+      if (trimmed === urlFilters.searchQuery.trim()) return;
+      commitExpenseFilters({ searchQuery: trimmed });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput, urlFilters.searchQuery, commitExpenseFilters]);
+
+  const hubFilterParams = useMemo(
+    () => buildExpenseOrderHubFilterParams(urlFilters),
+    [urlFilters],
   );
 
-  const filteredOrders = useMemo(
-    () => filterExpenseOrders(orders, filterOpts, accounts),
-    [orders, filterOpts, accounts]
+  const listQueryParams = useMemo(
+    () => buildExpenseOrderHubListParams(urlFilters, listPage),
+    [urlFilters, listPage],
   );
 
-  const overviewStats = useMemo(
-    () => expenseOrderSummaryStats(filteredOrders),
-    [filteredOrders]
-  );
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+  } = useGetExpenseOrdersPageQuery(listQueryParams, { keepPreviousData: true });
+  const { data: hubStats, isLoading: statsLoading } = useGetExpenseOrderHubStatsQuery(hubFilterParams);
 
-  const mayTruncate = orders.length >= EO_LIST_LIMIT;
+  const orders = pageData?.items ?? [];
+  const ordersTotal = pageData?.total ?? 0;
 
-  const selectedOrder = useMemo(
-    () =>
-      filteredOrders.find((o) => o.id === selectedOrderId) ??
-      orders.find((o) => o.id === selectedOrderId) ??
-      null,
-    [filteredOrders, orders, selectedOrderId]
-  );
+  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.expense, setSearchParams);
 
-  const hasHiddenCompleteOrders = useMemo(
-    () => !showCompleteOrders && orders.some(isExpenseOrderComplete),
-    [showCompleteOrders, orders]
+  const overviewStats = useMemo((): ExpenseOrderSummaryStats => {
+    if (!hubStats) {
+      return {
+        totalCount: 0,
+        totalValue: 0,
+        openCount: 0,
+        openValue: 0,
+        notInvoicedCount: 0,
+      };
+    }
+    return {
+      totalCount: hubStats.total_count,
+      totalValue: Number(hubStats.total_value),
+      openCount: hubStats.open_count,
+      openValue: Number(hubStats.open_value),
+      notInvoicedCount: hubStats.not_invoiced_count,
+    };
+  }, [hubStats]);
+
+  const selectedFromList = useMemo(
+    () => orders.find((o) => o.id === selectedOrderId) ?? null,
+    [orders, selectedOrderId],
   );
+  const { data: selectedById, isError: selectedByIdError } = useGetExpenseOrderByIdQuery(selectedOrderId!, {
+    skip: selectedOrderId == null || selectedFromList != null,
+  });
+  const selectedOrder = selectedFromList ?? selectedById ?? null;
+  const isOffFilteredPage = isOrderSelectedOffFilteredPage({
+    selectedOrderId,
+    selectedFromList,
+    selectedById,
+    selectedByIdError,
+  });
 
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
     if (!selectedOrderFromUrl) return;
     const parsed = Number(selectedOrderFromUrl);
-    if (Number.isNaN(parsed)) return;
+    if (Number.isNaN(parsed)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     setSelectedOrderId(parsed);
-  }, [selectedOrderFromUrl]);
+  }, [selectedOrderFromUrl, setSearchParams]);
+
+  useEffect(() => {
+    if (selectedOrderId == null || selectedFromList != null || !selectedByIdError) return;
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [selectedOrderId, selectedFromList, selectedByIdError, setSearchParams]);
 
   const setSelectedOrder = (orderId: number | null) => {
     setSelectedOrderId(orderId);
@@ -216,11 +279,28 @@ const ExpenseOrdersPage: React.FC = () => {
     if (accountFilter !== 'all') count += 1;
     if (categoryFilter !== 'all') count += 1;
     if (invoiceFilter !== 'all') count += 1;
+    if (searchQuery.trim().length > 0) count += 1;
     return count;
-  }, [dateRange.from, dateRange.to, statusFilters, accountFilter, categoryFilter, invoiceFilter]);
+  }, [
+    dateRange.from,
+    dateRange.to,
+    statusFilters,
+    accountFilter,
+    categoryFilter,
+    invoiceFilter,
+    searchQuery,
+  ]);
 
   const clearFilters = () => {
-    setSearchParams((prev) => clearExpenseOrderFilterParams(prev), { replace: true });
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = clearExpenseOrderFilterParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const handleDelete = async (o: ExpenseOrder) => {
@@ -279,8 +359,8 @@ const ExpenseOrdersPage: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="Search by # or category..."
-                  value={searchQuery}
-                  onChange={(e) => commitExpenseFilters({ searchQuery: e.target.value })}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}
                 />
               </div>
@@ -331,6 +411,7 @@ const ExpenseOrdersPage: React.FC = () => {
                 />
               </PopoverContent>
             </Popover>
+            <span className="text-xs text-muted-foreground">Filters by expense date</span>
 
             <OrderStatusMultiFilter
               options={eoStatusOptions}
@@ -388,22 +469,13 @@ const ExpenseOrdersPage: React.FC = () => {
             </Select>
 
             <div className="ml-auto flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="eo-show-complete-filters"
-                  checked={showCompleteOrders}
-                  onCheckedChange={(value) =>
-                    commitExpenseFilters({ showCompleteOrders: value })
-                  }
-                  aria-label="Show complete orders"
-                />
-                <Label
-                  htmlFor="eo-show-complete-filters"
-                  className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
-                >
-                  Show complete orders
-                </Label>
-              </div>
+              <ShowCompleteOrdersSwitchControl
+                checked={showCompleteOrders}
+                onCheckedChange={(value) =>
+                  commitExpenseFilters({ showCompleteOrders: value })
+                }
+                context="list"
+              />
               {activeFilterCount > 0 ? (
                 <Button
                   type="button"
@@ -427,18 +499,21 @@ const ExpenseOrdersPage: React.FC = () => {
               selectedOrder && 'max-lg:hidden',
               !isLgScreen && 'flex-1 border-r-0'
             )}
-            filteredOrders={filteredOrders}
+            orders={orders}
+            ordersTotal={ordersTotal}
+            listPage={listPage}
+            isFetching={isFetching}
+            onPageChange={(page) => commitExpenseFilters({ page })}
             selectedOrderId={selectedOrderId}
+            offPageSelectedLabel={
+              isOffFilteredPage && selectedOrder ? selectedOrder.expense_number : null
+            }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
             activeFilterCount={activeFilterCount}
             filtersOpen={filtersBarOpen}
             onToggleFilters={() => setFiltersBarOpen((open) => !open)}
-            showCompleteOrders={showCompleteOrders}
-            onShowCompleteOrdersChange={(value) =>
-              commitExpenseFilters({ showCompleteOrders: value })
-            }
-            hasHiddenCompleteOrders={hasHiddenCompleteOrders}
+            emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
             onSelectOrder={(id) => setSelectedOrder(id)}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
@@ -455,17 +530,25 @@ const ExpenseOrdersPage: React.FC = () => {
             )}
           >
             {selectedOrder ? (
-              <ExpenseOrderDetailPanel
-                order={selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                showCompleteOrders={showCompleteOrders}
-              />
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                {isOffFilteredPage ? (
+                  <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.expense_number} />
+                ) : null}
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <ExpenseOrderDetailPanel
+                    order={selectedOrder}
+                    onClose={() => setSelectedOrder(null)}
+                    skipOrderRefetch={selectedFromList != null}
+                    showCompleteOrders={showCompleteOrders}
+                  />
+                </div>
+              </div>
             ) : isLgScreen ? (
               <ExpenseOrdersOverviewPanel
-                orders={filteredOrders}
+                orders={orders}
                 stats={overviewStats}
-                isLoading={isLoading}
-                mayTruncate={mayTruncate}
+                hubStats={hubStats}
+                isLoading={isLoading || statsLoading}
                 accountName={accountName}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}

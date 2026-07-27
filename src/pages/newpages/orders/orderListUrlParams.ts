@@ -316,12 +316,24 @@ export function writePurchaseOrderParams(
   return next;
 }
 
+function trScopeOpenStatusIds(allowedStatuses: Status[]): string[] {
+  return resolveStatusIdsFromNames(TR_SCOPE_OPEN_STATUS_NAMES, allowedStatuses);
+}
+
+/** Synthetic EO stage ids — match EO_STAGE_FILTER_OPTIONS / backend EO_STAGE_* constants. */
+function eoScopeOpenStatusIds(): string[] {
+  return ['1', '2'];
+}
+
 export function parseTransferOrderParams(
   params: URLSearchParams,
   allowedStatuses: Status[]
 ): TransferOrderUrlFilters {
   if (isScopeOpenOnly(params)) {
-    return defaultTransferFilters();
+    return {
+      ...defaultTransferFilters(),
+      statusFilters: trScopeOpenStatusIds(allowedStatuses),
+    };
   }
 
   return {
@@ -361,7 +373,10 @@ export function parseExpenseOrderParams(
   allowedStatuses: Status[]
 ): ExpenseOrderUrlFilters {
   if (isScopeOpenOnly(params)) {
-    return defaultExpenseFilters();
+    return {
+      ...defaultExpenseFilters(),
+      statusFilters: eoScopeOpenStatusIds(),
+    };
   }
 
   return {
@@ -401,15 +416,21 @@ export function writeExpenseOrderParams(
 }
 
 export function clearPurchaseOrderFilterParams(prev: URLSearchParams): URLSearchParams {
-  return writePurchaseOrderParams(prev, defaultPurchaseFilters(), []);
+  const next = writePurchaseOrderParams(prev, defaultPurchaseFilters(), []);
+  next.delete('poPage');
+  return next;
 }
 
 export function clearTransferOrderFilterParams(prev: URLSearchParams): URLSearchParams {
-  return writeTransferOrderParams(prev, defaultTransferFilters(), []);
+  const next = writeTransferOrderParams(prev, defaultTransferFilters(), []);
+  next.delete('trPage');
+  return next;
 }
 
 export function clearExpenseOrderFilterParams(prev: URLSearchParams): URLSearchParams {
-  return writeExpenseOrderParams(prev, defaultExpenseFilters(), []);
+  const next = writeExpenseOrderParams(prev, defaultExpenseFilters(), []);
+  next.delete('eoPage');
+  return next;
 }
 
 /** Hub deep link for purchase orders with open work in flight. */

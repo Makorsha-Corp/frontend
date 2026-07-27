@@ -4,6 +4,13 @@ import { baseQueryWithReauth } from '@/app/baseQuery';
 import {
   invalidateInvoiceById,
 } from '@/features/cache/invalidateOrderInvoiceCache';
+import {
+  expenseOrderListCacheTags,
+  expenseOrderCacheTagsForMutation,
+  EXPENSE_ORDER_LIST_TAG,
+  EXPENSE_ORDER_HUB_LIST_TAG,
+  EXPENSE_ORDER_HUB_STATS_TAG,
+} from '@/features/cache/orderHubCacheTags';
 import type {
   ExpenseOrder,
   ExpenseOrderItem,
@@ -13,27 +20,68 @@ import type {
   CreateExpenseOrderItem,
   UpdateExpenseOrderItem,
   ListExpenseOrdersParams,
+  ListExpenseOrdersHubParams,
+  ExpenseOrderListResponse,
+  ExpenseOrderHubStatsResponse,
   ExpenseOrderApproversList,
   ExpenseOrderApprover,
   ExpenseOrderEvent,
 } from '../../types/expenseOrder';
+
+function appendExpenseOrderHubFilters(
+  qs: URLSearchParams,
+  filters: Omit<ListExpenseOrdersHubParams, 'skip' | 'limit'>,
+) {
+  if (filters.expense_category) qs.append('expense_category', filters.expense_category);
+  if (filters.account_id != null) qs.append('account_id', String(filters.account_id));
+  if (filters.invoice_id != null) qs.append('invoice_id', String(filters.invoice_id));
+  if (filters.date_from) qs.append('date_from', filters.date_from);
+  if (filters.date_to) qs.append('date_to', filters.date_to);
+  filters.status_ids?.forEach((id) => qs.append('status_ids', String(id)));
+  if (filters.invoice_filter) qs.append('invoice_filter', filters.invoice_filter);
+  if (filters.search) qs.append('search', filters.search);
+  if (filters.exclude_complete) qs.append('exclude_complete', 'true');
+  if (filters.exclude_voided) qs.append('exclude_voided', 'true');
+}
+
+function buildExpenseOrderHubQueryString(params: ListExpenseOrdersHubParams): string {
+  const { skip = 0, limit = 50, ...filters } = params;
+  const qs = new URLSearchParams({
+    skip: skip.toString(),
+    limit: limit.toString(),
+  });
+  appendExpenseOrderHubFilters(qs, filters);
+  return qs.toString();
+}
+
+function buildExpenseOrderHubStatsQueryString(
+  filters: Omit<ListExpenseOrdersHubParams, 'skip' | 'limit'>,
+): string {
+  const qs = new URLSearchParams();
+  appendExpenseOrderHubFilters(qs, filters);
+  return qs.toString();
+}
 
 export const expenseOrdersApi = createApi({
   reducerPath: 'expenseOrdersApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['ExpenseOrder', 'ExpenseOrderItem', 'ExpenseOrderApprovers', 'ExpenseOrderEvents'],
   endpoints: (builder) => ({
-    getExpenseOrders: builder.query<ExpenseOrder[], ListExpenseOrdersParams>({
-      query: ({ skip = 0, limit = 100, expense_category, account_id, invoice_id } = {}) => {
-        const params = new URLSearchParams();
-        params.append('skip', skip.toString());
-        params.append('limit', limit.toString());
-        if (expense_category) params.append('expense_category', expense_category);
-        if (account_id) params.append('account_id', account_id.toString());
-        if (invoice_id) params.append('invoice_id', invoice_id.toString());
-        return `expense-orders/?${params.toString()}`;
-      },
-      providesTags: ['ExpenseOrder'],
+    getExpenseOrders: builder.query<ExpenseOrder[], ListExpenseOrdersHubParams>({
+      query: (args = {}) => `expense-orders/?${buildExpenseOrderHubQueryString(args)}`,
+      transformResponse: (response: ExpenseOrderListResponse) => response.items,
+      providesTags: [EXPENSE_ORDER_LIST_TAG],
+    }),
+    getExpenseOrdersPage: builder.query<ExpenseOrderListResponse, ListExpenseOrdersHubParams>({
+      query: (args) => `expense-orders/?${buildExpenseOrderHubQueryString(args)}`,
+      providesTags: [EXPENSE_ORDER_HUB_LIST_TAG],
+    }),
+    getExpenseOrderHubStats: builder.query<
+      ExpenseOrderHubStatsResponse,
+      Omit<ListExpenseOrdersHubParams, 'skip' | 'limit'>
+    >({
+      query: (args) => `expense-orders/stats/?${buildExpenseOrderHubStatsQueryString(args)}`,
+      providesTags: [EXPENSE_ORDER_HUB_STATS_TAG],
     }),
     getExpenseOrderById: builder.query<ExpenseOrder, number>({
       query: (id) => `expense-orders/${id}/`,
@@ -41,7 +89,7 @@ export const expenseOrdersApi = createApi({
     }),
     createExpenseOrder: builder.mutation<ExpenseOrder, CreateExpenseOrder>({
       query: (body) => ({ url: 'expense-orders/', method: 'POST', body }),
-      invalidatesTags: ['ExpenseOrder'],
+      invalidatesTags: expenseOrderListCacheTags,
     }),
     createExpenseOrderFromTemplate: builder.mutation<
       ExpenseOrder,
@@ -52,13 +100,12 @@ export const expenseOrdersApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['ExpenseOrder'],
+      invalidatesTags: expenseOrderListCacheTags,
     }),
     updateExpenseOrder: builder.mutation<ExpenseOrder, { id: number; data: UpdateExpenseOrder }>({
       query: ({ id, data }) => ({ url: `expense-orders/${id}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { id }) => [
-        { type: 'ExpenseOrder', id },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(id),
         { type: 'ExpenseOrderApprovers', id },
         { type: 'ExpenseOrderEvents', id },
       ],
@@ -66,8 +113,7 @@ export const expenseOrdersApi = createApi({
     markExpenseOrderComplete: builder.mutation<ExpenseOrder, number>({
       query: (id) => ({ url: `expense-orders/${id}/complete/`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [
-        { type: 'ExpenseOrder', id },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(id),
         { type: 'ExpenseOrderEvents', id },
       ],
       async onQueryStarted(id, { dispatch, queryFulfilled }) {
@@ -84,8 +130,7 @@ export const expenseOrdersApi = createApi({
     voidExpenseOrder: builder.mutation<ExpenseOrder, { id: number; void_note: string }>({
       query: ({ id, void_note }) => ({ url: `expense-orders/${id}/void/`, method: 'POST', body: { void_note } }),
       invalidatesTags: (_r, _e, { id }) => [
-        { type: 'ExpenseOrder', id },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(id),
         { type: 'ExpenseOrderEvents', id },
         { type: 'ExpenseOrderApprovers', id },
       ],
@@ -102,13 +147,12 @@ export const expenseOrdersApi = createApi({
     }),
     deleteExpenseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `expense-orders/${id}/`, method: 'DELETE' }),
-      invalidatesTags: ['ExpenseOrder'],
+      invalidatesTags: expenseOrderListCacheTags,
     }),
     createInvoiceFromExpenseOrder: builder.mutation<ExpenseOrder, number>({
       query: (id) => ({ url: `expense-orders/${id}/create-invoice`, method: 'POST' }),
       invalidatesTags: (_r, _e, id) => [
-        { type: 'ExpenseOrder', id },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(id),
         { type: 'ExpenseOrderItem', id: id },
         { type: 'ExpenseOrderEvents', id },
       ],
@@ -153,8 +197,7 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, eoId) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
-        { type: 'ExpenseOrder', id: eoId },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(eoId),
       ],
     }),
     unapproveExpenseOrder: builder.mutation<ExpenseOrderApprover, number>({
@@ -162,8 +205,7 @@ export const expenseOrdersApi = createApi({
       invalidatesTags: (_r, _e, eoId) => [
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
-        { type: 'ExpenseOrder', id: eoId },
-        'ExpenseOrder',
+        ...expenseOrderCacheTagsForMutation(eoId),
       ],
     }),
     getExpenseOrderEvents: builder.query<ExpenseOrderEvent[], number>({
@@ -180,7 +222,7 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderItem', id: eoId },
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
-        'ExpenseOrder',
+        ...expenseOrderListCacheTags,
       ],
       async onQueryStarted({ eoId }, { dispatch, queryFulfilled, getState }) {
         try {
@@ -203,7 +245,7 @@ export const expenseOrdersApi = createApi({
       query: ({ itemId, data }) => ({ url: `expense-orders/items/${itemId}/`, method: 'PUT', body: data }),
       invalidatesTags: (_r, _e, { eoId }) => [
         'ExpenseOrderItem',
-        'ExpenseOrder',
+        ...expenseOrderListCacheTags,
         ...(eoId != null
           ? [
               { type: 'ExpenseOrderApprovers' as const, id: eoId },
@@ -232,7 +274,7 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderItem', id: eoId },
         { type: 'ExpenseOrderApprovers', id: eoId },
         { type: 'ExpenseOrderEvents', id: eoId },
-        'ExpenseOrder',
+        ...expenseOrderListCacheTags,
       ],
       async onQueryStarted({ eoId }, { dispatch, queryFulfilled, getState }) {
         try {
@@ -253,6 +295,8 @@ export const expenseOrdersApi = createApi({
 
 export const {
   useGetExpenseOrdersQuery,
+  useGetExpenseOrdersPageQuery,
+  useGetExpenseOrderHubStatsQuery,
   useGetExpenseOrderByIdQuery,
   useCreateExpenseOrderMutation,
   useCreateExpenseOrderFromTemplateMutation,

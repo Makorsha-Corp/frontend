@@ -58,7 +58,10 @@ import WorkProgramSummaryStrip from './WorkProgramSummaryStrip';
 import ManageWoApprovalsDialog from './ManageWoApprovalsDialog';
 import { draftApproversFromUserIds } from './transferOrderApprovals';
 import { cn } from '@/lib/utils';
+import type { WorkOrder } from '@/types/workOrder';
 import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
+import { findOpenWorkOrderSlotConflict } from '@/pages/newpages/orders/workOrderSlotConflict';
+import { WorkOrderSlotConflictDialog } from '@/components/newcomponents/customui/orders/WorkOrderSlotConflictDialog';
 import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import {
@@ -135,6 +138,7 @@ export interface SheetMaintenanceEntryFormProps {
   disabled?: boolean;
   showWorkDate?: boolean;
   submitLabel?: string;
+  slotCheckOrders?: WorkOrder[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -158,6 +162,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   disabled = false,
   showWorkDate = false,
   submitLabel,
+  slotCheckOrders,
   onSuccess,
   onCancel,
 }) => {
@@ -319,6 +324,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const entryStartDate = showWorkDate && !isEdit ? workDate : sheetDate;
 
+  const slotConflict = useMemo(() => {
+    if (!slotCheckOrders?.length || !machineId || !worksTypeId) return null;
+    return findOpenWorkOrderSlotConflict({
+      orders: slotCheckOrders,
+      machineId: Number(machineId),
+      workOrderTypeId: Number(worksTypeId),
+      plannedDate: entryStartDate,
+      excludeWorkOrderId: isEdit ? workOrderId : undefined,
+    });
+  }, [slotCheckOrders, machineId, worksTypeId, entryStartDate, isEdit, workOrderId]);
+
+  const [slotConflictDialogOpen, setSlotConflictDialogOpen] = useState(false);
+  const bypassSlotConflictRef = useRef(false);
+
   const selectedTemplate = useMemo(
     () => templates.find((t) => String(t.id) === selectedTemplateId) ?? null,
     [templates, selectedTemplateId],
@@ -447,7 +466,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   };
 
   const mapPartLineToApi = (line: PartLineDraft, mid: number) => {
-    const actionType = isFooterLayout ? partsActionType : line.actionType;
+    const actionType = line.actionType;
     const sourceType = line.sourceType;
     return {
       item_id: Number(line.itemId),
@@ -464,14 +483,12 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     const hasPartsToSync = partsOpen || (isFooterLayout && lines.some((l) => l.itemId));
     if (!hasPartsToSync) return;
 
-    const validLines = lines.filter((l) => {
-      const actionType = isFooterLayout ? partsActionType : l.actionType;
-      return (
+    const validLines = lines.filter(
+      (l) =>
         l.itemId &&
         Number(l.quantity) > 0 &&
-        (actionType !== 'REPLACE' || l.replacedItemId)
-      );
-    });
+        (l.actionType !== 'REPLACE' || l.replacedItemId),
+    );
     const keptWoItemIds = new Set(
       validLines.map((l) => l.woItemId).filter((id): id is number => id != null),
     );
@@ -529,34 +546,52 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const validPartLines = useMemo(
     () =>
-      lines.filter((l) => {
-        const actionType = isFooterLayout ? partsActionType : l.actionType;
-        return (
+      lines.filter(
+        (l) =>
           l.itemId &&
           Number(l.quantity) > 0 &&
-          (actionType !== 'REPLACE' || l.replacedItemId)
-        );
-      }),
-    [lines, isFooterLayout, partsActionType],
+          (l.actionType !== 'REPLACE' || l.replacedItemId),
+      ),
+    [lines],
   );
 
   const shouldSyncParts = partsOpen || (isFooterLayout && validPartLines.length > 0);
 
-  const partsSummary = useMemo(() => {
-    if (validPartLines.length === 0) return 'None';
-    const names = validPartLines.map(
-      (l) => partItems.find((i) => String(i.id) === l.itemId)?.name ?? 'Item',
-    );
-    const preview = names.slice(0, 2).join(', ');
-    return names.length > 2 ? `${preview} +${names.length - 2}` : preview;
-  }, [validPartLines, partItems]);
-
   const partsChipSummary = useMemo(() => {
     if (isFooterLayout && footerPartsIntent === 'none') return 'No parts';
-    const action = workOrderItemActionLabel(partsActionType);
-    if (validPartLines.length === 0) return action;
-    return `${action} · ${partsSummary}`;
-  }, [isFooterLayout, footerPartsIntent, partsActionType, validPartLines.length, partsSummary]);
+    if (validPartLines.length === 0) {
+      return workOrderItemActionLabel(partsActionType);
+    }
+
+    const resolveName = (id: string) => {
+      const labeled = itemLabels[id];
+      if (labeled) return labeled.split(' · ')[0] ?? labeled;
+      const item = partItems.find((i) => String(i.id) === id);
+      if (!item) return 'Item';
+      return item.unit ? `${item.name} (${item.unit})` : item.name;
+    };
+
+    return validPartLines
+      .map((line) => {
+        const bits = [
+          resolveName(line.itemId),
+          workOrderItemActionLabel(line.actionType),
+          line.quantity,
+        ];
+        if (line.actionType === 'REPLACE' && line.replacedItemId) {
+          bits.push(`replaces ${resolveName(line.replacedItemId)}`);
+        }
+        return bits.join(' · ');
+      })
+      .join(' · ');
+  }, [
+    isFooterLayout,
+    footerPartsIntent,
+    partsActionType,
+    validPartLines,
+    itemLabels,
+    partItems,
+  ]);
 
   const moreSummary = useMemo(() => {
     const bits: string[] = [];
@@ -691,6 +726,12 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       return;
     }
 
+    if (slotConflict && !bypassSlotConflictRef.current) {
+      setSlotConflictDialogOpen(true);
+      return;
+    }
+    bypassSlotConflictRef.current = false;
+
     try {
       if (isEdit && workOrderId) {
         await updateOrder({
@@ -791,22 +832,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     if (templateItems.length > 0 || template.uses_inventory) {
       setPartsOpen(true);
       if (templateItems.length > 0) {
-        setPartsActionType(templateItems[0].action_type);
-        if (templateItems.some((item) => item.action_type !== templateItems[0].action_type)) {
-          toast('Template had mixed part actions — using first line\'s action for all', { icon: 'ℹ️' });
-        }
+        const firstAction = templateItems[0].action_type;
+        setPartsActionType(firstAction);
         setLines(
           templateItems.map((item) => ({
             key: makeKey(),
             itemId: String(item.item_id),
             quantity: String(item.quantity),
-            actionType: templateItems[0].action_type,
+            actionType: item.action_type,
             sourceType: 'storage',
             replacedItemId: item.replaced_item_id ? String(item.replaced_item_id) : '',
           })),
         );
         if (isFooterLayout) {
-          setFooterPartsIntent(templateItems[0].action_type);
+          setFooterPartsIntent(firstAction);
         }
       } else if (isFooterLayout) {
         setLines([]);
@@ -888,11 +927,8 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           ? validLines.map((l) => ({
               item_id: Number(l.itemId),
               quantity: Number(l.quantity),
-              action_type: isFooterLayout ? partsActionType : l.actionType,
-              replaced_item_id:
-                (isFooterLayout ? partsActionType : l.actionType) === 'REPLACE'
-                  ? Number(l.replacedItemId)
-                  : undefined,
+              action_type: l.actionType,
+              replaced_item_id: l.actionType === 'REPLACE' ? Number(l.replacedItemId) : undefined,
             }))
           : undefined,
     }).unwrap();
@@ -901,19 +937,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const isFooter = layout === 'footer';
   const dateLabel = format(parseISO(sheetDate), 'dd.MM.yyyy (EEE)');
-  const partsActionLocked = isFooter && lines.length > 0;
 
   const footerPartsEditorContent = (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">What happens with parts on this visit?</Label>
+        <Label className="text-xs text-muted-foreground">
+          What happens with the next part? (each line can differ)
+        </Label>
         <div className="flex flex-wrap gap-1.5">
           <Button
             type="button"
             variant={footerPartsIntent === 'none' ? 'default' : 'outline'}
             size="sm"
             className="h-8"
-            disabled={partsActionLocked}
+            disabled={validPartLines.length > 0}
             onClick={() => {
               setFooterPartsIntent('none');
               setLines([]);
@@ -930,7 +967,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
                   variant={footerPartsIntent === opt.value ? 'default' : 'outline'}
                   size="sm"
                   className="h-8"
-                  disabled={partsActionLocked}
                   onClick={() => {
                     setFooterPartsIntent(opt.value);
                     setPartsActionType(opt.value);
@@ -953,11 +989,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </HoverCard>
           ))}
         </div>
-        {partsActionLocked ? (
-          <p className="text-[10px] text-muted-foreground">
-            Action locked for this visit. Remove all parts to change.
-          </p>
-        ) : null}
       </div>
 
       {lines.length > 0 ? (
@@ -971,8 +1002,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
                 <span className="font-medium text-foreground">{itemName(line.itemId)}</span>
                 <span className="text-muted-foreground">
                   {' '}
-                  · {line.quantity} · {partSourceLabel(line.sourceType)}
-                  {partsActionType === 'REPLACE' && line.replacedItemId && (
+                  · {line.quantity} · {workOrderItemActionLabel(line.actionType)} ·{' '}
+                  {partSourceLabel(line.sourceType)}
+                  {line.actionType === 'REPLACE' && line.replacedItemId && (
                     <span> · replaces {itemName(line.replacedItemId)}</span>
                   )}
                 </span>
@@ -1257,6 +1289,12 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     </div>
   );
 
+  const handleConfirmSeparateOrder = () => {
+    bypassSlotConflictRef.current = true;
+    setSlotConflictDialogOpen(false);
+    void handleSubmit();
+  };
+
   const submitButton = (
     <Button
       type="button"
@@ -1497,7 +1535,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     <div className="absolute bottom-full left-0 right-0 z-30 flex max-h-[min(55vh,34rem)] flex-col overflow-hidden rounded-t-md border border-border/80 bg-card shadow-lg">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm text-foreground">
+          <p className="text-sm leading-snug text-foreground">
             <span className="font-medium">
               {variant === 'parts' ? 'Parts / consumables' : 'Billing & approvals'}
             </span>
@@ -1535,7 +1573,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             onClick={togglePartsOverlay}
           >
             <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
-            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">
+            <span className="min-w-0 max-w-[58%] text-right text-xs leading-snug text-muted-foreground line-clamp-2">
               {partsChipSummary}
             </span>
           </button>
@@ -1645,6 +1683,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         assignableMembers={assignableApproverMembers}
         onAddApprover={handleAddApprover}
         onRemoveApprover={handleRemoveApprover}
+      />
+
+      <WorkOrderSlotConflictDialog
+        open={slotConflictDialogOpen}
+        onOpenChange={setSlotConflictDialogOpen}
+        conflict={slotConflict}
+        plannedDate={entryStartDate}
+        onConfirm={handleConfirmSeparateOrder}
+        isConfirming={isLoading}
       />
     </div>
   );

@@ -1,24 +1,26 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
+import OrderHubPagination from '@/components/newcomponents/customui/orders/OrderHubPagination';
 import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
 import { Receipt, Plus, Loader2, SlidersHorizontal, LayoutTemplate } from 'lucide-react';
 
 export interface ExpenseOrderNavigatorPanelProps {
-  filteredOrders: ExpenseOrder[];
+  orders: ExpenseOrder[];
+  ordersTotal: number;
+  listPage: number;
+  isFetching?: boolean;
+  onPageChange: (page: number) => void;
   selectedOrderId: number | null;
+  offPageSelectedLabel?: string | null;
   isLoading: boolean;
   hasActiveFilters: boolean;
   activeFilterCount: number;
   filtersOpen: boolean;
   onToggleFilters: () => void;
-  showCompleteOrders: boolean;
-  onShowCompleteOrdersChange: (value: boolean) => void;
-  hasHiddenCompleteOrders?: boolean;
+  emptyHintNoOpen?: boolean;
   onSelectOrder: (id: number) => void;
   onDeleteOrder?: (order: ExpenseOrder) => void;
   onAddOrder: () => void;
@@ -30,16 +32,19 @@ export interface ExpenseOrderNavigatorPanelProps {
 }
 
 const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
-  filteredOrders,
+  orders,
+  ordersTotal,
+  listPage,
+  isFetching = false,
+  onPageChange,
   selectedOrderId,
   isLoading,
   hasActiveFilters,
   activeFilterCount,
   filtersOpen,
   onToggleFilters,
-  showCompleteOrders,
-  onShowCompleteOrdersChange,
-  hasHiddenCompleteOrders = false,
+  offPageSelectedLabel = null,
+  emptyHintNoOpen = false,
   onSelectOrder,
   onDeleteOrder,
   onAddOrder,
@@ -61,24 +66,9 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
           <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
             Orders
             <span className="ml-2 font-normal text-muted-foreground">
-              ({filteredOrders.length})
+              ({ordersTotal})
             </span>
           </h2>
-          <div className="ml-4 flex shrink-0 items-center gap-1.5" title="Show complete orders">
-            <Switch
-              id="eo-show-complete-nav"
-              checked={showCompleteOrders}
-              onCheckedChange={onShowCompleteOrdersChange}
-              className="scale-90"
-              aria-label="Show complete orders"
-            />
-            <Label
-              htmlFor="eo-show-complete-nav"
-              className="cursor-pointer text-xs font-normal text-muted-foreground whitespace-nowrap"
-            >
-              Complete
-            </Label>
-          </div>
         </div>
         <Button
           type="button"
@@ -116,14 +106,14 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
             <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
             <p className="text-sm text-muted-foreground">Loading orders...</p>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <Receipt className="h-12 w-12 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground text-center">
               {hasActiveFilters
                 ? 'No orders match your filters.'
-                : hasHiddenCompleteOrders
-                  ? 'No open orders. Turn on Complete to see finished expense orders.'
+                : emptyHintNoOpen
+                  ? 'No open orders. Show completed orders using the toggle.'
                   : 'No expense orders yet.'}
             </p>
             {!hasActiveFilters && (
@@ -139,7 +129,13 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredOrders.map((o) => (
+            {offPageSelectedLabel ? (
+              <div className="border-l-2 border-brand-primary bg-brand-primary/10 px-4 py-3 text-sm dark:bg-brand-primary/20">
+                <p className="font-medium text-card-foreground">{offPageSelectedLabel}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Selected · not on this page</p>
+              </div>
+            ) : null}
+            {orders.map((o) => (
               <ExpenseOrderListRow
                 key={o.id}
                 order={o}
@@ -156,6 +152,17 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
           </div>
         )}
       </div>
+
+      {ordersTotal > 0 ? (
+        <div className="shrink-0 border-t border-border px-3 py-2">
+          <OrderHubPagination
+            page={listPage}
+            total={ordersTotal}
+            isFetching={isFetching}
+            onPageChange={onPageChange}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

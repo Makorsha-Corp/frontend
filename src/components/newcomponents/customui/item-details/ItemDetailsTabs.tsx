@@ -130,9 +130,13 @@ const ItemDetailsTabs: React.FC<ItemDetailsTabsProps> = ({
 
     <EmphasisTabsProvider value={tabValue}>
 
-      <Tabs value={tabValue} onValueChange={(v) => setActiveTab(v as ItemDetailsSectionId)}>
+      <Tabs
+        value={tabValue}
+        onValueChange={(v) => setActiveTab(v as ItemDetailsSectionId)}
+        className="flex min-h-full flex-col"
+      >
 
-        <EmphasisTabsList className="mb-4">
+        <EmphasisTabsList className="mb-4 shrink-0">
 
           {sections.map((section) => (
 
@@ -148,7 +152,7 @@ const ItemDetailsTabs: React.FC<ItemDetailsTabsProps> = ({
 
 
 
-        <EmphasisTabPanel panelKey={tabValue} className="mt-0">
+        <EmphasisTabPanel panelKey={tabValue} className="mt-0 flex min-h-0 flex-1 flex-col">
 
           {tabValue === 'overview' ? (
 
@@ -157,6 +161,10 @@ const ItemDetailsTabs: React.FC<ItemDetailsTabsProps> = ({
               summary={summary}
 
               unit={unit}
+
+              itemId={itemId}
+
+              dialogOpen={dialogOpen}
 
               onGoToTab={setActiveTab}
 

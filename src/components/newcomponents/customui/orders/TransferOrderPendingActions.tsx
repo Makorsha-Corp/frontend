@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Clock, AlertCircle, Wrench } from 'lucide-react';
 import type { TransferOrder } from '@/types/transferOrder';
+import type { OrderHubPendingHighlight } from '@/types/orderHub';
 import {
   deriveTransferOrderStageFromOrder,
   isTransferOrderCompleted,
@@ -9,7 +10,14 @@ import {
 import OrderPendingActions, { type PendingActionSection } from './OrderPendingActions';
 
 interface TransferOrderPendingActionsProps {
-  orders: TransferOrder[];
+  orders?: TransferOrder[];
+  pendingHighlights?: {
+    pending_planned_count?: number;
+    pending_planned?: OrderHubPendingHighlight[];
+    awaiting_setup_count?: number;
+    awaiting_setup?: OrderHubPendingHighlight[];
+    oldest_drafts?: OrderHubPendingHighlight[];
+  };
   onSelectOrder: (id: number) => void;
   className?: string;
 }
@@ -19,12 +27,54 @@ function stageName(order: TransferOrder): TrStageName {
   return deriveTransferOrderStageFromOrder(order);
 }
 
+function highlightItems(items: OrderHubPendingHighlight[] | undefined) {
+  return (items ?? []).map((o) => ({
+    id: o.id,
+    label: o.order_number,
+    sublabel: o.status_name ?? '—',
+  }));
+}
+
 const TransferOrderPendingActions: React.FC<TransferOrderPendingActionsProps> = ({
-  orders,
+  orders = [],
+  pendingHighlights,
   onSelectOrder,
   className,
 }) => {
   const sections = useMemo((): PendingActionSection[] => {
+    if (pendingHighlights) {
+      const oldestDrafts = pendingHighlights.oldest_drafts ?? [];
+      return [
+        {
+          id: 'in-planned',
+          title: 'In Planned',
+          icon: <Clock className="h-4 w-4" />,
+          count: pendingHighlights.pending_planned_count ?? 0,
+          items: highlightItems(pendingHighlights.pending_planned),
+          colorClass: 'text-amber-600 dark:text-amber-400',
+          bgClass: 'bg-amber-100 dark:bg-amber-900/30',
+        },
+        {
+          id: 'awaiting-setup',
+          title: 'Awaiting setup',
+          icon: <Wrench className="h-4 w-4" />,
+          count: pendingHighlights.awaiting_setup_count ?? 0,
+          items: highlightItems(pendingHighlights.awaiting_setup),
+          colorClass: 'text-orange-600 dark:text-orange-400',
+          bgClass: 'bg-orange-100 dark:bg-orange-900/30',
+        },
+        {
+          id: 'oldest-draft',
+          title: 'Oldest draft',
+          icon: <AlertCircle className="h-4 w-4" />,
+          count: oldestDrafts.length,
+          items: highlightItems(oldestDrafts),
+          colorClass: 'text-red-600 dark:text-red-400',
+          bgClass: 'bg-red-100 dark:bg-red-900/30',
+        },
+      ];
+    }
+
     const openOrders = orders.filter((o) => !isTransferOrderCompleted(o));
     const plannedOrders = openOrders.filter((o) => stageName(o) === 'Planned');
     const draftOrders = openOrders.filter((o) => stageName(o) === 'Draft');
@@ -74,7 +124,7 @@ const TransferOrderPendingActions: React.FC<TransferOrderPendingActionsProps> = 
         bgClass: 'bg-red-100 dark:bg-red-900/30',
       },
     ];
-  }, [orders]);
+  }, [orders, pendingHighlights]);
 
   return (
     <OrderPendingActions

@@ -49,7 +49,7 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'flex h-[66vh] max-h-[66vh] w-[min(760px,94vw)] max-w-none flex-col gap-0 overflow-hidden',
+          'flex h-[80vh] max-h-[80vh] w-[min(760px,94vw)] max-w-none flex-col gap-0 overflow-hidden',
           'border-border bg-card p-0 text-card-foreground shadow-lg sm:rounded-lg'
         )}
       >
@@ -121,7 +121,7 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
           </DialogHeader>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand-primary" />

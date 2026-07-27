@@ -17,6 +17,10 @@ import AccountInvoiceSummaryCard, {
 import AccountInvoicePaymentsSection from './AccountInvoicePaymentsSection';
 import InvoiceEventLogCard from './InvoiceEventLogCard';
 import InvoiceItemsTable from './InvoiceItemsTable';
+import InvoicePaymentStatusBadge from './InvoicePaymentStatusBadge';
+import InvoiceStatusBadge from './InvoiceStatusBadge';
+import { formatInvLabel } from './invoiceDisplayUtils';
+import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
 import toast from 'react-hot-toast';
@@ -31,6 +35,7 @@ export interface AccountInvoiceDetailPanelProps {
 const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   invoiceId,
   invoice: invoiceProp,
+  linkedOrderNumber = null,
 }) => {
   const { data: fetchedInvoice, isLoading, isError } = useGetAccountInvoiceByIdQuery(invoiceId);
   const invoice = fetchedInvoice ?? invoiceProp;
@@ -118,9 +123,34 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const receivingStarted = invoice.receiving_started;
   const voidReadiness = canVoidPoInvoice(invoice.invoice_status, receivingStarted);
   const canRevertToDraft = isConfirmed && !receivingStarted && invoice.paid_amount === 0;
+  const hasLinkedOrder =
+    linkedOrderNumber != null || invoice.order_id != null || invoice.order_type != null;
 
   return (
     <div className="space-y-4">
+      <div
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border pb-4"
+        data-testid="account-invoice-detail-header"
+      >
+        <h2 className="shrink-0 text-lg font-semibold text-card-foreground">
+          {formatInvLabel(invoice)}
+        </h2>
+        {hasLinkedOrder ? (
+          <OrderDetailsSummary
+            invoice={invoice}
+            linkedOrderNumber={linkedOrderNumber}
+            shortLabel
+            badgeClassName="text-xs px-2 py-0.5"
+          />
+        ) : null}
+        <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+          <InvoiceStatusBadge status={invoice.invoice_status} className="text-xs px-2 py-0.5" />
+          {!isVoided && isConfirmed ? (
+            <InvoicePaymentStatusBadge status={invoice.payment_status} className="text-xs" />
+          ) : null}
+        </div>
+      </div>
+
       {isDraft && (
         <div
           className={`${INVOICE_DETAIL_SECTION_SHELL} px-4 py-3 flex items-center justify-between gap-4`}

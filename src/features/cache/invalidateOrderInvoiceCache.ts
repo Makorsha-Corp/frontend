@@ -12,6 +12,11 @@ import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { expenseOrdersApi } from '@/features/expenseOrders/expenseOrdersApi';
 import { transferOrdersApi } from '@/features/transferOrders/transferOrdersApi';
 import { salesOrdersApi } from '@/features/salesOrders/salesOrdersApi';
+import {
+  expenseOrderListCacheTags,
+  purchaseOrderListCacheTags,
+  transferOrderListCacheTags,
+} from '@/features/cache/orderHubCacheTags';
 import type { AccountInvoice } from '@/types/accountInvoice';
 
 export function invalidateAccountInvoiceSummary(dispatch: AppDispatch, accountId: number): void {
@@ -32,8 +37,8 @@ export function invalidateInvoiceById(dispatch: AppDispatch, invoiceId: number):
 export function invalidatePurchaseOrderById(dispatch: AppDispatch, poId: number): void {
   dispatch(
     purchaseOrdersApi.util.invalidateTags([
+      ...purchaseOrderListCacheTags,
       { type: 'PurchaseOrder', id: poId },
-      'PurchaseOrder',
       { type: 'PurchaseOrderEvents', id: poId },
       { type: 'PurchaseOrderApprovers', id: poId },
       { type: 'PurchaseOrderItem', id: poId },
@@ -46,8 +51,8 @@ export function invalidatePurchaseOrderById(dispatch: AppDispatch, poId: number)
 export function invalidateExpenseOrderById(dispatch: AppDispatch, eoId: number): void {
   dispatch(
     expenseOrdersApi.util.invalidateTags([
+      ...expenseOrderListCacheTags,
       { type: 'ExpenseOrder', id: eoId },
-      'ExpenseOrder',
       { type: 'ExpenseOrderEvents', id: eoId },
       { type: 'ExpenseOrderApprovers', id: eoId },
       { type: 'ExpenseOrderItem', id: eoId },
@@ -58,8 +63,8 @@ export function invalidateExpenseOrderById(dispatch: AppDispatch, eoId: number):
 export function invalidateTransferOrderById(dispatch: AppDispatch, toId: number): void {
   dispatch(
     transferOrdersApi.util.invalidateTags([
+      ...transferOrderListCacheTags,
       { type: 'TransferOrder', id: toId },
-      'TransferOrder',
       { type: 'TransferOrderEvents', id: toId },
       { type: 'TransferOrderApprovers', id: toId },
       { type: 'TransferOrderItem', id: toId },
@@ -102,9 +107,9 @@ export function invalidateLinkedOrderForInvoice(
       invalidateSalesOrderById(dispatch, orderId);
       break;
     default:
-      dispatch(purchaseOrdersApi.util.invalidateTags(['PurchaseOrder', 'ActiveOrders']));
-      dispatch(expenseOrdersApi.util.invalidateTags(['ExpenseOrder']));
-      dispatch(transferOrdersApi.util.invalidateTags(['TransferOrder']));
+      dispatch(purchaseOrdersApi.util.invalidateTags([...purchaseOrderListCacheTags, 'ActiveOrders']));
+      dispatch(expenseOrdersApi.util.invalidateTags(expenseOrderListCacheTags));
+      dispatch(transferOrdersApi.util.invalidateTags(transferOrderListCacheTags));
       dispatch(salesOrdersApi.util.invalidateTags(['SalesOrder']));
       break;
   }

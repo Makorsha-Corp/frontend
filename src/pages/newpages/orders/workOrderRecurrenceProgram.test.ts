@@ -4,6 +4,8 @@ import type { WorkOrder } from '@/types/workOrder';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 
 import {
+  formatRecurrenceDeleteTargetDates,
+  buildBulkDeleteRecurrenceConfirmMessage,
   buildRecurrenceProgramSummary,
   buildProgramSummariesByWorkOrderId,
   buildRecurringProgramList,
@@ -145,6 +147,20 @@ describe('buildRecurrenceProgramSummary', () => {
   });
 });
 
+describe('buildBulkDeleteRecurrenceConfirmMessage', () => {
+  it('explains after-today scope and that the viewed future draft may be included', () => {
+    const message = buildBulkDeleteRecurrenceConfirmMessage({
+      futureDraftCount: 3,
+      templateName: 'Weekly Oil Change',
+      machineName: 'Loom 3',
+    });
+
+    expect(message).toContain('Delete 3 upcoming drafts after today');
+    expect(message).toContain('Includes this order if it is still a future draft');
+    expect(message).toContain('Completed and in-progress orders are kept');
+  });
+});
+
 describe('buildRecurringProgramList', () => {
   it('returns one row per template and machine group', () => {
     const draftA = order({ id: 1, machine_id: 5, planned_date: '2026-08-02' });
@@ -188,5 +204,31 @@ describe('buildRecurringProgramList', () => {
       machineNameById: new Map([[5, 'Loom 3']]),
     });
     expect(list).toHaveLength(0);
+  });
+});
+
+describe('formatRecurrenceDeleteTargetDates', () => {
+  it('lists formatted future draft dates with overflow cap', () => {
+    const referenceDate = new Date('2026-07-27T12:00:00Z');
+    const summary = buildRecurrenceProgramSummary({
+      currentOrder: order({ id: 1, planned_date: '2026-08-02' }),
+      allOrders: [
+        order({ id: 1, planned_date: '2026-08-02' }),
+        order({ id: 2, planned_date: '2026-08-09' }),
+        order({ id: 3, planned_date: '2026-08-16' }),
+        order({ id: 4, planned_date: '2026-08-23' }),
+        order({ id: 5, planned_date: '2026-08-30' }),
+        order({ id: 6, planned_date: '2026-09-06' }),
+        order({ id: 7, planned_date: '2026-09-13' }),
+      ],
+      templateById: new Map([[12, template]]),
+      referenceDate,
+    });
+    expect(summary).not.toBeNull();
+
+    const { dates, remainingCount } = formatRecurrenceDeleteTargetDates(summary!, { maxDates: 5 });
+    expect(dates).toHaveLength(5);
+    expect(dates[0]).toMatch(/Aug 2, 2026/);
+    expect(remainingCount).toBe(2);
   });
 });

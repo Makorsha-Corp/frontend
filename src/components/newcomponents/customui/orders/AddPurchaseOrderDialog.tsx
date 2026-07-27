@@ -21,6 +21,7 @@ import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Account } from '@/types/account';
 import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
+import type { Item } from '@/types/item';
 import { Check, Loader2, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
@@ -28,6 +29,8 @@ import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
+import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { cn } from '@/lib/utils';
 import {
@@ -63,6 +66,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [machineDisplayLine, setMachineDisplayLine] = useState('');
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
   const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
@@ -83,13 +87,18 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     undefined,
     open && destinationType === 'storage'
   );
-  const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
+  const { data: itemsList = [], refetch: refetchItems } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
 
   const usedItemIds = useMemo(() => new Set(items.map((line) => line.item_id)), [items]);
-  const availableItems = useMemo(
-    () => itemsList.filter((i) => !usedItemIds.has(i.id)),
-    [itemsList, usedItemIds]
-  );
+
+  const selectedItemLabel = useMemo(() => {
+    if (!itemId.trim()) return null;
+    const parsed = parseInt(itemId, 10);
+    if (Number.isNaN(parsed)) return null;
+    const item = itemsList.find((i) => i.id === parsed);
+    if (!item) return null;
+    return item.unit ? `${item.name} (${item.unit})` : item.name;
+  }, [itemId, itemsList]);
 
   const reset = () => {
     setAccountId('');
@@ -152,6 +161,21 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [addHintOpen]);
 
+  const handleItemSelect = (selection: ItemSelection) => {
+    if (usedItemIds.has(selection.itemId)) {
+      toast.error('Item already on this order — edit quantity or unit price below');
+      return;
+    }
+    setItemId(String(selection.itemId));
+    setItemPickerOpen(false);
+  };
+
+  const handleCreateItemSuccess = (newItem: Item) => {
+    void refetchItems();
+    setItemId(String(newItem.id));
+    setIsCreateItemOpen(false);
+  };
+
   const handleAddItemClick = () => {
     if (!canAddLineItem) {
       setAddHintOpen(true);
@@ -211,7 +235,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Ignore accidental submits while nested selector dialogs are open.
-    if (accountPickerOpen || machinePickerOpen) {
+    if (accountPickerOpen || machinePickerOpen || itemPickerOpen) {
       return;
     }
     const did = parseInt(destinationId, 10);
@@ -280,18 +304,14 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       <div className="space-y-2 shrink-0 rounded-lg border border-border bg-muted/20 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1">
-            <Select value={itemId} onValueChange={setItemId}>
-              <SelectTrigger className="w-full bg-background">
-                <SelectValue placeholder="Select item" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableItems.map((i) => (
-                  <SelectItem key={i.id} value={i.id.toString()}>
-                    {i.name} {i.unit && `(${i.unit})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ItemSelectSummaryButton
+              ariaLabel="Select item"
+              emptyLabel="Select item"
+              selectedLabel={selectedItemLabel}
+              staleNumericId={itemId || null}
+              onClick={() => setItemPickerOpen(true)}
+              className="h-10"
+            />
           </div>
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             - or -
@@ -607,7 +627,20 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
         </form>
         </DialogContent>
       </Dialog>
-      <AddItemDialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen} />
+      <ItemSelectorDialog
+        open={itemPickerOpen}
+        onOpenChange={setItemPickerOpen}
+        onSelect={handleItemSelect}
+        selectedItemId={itemId ? parseInt(itemId, 10) : undefined}
+        catalogOnly
+        title="Select item"
+        description="Search catalog and pick a line item."
+      />
+      <AddItemDialog
+        open={isCreateItemOpen}
+        onOpenChange={setIsCreateItemOpen}
+        onSuccess={handleCreateItemSuccess}
+      />
     </>
   );
 };

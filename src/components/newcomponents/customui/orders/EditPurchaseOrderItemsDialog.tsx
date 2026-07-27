@@ -11,13 +11,6 @@ import { Input } from '@/components/ui/input';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +29,8 @@ import type { PurchaseOrderItem } from '@/types/purchaseOrder';
 import type { Item } from '@/types/item';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
+import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 import { cn } from '@/lib/utils';
 import {
   handleUnaddedItemDraftOnSubmit,
@@ -67,6 +62,8 @@ export interface EditPurchaseOrderItemsDialogProps {
   onOpenChange: (open: boolean) => void;
   poId: number;
   items: PurchaseOrderItem[];
+  /** When set, scroll to and focus this line's unit price field on open. */
+  focusLineId?: number | null;
   onSaved?: () => void;
 }
 
@@ -117,6 +114,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   onOpenChange,
   poId,
   items,
+  focusLineId = null,
   onSaved,
 }) => {
   const [existingLines, setExistingLines] = useState<ExistingLineDraft[]>(() => linesFromItems(items));
@@ -125,6 +123,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [addHintOpen, setAddHintOpen] = useState(false);
   const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -159,6 +158,18 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   }, [open, items, isSaving, dismissAddButtonHighlight]);
 
   useEffect(() => {
+    if (!open || focusLineId == null) return;
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`po-edit-line-price-${focusLineId}`);
+      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (el instanceof HTMLElement) {
+        el.focus();
+      }
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [open, focusLineId, existingLines]);
+
+  useEffect(() => {
     if (!hasUnaddedItemDraft) {
       setUnaddedHintOpen(false);
       dismissAddButtonHighlight();
@@ -176,7 +187,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
     return ids;
   }, [existingLines, pendingNewLines]);
 
-  const availableItems = itemsList.filter((i) => !usedItemIds.has(i.id));
+  const selectedItemLabel = useMemo(() => {
+    if (!itemId.trim()) return null;
+    const parsed = parseInt(itemId, 10);
+    if (Number.isNaN(parsed)) return null;
+    const item = itemsList.find((i) => i.id === parsed);
+    if (!item) return null;
+    return item.unit ? `${item.name} (${item.unit})` : item.name;
+  }, [itemId, itemsList]);
 
   const canAddLineItem = (() => {
     if (!itemId.trim() || !qty.trim()) return false;
@@ -214,6 +232,15 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
     document.addEventListener('pointerdown', dismiss);
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [addHintOpen]);
+
+  const handleItemSelect = (selection: ItemSelection) => {
+    if (usedItemIds.has(selection.itemId)) {
+      toast.error('Item already on this order');
+      return;
+    }
+    setItemId(String(selection.itemId));
+    setItemPickerOpen(false);
+  };
 
   const handleCreateItemSuccess = (newItem: Item) => {
     refetchItems();
@@ -448,18 +475,14 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
               <Label className="text-sm font-medium">Add order item</Label>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="min-w-0 flex-1">
-                  <Select value={itemId} onValueChange={setItemId}>
-                    <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableItems.map((i) => (
-                        <SelectItem key={i.id} value={i.id.toString()}>
-                          {i.name} {i.unit && `(${i.unit})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ItemSelectSummaryButton
+                    ariaLabel="Select item"
+                    emptyLabel="Select item"
+                    selectedLabel={selectedItemLabel}
+                    staleNumericId={itemId || null}
+                    onClick={() => setItemPickerOpen(true)}
+                    className="h-9"
+                  />
                 </div>
                 <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   - or -
@@ -638,6 +661,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                             </TableCell>
                             <TableCell className="py-2">
                               <StepNumberInput
+                                id={`po-edit-line-price-${line.id}`}
                                 min={0}
                                 step={1}
                                 value={line.unit_price}
@@ -731,6 +755,16 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ItemSelectorDialog
+        open={itemPickerOpen}
+        onOpenChange={setItemPickerOpen}
+        onSelect={handleItemSelect}
+        selectedItemId={itemId ? parseInt(itemId, 10) : undefined}
+        catalogOnly
+        title="Select item"
+        description="Search catalog and pick a line item."
+      />
 
       <AddItemDialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen} onSuccess={handleCreateItemSuccess} />
     </>

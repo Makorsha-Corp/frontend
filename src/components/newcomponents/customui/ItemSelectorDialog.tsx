@@ -24,7 +24,8 @@ import {
   EmphasisTabsTrigger,
   EmphasisTabPanel,
 } from '@/components/newcomponents/customui/EmphasisTabSwitcher';
-import { useGetItemsQuery } from '@/features/items/itemsApi';
+import { useGetItemsPageQuery } from '@/features/items/itemsApi';
+import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
@@ -41,8 +42,7 @@ import MachineSelectorTile, {
   MachineSelectorFooterStatus,
 } from '@/components/newcomponents/customui/MachineSelectorTile';
 import { cn } from '@/lib/utils';
-import { Loader2, Plus, Search } from 'lucide-react';
-import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
+import { Loader2, Search, X } from 'lucide-react';
 
 const INVENTORY_TYPE_OPTIONS: { value: InventoryType | 'all'; label: string }[] = [
   { value: 'all', label: 'All types' },
@@ -190,11 +190,11 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   const [sectionPickerId, setSectionPickerId] = useState('');
   const [machinePickerId, setMachinePickerId] = useState('');
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>('all');
-  const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [catalogSkip, setCatalogSkip] = useState(0);
   const [accumulatedCatalogItems, setAccumulatedCatalogItems] = useState<Item[]>([]);
   const [catalogHasMore, setCatalogHasMore] = useState(false);
+  const [catalogTagFilterIds, setCatalogTagFilterIds] = useState<number[]>([]);
 
   /** Undefined = all factories (same as Storage page with no factory filter). */
   const storageFactoryFilter = useMemo(() => {
@@ -212,6 +212,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   const showSectionPicker = inventoryOnly;
 
   const showCatalogTab = !catalogOnly && !inventoryOnly;
+  const showCatalogPanel = showCatalogTab || catalogOnly;
   const showStorageTab = !catalogOnly;
   const showMachineTab = includeMachineStock && !catalogOnly;
   const useTabSwitcher =
@@ -270,15 +271,26 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     [factories]
   );
 
+  const catalogQueryParams = useMemo(
+    () => ({
+      skip: catalogSkip,
+      limit: CATALOG_PAGE_SIZE,
+      search: debouncedSearch || undefined,
+      ...(catalogTagFilterIds.length > 0 ? { tag_ids: catalogTagFilterIds } : {}),
+    }),
+    [catalogSkip, debouncedSearch, catalogTagFilterIds],
+  );
+
   const {
-    data: catalogPage = [],
+    data: catalogResponse,
     isLoading: loadingCatalog,
     isFetching: fetchingCatalog,
     error: catalogError,
-  } = useGetItemsQuery(
-    { skip: catalogSkip, limit: CATALOG_PAGE_SIZE, search: debouncedSearch || undefined },
-    { skip: !open || !showCatalogTab }
-  );
+  } = useGetItemsPageQuery(catalogQueryParams, {
+    skip: !open || !showCatalogPanel,
+  });
+
+  const catalogTotal = catalogResponse?.total ?? 0;
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -290,13 +302,14 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     setCatalogSkip(0);
     setAccumulatedCatalogItems([]);
     setCatalogHasMore(false);
-  }, [open, debouncedSearch]);
+  }, [open, debouncedSearch, catalogTagFilterIds]);
 
   useEffect(() => {
     if (!open) return;
-    setAccumulatedCatalogItems((prev) => mergeCatalogPages(prev, catalogPage, catalogSkip === 0));
-    setCatalogHasMore(catalogPage.length === CATALOG_PAGE_SIZE);
-  }, [catalogPage, catalogSkip, open]);
+    const pageItems = catalogResponse?.items ?? [];
+    setAccumulatedCatalogItems((prev) => mergeCatalogPages(prev, pageItems, catalogSkip === 0));
+    setCatalogHasMore(catalogResponse?.has_more ?? false);
+  }, [catalogResponse, catalogSkip, open]);
 
   const loadingCatalogInitial =
     catalogSkip === 0 && accumulatedCatalogItems.length === 0 && (loadingCatalog || fetchingCatalog);
@@ -344,17 +357,23 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     return option ? ({ id: option.id, name: option.name } as Machine) : null;
   }, [resolvedMachineId, inventoryOnly, apiMachines, machineOptions]);
 
-  const filteredCatalogItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const active = accumulatedCatalogItems.filter((i) => i.is_active !== false);
-    if (!q) return active;
-    return active.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.sku ?? '').toLowerCase().includes(q) ||
-        (i.unit ?? '').toLowerCase().includes(q)
+  const { data: itemTags = [] } = useGetTagsQuery(undefined, { skip: !open || !showCatalogPanel });
+
+  const visibleCatalogTags = useMemo(
+    () =>
+      itemTags
+        .filter((t) => t.is_active !== false)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [itemTags]
+  );
+
+  const catalogFiltersActive = Boolean(search.trim() || catalogTagFilterIds.length > 0);
+
+  const toggleCatalogTag = (tagId: number) => {
+    setCatalogTagFilterIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
-  }, [accumulatedCatalogItems, search]);
+  };
 
   const filteredInventoryRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -384,6 +403,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
       setSectionPickerId('');
       setMachinePickerId('');
       setInventoryTypeFilter('all');
+      setCatalogTagFilterIds([]);
       setTab(resolveInitialTab(catalogOnly, inventoryOnly, includeMachineStock, initialTab));
       return;
     }
@@ -417,17 +437,17 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   }, [open]);
 
   useEffect(() => {
-    if (!open || selectedItemId == null || !showCatalogTab) return;
+    if (!open || selectedItemId == null || !showCatalogPanel) return;
     const catalogMatch = accumulatedCatalogItems.find((i) => i.id === selectedItemId);
     if (catalogMatch) {
       setHighlighted({ kind: 'catalog', item: catalogMatch });
     }
-  }, [open, selectedItemId, accumulatedCatalogItems, showCatalogTab]);
+  }, [open, selectedItemId, accumulatedCatalogItems, showCatalogPanel]);
 
   useEffect(() => {
     if (!highlighted) return;
     if (highlighted.kind === 'catalog') {
-      const stillVisible = filteredCatalogItems.some((i) => i.id === highlighted.item.id);
+      const stillVisible = accumulatedCatalogItems.some((i) => i.id === highlighted.item.id);
       if (!stillVisible) setHighlighted(null);
     } else if (highlighted.kind === 'storage') {
       const stillVisible = filteredInventoryRows.some((r) => r.id === highlighted.row.id);
@@ -436,7 +456,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
       const stillVisible = filteredMachineItemRows.some((r) => r.id === highlighted.row.id);
       if (!stillVisible) setHighlighted(null);
     }
-  }, [highlighted, filteredCatalogItems, filteredInventoryRows, filteredMachineItemRows]);
+  }, [highlighted, accumulatedCatalogItems, filteredInventoryRows, filteredMachineItemRows]);
 
   useEffect(() => {
     if (highlighted?.kind !== 'machine') return;
@@ -478,16 +498,6 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
       });
     }
     onOpenChange(false);
-  };
-
-  const handleCreateItemSuccess = (item: Item) => {
-    setAccumulatedCatalogItems((prev) => {
-      if (prev.some((i) => i.id === item.id)) return prev;
-      return [item, ...prev];
-    });
-    setHighlighted({ kind: 'catalog', item });
-    setTab('catalog');
-    setIsAddItemOpen(false);
   };
 
   const handleLoadMoreCatalog = () => {
@@ -611,30 +621,64 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
 
   const renderCatalogList = () => (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="shrink-0 flex gap-2 p-0.5">
-        <div className="relative min-w-0 flex-1">
+      <div className="shrink-0 space-y-3 rounded-lg border border-border bg-muted/10 p-3">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search catalog..."
-            className="h-9 pl-9"
+            className="h-9 bg-background pl-9"
             autoComplete="off"
           />
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-9 shrink-0"
-          onClick={() => setIsAddItemOpen(true)}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          Create
-        </Button>
+        <div className="max-h-24 overflow-y-auto rounded-md border border-border bg-background p-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {catalogTagFilterIds.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setCatalogTagFilterIds([])}
+                className="inline-flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
+              >
+                <X className="h-3 w-3" />
+                Clear tags
+              </button>
+            ) : null}
+            {visibleCatalogTags.length === 0 ? (
+              <span className="text-xs text-muted-foreground">No tags found.</span>
+            ) : (
+              visibleCatalogTags.map((tag) => {
+                const selected = catalogTagFilterIds.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleCatalogTag(tag.id)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded border px-2 py-1 text-xs font-medium transition-colors',
+                      selected
+                        ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                        : 'border-border bg-muted/40 text-foreground hover:bg-muted'
+                    )}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: tag.color || '#9067c6' }}
+                    />
+                    {tag.name}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
       <div className="flex shrink-0 items-center justify-between text-xs text-muted-foreground">
         <span className="tabular-nums">
-          {filteredCatalogItems.length} shown
+          {catalogTotal > 0
+            ? `${accumulatedCatalogItems.length} of ${catalogTotal} loaded`
+            : `${accumulatedCatalogItems.length} shown`}
+          {catalogFiltersActive ? ' · filtered' : ''}
           {catalogHasMore ? ' · more in catalog' : ''}
         </span>
         {fetchingCatalog && !loadingCatalogInitial ? (
@@ -652,15 +696,15 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </div>
         ) : catalogError ? (
           <p className="py-8 text-center text-sm text-destructive">
-            Failed to load catalog. Try again or use Storage tab.
+            Failed to load catalog.{showStorageTab ? ' Try again or use Storage tab.' : ' Try again.'}
           </p>
-        ) : filteredCatalogItems.length === 0 ? (
+        ) : accumulatedCatalogItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No items found{search.trim() ? ' for your search' : ''}.
+            No items found{catalogFiltersActive ? ' matching filters' : ''}.
           </p>
         ) : (
           <div className="space-y-1.5">
-            {filteredCatalogItems.map((item) => {
+            {accumulatedCatalogItems.map((item) => {
               const isHighlighted =
                 highlighted?.kind === 'catalog' && highlighted.item.id === item.id;
               return (
@@ -675,7 +719,28 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
                       : 'border-transparent bg-card hover:border-border hover:bg-muted/30'
                   )}
                 >
-                  <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      {item.name}
+                    </p>
+                    {item.tags && item.tags.length > 0 ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        {item.tags.slice(0, 6).map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: tag.color || '#9067c6' }}
+                            title={tag.name}
+                          />
+                        ))}
+                        {item.tags.length > 6 ? (
+                          <span className="text-[10px] text-muted-foreground">
+                            +{item.tags.length - 6}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {item.unit}
                     {item.sku ? ` · SKU ${item.sku}` : ''}
@@ -1046,8 +1111,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className="flex h-[78vh] max-h-[78vh] w-[min(40rem,94vw)] max-w-none flex-col p-5 sm:max-w-none sm:p-6"
           onPointerDownOutside={(event) => {
@@ -1119,13 +1183,6 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AddItemDialog
-        open={isAddItemOpen}
-        onOpenChange={setIsAddItemOpen}
-        onSuccess={handleCreateItemSuccess}
-      />
-    </>
   );
 };
 

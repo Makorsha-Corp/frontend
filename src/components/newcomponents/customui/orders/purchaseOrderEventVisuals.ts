@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Package,
   PackagePlus,
+  RotateCcw,
   PackageMinus,
   UserPlus,
   UserMinus,
@@ -125,6 +126,11 @@ export const PO_EVENT_VISUALS: Record<string, PoEventVisual> = {
     icon: PackagePlus,
     wrap: 'bg-emerald-100 dark:bg-emerald-900/30',
     color: 'text-emerald-600 dark:text-emerald-400',
+  },
+  inventory_reversed: {
+    icon: RotateCcw,
+    wrap: 'bg-orange-100 dark:bg-orange-900/30',
+    color: 'text-orange-600 dark:text-orange-400',
   },
   approvals_threshold_updated: {
     icon: ShieldCheck,

@@ -10,6 +10,7 @@ import type { Item } from '@/types/item';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { Account } from '@/types/account';
 import type { WorkspaceMember } from '@/types/workspace';
+import type { WorkOrder } from '@/types/workOrder';
 
 const CLOSE_ANIMATION_MS = 200;
 
@@ -25,6 +26,7 @@ export interface SheetLogEntryFooterProps {
   accounts: Account[];
   members: WorkspaceMember[];
   defaultMachineId?: number | null;
+  slotCheckOrders?: WorkOrder[];
   disabled?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -48,6 +50,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
       accounts,
       members,
       defaultMachineId,
+      slotCheckOrders,
       disabled = false,
       open = false,
       onOpenChange,
@@ -155,6 +158,7 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
                   accounts={accounts}
                   members={members}
                   defaultMachineId={defaultMachineId}
+                  slotCheckOrders={slotCheckOrders}
                   showFooterHeader={false}
                   showWorkDate
                   disabled={isDisabled}
