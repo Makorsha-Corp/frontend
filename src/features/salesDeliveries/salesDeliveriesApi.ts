@@ -1,7 +1,10 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { invalidateSalesOrderById } from '@/features/cache/invalidateOrderInvoiceCache';
 import type { SalesDelivery, CreateSalesDeliveryDTO, UpdateSalesDeliveryDTO } from '@/types/salesDelivery';
 import type { SalesDeliveryItem, CreateSalesDeliveryItemDTO } from '@/types/salesDeliveryItem';
+import type { SalesOrder } from '@/types/salesOrder';
+import type { ActionResponse } from '@/types/common';
 
 export interface ListSalesDeliveriesParams {
   skip?: number;
@@ -12,11 +15,6 @@ export interface ListSalesDeliveriesParams {
 export interface CreateSalesDeliveryWithItemsDTO {
   delivery: CreateSalesDeliveryDTO;
   items: CreateSalesDeliveryItemDTO[];
-}
-
-export interface ActionResponse<T> {
-  data: T;
-  messages: string[];
 }
 
 export const salesDeliveriesApi = createApi({
@@ -50,13 +48,29 @@ export const salesDeliveriesApi = createApi({
         },
       }),
       invalidatesTags: ['SalesDelivery', 'SalesOrder'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          invalidateSalesOrderById(dispatch, data.sales_order_id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
-    completeSalesDelivery: builder.mutation<ActionResponse<any>, number>({
+    completeSalesDelivery: builder.mutation<ActionResponse<SalesOrder>, number>({
       query: (id) => ({
         url: `sales-deliveries/${id}/complete/`,
         method: 'POST',
       }),
       invalidatesTags: ['SalesDelivery', 'SalesOrder'],
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          invalidateSalesOrderById(dispatch, data.data.id);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     getSalesDeliveryItems: builder.query<SalesDeliveryItem[], number>({
       query: (deliveryId) => `sales-deliveries/${deliveryId}/items/`,

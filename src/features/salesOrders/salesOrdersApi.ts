@@ -4,6 +4,7 @@ import { invalidateInvoiceById } from '@/features/cache/invalidateOrderInvoiceCa
 import type { SalesOrder, CreateSalesOrderDTO, UpdateSalesOrderDTO } from '@/types/salesOrder';
 import type { SalesOrderItem, CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
+import type { ActionResponse } from '@/types/common';
 
 export interface ListSalesOrdersParams {
   skip?: number;
@@ -84,6 +85,17 @@ export const salesOrdersApi = createApi({
       query: (orderId) => `sales-orders/${orderId}/deliveries/`,
       providesTags: (_r, _e, orderId) => [{ type: 'SalesOrder', id: `deliveries-${orderId}` }],
     }),
+    fulfillSalesOrderItem: builder.mutation<ActionResponse<SalesOrder>, { orderId: number; itemId: number }>({
+      query: ({ orderId, itemId }) => ({
+        url: `sales-orders/${orderId}/items/${itemId}/fulfill/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => [
+        { type: 'SalesOrder', id: orderId },
+        { type: 'SalesOrderItem', id: `order-${orderId}` },
+        'SalesOrder',
+      ],
+    }),
   }),
 });
 
@@ -95,4 +107,5 @@ export const {
   useCreateInvoiceFromSalesOrderMutation,
   useGetSalesOrderItemsQuery,
   useGetSalesOrderDeliveriesQuery,
+  useFulfillSalesOrderItemMutation,
 } = salesOrdersApi;

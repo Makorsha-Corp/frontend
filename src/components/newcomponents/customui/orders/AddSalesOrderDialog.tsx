@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -12,12 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateSalesOrderMutation } from '@/features/salesOrders/salesOrdersApi';
-import { useGetItemsQuery } from '@/features/items/itemsApi';
+import { useGetProductsQuery } from '@/features/products/productsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import type { Account } from '@/types/account';
 import type { CreateSalesOrderDTO } from '@/types/salesOrder';
 import type { CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -31,6 +32,19 @@ interface AddSalesOrderDialogProps {
   accounts: Account[];
   onSuccess: (order: SalesOrder) => void;
 }
+
+interface DraftLine {
+  key: string;
+  item_id?: number;
+  description?: string;
+  quantity_ordered: number;
+  unit_price: number;
+  requires_delivery: boolean;
+  notes?: string;
+}
+
+let draftLineSeq = 0;
+const nextDraftKey = () => `draft-${++draftLineSeq}`;
 
 const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   open,
@@ -46,22 +60,30 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [quotationSentDate, setQuotationSentDate] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [description, setDescription] = useState('');
-  const [items, setItems] = useState<
-    Array<{ item_id: number; quantity_ordered: number; unit_price: number; notes?: string }>
-  >([]);
-  const [itemId, setItemId] = useState('');
+  const [items, setItems] = useState<DraftLine[]>([]);
+  const [lineMode, setLineMode] = useState<'product' | 'misc'>('product');
+  const [productId, setProductId] = useState('');
+  const [miscDescription, setMiscDescription] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [requiresDelivery, setRequiresDelivery] = useState(true);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const [createOrder, { isLoading }] = useCreateSalesOrderMutation();
-  const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
+  const parsedFactoryId = factoryId ? parseInt(factoryId, 10) : undefined;
+  const { data: productsList = [] } = useGetProductsQuery(
+    { factory_id: parsedFactoryId, is_available_for_sale: true, limit: API_LIMITS.STRICT_100 },
+    { skip: !open || !parsedFactoryId }
+  );
 
-  const usedItemIds = useMemo(() => new Set(items.map((line) => line.item_id)), [items]);
-  const availableItems = useMemo(
-    () => itemsList.filter((i) => !usedItemIds.has(i.id)),
-    [itemsList, usedItemIds]
+  const usedItemIds = useMemo(
+    () => new Set(items.filter((line) => line.item_id != null).map((line) => line.item_id)),
+    [items]
+  );
+  const availableProducts = useMemo(
+    () => productsList.filter((p) => !usedItemIds.has(p.item_id)),
+    [productsList, usedItemIds]
   );
 
   const reset = () => {
@@ -72,33 +94,76 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     setExpectedDeliveryDate('');
     setDescription('');
     setItems([]);
-    setItemId('');
+    setLineMode('product');
+    setProductId('');
+    setMiscDescription('');
     setQty('');
     setUnitPrice('');
-    setEditingItemId(null);
+    setRequiresDelivery(true);
+    setEditingKey(null);
+  };
+
+  const switchLineMode = (mode: 'product' | 'misc') => {
+    setLineMode(mode);
+    setRequiresDelivery(mode === 'product');
+  };
+
+  const handleSelectProduct = (value: string) => {
+    setProductId(value);
+    const product = productsList.find((p) => p.item_id.toString() === value);
+    if (product?.selling_price != null) {
+      setUnitPrice(String(product.selling_price));
+    }
   };
 
   const handleAddItem = () => {
-    const iid = parseInt(itemId, 10);
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
-    if (isNaN(iid) || isNaN(q) || q <= 0 || isNaN(p) || p < 0) {
-      toast.error('Enter valid item, quantity, and unit price');
+    if (isNaN(q) || q <= 0 || isNaN(p) || p < 0) {
+      toast.error('Enter a valid quantity and unit price');
       return;
     }
-    if (usedItemIds.has(iid)) {
-      toast.error('Item already on this order — edit quantity or unit price below');
-      return;
+
+    if (lineMode === 'product') {
+      const iid = parseInt(productId, 10);
+      if (isNaN(iid)) {
+        toast.error('Select a product');
+        return;
+      }
+      if (usedItemIds.has(iid)) {
+        toast.error('Product already on this order — edit quantity or unit price below');
+        return;
+      }
+      setItems((prev) => [
+        ...prev,
+        { key: nextDraftKey(), item_id: iid, quantity_ordered: q, unit_price: p, requires_delivery: requiresDelivery },
+      ]);
+      setProductId('');
+    } else {
+      if (!miscDescription.trim()) {
+        toast.error('Enter a description for this line');
+        return;
+      }
+      setItems((prev) => [
+        ...prev,
+        {
+          key: nextDraftKey(),
+          description: miscDescription.trim(),
+          quantity_ordered: q,
+          unit_price: p,
+          requires_delivery: requiresDelivery,
+        },
+      ]);
+      setMiscDescription('');
     }
-    setItems((prev) => [...prev, { item_id: iid, quantity_ordered: q, unit_price: p }]);
-    setItemId('');
     setQty('');
     setUnitPrice('');
+    setRequiresDelivery(lineMode === 'product');
   };
 
   const handleRemoveItem = (idx: number) => {
     const removed = items[idx];
-    if (removed && removed.item_id === editingItemId) setEditingItemId(null);
+    if (removed && removed.key === editingKey) setEditingKey(null);
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
@@ -114,6 +179,10 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     setItems((prev) =>
       prev.map((line, i) => (i === idx ? { ...line, [field]: n } : line))
     );
+  };
+
+  const handleToggleLineDelivery = (idx: number, value: boolean) => {
+    setItems((prev) => prev.map((line, i) => (i === idx ? { ...line, requires_delivery: value } : line)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,8 +214,10 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
 
     const itemsData: CreateSalesOrderItemDTO[] = items.map((i) => ({
       item_id: i.item_id,
+      description: i.description,
       quantity_ordered: i.quantity_ordered,
       unit_price: i.unit_price,
+      requires_delivery: i.requires_delivery,
       notes: i.notes,
     }));
 
@@ -170,18 +241,57 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       </div>
 
       <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-        <Select value={itemId} onValueChange={setItemId}>
-          <SelectTrigger className="w-full bg-background">
-            <SelectValue placeholder="Select item" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableItems.map((i) => (
-              <SelectItem key={i.id} value={i.id.toString()}>
-                {i.name} {i.unit && `(${i.unit})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-1 rounded-md bg-muted p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => switchLineMode('product')}
+            className={`flex-1 rounded px-2 py-1 font-medium transition-colors ${
+              lineMode === 'product' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            Product
+          </button>
+          <button
+            type="button"
+            onClick={() => switchLineMode('misc')}
+            className={`flex-1 rounded px-2 py-1 font-medium transition-colors ${
+              lineMode === 'misc' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            Misc
+          </button>
+        </div>
+        {lineMode === 'product' ? (
+          !parsedFactoryId ? (
+            <p className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              Select a factory first to see products available to sell
+            </p>
+          ) : (
+            <Select value={productId} onValueChange={handleSelectProduct}>
+              <SelectTrigger className="w-full bg-background">
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableProducts.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">No products available to sell at this factory</div>
+                ) : (
+                  availableProducts.map((p) => (
+                    <SelectItem key={p.item_id} value={p.item_id.toString()}>
+                      {p.item_name ?? `Item #${p.item_id}`} {p.item_unit && `(${p.item_unit})`} — {p.qty} in stock
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          )
+        ) : (
+          <Input
+            value={miscDescription}
+            onChange={(e) => setMiscDescription(e.target.value)}
+            placeholder="e.g. Installation fee, Inspection fee"
+            className="bg-background"
+          />
+        )}
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">Qty</Label>
@@ -209,6 +319,16 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="requires-delivery"
+            checked={requiresDelivery}
+            onCheckedChange={(c) => setRequiresDelivery(!!c)}
+          />
+          <Label htmlFor="requires-delivery" className="font-normal cursor-pointer text-sm">
+            Requires delivery
+          </Label>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
@@ -216,42 +336,69 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">No sales items yet</p>
         ) : (
           items.map((it, idx) => {
-            const item = itemsList.find((i) => i.id === it.item_id);
-            const unitSuffix = item?.unit ? ` ${item.unit}` : '';
-            const isEditing = editingItemId === it.item_id;
+            const product = it.item_id != null ? productsList.find((p) => p.item_id === it.item_id) : undefined;
+            const unitSuffix = product?.item_unit ? ` ${product.item_unit}` : '';
+            const isEditing = editingKey === it.key;
+            const lineLabel = it.item_id != null ? (product?.item_name ?? `Item #${it.item_id}`) : it.description;
             const priceStr = Number(it.unit_price).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             });
             return (
-              <div key={it.item_id} className="flex items-start justify-between gap-3 px-3 py-2.5">
+              <div key={it.key} className="flex items-start justify-between gap-3 px-3 py-2.5">
                 <div className="min-w-0 flex-1 space-y-2">
                   <p className="truncate text-sm font-medium leading-tight text-foreground">
-                    {item?.name ?? `Item #${it.item_id}`}
+                    {lineLabel}
+                    {it.item_id == null && (
+                      <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
+                        Misc
+                      </span>
+                    )}
+                    {it.requires_delivery ? (
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
+                        <Truck className="h-2.5 w-2.5" />Delivery
+                      </span>
+                    ) : (
+                      <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
+                        No delivery
+                      </span>
+                    )}
                   </p>
                   {isEditing ? (
-                    <div className="grid max-w-xs grid-cols-2 gap-2">
-                      <div className="grid gap-1">
-                        <Label className="text-[10px] text-muted-foreground">
-                          Qty{unitSuffix}
-                        </Label>
-                        <StepNumberInput
-                          min={1}
-                          step={1}
-                          value={String(it.quantity_ordered)}
-                          onChange={(e) => handleUpdateLine(idx, 'quantity_ordered', e.target.value)}
-                          className="h-9 bg-background"
-                        />
+                    <div className="space-y-2">
+                      <div className="grid max-w-xs grid-cols-2 gap-2">
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">
+                            Qty{unitSuffix}
+                          </Label>
+                          <StepNumberInput
+                            min={1}
+                            step={1}
+                            value={String(it.quantity_ordered)}
+                            onChange={(e) => handleUpdateLine(idx, 'quantity_ordered', e.target.value)}
+                            className="h-9 bg-background"
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Unit price</Label>
+                          <StepNumberInput
+                            min={0}
+                            step={1}
+                            value={String(it.unit_price)}
+                            onChange={(e) => handleUpdateLine(idx, 'unit_price', e.target.value)}
+                            className="h-9 bg-background"
+                          />
+                        </div>
                       </div>
-                      <div className="grid gap-1">
-                        <Label className="text-[10px] text-muted-foreground">Unit price</Label>
-                        <StepNumberInput
-                          min={0}
-                          step={1}
-                          value={String(it.unit_price)}
-                          onChange={(e) => handleUpdateLine(idx, 'unit_price', e.target.value)}
-                          className="h-9 bg-background"
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`requires-delivery-${it.key}`}
+                          checked={it.requires_delivery}
+                          onCheckedChange={(c) => handleToggleLineDelivery(idx, !!c)}
                         />
+                        <Label htmlFor={`requires-delivery-${it.key}`} className="font-normal cursor-pointer text-xs">
+                          Requires delivery
+                        </Label>
                       </div>
                     </div>
                   ) : (
@@ -272,7 +419,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                       variant="ghost"
                       size="sm"
                       className="h-8 px-2 text-xs"
-                      onClick={() => setEditingItemId(null)}
+                      onClick={() => setEditingKey(null)}
                     >
                       Done
                     </Button>
@@ -282,8 +429,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => setEditingItemId(it.item_id)}
-                      aria-label={`Edit ${item?.name ?? 'item'}`}
+                      onClick={() => setEditingKey(it.key)}
+                      aria-label={`Edit ${lineLabel ?? 'item'}`}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>

@@ -3,7 +3,7 @@ export interface SalesDeliveryItem {
   workspace_id: number;
   delivery_id: number;
   sales_order_item_id: number;
-  item_id: number;
+  item_id: number | null;
   quantity_delivered: number;
   notes: string | null;
 }
