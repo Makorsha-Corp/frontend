@@ -72,6 +72,21 @@ export const salesDeliveriesApi = createApi({
         }
       },
     }),
+    cancelSalesDelivery: builder.mutation<SalesDelivery, number>({
+      query: (id) => ({
+        url: `sales-deliveries/${id}/cancel/`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['SalesDelivery', 'SalesOrder'],
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          invalidateSalesOrderById(dispatch, data.sales_order_id);
+        } catch {
+          /* mutation failed */
+        }
+      },
+    }),
     getSalesDeliveryItems: builder.query<SalesDeliveryItem[], number>({
       query: (deliveryId) => `sales-deliveries/${deliveryId}/items/`,
       providesTags: (result, error, deliveryId) => [{ type: 'SalesDeliveryItem', id: `delivery-${deliveryId}` }],
@@ -84,5 +99,6 @@ export const {
   useGetSalesDeliveryByIdQuery,
   useCreateSalesDeliveryMutation,
   useCompleteSalesDeliveryMutation,
+  useCancelSalesDeliveryMutation,
   useGetSalesDeliveryItemsQuery,
 } = salesDeliveriesApi;

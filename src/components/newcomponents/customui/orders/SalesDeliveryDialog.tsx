@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, ChevronRight, Clock, Loader2, Package, Plus, Truck } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock, Loader2, Package, Plus, Truck, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import {
 import {
   useCreateSalesDeliveryMutation,
   useCompleteSalesDeliveryMutation,
+  useCancelSalesDeliveryMutation,
   useGetSalesDeliveryItemsQuery,
 } from '@/features/salesDeliveries/salesDeliveriesApi';
 import { useGetDeliveryMethodsQuery } from '@/features/deliveryMethods/deliveryMethodsApi';
@@ -87,8 +88,13 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
     resetForm();
   };
 
-  const remainingFor = (item: SalesOrderItem) =>
-    item.quantity_remaining ?? Math.max(0, item.quantity_ordered - item.quantity_delivered);
+  // How much of this line can still be added to a NEW delivery plan — accounts for
+  // quantity already committed to other outstanding (planned, not yet completed) deliveries,
+  // not just what's been actually delivered. Falls back to the old delivered-only math if
+  // the backend hasn't sent quantity_available_to_plan for some reason.
+  const availableToPlanFor = (item: SalesOrderItem) =>
+    item.quantity_available_to_plan ??
+    Math.max(0, item.quantity_ordered - item.quantity_delivered - (item.quantity_planned ?? 0));
 
   const lines = useMemo(() => {
     return items
@@ -128,6 +134,8 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
   const totalDelivered = items.reduce((s, it) => s + Number(it.quantity_delivered), 0);
   const totalOrdered = items.reduce((s, it) => s + Number(it.quantity_ordered), 0);
   const allDelivered = totalOrdered > 0 && totalDelivered >= totalOrdered;
+  const totalAvailableToPlan = items.reduce((s, it) => s + availableToPlanFor(it), 0);
+  const nothingLeftToPlan = totalOrdered > 0 && totalAvailableToPlan <= 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -141,6 +149,8 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
             <p className="text-sm text-muted-foreground">
               {allDelivered
                 ? 'All items on this order have been delivered.'
+                : nothingLeftToPlan
+                ? 'Everything remaining is already committed to a planned delivery — edit or delete one to free up capacity.'
                 : `${totalDelivered} / ${totalOrdered} units delivered across ${items.length} item(s).`}
             </p>
           )}
@@ -153,7 +163,9 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
               {items.map((item) => {
                 const delivered = Number(item.quantity_delivered);
                 const ordered = Number(item.quantity_ordered);
+                const planned = item.quantity_planned ?? 0;
                 const pct = ordered > 0 ? Math.min(100, (delivered / ordered) * 100) : 0;
+                const plannedPct = ordered > 0 ? Math.min(100 - pct, (planned / ordered) * 100) : 0;
                 const complete = delivered >= ordered;
                 return (
                   <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
@@ -161,14 +173,12 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.item_name ?? `Item #${item.item_id}`}</p>
                       <div className="mt-1 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={cn('h-full rounded-full transition-all', complete ? 'bg-green-500' : 'bg-brand-primary')}
-                            style={{ width: `${pct}%` }}
-                          />
+                        <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden flex">
+                          <div className="h-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-brand-primary/50 transition-all" style={{ width: `${plannedPct}%` }} />
                         </div>
                         <span className="text-xs tabular-nums text-muted-foreground shrink-0">
-                          {delivered} / {ordered} {item.item_unit ?? ''}
+                          {delivered}{planned > 0 && ` +${planned} planned`} / {ordered} {item.item_unit ?? ''}
                         </span>
                       </div>
                     </div>
@@ -183,7 +193,7 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
               variant="outline"
               className="h-auto py-3 flex-col gap-1"
               onClick={() => setMode('add')}
-              disabled={allDelivered}
+              disabled={allDelivered || nothingLeftToPlan}
             >
               <Truck className="h-5 w-5 text-brand-primary" />
               <span className="text-sm font-medium">Plan Delivery</span>
@@ -280,25 +290,29 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
               {items.map((item) => {
                 const ordered = Number(item.quantity_ordered);
                 const alreadyDelivered = Number(item.quantity_delivered);
-                const remaining = remainingFor(item);
+                const planned = item.quantity_planned ?? 0;
+                const available = availableToPlanFor(item);
                 const qty = Number(qtys[item.id] ?? 0);
-                const willExceed = alreadyDelivered + qty > ordered;
+                const willExceed = qty > available;
 
                 return (
                   <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.item_name ?? `Item #${item.item_id}`}</p>
-                      <p className="text-xs text-muted-foreground">{alreadyDelivered} / {ordered} {item.item_unit ?? ''} already delivered · {remaining} remaining</p>
+                      <p className="text-xs text-muted-foreground">
+                        {alreadyDelivered} / {ordered} {item.item_unit ?? ''} delivered
+                        {planned > 0 && ` · ${planned} already planned`} · {available} available to plan
+                      </p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <StepNumberInput
                         min={0}
-                        max={remaining}
+                        max={available}
                         step={1}
                         placeholder="0"
                         value={qtys[item.id] ?? ''}
                         onChange={(e) => setQtys((p) => ({ ...p, [item.id]: e.target.value }))}
-                        disabled={remaining <= 0}
+                        disabled={available <= 0}
                         className={cn('h-8 w-24 text-sm text-right bg-background', willExceed && 'border-destructive')}
                       />
                       <Button
@@ -306,8 +320,8 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
                         variant="outline"
                         size="sm"
                         className="h-8 px-2 text-xs shrink-0"
-                        onClick={() => setQtys((p) => ({ ...p, [item.id]: String(remaining) }))}
-                        disabled={remaining <= 0}
+                        onClick={() => setQtys((p) => ({ ...p, [item.id]: String(available) }))}
+                        disabled={available <= 0}
                       >
                         All
                       </Button>
@@ -356,8 +370,10 @@ const statusBadgeClass = (status: SalesDelivery['delivery_status']) => {
 
 const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: DeliveryMethod[]; onCompleted: () => void }> = ({ delivery, deliveryMethods, onCompleted }) => {
   const [expanded, setExpanded] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const { data: deliveryItems = [], isLoading: itemsLoading } = useGetSalesDeliveryItemsQuery(delivery.id, { skip: !expanded });
   const [completeDelivery, { isLoading: completing }] = useCompleteSalesDeliveryMutation();
+  const [cancelDelivery, { isLoading: cancelling }] = useCancelSalesDeliveryMutation();
   const methodName = deliveryMethods.find((m) => m.id === delivery.delivery_method_id)?.name;
 
   const handleComplete = async (e: React.MouseEvent) => {
@@ -371,6 +387,19 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
       toast.error(e2?.data?.detail || 'Failed to complete delivery');
+    }
+  };
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await cancelDelivery(delivery.id).unwrap();
+      toast.success(`${delivery.delivery_number} cancelled — quantity freed up to plan again`);
+      setConfirmingCancel(false);
+      onCompleted();
+    } catch (err: unknown) {
+      const e2 = err as { data?: { detail?: string } };
+      toast.error(e2?.data?.detail || 'Failed to cancel delivery');
     }
   };
 
@@ -409,17 +438,55 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
           </div>
         </div>
         {delivery.delivery_status === 'planned' && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 px-2 text-xs shrink-0"
-            onClick={handleComplete}
-            disabled={completing}
-          >
-            {completing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
-            Mark Delivered
-          </Button>
+          confirmingCancel ? (
+            <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <span className="text-xs text-muted-foreground">Cancel this plan?</span>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={handleCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Yes'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={(e) => { e.stopPropagation(); setConfirmingCancel(false); }}
+                disabled={cancelling}
+              >
+                No
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setConfirmingCancel(true); }}
+                aria-label={`Cancel ${delivery.delivery_number}`}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={handleComplete}
+                disabled={completing}
+              >
+                {completing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
+                Mark Delivered
+              </Button>
+            </div>
+          )
         )}
         <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
       </button>

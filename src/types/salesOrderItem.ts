@@ -10,6 +10,8 @@ export interface SalesOrderItem {
   quantity_ordered: number;
   quantity_delivered: number;
   quantity_remaining?: number;
+  quantity_planned?: number;
+  quantity_available_to_plan?: number;
   unit_price: number;
   line_total: number;
   notes: string | null;

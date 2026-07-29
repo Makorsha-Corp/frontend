@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,6 +117,11 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     }
   };
 
+  const selectedProductMinQty =
+    lineMode === 'product'
+      ? productsList.find((p) => p.item_id.toString() === productId)?.min_order_qty ?? undefined
+      : undefined;
+
   const handleAddItem = () => {
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
@@ -132,6 +138,13 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       }
       if (usedItemIds.has(iid)) {
         toast.error('Product already on this order — edit quantity or unit price below');
+        return;
+      }
+      const selectedProduct = productsList.find((p) => p.item_id === iid);
+      if (selectedProduct?.min_order_qty != null && q < selectedProduct.min_order_qty) {
+        toast.error(
+          `Minimum order quantity for ${selectedProduct.item_name ?? `item #${iid}`} is ${selectedProduct.min_order_qty}`
+        );
         return;
       }
       setItems((prev) => [
@@ -200,6 +213,16 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     if (items.length === 0) {
       toast.error('Add at least one sales item');
       return;
+    }
+    for (const line of items) {
+      if (line.item_id == null) continue;
+      const product = productsList.find((p) => p.item_id === line.item_id);
+      if (product?.min_order_qty != null && line.quantity_ordered < product.min_order_qty) {
+        toast.error(
+          `Minimum order quantity for ${product.item_name ?? `item #${line.item_id}`} is ${product.min_order_qty} (currently ${line.quantity_ordered})`
+        );
+        return;
+      }
     }
 
     const orderData: CreateSalesOrderDTO = {
@@ -278,6 +301,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                   availableProducts.map((p) => (
                     <SelectItem key={p.item_id} value={p.item_id.toString()}>
                       {p.item_name ?? `Item #${p.item_id}`} {p.item_unit && `(${p.item_unit})`} — {p.qty} in stock
+                      {p.min_order_qty != null && ` · min ${p.min_order_qty}`}
                     </SelectItem>
                   ))
                 )}
@@ -294,9 +318,11 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         )}
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[5rem] flex-1 gap-1">
-            <Label className="text-xs text-muted-foreground">Qty</Label>
+            <Label className="text-xs text-muted-foreground">
+              Qty{selectedProductMinQty != null && ` (min ${selectedProductMinQty})`}
+            </Label>
             <StepNumberInput
-              min={1}
+              min={selectedProductMinQty ?? 1}
               step={1}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
@@ -370,13 +396,17 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                         <div className="grid gap-1">
                           <Label className="text-[10px] text-muted-foreground">
                             Qty{unitSuffix}
+                            {product?.min_order_qty != null && ` (min ${product.min_order_qty})`}
                           </Label>
                           <StepNumberInput
                             min={1}
                             step={1}
                             value={String(it.quantity_ordered)}
                             onChange={(e) => handleUpdateLine(idx, 'quantity_ordered', e.target.value)}
-                            className="h-9 bg-background"
+                            className={cn(
+                              'h-9 bg-background',
+                              product?.min_order_qty != null && it.quantity_ordered < product.min_order_qty && 'border-destructive'
+                            )}
                           />
                         </div>
                         <div className="grid gap-1">
