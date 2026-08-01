@@ -108,21 +108,8 @@ test.describe('Purchase orders — item price insights', () => {
     await expect(toggle).toHaveText(/Lowest \(All time\)/);
     await expect(insightsRequestCount).toBe(0);
 
-    const itemOrdersResponse = page.waitForResponse(
-      (res) =>
-        res.url().includes(`/items/${po1.itemId}/orders/`) &&
-        res.request().method() === 'GET' &&
-        res.status() === 200,
-    );
-    await lastOrderCell.getByTestId('po-insights-price-link').click();
-    await itemOrdersResponse;
-
-    const historyDialog = page.getByTestId('po-item-purchase-history-dialog');
-    await expect(historyDialog).toBeVisible({ timeout: 10_000 });
-    await expect(historyDialog.getByTestId(`po-item-history-row-${po1.id}`)).toBeVisible();
-
-    await historyDialog.getByTestId(`po-item-history-row-${po1.id}`).click();
-    const summaryDialog = page.getByRole('dialog').filter({ hasText: 'Go to order' });
+    await lastOrderCell.click();
+    const summaryDialog = page.getByRole('dialog');
     await expect(summaryDialog).toBeVisible({ timeout: 10_000 });
     await summaryDialog.getByRole('button', { name: 'Go to order' }).click();
     await expect(page.getByText(`E2E insights PO1 ${ts}`)).toBeVisible({ timeout: 15_000 });

@@ -35,19 +35,10 @@ export interface ListProductionBatchesParams {
   status?: string;
 }
 
-export interface ProductionBatchStats {
-  inProgressCount: number;
-  totalCount: number;
-}
-
-export interface ProductionBatchStatsParams {
-  factory_id?: number;
-}
-
 export const productionApi = createApi({
   reducerPath: 'productionApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'FormulaStage', 'ProductionBatch', 'BatchItem', 'BatchStageLog', 'ProductionBatchStats'],
+  tagTypes: ['ProductionLine', 'ProductionFormula', 'FormulaItem', 'FormulaStage', 'ProductionBatch', 'BatchItem', 'BatchStageLog'],
   endpoints: (builder) => ({
     // ─── Production Lines ────────────────────────────────────────
 
@@ -64,7 +55,7 @@ export const productionApi = createApi({
     }),
     getProductionLineById: builder.query<ProductionLine, number>({
       query: (id) => `production-lines/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'ProductionLine', id }],
+      providesTags: (result, error, id) => [{ type: 'ProductionLine', id }],
     }),
     createProductionLine: builder.mutation<ProductionLine, CreateProductionLineDTO>({
       query: (body) => ({
@@ -80,7 +71,7 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionLine', id }, 'ProductionLine'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionLine', id }, 'ProductionLine'],
     }),
     deleteProductionLine: builder.mutation<void, number>({
       query: (id) => ({
@@ -104,7 +95,7 @@ export const productionApi = createApi({
     }),
     getProductionFormulaById: builder.query<ProductionFormula, number>({
       query: (id) => `production-formulas/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'ProductionFormula', id }],
+      providesTags: (result, error, id) => [{ type: 'ProductionFormula', id }],
     }),
     createProductionFormula: builder.mutation<ProductionFormula, CreateProductionFormulaDTO>({
       query: (body) => ({
@@ -120,7 +111,7 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionFormula', id }, 'ProductionFormula'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionFormula', id }, 'ProductionFormula'],
     }),
     deleteProductionFormula: builder.mutation<void, number>({
       query: (id) => ({
@@ -138,7 +129,7 @@ export const productionApi = createApi({
         if (item_role) params.append('item_role', item_role);
         return `production-formulas/${formulaId}/items/?${params.toString()}`;
       },
-      providesTags: (_result, _error, { formulaId }) => [{ type: 'FormulaItem', id: `formula-${formulaId}` }],
+      providesTags: (result, error, { formulaId }) => [{ type: 'FormulaItem', id: `formula-${formulaId}` }],
     }),
     addFormulaItem: builder.mutation<ProductionFormulaItem, { formulaId: number; data: CreateProductionFormulaItemDTO }>({
       query: ({ formulaId, data }) => ({
@@ -146,7 +137,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { formulaId }) => [{ type: 'FormulaItem', id: `formula-${formulaId}` }],
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaItem', id: `formula-${formulaId}` }],
     }),
     updateFormulaItem: builder.mutation<ProductionFormulaItem, { id: number; data: UpdateProductionFormulaItemDTO }>({
       query: ({ id, data }) => ({
@@ -168,7 +159,7 @@ export const productionApi = createApi({
 
     getFormulaStages: builder.query<ProductionFormulaStage[], number>({
       query: (formulaId) => `production-formulas/${formulaId}/stages/`,
-      providesTags: (_result, _error, formulaId) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+      providesTags: (result, error, formulaId) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
     }),
     addFormulaStage: builder.mutation<ProductionFormulaStage, { formulaId: number; data: CreateProductionFormulaStageDTO }>({
       query: ({ formulaId, data }) => ({
@@ -176,7 +167,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
     }),
     updateFormulaStage: builder.mutation<ProductionFormulaStage, { id: number; formulaId: number; data: UpdateProductionFormulaStageDTO }>({
       query: ({ id, data }) => ({
@@ -184,14 +175,14 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
     }),
     removeFormulaStage: builder.mutation<void, { id: number; formulaId: number }>({
       query: ({ id }) => ({
         url: `production-formulas/stages/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_result, _error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
+      invalidatesTags: (result, error, { formulaId }) => [{ type: 'FormulaStage', id: `formula-${formulaId}` }],
     }),
 
     // ─── Production Batches ──────────────────────────────────────
@@ -208,22 +199,9 @@ export const productionApi = createApi({
       },
       providesTags: ['ProductionBatch'],
     }),
-    getProductionBatchStats: builder.query<ProductionBatchStats, ProductionBatchStatsParams>({
-      query: ({ factory_id } = {}) => {
-        const params = new URLSearchParams();
-        if (factory_id != null) params.append('factory_id', factory_id.toString());
-        const qs = params.toString();
-        return qs ? `production-batches/stats/?${qs}` : 'production-batches/stats/';
-      },
-      transformResponse: (response: { in_progress_count: number; total_count: number }) => ({
-        inProgressCount: response.in_progress_count,
-        totalCount: response.total_count,
-      }),
-      providesTags: ['ProductionBatchStats'],
-    }),
     getProductionBatchById: builder.query<ProductionBatch, number>({
       query: (id) => `production-batches/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'ProductionBatch', id }],
+      providesTags: (result, error, id) => [{ type: 'ProductionBatch', id }],
     }),
     createProductionBatch: builder.mutation<ProductionBatch, CreateProductionBatchDTO>({
       query: (body) => ({
@@ -239,7 +217,7 @@ export const productionApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch'],
     }),
     deleteProductionBatch: builder.mutation<void, number>({
       query: (id) => ({
@@ -257,7 +235,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -274,7 +252,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch', 'BatchItem'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -292,7 +270,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProductionBatch', id }, 'ProductionBatch'],
     }),
 
     // ─── Batch Items ─────────────────────────────────────────────
@@ -303,7 +281,7 @@ export const productionApi = createApi({
         if (item_role) params.append('item_role', item_role);
         return `production-batches/${batchId}/items/?${params.toString()}`;
       },
-      providesTags: (_result, _error, { batchId }) => [{ type: 'BatchItem', id: `batch-${batchId}` }],
+      providesTags: (result, error, { batchId }) => [{ type: 'BatchItem', id: `batch-${batchId}` }],
     }),
     addBatchItem: builder.mutation<ProductionBatchItem, { batchId: number; data: CreateProductionBatchItemDTO }>({
       query: ({ batchId, data }) => ({
@@ -311,7 +289,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { batchId }) => [
+      invalidatesTags: (result, error, { batchId }) => [
         { type: 'BatchItem', id: `batch-${batchId}` },
         'ProductionBatch',
       ],
@@ -336,7 +314,7 @@ export const productionApi = createApi({
 
     getBatchStageLogs: builder.query<ProductionBatchStageLog[], number>({
       query: (batchId) => `production-batches/${batchId}/stage-logs/`,
-      providesTags: (_result, _error, batchId) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+      providesTags: (result, error, batchId) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
     }),
     addBatchStageLog: builder.mutation<ProductionBatchStageLog, { batchId: number; data: CreateProductionBatchStageLogDTO }>({
       query: ({ batchId, data }) => ({
@@ -344,7 +322,7 @@ export const productionApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
     }),
     updateBatchStageLog: builder.mutation<ProductionBatchStageLog, { id: number; batchId: number; data: UpdateProductionBatchStageLogDTO }>({
       query: ({ id, data }) => ({
@@ -352,7 +330,7 @@ export const productionApi = createApi({
         method: 'PATCH',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
+      invalidatesTags: (result, error, { batchId }) => [{ type: 'BatchStageLog', id: `batch-${batchId}` }],
     }),
   }),
 });
@@ -381,7 +359,6 @@ export const {
   useRemoveFormulaStageMutation,
   // Batches
   useGetProductionBatchesQuery,
-  useGetProductionBatchStatsQuery,
   useGetProductionBatchByIdQuery,
   useCreateProductionBatchMutation,
   useUpdateProductionBatchMutation,

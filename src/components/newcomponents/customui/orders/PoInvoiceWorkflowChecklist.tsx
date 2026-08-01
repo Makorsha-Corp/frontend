@@ -226,6 +226,7 @@ function paymentStatusBadgeTone(
 const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   invoiceId,
   invoiceStatus,
+  hasSupplier,
   confirmationsStatus,
   sections,
   approvalSummary,

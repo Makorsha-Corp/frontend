@@ -14,9 +14,6 @@ import type {
   InvoiceStatusEntry,
   InvoiceItem,
   InvoiceEvent,
-  AccountInvoicesHubSummary,
-  AccountInvoicesHubSummaryApiResponse,
-  InvoiceHubTypeSummaryApi,
 } from '@/types/accountInvoice';
 
 const toNumber = (value: number | string | null | undefined): number =>
@@ -27,22 +24,6 @@ const normalizeInvoice = (invoice: AccountInvoiceApiResponse): AccountInvoice =>
   invoice_amount: toNumber(invoice.invoice_amount),
   paid_amount: toNumber(invoice.paid_amount),
   outstanding_amount: toNumber(invoice.outstanding_amount),
-});
-
-const normalizeHubTypeSummary = (summary: InvoiceHubTypeSummaryApi) => ({
-  openCount: summary.open_count,
-  outstandingTotal: toNumber(summary.outstanding_total),
-  overdueCount: summary.overdue_count,
-  accountsWithOpenCount: summary.accounts_with_open_count,
-});
-
-const normalizeHubSummary = (
-  response: AccountInvoicesHubSummaryApiResponse
-): AccountInvoicesHubSummary => ({
-  payable: normalizeHubTypeSummary(response.payable),
-  receivable: normalizeHubTypeSummary(response.receivable),
-  totalActiveAccounts: response.total_active_accounts,
-  accountsWithAnyOpenBalance: response.accounts_with_any_open_balance,
 });
 
 async function invalidateAfterInvoiceMutation(
@@ -57,14 +38,8 @@ async function invalidateAfterInvoiceMutation(
 export const accountInvoicesApi = createApi({
   reducerPath: 'accountInvoicesApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['AccountInvoice', 'InvoiceItem', 'InvoiceEvent', 'AccountInvoicesHubSummary'],
+  tagTypes: ['AccountInvoice', 'InvoiceItem', 'InvoiceEvent'],
   endpoints: (builder) => ({
-    getAccountInvoicesHubSummary: builder.query<AccountInvoicesHubSummary, void>({
-      query: () => 'account-invoices/hub-summary/',
-      transformResponse: (response: AccountInvoicesHubSummaryApiResponse) =>
-        normalizeHubSummary(response),
-      providesTags: [{ type: 'AccountInvoicesHubSummary', id: 'LIST' }],
-    }),
     getAccountInvoices: builder.query<AccountInvoice[], ListAccountInvoicesParams>({
       query: ({
         skip = 0,
@@ -105,7 +80,7 @@ export const accountInvoicesApi = createApi({
     getAccountInvoiceById: builder.query<AccountInvoice, number>({
       query: (id) => `account-invoices/${id}/`,
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      providesTags: (_result, _error, id) => [{ type: 'AccountInvoice', id }],
+      providesTags: (result, error, id) => [{ type: 'AccountInvoice', id }],
     }),
     createAccountInvoice: builder.mutation<AccountInvoice, CreateAccountInvoiceRequest>({
       query: (body) => ({
@@ -123,7 +98,7 @@ export const accountInvoicesApi = createApi({
         body: data,
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (result, error, { id }) => [
         { type: 'AccountInvoice', id },
         { type: 'InvoiceEvent', id },
         'AccountInvoice',
@@ -155,7 +130,7 @@ export const accountInvoicesApi = createApi({
     }),
     getInvoiceStatusHistory: builder.query<InvoiceStatusEntry[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/status-history/`,
-      providesTags: (_result, _error, invoiceId) => [{ type: 'AccountInvoice', id: invoiceId }],
+      providesTags: (result, error, invoiceId) => [{ type: 'AccountInvoice', id: invoiceId }],
     }),
     confirmAccountInvoice: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
@@ -163,7 +138,7 @@ export const accountInvoicesApi = createApi({
         method: 'POST',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (_result, _error, id) => [
+      invalidatesTags: (result, error, id) => [
         { type: 'AccountInvoice', id },
         'AccountInvoice',
         { type: 'InvoiceItem', id },
@@ -196,7 +171,7 @@ export const accountInvoicesApi = createApi({
         body: { void_note },
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (result, error, { id }) => [
         { type: 'AccountInvoice', id },
         'AccountInvoice',
         { type: 'InvoiceItem', id },
@@ -225,11 +200,11 @@ export const accountInvoicesApi = createApi({
     }),
     getInvoiceItems: builder.query<InvoiceItem[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/items/`,
-      providesTags: (_result, _error, invoiceId) => [{ type: 'InvoiceItem', id: invoiceId }],
+      providesTags: (result, error, invoiceId) => [{ type: 'InvoiceItem', id: invoiceId }],
     }),
     getInvoiceEvents: builder.query<InvoiceEvent[], number>({
       query: (invoiceId) => `account-invoices/${invoiceId}/events/`,
-      providesTags: (_result, _error, invoiceId) => [{ type: 'InvoiceEvent', id: invoiceId }],
+      providesTags: (result, error, invoiceId) => [{ type: 'InvoiceEvent', id: invoiceId }],
     }),
     revertInvoiceToDraft: builder.mutation<AccountInvoice, number>({
       query: (id) => ({
@@ -237,7 +212,7 @@ export const accountInvoicesApi = createApi({
         method: 'POST',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (_result, _error, id) => [
+      invalidatesTags: (result, error, id) => [
         { type: 'AccountInvoice', id },
         'AccountInvoice',
         { type: 'InvoiceEvent', id },
@@ -257,7 +232,7 @@ export const accountInvoicesApi = createApi({
         method: 'POST',
       }),
       transformResponse: (response: AccountInvoiceApiResponse) => normalizeInvoice(response),
-      invalidatesTags: (_result, _error, id) => [
+      invalidatesTags: (result, error, id) => [
         { type: 'AccountInvoice', id },
         'AccountInvoice',
         { type: 'InvoiceItem', id },
@@ -276,7 +251,6 @@ export const accountInvoicesApi = createApi({
 });
 
 export const {
-  useGetAccountInvoicesHubSummaryQuery,
   useGetAccountInvoicesQuery,
   useGetAccountInvoiceByIdQuery,
   useCreateAccountInvoiceMutation,

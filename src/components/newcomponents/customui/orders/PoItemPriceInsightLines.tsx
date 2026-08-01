@@ -6,29 +6,13 @@ import type {
   PoItemLowestPriceMode,
 } from '@/types/purchaseOrderItemInsights';
 
-export interface AccountInsightSelectContext {
-  itemId: number;
-  itemName?: string | null;
-}
-
-export interface ItemPriceHistorySelectContext {
-  itemId: number;
-  itemName?: string | null;
-}
-
 export interface PoItemInsightCellBaseProps {
   row: ItemPriceInsightRow | undefined;
-  itemId: number;
-  itemName?: string | null;
   isLoading?: boolean;
   isError?: boolean;
   formatCurrency: (value: number) => string;
-  onSelectPriceHistory: (context: ItemPriceHistorySelectContext) => void;
-  onSelectAccount?: (
-    accountId: number,
-    accountName: string | null,
-    context: AccountInsightSelectContext,
-  ) => void;
+  onSelectOrder: (purchaseOrderId: number) => void;
+  onSelectAccount?: (accountId: number, accountName: string | null) => void;
   className?: string;
   testId?: string;
 }
@@ -83,25 +67,17 @@ function ErrorCell({ className, testId }: { className?: string; testId?: string 
 
 function InsightCellContent({
   insightRef,
-  itemId,
-  itemName,
   formatCurrency,
-  onSelectPriceHistory,
+  onSelectOrder,
   onSelectAccount,
   emptyAccountLabel,
   className,
   testId,
 }: {
   insightRef: ItemPriceInsightRef | null | undefined;
-  itemId: number;
-  itemName?: string | null;
   formatCurrency: (value: number) => string;
-  onSelectPriceHistory: (context: ItemPriceHistorySelectContext) => void;
-  onSelectAccount?: (
-    accountId: number,
-    accountName: string | null,
-    context: AccountInsightSelectContext,
-  ) => void;
+  onSelectOrder: (purchaseOrderId: number) => void;
+  onSelectAccount?: (accountId: number, accountName: string | null) => void;
   emptyAccountLabel?: string;
   className?: string;
   testId?: string;
@@ -133,10 +109,7 @@ function InsightCellContent({
           data-testid="po-insights-supplier-link"
           onClick={(e) => {
             e.stopPropagation();
-            onSelectAccount!(insightRef.account_id!, insightRef.account_name, {
-              itemId,
-              itemName,
-            });
+            onSelectAccount!(insightRef.account_id!, insightRef.account_name);
           }}
         >
           {account}
@@ -151,7 +124,7 @@ function InsightCellContent({
           data-testid="po-insights-price-link"
           onClick={(e) => {
             e.stopPropagation();
-            onSelectPriceHistory({ itemId, itemName });
+            onSelectOrder(insightRef.purchase_order_id);
           }}
         >
           {price}
@@ -165,12 +138,10 @@ function InsightCellContent({
 
 export const PoItemLastOrderCell: React.FC<PoItemInsightCellBaseProps> = ({
   row,
-  itemId,
-  itemName,
   isLoading = false,
   isError = false,
   formatCurrency,
-  onSelectPriceHistory,
+  onSelectOrder,
   onSelectAccount,
   className,
   testId = 'po-insights-last-order-cell',
@@ -190,10 +161,8 @@ export const PoItemLastOrderCell: React.FC<PoItemInsightCellBaseProps> = ({
   return (
     <InsightCellContent
       insightRef={row.last_ordered}
-      itemId={itemId}
-      itemName={itemName}
       formatCurrency={formatCurrency}
-      onSelectPriceHistory={onSelectPriceHistory}
+      onSelectOrder={onSelectOrder}
       onSelectAccount={onSelectAccount}
       emptyAccountLabel="No prior orders"
       className={className}
@@ -204,13 +173,11 @@ export const PoItemLastOrderCell: React.FC<PoItemInsightCellBaseProps> = ({
 
 export const PoItemLowestCell: React.FC<PoItemLowestCellProps> = ({
   row,
-  itemId,
-  itemName,
   isLoading = false,
   isError = false,
   lowestMode,
   formatCurrency,
-  onSelectPriceHistory,
+  onSelectOrder,
   onSelectAccount,
   className,
   testId = 'po-insights-lowest-cell',
@@ -232,10 +199,8 @@ export const PoItemLowestCell: React.FC<PoItemLowestCellProps> = ({
   return (
     <InsightCellContent
       insightRef={lowestRef}
-      itemId={itemId}
-      itemName={itemName}
       formatCurrency={formatCurrency}
-      onSelectPriceHistory={onSelectPriceHistory}
+      onSelectOrder={onSelectOrder}
       onSelectAccount={onSelectAccount}
       className={className}
       testId={testId}

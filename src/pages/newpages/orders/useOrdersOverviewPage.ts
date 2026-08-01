@@ -30,7 +30,6 @@ export function useOrdersOverviewPage() {
     isLoading: scopeLoading,
     hasError: scopeError,
     salesMayTruncate,
-    hubOrdersMayTruncate,
   } = useOrdersScopeData();
 
   const { data: factories = [], isLoading: loadFa, isError: errFa } = useGetFactoriesQuery({
@@ -108,7 +107,6 @@ export function useOrdersOverviewPage() {
     loadStats,
     loadError,
     salesMayTruncate,
-    hubOrdersMayTruncate,
     scopedOrders,
     countsByType,
     statusBreakdown,

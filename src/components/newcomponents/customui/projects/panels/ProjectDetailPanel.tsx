@@ -24,6 +24,7 @@ interface ProjectDetailPanelProps {
 }
 
 const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
+  selectedProjectId,
   selectedProject,
   projectMembers,
   currentUserId,

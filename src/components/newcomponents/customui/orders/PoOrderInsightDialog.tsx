@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -40,9 +39,6 @@ const PoOrderInsightDialog: React.FC<PoOrderInsightDialogProps> = ({
         <DialogTitle className="sr-only">
           {purchaseOrder?.po_number ? `Order summary for ${purchaseOrder.po_number}` : 'Order summary'}
         </DialogTitle>
-        <DialogDescription className="sr-only">
-          Purchase order summary with line items, approvals, and receiving status.
-        </DialogDescription>
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
           <OrderSummaryDialogContent
             purchaseOrder={purchaseOrder ?? null}

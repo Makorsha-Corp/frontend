@@ -125,10 +125,12 @@ const ItemsPage: React.FC = () => {
     [activeFilters, catalogPage],
   );
 
-  const { data: itemsPage, isLoading, isFetching, error } = useGetItemsPageQuery(queryParams);
+  const { data: itemsPage, isLoading, isFetching, error } = useGetItemsPageQuery(queryParams, {
+    keepPreviousData: true,
+  });
   const { data: unitOptions = [] } = useGetItemUnitsQuery();
 
-  const items = useMemo(() => itemsPage?.items ?? [], [itemsPage]);
+  const items = itemsPage?.items ?? [];
   const itemsTotal = itemsPage?.total ?? 0;
 
   const { data: deepLinkItem } = useGetItemByIdQuery(deepLinkItemId ?? 0, {
@@ -155,8 +157,7 @@ const ItemsPage: React.FC = () => {
   }, [detailsParam, deepLinkItemId, items, deepLinkItem, setSearchParams]);
 
   useEffect(() => {
-    if (itemsPage === undefined) return;
-    const maxPage = itemsPageCount(itemsPage.total);
+    const maxPage = itemsPageCount(itemsTotal);
     if (catalogPage <= maxPage) return;
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -164,7 +165,7 @@ const ItemsPage: React.FC = () => {
       else next.set('itemPage', String(maxPage));
       return next;
     });
-  }, [itemsPage, catalogPage, setSearchParams]);
+  }, [itemsTotal, catalogPage, setSearchParams]);
 
   const hasActiveFilters = Boolean(
     activeFilters.searchQuery || activeFilters.unitFilter || activeFilters.tagFilterIds.length > 0,
@@ -333,11 +334,9 @@ const ItemsPage: React.FC = () => {
           {isTagsPanelOpen ? (
             <ItemTagsFilterPanel
               selectedTagIds={filterTagIds}
-              onSelectedTagIdsChange={(action) => {
-                const next =
-                  typeof action === 'function' ? action(filterTagIds) : action;
-                setFilterTagIds(next);
-                patchCatalogParams({ tagFilterIds: next });
+              onSelectedTagIdsChange={(tagIds) => {
+                setFilterTagIds(tagIds);
+                patchCatalogParams({ tagFilterIds: tagIds });
               }}
               onClose={() => setIsTagsPanelOpen(false)}
             />

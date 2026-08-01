@@ -75,7 +75,7 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
 
   const visibleSections = React.useMemo(
     () => visibleSectionsForSlice(draft, allFactoryIds, sections),
-    [sections, draft, allFactoryIds]
+    [sections, draft.factory_ids, allFactoryIds]
   );
 
   const toggleFactory = (id: number) => {

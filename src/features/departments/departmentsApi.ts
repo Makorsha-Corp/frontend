@@ -21,7 +21,7 @@ export const departmentsApi = createApi({
     }),
     getDepartmentById: builder.query<Department, number>({
       query: (id) => `departments/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'Department', id }],
+      providesTags: (result, error, id) => [{ type: 'Department', id }],
     }),
     createDepartment: builder.mutation<Department, CreateDepartmentRequest>({
       query: (body) => ({
@@ -37,7 +37,7 @@ export const departmentsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'Department', id }, 'Department'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Department', id }, 'Department'],
     }),
     deleteDepartment: builder.mutation<Department, number>({
       query: (id) => ({

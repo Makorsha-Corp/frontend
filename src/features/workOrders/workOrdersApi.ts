@@ -1,6 +1,5 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { workOrderTemplatesApi } from '@/features/workOrderTemplates/workOrderTemplatesApi';
 import { accountInvoicesApi } from '../accountInvoices/accountInvoicesApi';
 import type {
   WorkOrder,
@@ -18,8 +17,8 @@ import type {
   BulkDeleteFutureRecurrenceDraftsRequest,
   BulkDeleteFutureRecurrenceDraftsResponse,
 } from '../../types/workOrder';
-import type { CreateWorkOrderFromTemplate } from '../../types/workOrderTemplate';
-import type { WorkOrderSheetEntryRequest, WorkOrderSheetEntryResponse, ListWorkOrderSheetParams, WorkOrderSheetListResponse, ListWorkOrderSheetDailyCountsParams, WorkOrderSheetDailyCountsResponse } from '../../types/workOrderSheet';
+import type { CreateWorkOrderFromTemplate, GenerateWorkOrderDraftsRequest } from '../../types/workOrderTemplate';
+import type { WorkOrderSheetBundle, WorkOrderSheetEntryRequest, WorkOrderSheetEntryResponse, ListWorkOrderSheetParams, WorkOrderSheetListResponse, ListWorkOrderSheetDailyCountsParams, WorkOrderSheetDailyCountsResponse } from '../../types/workOrderSheet';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 export const workOrdersApi = createApi({
@@ -139,17 +138,7 @@ export const workOrdersApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['WorkOrder', 'WorkOrderItem'],
-      // 'WorkOrderTemplate' lives in workOrderTemplatesApi; cross-slice tags in
-      // invalidatesTags are no-ops, so invalidate that slice explicitly.
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
-        try {
-          await queryFulfilled;
-          dispatch(workOrderTemplatesApi.util.invalidateTags(['WorkOrderTemplate']));
-        } catch {
-          /* mutation failed - nothing to invalidate */
-        }
-      },
+      invalidatesTags: ['WorkOrder', 'WorkOrderItem', 'WorkOrderTemplate'],
     }),
     updateWorkOrder: builder.mutation<WorkOrder, { id: number; data: UpdateWorkOrderRequest }>({
       query: ({ id, data }) => ({

@@ -42,7 +42,7 @@ const OrdersOverviewPage: React.FC = () => {
     isLoading,
     loadStats,
     loadError,
-    hubOrdersMayTruncate,
+    salesMayTruncate,
     countsByType,
     ordersOverTime,
     totalOrdersCount,
@@ -152,7 +152,7 @@ const OrdersOverviewPage: React.FC = () => {
               onFactorySelect={handleFactorySelect}
               isLoading={isLoading}
               loadStats={loadStats}
-              hubOrdersMayTruncate={hubOrdersMayTruncate}
+              salesMayTruncate={salesMayTruncate}
               countsByType={countsByType}
               ordersOverTime={ordersOverTime}
               totalOrdersCount={totalOrdersCount}

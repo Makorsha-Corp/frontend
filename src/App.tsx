@@ -14,7 +14,6 @@ import ItemsPage from "./pages/newpages/ItemsPage";
 import AccountsLandingPage from "./pages/newpages/AccountsLandingPage";
 import AccountDetailPage from "./pages/newpages/AccountDetailPage";
 import StoragePage from "./pages/newpages/StoragePage";
-import ProductsPage from "./pages/newpages/ProductsPage";
 
 import OrdersOverviewPage from "./pages/newpages/orders/OrdersOverviewPage";
 import PurchaseOrdersPage from "./pages/newpages/orders/PurchaseOrdersPage";
@@ -96,7 +95,6 @@ const App: React.FC = () => {
               <Route path="/management" element={<ManagementPage />} />
               <Route path="/billing/trial" element={<BillingTrialPage />} />
               <Route path="/storage" element={<StoragePage />} />
-              <Route path="/products" element={<ProductsPage />} />
               <Route path="/businesslens" element={<BusinessLensPage />} />
               <Route path="/businesslens/:templateId" element={<BusinessLensWizardPage />} />
             </Route>

@@ -45,9 +45,6 @@ export const API_LIMITS = {
   /** Purchase / expense / transfer order hub list page size (backend default 50, max 100). */
   ORDER_HUB_PAGE_SIZE: 50,
 
-  /** GET /inventory/ Storage page list size (backend default 50, max 1000). */
-  STORAGE_PAGE_SIZE: 50,
-
   /** Max `limit` for GET /purchase-orders/, /expense-orders/, /transfer-orders/ list routes. */
   ORDER_HUB_LIST_MAX: 100,
 

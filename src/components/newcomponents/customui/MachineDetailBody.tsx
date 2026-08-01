@@ -56,7 +56,6 @@ import MachineWorkOrderQuickActions from './orders/MachineWorkOrderQuickActions'
 import { useDeleteMachineMaintenanceLogMutation } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
 import { cn } from '@/lib/utils';
 import { getHighlightedEventType, activeEventButtonClass } from '@/lib/machineVisualStatus';
-import { apiErrorDetail } from '@/utils/apiError';
 
 export interface MachineDetailBodyProps {
   machine: Machine;
@@ -155,7 +154,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       onMachineUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(e, 'Failed to delete'));
+      toast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 
@@ -167,8 +166,8 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       }).unwrap();
       toast.success(`Status updated to ${eventType.toLowerCase()}`);
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update status'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update status');
     }
   };
 
@@ -206,8 +205,8 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       toast.success('Item updated');
       cancelItemEdit();
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update');
     }
   };
 
@@ -217,8 +216,8 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       await deleteMachineItem(mi.id).unwrap();
       toast.success('Item removed');
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to remove'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to remove');
     }
   };
 

@@ -16,7 +16,6 @@ export interface ItemOrderRow {
   line_total: number | string | null;
   status_name: string | null;
   account_name: string | null;
-  destination_label?: string | null;
   created_at: string;
 }
 
@@ -32,5 +31,4 @@ export interface GetItemOrdersParams {
   order_type?: ItemOrderType;
   from_date?: string;
   to_date?: string;
-  excludePurchaseOrderId?: number;
 }

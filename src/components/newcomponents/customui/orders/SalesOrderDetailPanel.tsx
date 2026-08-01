@@ -23,6 +23,7 @@ interface SalesOrderDetailPanelProps {
 const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   order,
   accounts,
+  onClose,
   onUpdated,
 }) => {
   const { data: items = [], isLoading: itemsLoading } = useGetSalesOrderItemsQuery(order.id);

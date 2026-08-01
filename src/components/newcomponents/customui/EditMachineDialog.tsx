@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -106,12 +107,11 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
     return () => document.removeEventListener('pointerdown', dismiss);
   }, [unaddedHintOpen]);
 
-  const machineId = machine?.id;
   useEffect(() => {
-    if (!open || machineId == null) return;
+    if (!open || !machine) return;
     itemsInitRef.current = false;
     setLines([]);
-  }, [open, machineId]);
+  }, [open, machine?.id]);
 
   useEffect(() => {
     if (machine && open) {

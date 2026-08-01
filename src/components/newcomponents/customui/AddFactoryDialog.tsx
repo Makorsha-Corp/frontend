@@ -14,7 +14,6 @@ import { useCreateFactoryMutation } from '@/features/factories/factoriesApi';
 import type { Factory } from '@/types/factory';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { apiErrorDetail } from '@/utils/apiError';
 
 interface AddFactoryDialogProps {
   open: boolean;
@@ -66,9 +65,9 @@ const AddFactoryDialog: React.FC<AddFactoryDialogProps> = ({ open, onOpenChange,
       setName('');
       setAbbreviation('');
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create factory:', error);
-      toast.error(apiErrorDetail(error, 'Failed to create factory'));
+      toast.error(error?.data?.detail || 'Failed to create factory');
     }
   };
 

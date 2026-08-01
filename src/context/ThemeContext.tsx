@@ -31,9 +31,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     applyThemeToDocument(theme);
-    // Mount-only: applies the persisted theme once; later changes are applied
-    // by runWithTransition so they can animate.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const runWithTransition = useCallback(

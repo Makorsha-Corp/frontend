@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { sliceToFactoryFilter, singleFactoryToSlice } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
@@ -37,7 +37,6 @@ import {
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { apiErrorDetail } from '@/utils/apiError';
 
 const machineSectionHeaderClass = (atTop = false) =>
   cn(
@@ -214,6 +213,7 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
 
 const MachinesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const factoryIdParam = searchParams.get('factoryId');
   const parsedFactorySeed = factoryIdParam ? parseInt(factoryIdParam, 10) : NaN;
@@ -615,8 +615,8 @@ const MachinesPage: React.FC = () => {
       await deleteMachine(machine.id).unwrap();
       toast.success('Machine deactivated');
       if (selectedMachineId === machine.id) handleSelectMachine(null);
-    } catch (err) {
-      toast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
+    } catch (err: any) {
+      toast.error(err?.data?.detail || 'Failed to deactivate machine');
     }
   };
 

@@ -22,7 +22,6 @@ import toast from 'react-hot-toast';
 import EditMachineDialog from './EditMachineDialog';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import ActiveOrdersPanel from './RunningOrdersPlaceholder';
-import { apiErrorDetail } from '@/utils/apiError';
 
 interface MachineDetailPanelProps {
   machine: Machine | null;
@@ -81,8 +80,8 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
       }).unwrap();
       toast.success(`Status updated to ${eventType.toLowerCase()}`);
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update status'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update status');
     }
   };
 
@@ -100,8 +99,8 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
       toast.success('Quantity updated');
       setEditingItemId(null);
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to update');
     }
   };
 
@@ -111,8 +110,8 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
       await deleteMachineItem(mi.id).unwrap();
       toast.success('Item removed');
       onMachineUpdated?.();
-    } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to remove'));
+    } catch (error: any) {
+      toast.error(error?.data?.detail || 'Failed to remove');
     }
   };
 

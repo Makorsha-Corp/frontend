@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ItemSummary } from '@/types/itemSummary';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatQty, num } from '../itemDetailsFormatters';

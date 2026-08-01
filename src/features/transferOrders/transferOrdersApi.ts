@@ -7,6 +7,7 @@ import type {
   UpdateTransferOrder,
   CreateTransferOrderItem,
   UpdateTransferOrderItem,
+  ListTransferOrdersParams,
   ListTransferOrdersHubParams,
   TransferOrderListResponse,
   TransferOrderHubStatsResponse,
@@ -14,7 +15,7 @@ import type {
   TransferOrderApprover,
   TransferOrderEvent,
 } from '../../types/transferOrder';
-import { invalidateIncomingSummaryCache, invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
+import { invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
 import {
   transferOrderListCacheTags,
   transferOrderCacheTagsForMutation,
@@ -90,7 +91,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -106,7 +106,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -123,7 +122,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
           invalidateInventoryStockCache(dispatch);
         } catch {
           /* mutation failed */
@@ -137,7 +135,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -203,7 +200,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -220,7 +216,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -237,7 +232,6 @@ export const transferOrdersApi = createApi({
         try {
           await queryFulfilled;
           dispatch(purchaseOrdersApi.util.invalidateTags(['ActiveOrders']));
-          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }

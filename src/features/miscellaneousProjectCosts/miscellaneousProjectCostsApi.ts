@@ -32,7 +32,7 @@ export const miscellaneousProjectCostsApi = createApi({
     }),
     getMiscellaneousProjectCostById: builder.query<MiscellaneousProjectCost, number>({
       query: (id) => `miscellaneous-project-costs/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'MiscellaneousProjectCost', id }],
+      providesTags: (result, error, id) => [{ type: 'MiscellaneousProjectCost', id }],
     }),
     createMiscellaneousProjectCost: builder.mutation<MiscellaneousProjectCost, CreateMiscellaneousProjectCostDTO>({
       query: (body) => ({
@@ -51,7 +51,7 @@ export const miscellaneousProjectCostsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'MiscellaneousProjectCost', id }, 'MiscellaneousProjectCost'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'MiscellaneousProjectCost', id }, 'MiscellaneousProjectCost'],
       async onQueryStarted(arg, api) {
         await invalidateProjectEventsOnFulfilled(arg, api);
       },

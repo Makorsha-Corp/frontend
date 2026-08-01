@@ -561,7 +561,7 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="storage">Factory storage</SelectItem>
-                          <SelectItem value="machine">Another machine&apos;s stock</SelectItem>
+                          <SelectItem value="machine">Another machine's stock</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

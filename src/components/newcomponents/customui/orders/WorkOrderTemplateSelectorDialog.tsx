@@ -32,6 +32,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Repeat2,
   Search,
   XCircle,
 } from 'lucide-react';
@@ -86,6 +87,8 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
   canSaveFromForm = true,
   defaultSectionId,
   defaultMachineId,
+  factoryId = null,
+  machineId = null,
   machines = [],
   sections = [],
 }) => {

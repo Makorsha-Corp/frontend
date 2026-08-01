@@ -34,7 +34,6 @@ import {
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { apiErrorDetail } from '@/utils/apiError';
 
 const FactorySectionDetailPage: React.FC = () => {
   const { id, sectionId } = useParams<{ id: string; sectionId: string }>();
@@ -90,8 +89,8 @@ const FactorySectionDetailPage: React.FC = () => {
       await deleteMachine(machine.id).unwrap();
       toast.success('Machine deactivated');
       if (selectedMachineId === machine.id) setSelectedMachineId(null);
-    } catch (err) {
-      toast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
+    } catch (err: any) {
+      toast.error(err?.data?.detail || 'Failed to deactivate machine');
     }
   };
 

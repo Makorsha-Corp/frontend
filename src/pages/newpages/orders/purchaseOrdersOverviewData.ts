@@ -102,7 +102,7 @@ export function filterPurchaseOrders(
 
 export function purchaseOrderSummaryStats(
   orders: PurchaseOrder[],
-  _statusById: Map<number, string>
+  statusById: Map<number, string>
 ): PurchaseOrderSummaryStats {
   let totalValue = 0;
   let openCount = 0;

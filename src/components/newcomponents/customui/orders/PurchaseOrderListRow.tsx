@@ -29,7 +29,7 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
   formatDate,
 }) => {
   const itemCount = order.item_count ?? 0;
-  const previewNames = useMemo(() => order.item_names_preview ?? [], [order.item_names_preview]);
+  const previewNames = order.item_names_preview ?? [];
   const stageBadges = getPurchaseOrderListRowBadges(order);
 
   const totalOrdered = Number(order.quantity_ordered_total ?? 0);

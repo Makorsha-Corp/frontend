@@ -24,7 +24,7 @@ export const factorySectionsApi = createApi({
     }),
     getFactorySectionById: builder.query<FactorySection, number>({
       query: (id) => `factory-sections/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'FactorySection', id }],
+      providesTags: (result, error, id) => [{ type: 'FactorySection', id }],
     }),
     createFactorySection: builder.mutation<FactorySection, CreateFactorySectionRequest>({
       query: (body) => ({
@@ -40,7 +40,7 @@ export const factorySectionsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'FactorySection', id }],
+      invalidatesTags: (result, error, { id }) => [{ type: 'FactorySection', id }],
     }),
     deleteFactorySection: builder.mutation<void, number>({
       query: (id) => ({

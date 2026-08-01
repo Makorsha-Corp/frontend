@@ -14,7 +14,7 @@ export function recentSummaryToPurchaseOrder(summary: OrderHubRecentSummary): Pu
     account_id: summary.account_id ?? null,
     invoice_id: summary.invoice_id ?? null,
     total_amount: String(summary.total_amount ?? 0),
-  } as unknown as PurchaseOrder;
+  } as PurchaseOrder;
 }
 
 export function recentSummaryToExpenseOrder(summary: OrderHubRecentSummary): ExpenseOrder {
@@ -29,7 +29,7 @@ export function recentSummaryToExpenseOrder(summary: OrderHubRecentSummary): Exp
     due_date: summary.due_date ?? null,
     created_at: summary.created_at,
     updated_at: summary.updated_at,
-  } as unknown as ExpenseOrder;
+  } as ExpenseOrder;
 }
 
 export function recentSummaryToTransferOrder(summary: OrderHubRecentSummary): TransferOrder {

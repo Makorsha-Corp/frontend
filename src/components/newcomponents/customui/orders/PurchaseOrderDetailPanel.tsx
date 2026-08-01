@@ -41,7 +41,10 @@ import {
   ArrowLeftRight,
   Clock,
   Loader2,
+  MessageSquare,
+  Send,
   Check,
+  X,
   Pencil,
 } from 'lucide-react';
 import { SectionConfirmActions } from './PoSectionConfirmButton';
@@ -77,10 +80,7 @@ import VoidPurchaseOrderDialog from './VoidPurchaseOrderDialog';
 import PoReceivingDialog from './PoReceivingDialog';
 import { PoItemLastOrderCell, PoItemLowestCell } from './PoItemPriceInsightLines';
 import PoOrderInsightDialog from './PoOrderInsightDialog';
-import PoItemPurchaseHistoryDialog from './PoItemPurchaseHistoryDialog';
 import AccountViewDialog from '@/components/newcomponents/customui/accounts/AccountViewDialog';
-import type { AccountViewHighlightContext } from '@/components/newcomponents/customui/accounts/accountViewContext';
-import type { AccountInsightSelectContext, ItemPriceHistorySelectContext } from './PoItemPriceInsightLines';
 import {
   useGetAccountInvoiceByIdQuery,
   useConfirmAccountInvoiceMutation,
@@ -247,14 +247,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [lowestPriceMode, setLowestPriceMode] = useState<PoItemLowestPriceMode>('avg_supplier');
   const [insightDialogOpen, setInsightDialogOpen] = useState(false);
   const [insightDialogPoId, setInsightDialogPoId] = useState<number | null>(null);
-  const [itemHistoryOpen, setItemHistoryOpen] = useState(false);
-  const [itemHistoryItemId, setItemHistoryItemId] = useState<number | null>(null);
-  const [itemHistoryItemName, setItemHistoryItemName] = useState<string | null>(null);
-  const [itemHistoryItemUnit, setItemHistoryItemUnit] = useState<string | null>(null);
   const [accountViewOpen, setAccountViewOpen] = useState(false);
   const [accountViewId, setAccountViewId] = useState<number | null>(null);
   const [accountViewName, setAccountViewName] = useState<string | null>(null);
-  const [accountViewHighlight, setAccountViewHighlight] = useState<AccountViewHighlightContext>({});
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<
     PoSectionConfirmKey | 'approvals' | 'approve' | 'finalize' | 'receiving' | null
   >(null);
@@ -413,6 +408,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         : undefined;
   const effectiveAccountId = draft.account_id ?? order.account_id ?? null;
   const hasSupplier = effectiveAccountId != null;
+  const hasSavedSupplier = order.account_id != null;
   const hasUnsavedSupplier =
     draft.account_id != null && draft.account_id !== order.account_id;
   const confirmationsStatus = getPurchaseOrderConfirmationsStatus(order);
@@ -821,41 +817,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     setInsightDialogOpen(true);
   };
 
-  const openItemPurchaseHistory = ({
-    itemId,
-    itemName,
-  }: ItemPriceHistorySelectContext) => {
-    const line = items.find((row) => row.item_id === itemId);
-    setItemHistoryItemId(itemId);
-    setItemHistoryItemName(itemName ?? line?.item_name ?? null);
-    setItemHistoryItemUnit(line?.item_unit ?? null);
-    setItemHistoryOpen(true);
-  };
-
-  const handleItemHistorySelectPurchaseOrder = (purchaseOrderId: number) => {
-    openInsightOrder(purchaseOrderId);
-  };
-
-  const openInsightAccount = (
-    accountId: number,
-    accountName: string | null,
-    context: AccountInsightSelectContext,
-  ) => {
+  const openInsightAccount = (accountId: number, accountName: string | null) => {
     setAccountViewId(accountId);
     setAccountViewName(accountName);
-    setAccountViewHighlight({
-      itemId: context.itemId,
-      itemName: context.itemName,
-      purchaseOrderId: order.id,
-    });
     setAccountViewOpen(true);
-  };
-
-  const handleAccountViewOpenChange = (open: boolean) => {
-    setAccountViewOpen(open);
-    if (!open) {
-      setAccountViewHighlight({});
-    }
   };
 
   return (
@@ -1308,25 +1273,21 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                             <TableCell className="py-2 align-top">
                               <PoItemLastOrderCell
                                 row={insightRow}
-                                itemId={item.item_id}
-                                itemName={item.item_name}
                                 isLoading={insightCellLoading}
                                 isError={itemPriceInsightsError}
                                 formatCurrency={formatCurrency}
-                                onSelectPriceHistory={openItemPurchaseHistory}
+                                onSelectOrder={openInsightOrder}
                                 onSelectAccount={openInsightAccount}
                               />
                             </TableCell>
                             <TableCell className="py-2 align-top">
                               <PoItemLowestCell
                                 row={insightRow}
-                                itemId={item.item_id}
-                                itemName={item.item_name}
                                 isLoading={insightCellLoading}
                                 isError={itemPriceInsightsError}
                                 lowestMode={lowestPriceMode}
                                 formatCurrency={formatCurrency}
-                                onSelectPriceHistory={openItemPurchaseHistory}
+                                onSelectOrder={openInsightOrder}
                                 onSelectAccount={openInsightAccount}
                               />
                             </TableCell>
@@ -1633,16 +1594,6 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         avatarColor={avatarColor}
       />
 
-      <PoItemPurchaseHistoryDialog
-        open={itemHistoryOpen}
-        onOpenChange={setItemHistoryOpen}
-        itemId={itemHistoryItemId}
-        itemName={itemHistoryItemName}
-        itemUnit={itemHistoryItemUnit}
-        excludePurchaseOrderId={order.id}
-        onSelectPurchaseOrder={handleItemHistorySelectPurchaseOrder}
-      />
-
       <PoOrderInsightDialog
         open={insightDialogOpen}
         onOpenChange={setInsightDialogOpen}
@@ -1652,9 +1603,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       <AccountViewDialog
         accountId={accountViewId}
         open={accountViewOpen}
-        onOpenChange={handleAccountViewOpenChange}
+        onOpenChange={setAccountViewOpen}
         accountName={accountViewName}
-        highlightContext={accountViewHighlight}
       />
 
       <Dialog

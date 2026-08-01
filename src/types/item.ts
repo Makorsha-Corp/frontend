@@ -5,6 +5,7 @@
  */
 
 import { PaginationParams } from './common';
+import { ItemTag } from './itemTag';
 
 /**
  * Tag information in item response

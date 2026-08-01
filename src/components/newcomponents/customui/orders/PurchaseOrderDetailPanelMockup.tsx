@@ -63,7 +63,7 @@ import PurchaseOrderMilestoneTracker from './PurchaseOrderMilestoneTracker';
 import PoSectionLockButton from './PoSectionLockButton';
 import { canCreatePurchaseOrderInvoice } from './purchaseOrderMilestones';
 import AccountInvoiceDialog from '@/components/newcomponents/customui/accounts/AccountInvoiceDialog';
-import type { PurchaseOrder, UpdatePurchaseOrder } from '@/types/purchaseOrder';
+import type { PurchaseOrder, UpdatePurchaseOrder, PurchaseOrderEvent } from '@/types/purchaseOrder';
 import {
   useUpdatePurchaseOrderMutation,
   useSetPurchaseOrderSectionLockMutation,

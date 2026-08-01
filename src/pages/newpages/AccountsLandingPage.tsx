@@ -17,9 +17,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useGetAccountsHubPageQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
-import { useGetAccountInvoicesHubSummaryQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import type { Account, AccountHubRow, AccountsHubSection } from '@/types/account';
+import { useGetAccountsQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
+import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
+import type { Account } from '@/types/account';
+import type { AccountInvoice } from '@/types/accountInvoice';
 import {
   Users,
   Search,
@@ -29,16 +30,17 @@ import {
   Trash2,
   ArrowDownLeft,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
 } from 'lucide-react';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import AccountsHubSectionCard from '@/components/newcomponents/customui/accounts/AccountsHubSectionCard';
+import { isOpenInvoiceBalance } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import toast from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { resolveClampedPage } from '@/pages/newpages/orders/orderHubApiParams';
-import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
 
 const SECTION_CONFIG = [
   { path: 'overview', label: 'Overview', icon: LayoutDashboard, kind: 'all_accounts' as const },
@@ -48,7 +50,80 @@ const SECTION_CONFIG = [
 
 export type AccountsHubSectionPath = (typeof SECTION_CONFIG)[number]['path'];
 
-const hubSectionFromPath = (path: AccountsHubSectionPath): AccountsHubSection => path;
+type AccountInvoiceRollupEntry = {
+  payableOutstanding: number;
+  receivableOutstanding: number;
+  openPayableCount: number;
+  openReceivableCount: number;
+  hasOverduePayable: boolean;
+  hasOverdueReceivable: boolean;
+};
+
+const EMPTY_ROLLUP: AccountInvoiceRollupEntry = {
+  payableOutstanding: 0,
+  receivableOutstanding: 0,
+  openPayableCount: 0,
+  openReceivableCount: 0,
+  hasOverduePayable: false,
+  hasOverdueReceivable: false,
+};
+
+function buildAccountInvoiceRollup(
+  payableInvoices: AccountInvoice[],
+  receivableInvoices: AccountInvoice[]
+): Map<number, AccountInvoiceRollupEntry> {
+  const map = new Map<number, AccountInvoiceRollupEntry>();
+
+  const ensure = (accountId: number) => {
+    let entry = map.get(accountId);
+    if (!entry) {
+      entry = { ...EMPTY_ROLLUP };
+      map.set(accountId, entry);
+    }
+    return entry;
+  };
+
+  for (const inv of payableInvoices) {
+    const entry = ensure(inv.account_id);
+    if (isOpenInvoiceBalance(inv)) {
+      entry.payableOutstanding += inv.outstanding_amount;
+      entry.openPayableCount += 1;
+    }
+    if (inv.invoice_status !== 'voided' && inv.payment_status === 'overdue') {
+      entry.hasOverduePayable = true;
+    }
+  }
+
+  for (const inv of receivableInvoices) {
+    const entry = ensure(inv.account_id);
+    if (isOpenInvoiceBalance(inv)) {
+      entry.receivableOutstanding += inv.outstanding_amount;
+      entry.openReceivableCount += 1;
+    }
+    if (inv.invoice_status !== 'voided' && inv.payment_status === 'overdue') {
+      entry.hasOverdueReceivable = true;
+    }
+  }
+
+  return map;
+}
+
+function computeSectionInvoiceMetrics(invoices: AccountInvoice[], listedAccountIds: Set<number>) {
+  const inList = (accountId: number) => listedAccountIds.has(accountId);
+  const openInvoices = invoices.filter(
+    (inv) => isOpenInvoiceBalance(inv) && inList(inv.account_id)
+  );
+  return {
+    outstanding: openInvoices.reduce((sum, inv) => sum + inv.outstanding_amount, 0),
+    openInvoiceCount: openInvoices.length,
+    overdueCount: invoices.filter(
+      (inv) =>
+        inv.invoice_status !== 'voided' &&
+        inv.payment_status === 'overdue' &&
+        inList(inv.account_id)
+    ).length,
+  };
+}
 
 const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }> = ({
   initialSection,
@@ -64,79 +139,130 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isManageAccountsOpen, setIsManageAccountsOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<AccountHubRow | null>(null);
-  const [accountPage, setAccountPage] = useState(1);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [accountPage, setAccountPage] = useState(0);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => window.clearTimeout(timer);
-  }, [searchQuery]);
 
   const activeConfig = SECTION_CONFIG.find((s) => s.path === selectedSection)!;
   const isAllAccounts = activeConfig.kind === 'all_accounts';
   const isOpenReceivable = activeConfig.kind === 'open_receivable';
   const isOpenPayable = activeConfig.kind === 'open_payable';
-  const hubSection = hubSectionFromPath(selectedSection);
+
+  const accountsQueryParams = useMemo(
+    () => ({
+      skip: 0,
+      limit: API_LIMITS.ACCOUNTS_LIST_MAX,
+      search: searchQuery || undefined,
+    }),
+    [searchQuery]
+  );
+
+  useEffect(() => {
+    setAccountPage(0);
+  }, [selectedSection, searchQuery]);
+
+  const { data: accounts = [], isLoading, error } = useGetAccountsQuery(accountsQueryParams);
+
+  const { data: payableInvoices = [] } = useGetAccountInvoicesQuery(
+    { skip: 0, limit: API_LIMITS.INVOICES_HUB, invoice_type: 'payable' },
+    { skip: false }
+  );
+  const { data: receivableInvoices = [] } = useGetAccountInvoicesQuery(
+    { skip: 0, limit: API_LIMITS.INVOICES_HUB, invoice_type: 'receivable' },
+    { skip: false }
+  );
+
+  const receivableOpenAccountIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const inv of receivableInvoices) {
+      if (isOpenInvoiceBalance(inv)) {
+        ids.add(inv.account_id);
+      }
+    }
+    return ids;
+  }, [receivableInvoices]);
+
+  const payableOpenAccountIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const inv of payableInvoices) {
+      if (isOpenInvoiceBalance(inv)) {
+        ids.add(inv.account_id);
+      }
+    }
+    return ids;
+  }, [payableInvoices]);
+
+  const displayedAccounts = useMemo(() => {
+    if (isOpenReceivable) return accounts.filter((a) => receivableOpenAccountIds.has(a.id));
+    if (isOpenPayable) return accounts.filter((a) => payableOpenAccountIds.has(a.id));
+    if (isAllAccounts) return accounts;
+    return accounts;
+  }, [
+    accounts,
+    isAllAccounts,
+    isOpenReceivable,
+    isOpenPayable,
+    receivableOpenAccountIds,
+    payableOpenAccountIds,
+  ]);
+
   const hubPageSize = API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
 
-  useEffect(() => {
-    setAccountPage(1);
-  }, [selectedSection, debouncedSearch]);
+  const accountsRowsForTable = useMemo(() => {
+    const start = accountPage * hubPageSize;
+    return displayedAccounts.slice(start, start + hubPageSize);
+  }, [displayedAccounts, accountPage, hubPageSize]);
 
-  const { data: hubSummary } = useGetAccountInvoicesHubSummaryQuery();
-
-  const {
-    data: hubPage,
-    isLoading,
-    isFetching,
-    error,
-  } = useGetAccountsHubPageQuery({
-    section: hubSection,
-    search: debouncedSearch || undefined,
-    skip: (accountPage - 1) * hubPageSize,
-    limit: hubPageSize,
-  });
-
-  const accountsRowsForTable = hubPage?.items ?? [];
-  const accountsTotal = hubPage?.total ?? 0;
+  const maxClientAccountPage = useMemo(() => {
+    if (displayedAccounts.length === 0) return 0;
+    return Math.max(0, Math.ceil(displayedAccounts.length / hubPageSize) - 1);
+  }, [displayedAccounts.length, hubPageSize]);
 
   useEffect(() => {
-    const clamped = resolveClampedPage(accountPage, hubPage?.total, hubPageSize);
-    if (clamped !== null) setAccountPage(clamped);
-  }, [accountPage, hubPage?.total, hubPageSize]);
+    if (accountPage > maxClientAccountPage) {
+      setAccountPage(maxClientAccountPage);
+    }
+  }, [accountPage, maxClientAccountPage]);
+
+  const payableListedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => payableOpenAccountIds.has(a.id)).map((a) => a.id)),
+    [accounts, payableOpenAccountIds]
+  );
+
+  const receivableListedAccountIds = useMemo(
+    () => new Set(accounts.filter((a) => receivableOpenAccountIds.has(a.id)).map((a) => a.id)),
+    [accounts, receivableOpenAccountIds]
+  );
 
   const payableSectionMetrics = useMemo(
-    () => ({
-      outstanding: hubSummary?.payable.outstandingTotal ?? 0,
-      openInvoiceCount: hubSummary?.payable.openCount ?? 0,
-      overdueCount: hubSummary?.payable.overdueCount ?? 0,
-      accountsInList: hubSummary?.payable.accountsWithOpenCount ?? 0,
-    }),
-    [hubSummary]
+    () => computeSectionInvoiceMetrics(payableInvoices, payableListedAccountIds),
+    [payableInvoices, payableListedAccountIds]
   );
 
   const receivableSectionMetrics = useMemo(
-    () => ({
-      outstanding: hubSummary?.receivable.outstandingTotal ?? 0,
-      openInvoiceCount: hubSummary?.receivable.openCount ?? 0,
-      overdueCount: hubSummary?.receivable.overdueCount ?? 0,
-      accountsInList: hubSummary?.receivable.accountsWithOpenCount ?? 0,
-    }),
-    [hubSummary]
+    () => computeSectionInvoiceMetrics(receivableInvoices, receivableListedAccountIds),
+    [receivableInvoices, receivableListedAccountIds]
+  );
+
+  const accountInvoiceRollup = useMemo(
+    () => buildAccountInvoiceRollup(payableInvoices, receivableInvoices),
+    [payableInvoices, receivableInvoices]
   );
 
   const overviewPopulationMetrics = useMemo(() => {
-    const total = hubSummary?.totalActiveAccounts ?? 0;
-    const withAnyOpen = hubSummary?.accountsWithAnyOpenBalance ?? 0;
-    return {
-      withOpenPayable: hubSummary?.payable.accountsWithOpenCount ?? 0,
-      withOpenReceivable: hubSummary?.receivable.accountsWithOpenCount ?? 0,
-      withNoOpenBalance: Math.max(0, total - withAnyOpen),
-      totalAccounts: total,
-    };
-  }, [hubSummary]);
+    let withOpenPayable = 0;
+    let withOpenReceivable = 0;
+    let withNoOpenBalance = 0;
+    for (const acc of accounts) {
+      const rollup = accountInvoiceRollup.get(acc.id) ?? EMPTY_ROLLUP;
+      const hasPayable = rollup.payableOutstanding > 0;
+      const hasReceivable = rollup.receivableOutstanding > 0;
+      if (hasPayable) withOpenPayable += 1;
+      if (hasReceivable) withOpenReceivable += 1;
+      if (!hasPayable && !hasReceivable) withNoOpenBalance += 1;
+    }
+    return { withOpenPayable, withOpenReceivable, withNoOpenBalance };
+  }, [accounts, accountInvoiceRollup]);
 
   const searchPlaceholder = isAllAccounts
     ? 'Search accounts...'
@@ -149,10 +275,10 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
     navigate(`/accounts/${path}`, { replace: true });
   };
 
-  const handleEdit = (account: AccountHubRow) => setEditingAccount(account);
-  const handleView = (account: AccountHubRow) =>
+  const handleEdit = (account: Account) => setEditingAccount(account);
+  const handleView = (account: Account) =>
     navigate(`/accounts/${account.id}`, { state: { fromSection: selectedSection } });
-  const handleDelete = async (account: AccountHubRow) => {
+  const handleDelete = async (account: Account) => {
     if (!window.confirm(`Deactivate "${account.name}"? This is a soft delete.`)) return;
     try {
       await deleteAccount(account.id).unwrap();
@@ -166,10 +292,10 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value);
 
-  const getRollup = (account: AccountHubRow) => account.openBalance;
+  const getRollup = (accountId: number) => accountInvoiceRollup.get(accountId) ?? EMPTY_ROLLUP;
 
-  const formatOpenBalancesSummary = (account: AccountHubRow) => {
-    const rollup = getRollup(account);
+  const formatOpenBalancesSummary = (accountId: number) => {
+    const rollup = getRollup(accountId);
     const parts: string[] = [];
     if (rollup.payableOutstanding > 0) parts.push(`Pay ${formatCurrency(rollup.payableOutstanding)}`);
     if (rollup.receivableOutstanding > 0) parts.push(`Recv ${formatCurrency(rollup.receivableOutstanding)}`);
@@ -203,16 +329,20 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
       ? 'open payable balances'
       : 'open receivable balances';
 
-  const getContactSummary = (acc: AccountHubRow) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
-  const getAddressSummary = (acc: AccountHubRow) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
+  const getContactSummary = (acc: Account) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
+  const getAddressSummary = (acc: Account) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
-  const showAccountsPager = !isLoading && !error && accountsTotal > 0;
+  const showAccountsPager =
+    !isLoading && !error && displayedAccounts.length > 0;
+
+  const canAccountsPrev = accountPage > 0;
+  const canAccountsNext = (accountPage + 1) * hubPageSize < displayedAccounts.length;
 
   const emptyFiltered =
     !isLoading &&
     !error &&
-    overviewPopulationMetrics.totalAccounts > 0 &&
-    accountsTotal === 0 &&
+    accounts.length > 0 &&
+    displayedAccounts.length === 0 &&
     (isOpenReceivable || isOpenPayable);
 
   return (
@@ -258,7 +388,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               iconContainerClassName="bg-muted"
               iconClassName="text-muted-foreground"
               tintClassName="bg-muted/[0.15] dark:bg-muted/[0.25]"
-              value={overviewPopulationMetrics.totalAccounts}
+              value={accounts.length}
               subtitle="Full catalog · search applies"
               details={[
                 { label: 'With open payable', value: overviewPopulationMetrics.withOpenPayable },
@@ -277,7 +407,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               value={formatCurrency(payableSectionMetrics.outstanding)}
               subtitle="Accounts with open payables"
               details={[
-                { label: 'Accounts in list', value: payableSectionMetrics.accountsInList },
+                { label: 'Accounts in list', value: payableListedAccountIds.size },
                 { label: 'Open invoices', value: payableSectionMetrics.openInvoiceCount },
                 { label: 'Overdue', value: payableSectionMetrics.overdueCount },
               ]}
@@ -293,7 +423,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               value={formatCurrency(receivableSectionMetrics.outstanding)}
               subtitle="Accounts with open receivables"
               details={[
-                { label: 'Accounts in list', value: receivableSectionMetrics.accountsInList },
+                { label: 'Accounts in list', value: receivableListedAccountIds.size },
                 { label: 'Open invoices', value: receivableSectionMetrics.openInvoiceCount },
                 { label: 'Overdue', value: receivableSectionMetrics.overdueCount },
               ]}
@@ -309,10 +439,10 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {!isLoading && (
                           <span className="font-medium">
-                            {accountsTotal}{' '}
-                            {accountsTotal === 1 ? 'account' : 'accounts'}
-                            {showAccountsPager ? ` · page ${accountPage}` : ''}
-                            {accountsTotal > 0 ? ` · ${tableSectionHint}` : ''}
+                            {displayedAccounts.length}{' '}
+                            {displayedAccounts.length === 1 ? 'account' : 'accounts'}
+                            {showAccountsPager ? ` · page ${accountPage + 1}` : ''}
+                            {displayedAccounts.length > 0 ? ` · ${tableSectionHint}` : ''}
                           </span>
                         )}
                       </div>
@@ -339,7 +469,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                         <div className="flex min-h-full items-center justify-center py-16 text-center text-destructive">
                           Failed to load accounts.
                         </div>
-                      ) : overviewPopulationMetrics.totalAccounts === 0 ? (
+                      ) : accounts.length === 0 ? (
                         <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
                           <div className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full bg-brand-primary/10">
                             <Users className="h-10 w-10 text-brand-primary" />
@@ -399,7 +529,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                             </TableHeader>
                             <TableBody>
                               {accountsRowsForTable.map((acc) => {
-                                const rollup = getRollup(acc);
+                                const rollup = getRollup(acc.id);
                                 return (
                                 <TableRow
                                   key={acc.id}
@@ -415,7 +545,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                                     <>
                                       <TableCell>{renderAccountTags(acc)}</TableCell>
                                       <TableCell className="text-sm tabular-nums">
-                                        {formatOpenBalancesSummary(acc)}
+                                        {formatOpenBalancesSummary(acc.id)}
                                       </TableCell>
                                     </>
                                   ) : null}
@@ -482,14 +612,34 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                         </div>
                       )}
                     </div>
-                    {showAccountsPager && accountsTotal > hubPageSize ? (
-                      <ListPagePagination
-                        page={accountPage}
-                        total={accountsTotal}
-                        pageSize={hubPageSize}
-                        isFetching={isFetching}
-                        onPageChange={setAccountPage}
-                      />
+                    {showAccountsPager ? (
+                      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2"
+                          disabled={!canAccountsPrev}
+                          onClick={() => setAccountPage((p) => Math.max(0, p - 1))}
+                          aria-label="Previous accounts page"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {hubPageSize} per page
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2"
+                          disabled={!canAccountsNext}
+                          onClick={() => setAccountPage((p) => p + 1)}
+                          aria-label="Next accounts page"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ) : null}
                   </CardContent>
                 </Card>

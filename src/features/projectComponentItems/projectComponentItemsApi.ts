@@ -28,7 +28,7 @@ export const projectComponentItemsApi = createApi({
     }),
     getProjectComponentItemById: builder.query<ProjectComponentItem, number>({
       query: (id) => `project-component-items/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'ProjectComponentItem', id }],
+      providesTags: (result, error, id) => [{ type: 'ProjectComponentItem', id }],
     }),
     createProjectComponentItem: builder.mutation<ProjectComponentItem, CreateProjectComponentItemDTO>({
       query: (body) => ({
@@ -47,7 +47,7 @@ export const projectComponentItemsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProjectComponentItem', id }, 'ProjectComponentItem'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProjectComponentItem', id }, 'ProjectComponentItem'],
       async onQueryStarted(arg, api) {
         await invalidateProjectEventsOnFulfilled(arg, api);
       },

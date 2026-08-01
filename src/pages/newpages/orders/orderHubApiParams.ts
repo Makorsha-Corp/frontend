@@ -21,15 +21,3 @@ export function orderHubPageCount(
   if (total <= 0) return 1;
   return Math.max(1, Math.ceil(total / pageSize));
 }
-
-/** When total is known and page exceeds max, return clamped page; otherwise null (leave alone). */
-export function resolveClampedPage(
-  page: number,
-  total: number | undefined,
-  pageSize: number = ORDER_HUB_PAGE_SIZE,
-): number | null {
-  if (total === undefined) return null;
-  const maxPage = orderHubPageCount(total, pageSize);
-  if (page <= maxPage) return null;
-  return maxPage;
-}

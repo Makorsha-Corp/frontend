@@ -3,23 +3,17 @@ import { Loader2 } from 'lucide-react';
 import type { Account } from '@/types/account';
 import AccountContextPanel from './AccountContextPanel';
 import AccountInvoiceKpiStrip from './AccountInvoiceKpiStrip';
-import {
-  useGetAccountInvoiceSummaryQuery,
-  useGetAccountOpenInvoicesPageQuery,
-} from '@/features/accounts/accountsApi';
-import { useInvoiceOrderNumberMap } from './useInvoiceOrderNumberMap';
-import AccountOpenInvoiceRow, { OPEN_INVOICE_ROW_GRID } from './AccountOpenInvoiceRow';
-import type { AccountViewHighlightContext } from './accountViewContext';
-import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
-
-const OPEN_INVOICES_PAGE_SIZE = 10;
+import { formatInvoiceCurrency, formatInvoiceDate } from './accountInvoiceFormatters';
+import { formatInvLabel } from './invoiceDisplayUtils';
+import { useGetAccountInvoiceSummaryQuery } from '@/features/accounts/accountsApi';
+import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
+import { isOpenInvoiceBalance } from './accountInvoiceTotals';
 
 export interface AccountOverviewPanelProps {
   account?: Account;
   isLoading?: boolean;
   accountId?: number | null;
   showFinancials?: boolean;
-  highlightContext?: AccountViewHighlightContext;
 }
 
 const AccountOverviewPanel: React.FC<AccountOverviewPanelProps> = ({
@@ -27,46 +21,31 @@ const AccountOverviewPanel: React.FC<AccountOverviewPanelProps> = ({
   isLoading,
   accountId,
   showFinancials = true,
-  highlightContext,
 }) => {
   const resolvedId = account?.id ?? accountId ?? null;
-  const [openInvoicesPage, setOpenInvoicesPage] = React.useState(1);
-
-  React.useEffect(() => {
-    setOpenInvoicesPage(1);
-  }, [resolvedId, highlightContext?.purchaseOrderId, highlightContext?.itemId]);
 
   const { data: summary, isLoading: summaryLoading } = useGetAccountInvoiceSummaryQuery(
     { account_id: resolvedId! },
     { skip: !resolvedId || !showFinancials || isLoading }
   );
 
-  const openInvoicesSkip = (openInvoicesPage - 1) * OPEN_INVOICES_PAGE_SIZE;
-  const {
-    data: openInvoicesPageData,
-    isLoading: openInvoicesLoading,
-    isFetching: openInvoicesFetching,
-  } = useGetAccountOpenInvoicesPageQuery(
+  const { data: openInvoices = [], isLoading: openInvoicesLoading } = useGetAccountInvoicesQuery(
     {
       account_id: resolvedId!,
-      skip: openInvoicesSkip,
-      limit: OPEN_INVOICES_PAGE_SIZE,
-      prioritize_purchase_order_id: highlightContext?.purchaseOrderId ?? undefined,
+      skip: 0,
+      limit: 20,
     },
     { skip: !resolvedId || !showFinancials || isLoading }
   );
 
-  const openInvoices = openInvoicesPageData?.items ?? [];
-  const openInvoicesTotal = openInvoicesPageData?.total ?? 0;
-
-  React.useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(openInvoicesTotal / OPEN_INVOICES_PAGE_SIZE));
-    if (openInvoicesPage > maxPage) {
-      setOpenInvoicesPage(maxPage);
-    }
-  }, [openInvoicesTotal, openInvoicesPage]);
-
-  const invoiceOrderNumberMap = useInvoiceOrderNumberMap(openInvoices);
+  const recentOpenInvoices = React.useMemo(
+    () =>
+      openInvoices
+        .filter(isOpenInvoiceBalance)
+        .sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime())
+        .slice(0, 5),
+    [openInvoices]
+  );
 
   if (isLoading) {
     return (
@@ -100,44 +79,30 @@ const AccountOverviewPanel: React.FC<AccountOverviewPanelProps> = ({
 
       <AccountContextPanel account={account} />
 
-      {showFinancials && openInvoicesTotal > 0 ? (
+      {showFinancials && recentOpenInvoices.length > 0 ? (
         <div className="space-y-2 border-t border-border pt-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Open invoices
-            <span className="ml-1.5 font-normal normal-case tracking-normal text-muted-foreground/80">
-              ({openInvoicesTotal})
-            </span>
           </p>
-          <div className="overflow-hidden rounded-md border border-border bg-card">
-            <div
-              className={`${OPEN_INVOICE_ROW_GRID} border-b border-border bg-muted/30 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground`}
-            >
-              <span>Invoice</span>
-              <span>Items</span>
-              <span className="text-right">Amount</span>
-            </div>
-            <ul className="divide-y divide-border">
-              {openInvoices.map((inv) => (
-                <AccountOpenInvoiceRow
-                  key={inv.id}
-                  invoice={inv}
-                  orderNumber={invoiceOrderNumberMap.get(inv.id) ?? null}
-                  fetchEnabled={showFinancials && !isLoading}
-                  highlightItemId={highlightContext?.itemId}
-                  highlightItemName={highlightContext?.itemName}
-                />
-              ))}
-            </ul>
-            {openInvoicesTotal > OPEN_INVOICES_PAGE_SIZE ? (
-              <ListPagePagination
-                page={openInvoicesPage}
-                total={openInvoicesTotal}
-                pageSize={OPEN_INVOICES_PAGE_SIZE}
-                isFetching={openInvoicesFetching}
-                onPageChange={setOpenInvoicesPage}
-              />
-            ) : null}
-          </div>
+          <ul className="divide-y divide-border rounded-md border border-border bg-card">
+            {recentOpenInvoices.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                data-testid={`account-dialog-open-invoice-${inv.id}`}
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{formatInvLabel(inv)}</p>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    {inv.invoice_type} · {inv.payment_status} · {formatInvoiceDate(inv.invoice_date)}
+                  </p>
+                </div>
+                <p className="shrink-0 font-medium tabular-nums">
+                  {formatInvoiceCurrency(inv.invoice_amount)}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>

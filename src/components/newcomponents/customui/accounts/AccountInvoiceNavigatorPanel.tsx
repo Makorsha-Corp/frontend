@@ -9,19 +9,15 @@ import { ORDER_LIST_WIDTH } from '@/components/newcomponents/customui/orders/ord
 import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
 import { FileText, Loader2 } from 'lucide-react';
-import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
+import { API_LIMITS } from '@/constants/apiLimits';
 
 export interface AccountInvoiceNavigatorPanelProps {
   invoices: AccountInvoice[];
   selectedInvoiceId: number | null;
   invoiceOrderNumberMap: Map<number, string | null | undefined>;
   isLoading: boolean;
-  isFetching?: boolean;
   invoiceCountLabel: string;
-  invoicePage: number;
-  invoicesTotal: number;
-  invoicePageSize: number;
-  onInvoicePageChange: (page: number) => void;
+  listCapped?: boolean;
   onSelectInvoice: (id: number) => void;
   className?: string;
 }
@@ -102,12 +98,8 @@ const AccountInvoiceNavigatorPanel: React.FC<AccountInvoiceNavigatorPanelProps> 
   selectedInvoiceId,
   invoiceOrderNumberMap,
   isLoading,
-  isFetching = false,
   invoiceCountLabel,
-  invoicePage,
-  invoicesTotal,
-  invoicePageSize,
-  onInvoicePageChange,
+  listCapped,
   onSelectInvoice,
   className,
 }) => {
@@ -119,12 +111,24 @@ const AccountInvoiceNavigatorPanel: React.FC<AccountInvoiceNavigatorPanelProps> 
       )}
       style={{ maxWidth: ORDER_LIST_WIDTH }}
     >
-      <div className={cn(ORDER_PANEL_HEADER_CLASS, 'px-4 shrink-0')}>
+      <div
+        className={cn(
+          listCapped
+            ? 'shrink-0 flex flex-col justify-center gap-1 border-b border-border bg-card px-4 py-2.5'
+            : cn(ORDER_PANEL_HEADER_CLASS, 'px-4')
+        )}
+      >
         <h2 className="flex min-w-0 items-center gap-2 truncate text-base font-semibold text-card-foreground">
           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
           Invoices
           <span className="font-normal text-muted-foreground">({invoiceCountLabel})</span>
         </h2>
+        {listCapped ? (
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Showing first {API_LIMITS.FLEXIBLE_1000} of {invoiceCountLabel} — narrow filters to
+            see more.
+          </p>
+        ) : null}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -148,16 +152,6 @@ const AccountInvoiceNavigatorPanel: React.FC<AccountInvoiceNavigatorPanelProps> 
           </div>
         )}
       </div>
-
-      {invoicesTotal > invoicePageSize ? (
-        <ListPagePagination
-          page={invoicePage}
-          total={invoicesTotal}
-          pageSize={invoicePageSize}
-          isFetching={isFetching}
-          onPageChange={onInvoicePageChange}
-        />
-      ) : null}
     </div>
   );
 };

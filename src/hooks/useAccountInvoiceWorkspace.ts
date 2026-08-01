@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { useGetAccountInvoicesPageQuery } from '@/features/accounts/accountsApi';
+import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import { useGetAccountInvoiceSummaryQuery } from '@/features/accounts/accountsApi';
 import { useInvoiceOrderNumberMap } from '@/components/newcomponents/customui/accounts/useInvoiceOrderNumberMap';
-import type { AccountInvoicesPageParams } from '@/types/accountInvoice';
+import { API_LIMITS } from '@/constants/apiLimits';
+import type { ListAccountInvoicesParams } from '@/types/accountInvoice';
 import type { AccountInvoiceSummaryParams } from '@/types/account';
 
 export type AccountInvoiceTypeFilter = 'all' | 'payable' | 'receivable';
@@ -16,8 +17,6 @@ export type AccountInvoiceStatusFilter =
   | 'voided';
 
 export type AccountHubSection = 'overview' | 'payable' | 'receivable';
-
-const INVOICE_NAV_PAGE_SIZE = 50;
 
 function defaultTypeFromContext(context: string | null): AccountInvoiceTypeFilter {
   if (context === 'payable') return 'payable';
@@ -36,8 +35,8 @@ function buildFilterParams(
     dueDateFrom: string;
     dueDateTo: string;
   }
-): Omit<AccountInvoicesPageParams, 'skip' | 'limit'> {
-  const params: Omit<AccountInvoicesPageParams, 'skip' | 'limit'> = {
+): Omit<ListAccountInvoicesParams, 'skip' | 'limit'> {
+  const params: Omit<ListAccountInvoicesParams, 'skip' | 'limit'> = {
     account_id: accountId,
   };
   if (filters.invoiceTypeFilter !== 'all') params.invoice_type = filters.invoiceTypeFilter;
@@ -79,7 +78,6 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
   const [dueDateTo, setDueDateTo] = useState('');
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
-  const [invoicePage, setInvoicePage] = useState(1);
 
   useEffect(() => {
     if (filtersInitialized || !accountId) return;
@@ -92,19 +90,6 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     const timer = window.setTimeout(() => setDebouncedSearch(invoiceSearch), 300);
     return () => window.clearTimeout(timer);
   }, [invoiceSearch]);
-
-  useEffect(() => {
-    setInvoicePage(1);
-  }, [
-    accountId,
-    invoiceTypeFilter,
-    invoiceStatusFilter,
-    debouncedSearch,
-    invoiceDateFrom,
-    invoiceDateTo,
-    dueDateFrom,
-    dueDateTo,
-  ]);
 
   const filterFields = useMemo(
     () => ({
@@ -132,36 +117,30 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     [accountId, filterFields]
   );
 
-  const invoicePageSkip = (invoicePage - 1) * INVOICE_NAV_PAGE_SIZE;
-
   const invoiceListParams = useMemo(
-    (): AccountInvoicesPageParams | null =>
+    () =>
       baseFilterParams
         ? {
             ...baseFilterParams,
-            skip: invoicePageSkip,
-            limit: INVOICE_NAV_PAGE_SIZE,
+            skip: 0,
+            limit: API_LIMITS.FLEXIBLE_1000,
           }
         : null,
-    [baseFilterParams, invoicePageSkip]
+    [baseFilterParams]
   );
 
   const summaryParams = useMemo(
     (): AccountInvoiceSummaryParams | null =>
       accountId && baseFilterParams
-        ? { ...baseFilterParams, account_id: accountId }
+        ? { account_id: accountId, ...baseFilterParams }
         : null,
     [accountId, baseFilterParams]
   );
 
-  const {
-    data: invoicesPage,
-    isLoading: invoiceListLoading,
-    isFetching: invoiceListFetching,
-  } = useGetAccountInvoicesPageQuery(invoiceListParams!, { skip: !invoiceListParams });
-
-  const invoices = useMemo(() => invoicesPage?.items ?? [], [invoicesPage]);
-  const invoicesTotal = invoicesPage?.total ?? 0;
+  const { data: invoices = [], isLoading: invoiceListLoading } = useGetAccountInvoicesQuery(
+    invoiceListParams!,
+    { skip: !invoiceListParams }
+  );
 
   const { data: summary, isLoading: summaryLoading } = useGetAccountInvoiceSummaryQuery(
     summaryParams!,
@@ -195,13 +174,6 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
   }, [urlInvoiceId]);
 
   useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(invoicesTotal / INVOICE_NAV_PAGE_SIZE));
-    if (invoicePage > maxPage) {
-      setInvoicePage(maxPage);
-    }
-  }, [invoicesTotal, invoicePage]);
-
-  useEffect(() => {
     if (urlInvoiceId != null) return;
     if (!invoices.length) {
       if (selectedInvoiceId != null) setSelectedInvoiceId(null);
@@ -220,9 +192,19 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     [invoices, selectedInvoiceId]
   );
 
-  const invoiceCount = summary?.invoiceCount ?? invoicesTotal;
+  const invoiceCount = useMemo(() => {
+    const listCount = invoices.length;
+    const summaryCount = summary?.invoiceCount;
+    if (summaryCount != null && summaryCount >= listCount) {
+      return summaryCount;
+    }
+    return listCount;
+  }, [summary?.invoiceCount, invoices.length]);
 
   const invoiceCountLabel = String(invoiceCount);
+
+  const invoiceListCapped =
+    invoiceCount > invoices.length && invoices.length > 0;
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -286,11 +268,6 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     clearFilters,
     invoices,
     invoiceListLoading,
-    invoiceListFetching,
-    invoicePage,
-    setInvoicePage,
-    invoicesTotal,
-    invoicePageSize: INVOICE_NAV_PAGE_SIZE,
     summary,
     summaryLoading,
     invoiceOrderNumberMap,
@@ -298,6 +275,7 @@ export function useAccountInvoiceWorkspace(accountId: number | null) {
     selectInvoice,
     selectedInvoiceFromList,
     invoiceCountLabel,
+    invoiceListCapped,
     workspaceReady: !invoiceListLoading && !summaryLoading,
   };
 }

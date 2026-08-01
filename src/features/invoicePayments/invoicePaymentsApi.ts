@@ -27,14 +27,14 @@ export const invoicePaymentsApi = createApi({
         params.append('limit', limit.toString());
         return `invoice-payments/invoice/${invoice_id}/?${params.toString()}`;
       },
-      providesTags: (_result, _error, { invoice_id }) => [
+      providesTags: (result, error, { invoice_id }) => [
         { type: 'InvoicePayment', id: invoice_id },
         'InvoicePayment'
       ],
     }),
     getInvoicePaymentById: builder.query<InvoicePayment, number>({
       query: (id) => `invoice-payments/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'InvoicePayment', id }],
+      providesTags: (result, error, id) => [{ type: 'InvoicePayment', id }],
     }),
     createInvoicePayment: builder.mutation<InvoicePayment, CreateInvoicePaymentRequest>({
       query: (body) => ({
@@ -42,7 +42,7 @@ export const invoicePaymentsApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: (_result, _error, { invoice_id }) => [
+      invalidatesTags: (result, error, { invoice_id }) => [
         { type: 'InvoicePayment', id: invoice_id },
         'InvoicePayment',
       ],
@@ -61,7 +61,7 @@ export const invoicePaymentsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (result, error, { id }) => [
         { type: 'InvoicePayment', id },
         'InvoicePayment',
       ],

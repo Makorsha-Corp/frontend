@@ -150,7 +150,7 @@ const ProjectsPage: React.FC = () => {
     skip: !workspace?.id,
   });
 
-  const projectMembers = useMemo(() => projectMembersData?.members ?? [], [projectMembersData]);
+  const projectMembers = projectMembersData?.members ?? [];
 
   const [deleteProject, { isLoading: isDeletingProject }] = useDeleteProjectMutation();
   const [addProjectMember] = useAddProjectMemberMutation();

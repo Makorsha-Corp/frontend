@@ -1,3 +1,4 @@
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { ItemSummary } from '@/types/itemSummary';
 import {
@@ -6,7 +7,6 @@ import {
   buildMachineHref,
   buildProductionHref,
   buildProjectHref,
-  buildProductsHref,
   buildStorageHref,
   buildWorkOrderHref,
 } from '@/lib/entityLinks';
@@ -131,9 +131,10 @@ export function PlacementSection({
                   <tr key={row.factory_id} className={placementTableBodyRow}>
                     <td className="px-3 py-2">
                       <EntityLink
-                        to={buildProductsHref({
+                        to={buildStorageHref({
                           factoryId: row.factory_id,
                           itemId,
+                          tab: 'products',
                         })}
                         onNavigate={onNavigate}
                       >

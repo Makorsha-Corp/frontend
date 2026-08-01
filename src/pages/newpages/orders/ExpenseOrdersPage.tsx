@@ -158,13 +158,13 @@ const ExpenseOrdersPage: React.FC = () => {
     data: pageData,
     isLoading,
     isFetching,
-  } = useGetExpenseOrdersPageQuery(listQueryParams);
+  } = useGetExpenseOrdersPageQuery(listQueryParams, { keepPreviousData: true });
   const { data: hubStats, isLoading: statsLoading } = useGetExpenseOrderHubStatsQuery(hubFilterParams);
 
-  const orders = useMemo(() => pageData?.items ?? [], [pageData]);
+  const orders = pageData?.items ?? [];
   const ordersTotal = pageData?.total ?? 0;
 
-  useOrderHubPageClamp(listPage, pageData?.total, ORDER_HUB_PAGE_PARAMS.expense, setSearchParams);
+  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.expense, setSearchParams);
 
   const overviewStats = useMemo((): ExpenseOrderSummaryStats => {
     if (!hubStats) {

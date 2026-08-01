@@ -1,4 +1,7 @@
 import { useMemo } from 'react';
+import { useGetPurchaseOrdersQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
+import { useGetTransferOrdersQuery } from '@/features/transferOrders/transferOrdersApi';
+import { useGetExpenseOrdersQuery } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
@@ -12,31 +15,20 @@ import {
   type OverviewOrder,
 } from './ordersOverviewData';
 import { useSalesOrdersForOverview } from './useSalesOrdersForOverview';
-import {
-  usePaginatedPurchaseOrdersForOverview,
-  usePaginatedTransferOrdersForOverview,
-  usePaginatedExpenseOrdersForOverview,
-} from './usePaginatedHubOrdersForOverview';
 
 export function useOrdersScopeData() {
-  const {
-    purchaseOrders,
-    isLoading: loadPo,
-    isError: errPo,
-    mayTruncate: purchaseMayTruncate,
-  } = usePaginatedPurchaseOrdersForOverview();
-  const {
-    transferOrders,
-    isLoading: loadTo,
-    isError: errTo,
-    mayTruncate: transferMayTruncate,
-  } = usePaginatedTransferOrdersForOverview();
-  const {
-    expenseOrders,
-    isLoading: loadEo,
-    isError: errEo,
-    mayTruncate: expenseMayTruncate,
-  } = usePaginatedExpenseOrdersForOverview();
+  const { data: purchaseOrders = [], isLoading: loadPo, isError: errPo } = useGetPurchaseOrdersQuery({
+    skip: 0,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
+  });
+  const { data: transferOrders = [], isLoading: loadTo, isError: errTo } = useGetTransferOrdersQuery({
+    skip: 0,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
+  });
+  const { data: expenseOrders = [], isLoading: loadEo, isError: errEo } = useGetExpenseOrdersQuery({
+    skip: 0,
+    limit: API_LIMITS.ORDER_HUB_LIST_MAX,
+  });
   const {
     salesOrders,
     isLoading: loadSo,
@@ -67,8 +59,6 @@ export function useOrdersScopeData() {
 
   const isLoading = loadPo || loadTo || loadEo || loadSo || loadWo || loadSt || loadMa || loadSec || loadPr;
   const hasError = errPo || errTo || errEo || errSo || errWo || errSt || errMa || errSec || errPr;
-  const hubOrdersMayTruncate =
-    purchaseMayTruncate || transferMayTruncate || expenseMayTruncate || salesMayTruncate;
 
   const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
 
@@ -106,6 +96,5 @@ export function useOrdersScopeData() {
     isLoading,
     hasError,
     salesMayTruncate,
-    hubOrdersMayTruncate,
   };
 }

@@ -1,22 +1,20 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  useGetInventoryPageQuery,
-  useGetInventoryStatsQuery,
-  useGetInventoryListQuery,
-  useGetIncomingSummaryQuery,
-  useDeleteInventoryMutation,
-} from '@/features/inventory/inventoryApi';
+import { useGetInventoryListQuery, useDeleteInventoryMutation } from '@/features/inventory/inventoryApi';
+import { useGetProductsQuery, useDeleteProductMutation } from '@/features/products/productsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import type { Inventory, InventoryType } from '@/types/inventory';
+import type { Product } from '@/types/product';
 import { Archive, Search } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
+import AddProductDialog from '@/components/newcomponents/customui/AddProductDialog';
+import EditProductDialog from '@/components/newcomponents/customui/EditProductDialog';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -25,34 +23,26 @@ import AppShellHeader, {
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
-import StorageKpiStrip from '@/components/newcomponents/customui/storage/StorageKpiStrip';
-import StorageSection from '@/components/newcomponents/customui/storage/StorageSection';
-import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
+import { cn } from '@/lib/utils';
+import { Tabs } from '@/components/ui/tabs';
+import StoragePageLayout from '@/components/newcomponents/customui/storage/StoragePageLayout';
+import StorageLayoutSwitcher from '@/components/newcomponents/customui/storage/StorageLayoutSwitcher';
+import StorageHeaderTabs, { type StorageContentTab } from '@/components/newcomponents/customui/storage/StorageHeaderTabs';
 import {
-  computeStorageOverviewFromInventory,
-  emptyStorageOverview,
-  filterInventoryForStorageCatalog,
-  storageOverviewFromStatsResponse,
-} from '@/components/newcomponents/customui/storage/storageOverviewUtils';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { incomingSummaryKey } from '@/types/inventoryIncoming';
-import {
-  buildStorageListParams,
-  buildStorageStatsParams,
-  parseStorageCatalogFilters,
-  parseStoragePage,
-  STORAGE_PAGE_PARAM,
-  STORAGE_PAGE_SIZE,
-  STORAGE_SEARCH_PARAM,
-} from '@/features/inventory/storageCatalogParams';
-import { API_LIMITS } from '@/constants/apiLimits';
+  loadStorageTabSwitcherStyle,
+  saveStorageTabSwitcherStyle,
+  loadStorageTabSwitcherPlacement,
+  saveStorageTabSwitcherPlacement,
+  type StorageTabSwitcherStyle,
+  type StorageTabSwitcherPlacement,
+} from '@/components/newcomponents/customui/storage/storageTabSwitcherStyles';
+import { INVENTORY_TYPES } from '@/components/newcomponents/customui/storage/storageConstants';
+import { DEFAULT_STORAGE_LAYOUT, type StorageLayoutMode } from '@/components/newcomponents/customui/storage/storageLayoutModes';
 import {
   singleFactoryToSlice,
   sliceToSingleFactoryId,
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
-import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
-import { useOrderHubPageClamp } from '@/pages/newpages/orders/useOrderHubPageClamp';
 import toast from 'react-hot-toast';
 
 const VALID_INVENTORY_TYPES = new Set<InventoryType>(['STORAGE', 'DAMAGED', 'WASTE', 'SCRAP']);
@@ -60,14 +50,17 @@ const VALID_INVENTORY_TYPES = new Set<InventoryType>(['STORAGE', 'DAMAGED', 'WAS
 function parseStorageDeepLink(params: URLSearchParams): {
   factoryId: number | null;
   itemId: number | null;
+  tab: StorageContentTab | null;
   inventoryType: InventoryType | null;
 } {
   const factoryRaw = params.get('factoryId');
   const itemRaw = params.get('itemId');
+  const tabRaw = params.get('tab');
   const typeRaw = params.get('inventoryType');
 
   const factoryId = factoryRaw ? parseInt(factoryRaw, 10) : null;
   const itemId = itemRaw ? parseInt(itemRaw, 10) : null;
+  const tab = tabRaw === 'products' ? 'products' : tabRaw === 'storage' ? 'storage' : null;
   const inventoryType =
     typeRaw && VALID_INVENTORY_TYPES.has(typeRaw as InventoryType)
       ? (typeRaw as InventoryType)
@@ -76,6 +69,7 @@ function parseStorageDeepLink(params: URLSearchParams): {
   return {
     factoryId: factoryId != null && Number.isFinite(factoryId) ? factoryId : null,
     itemId: itemId != null && Number.isFinite(itemId) ? itemId : null,
+    tab,
     inventoryType,
   };
 }
@@ -83,44 +77,46 @@ function parseStorageDeepLink(params: URLSearchParams): {
 const StoragePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLink = useMemo(() => parseStorageDeepLink(searchParams), [searchParams]);
-  const catalogFiltersFromUrl = useMemo(() => parseStorageCatalogFilters(searchParams), [searchParams]);
-  const catalogPage = parseStoragePage(searchParams.get(STORAGE_PAGE_PARAM));
-
   const { factoryId, setFactoryId } = usePageFactoryScopeId({
     initialOverride:
       deepLink.factoryId != null ? String(deepLink.factoryId) : undefined,
   });
   const [filterItemId, setFilterItemId] = useState<number | null>(() => deepLink.itemId);
   const [inventoryTypeFilter, setInventoryTypeFilter] = useState<InventoryType | 'all'>(
-    () => deepLink.inventoryType ?? 'all',
+    () => deepLink.inventoryType ?? 'all'
   );
-  const [searchInput, setSearchInput] = useState(catalogFiltersFromUrl.searchQuery);
-  const [debouncedSearch, setDebouncedSearch] = useState(catalogFiltersFromUrl.searchQuery);
-  const [showZeroQty, setShowZeroQty] = useState(catalogFiltersFromUrl.includeZeroQty);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showZeroQty, setShowZeroQty] = useState(false);
+  const [forSaleOnly, setForSaleOnly] = useState(false);
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingInventory, setEditingInventory] = useState<Inventory | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
-  const [factoryPickerOpen, setFactoryPickerOpen] = useState(false);
-  const {
-    highlighted: factoryPickerHighlight,
-    pulseHighlight: pulseFactoryPickerHighlight,
-    dismissHighlight: dismissFactoryPickerHighlight,
-  } = useScrollTargetHighlight();
-
-  const promptFactorySelect = useCallback(() => {
-    pulseFactoryPickerHighlight();
-    setFactoryPickerOpen(true);
-  }, [pulseFactoryPickerHighlight]);
+  const [layoutMode, setLayoutMode] = useState<StorageLayoutMode>(DEFAULT_STORAGE_LAYOUT);
+  const [contentTab, setContentTab] = useState<StorageContentTab>(
+    () => deepLink.tab ?? 'storage'
+  );
+  const [tabSwitcherStyle, setTabSwitcherStyle] = useState<StorageTabSwitcherStyle>(loadStorageTabSwitcherStyle);
+  const [tabSwitcherPlacement, setTabSwitcherPlacement] = useState<StorageTabSwitcherPlacement>(
+    loadStorageTabSwitcherPlacement
+  );
 
   useEffect(() => {
-    if (factoryId != null) {
-      dismissFactoryPickerHighlight();
-    }
-  }, [factoryId, dismissFactoryPickerHighlight]);
+    saveStorageTabSwitcherStyle(tabSwitcherStyle);
+  }, [tabSwitcherStyle]);
 
-  const handleAddInventory = useCallback(() => {
-    setIsAddInventoryOpen(true);
-  }, []);
+  useEffect(() => {
+    saveStorageTabSwitcherPlacement(tabSwitcherPlacement);
+  }, [tabSwitcherPlacement]);
+
+  useEffect(() => {
+    if (layoutMode === 'tabs' || layoutMode === 'focusStorage') {
+      setContentTab('storage');
+    } else if (layoutMode === 'focusProducts') {
+      setContentTab('products');
+    }
+  }, [layoutMode]);
 
   useEffect(() => {
     if (deepLink.factoryId != null) {
@@ -132,7 +128,10 @@ const StoragePage: React.FC = () => {
     if (deepLink.inventoryType != null) {
       setInventoryTypeFilter(deepLink.inventoryType);
     }
-  }, [deepLink.factoryId, deepLink.itemId, deepLink.inventoryType, setFactoryId]);
+    if (deepLink.tab != null) {
+      setContentTab(deepLink.tab);
+    }
+  }, [deepLink.factoryId, deepLink.itemId, deepLink.inventoryType, deepLink.tab, setFactoryId]);
 
   useEffect(() => {
     if (!searchParams.has('factoryId')) return;
@@ -147,195 +146,92 @@ const StoragePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    setSearchInput(catalogFiltersFromUrl.searchQuery);
-    setDebouncedSearch(catalogFiltersFromUrl.searchQuery);
-    setShowZeroQty(catalogFiltersFromUrl.includeZeroQty);
-  }, [catalogFiltersFromUrl.searchQuery, catalogFiltersFromUrl.includeZeroQty]);
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
 
-  const patchStorageParams = useCallback(
-    (
-      patch: Partial<{ searchQuery: string; includeZeroQty: boolean; page: number }>,
-      options?: { resetPage?: boolean },
-    ) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          const currentSearch = prev.get(STORAGE_SEARCH_PARAM)?.trim() ?? '';
-          const currentEmpty = prev.get('storageEmpty') === '1';
-          const currentPage = parseStoragePage(prev.get(STORAGE_PAGE_PARAM));
-
-          const merged = {
-            searchQuery: patch.searchQuery ?? currentSearch,
-            includeZeroQty: patch.includeZeroQty ?? currentEmpty,
-            page: patch.page ?? currentPage,
-          };
-
-          if (options?.resetPage !== false && patch.page == null) {
-            merged.page = 1;
-          }
-
-          if (merged.searchQuery) next.set(STORAGE_SEARCH_PARAM, merged.searchQuery);
-          else next.delete(STORAGE_SEARCH_PARAM);
-
-          if (merged.includeZeroQty) next.set('storageEmpty', '1');
-          else next.delete('storageEmpty');
-
-          if (merged.page > 1) next.set(STORAGE_PAGE_PARAM, String(merged.page));
-          else next.delete(STORAGE_PAGE_PARAM);
-
-          return next;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
-
-  useEffect(() => {
-    const id = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
-    return () => window.clearTimeout(id);
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (debouncedSearch === catalogFiltersFromUrl.searchQuery) return;
-    patchStorageParams({ searchQuery: debouncedSearch });
-  }, [debouncedSearch, catalogFiltersFromUrl.searchQuery, patchStorageParams]);
-
-  const activeFilters = useMemo(
-    () => ({
-      searchQuery: catalogFiltersFromUrl.searchQuery,
-      factoryId,
-      inventoryTypeFilter,
-      itemId: filterItemId,
-      includeZeroQty: showZeroQty,
-    }),
-    [
-      catalogFiltersFromUrl.searchQuery,
-      factoryId,
-      inventoryTypeFilter,
-      filterItemId,
-      showZeroQty,
-    ],
-  );
-
-  const listQueryParams = useMemo(
-    () => buildStorageListParams(activeFilters, catalogPage),
-    [activeFilters, catalogPage],
-  );
-
-  const statsQueryParams = useMemo(
-    () => buildStorageStatsParams(activeFilters),
-    [activeFilters],
-  );
-
-  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({
-    skip: 0,
-    limit: 100,
-  });
-
-  const {
-    data: inventoryPage,
-    isLoading: loadingInventory,
-    isFetching: fetchingInventory,
-    error: inventoryError,
-  } = useGetInventoryPageQuery(listQueryParams);
-
-  const {
-    data: inventoryStats,
-    isLoading: loadingStats,
-    isFetching: fetchingStats,
-    isError: statsError,
-  } = useGetInventoryStatsQuery(statsQueryParams);
-
-  const fallbackBulkParams = useMemo(
-    () => ({
-      ...statsQueryParams,
+  const { data: inventoryList = [], isLoading: loadingInventory, error: inventoryError } = useGetInventoryListQuery(
+    {
       skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
-    }),
-    [statsQueryParams],
+      limit: 500,
+      factory_id: factoryId ?? undefined,
+      inventory_type: inventoryTypeFilter === 'all' ? undefined : inventoryTypeFilter,
+    }
   );
 
-  const {
-    data: fallbackInventory = [],
-    isLoading: loadingFallbackInventory,
-    isFetching: fetchingFallbackInventory,
-  } = useGetInventoryListQuery(fallbackBulkParams, {
-    skip: !statsError,
-  });
-
-  const inventoryList = inventoryPage?.items ?? [];
-  const inventoryTotal = inventoryPage?.total ?? 0;
-
-  useOrderHubPageClamp(
-    catalogPage,
-    inventoryPage?.total,
-    STORAGE_PAGE_PARAM,
-    setSearchParams,
-    STORAGE_PAGE_SIZE,
+  const { data: productsList = [], isLoading: loadingProducts, error: productsError } = useGetProductsQuery(
+    {
+      skip: 0,
+      limit: 500,
+      factory_id: factoryId ?? undefined,
+      is_available_for_sale: forSaleOnly ? true : undefined,
+    }
   );
-
-  const {
-    data: incomingSummary = [],
-    isError: incomingSummaryIsError,
-    error: incomingSummaryError,
-  } = useGetIncomingSummaryQuery(factoryId != null ? { factory_id: factoryId } : {});
-
-  useEffect(() => {
-    if (incomingSummaryIsError && import.meta.env.DEV) {
-      console.warn('[Storage] incoming-summary request failed', incomingSummaryError);
-    }
-  }, [incomingSummaryIsError, incomingSummaryError]);
-
-  const incomingSummaryErrorMessage = useMemo(() => {
-    if (!incomingSummaryIsError || !incomingSummaryError) return null;
-    const err = incomingSummaryError as FetchBaseQueryError;
-    const status = err.status;
-    if (status === 404 || status === 422) {
-      return 'Incoming summary route not loaded — stop and restart your local backend (uvicorn), then hard-refresh this page.';
-    }
-    if (status === 500) {
-      return 'Incoming summary failed on the server — check the backend terminal for the error traceback.';
-    }
-    if (typeof status === 'number') {
-      return `Incoming summary request failed (HTTP ${status}). Check backend logs.`;
-    }
-    return 'Incoming summary request failed — is the backend running on localhost:8000?';
-  }, [incomingSummaryIsError, incomingSummaryError]);
-
-  const incomingByKey = useMemo(() => {
-    const map = new Map<string, (typeof incomingSummary)[number]>();
-    for (const row of incomingSummary) {
-      map.set(incomingSummaryKey(row.factory_id, row.item_id), row);
-    }
-    return map;
-  }, [incomingSummary]);
-
-  const storageOverview = useMemo(() => {
-    if (inventoryStats) {
-      return storageOverviewFromStatsResponse(inventoryStats);
-    }
-    if (statsError) {
-      const filtered = filterInventoryForStorageCatalog(fallbackInventory, activeFilters);
-      return computeStorageOverviewFromInventory(filtered);
-    }
-    return emptyStorageOverview();
-  }, [inventoryStats, statsError, fallbackInventory, activeFilters]);
-
-  const kpiLoading =
-    loadingStats ||
-    fetchingStats ||
-    (statsError && (loadingFallbackInventory || fetchingFallbackInventory));
 
   const [deleteInventory] = useDeleteInventoryMutation();
+  const [deleteProduct] = useDeleteProductMutation();
+
+  const filteredInventory = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return inventoryList.filter((inv) => {
+      if (filterItemId != null && inv.item_id !== filterItemId) return false;
+      if (!showZeroQty && (inv.qty ?? 0) <= 0) return false;
+      if (!q) return true;
+      return (
+        (inv.item_name ?? '').toLowerCase().includes(q) ||
+        (inv.item_unit ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [inventoryList, searchQuery, showZeroQty, filterItemId]);
+
+  const filteredProducts = useMemo(() => {
+    let list = productsList;
+    if (filterItemId != null) {
+      list = list.filter((p) => p.item_id === filterItemId);
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(
+      (p) =>
+        (p.item_name ?? '').toLowerCase().includes(q) ||
+        (p.item_unit ?? '').toLowerCase().includes(q)
+    );
+  }, [productsList, searchQuery, filterItemId]);
+
+  const storageOverview = useMemo(() => {
+    const records = filteredInventory.length;
+    const totalQty = filteredInventory.reduce((sum, inv) => sum + (inv.qty ?? 0), 0);
+    const estimatedValue = filteredInventory.reduce(
+      (sum, inv) => sum + (inv.qty ?? 0) * (inv.avg_price ?? 0),
+      0
+    );
+    const byType = INVENTORY_TYPES.map((t) => ({
+      type: t.label,
+      uniqueCount: new Set(
+        filteredInventory
+          .filter((inv) => inv.inventory_type === t.value)
+          .map((inv) => inv.item_id)
+      ).size,
+      totalQty: filteredInventory
+        .filter((inv) => inv.inventory_type === t.value)
+        .reduce((sum, inv) => sum + (inv.qty ?? 0), 0),
+    }));
+    return { records, totalQty, estimatedValue, byType };
+  }, [filteredInventory]);
+
+  const productsOverview = useMemo(() => {
+    const records = filteredProducts.length;
+    const totalQty = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0), 0);
+    const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0) * (p.avg_cost ?? 0), 0);
+    const totalSalesValue = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0) * (p.selling_price ?? 0), 0);
+    const availableForSale = filteredProducts.filter((p) => p.is_available_for_sale).length;
+    const uniqueCount = new Set(filteredProducts.map((p) => p.item_id)).size;
+    return { records, totalQty, totalCostValue, totalSalesValue, availableForSale, uniqueCount };
+  }, [filteredProducts]);
 
   const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
 
   const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
     if (slice.factory_ids === undefined) return;
     setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids }));
-    patchStorageParams({});
   };
 
   const factoryLabels = useMemo(() => {
@@ -349,7 +245,7 @@ const StoragePage: React.FC = () => {
   const handleClearInventoryStock = async (inv: Inventory) => {
     if (
       !window.confirm(
-        `Clear stock for "${inv.item_name ?? `Item #${inv.item_id}`}"? Quantity will be set to 0. Movement history is kept in the ledger.`,
+        `Clear stock for "${inv.item_name ?? `Item #${inv.item_id}`}"? Quantity will be set to 0. Movement history is kept in the ledger.`
       )
     )
       return;
@@ -362,14 +258,15 @@ const StoragePage: React.FC = () => {
     }
   };
 
-  const handleInventoryTypeFilterChange = (value: InventoryType | 'all') => {
-    setInventoryTypeFilter(value);
-    patchStorageParams({});
-  };
-
-  const handleShowZeroQtyChange = (value: boolean) => {
-    setShowZeroQty(value);
-    patchStorageParams({ includeZeroQty: value });
+  const handleDeleteProduct = async (prod: Product) => {
+    if (!window.confirm(`Deactivate "${prod.item_name ?? `Item #${prod.item_id}`}" product?`)) return;
+    try {
+      await deleteProduct(prod.id).unwrap();
+      toast.success('Product deactivated');
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to deactivate');
+    }
   };
 
   if (!isLoadingFactories && factories.length === 0) {
@@ -382,7 +279,7 @@ const StoragePage: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can access storage. Set up a factory to start tracking your inventory.
+            You need to create a factory before you can access storage. Set up a factory to start tracking your inventory and products.
           </p>
           <Button
             size="lg"
@@ -402,89 +299,134 @@ const StoragePage: React.FC = () => {
     );
   }
 
+  const layoutProps = {
+    layout: layoutMode,
+    onLayoutChange: setLayoutMode,
+    factoryId,
+    factoryLabels,
+    storageOverview,
+    productsOverview,
+    filteredInventory,
+    filteredProducts,
+    loadingInventory,
+    loadingProducts,
+    inventoryError: !!inventoryError,
+    productsError: !!productsError,
+    searchQuery,
+    showZeroQty,
+    onShowZeroQtyChange: setShowZeroQty,
+    inventoryTypeFilter,
+    onInventoryTypeFilterChange: setInventoryTypeFilter,
+    forSaleOnly,
+    onForSaleOnlyChange: setForSaleOnly,
+    onAddInventory: () => setIsAddInventoryOpen(true),
+    onAddProduct: () => setIsAddProductOpen(true),
+    onEditInventory: setEditingInventory,
+    onClearInventoryStock: handleClearInventoryStock,
+    onEditProduct: setEditingProduct,
+    onDeleteProduct: handleDeleteProduct,
+    contentTab: layoutMode === 'tabs' ? contentTab : undefined,
+    tabSwitcherStyle,
+    tabSwitcherPlacement,
+  };
+
+  const tabsInHeader = layoutMode === 'tabs' && tabSwitcherPlacement === 'header';
+
+  const storageHeader = (
+    <AppShellHeader>
+      <div
+        className={
+          tabsInHeader
+            ? 'grid grid-cols-1 items-center gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
+            : 'flex flex-wrap items-center justify-between gap-4'
+        }
+      >
+        <div
+          className={cn(
+            appShellHeaderLeftGroupClass,
+            tabsInHeader ? 'lg:justify-self-start' : 'min-w-0 flex-1',
+          )}
+        >
+          <div className={appShellHeaderIconTileClass} aria-hidden>
+            <Archive className="h-5 w-5 text-brand-primary" />
+          </div>
+          <h1 className={appShellHeaderTitleClass}>Storage</h1>
+          <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+          <MachinesInlineLocationFilters
+            which="factories"
+            variant="toolbar"
+            value={factoryLocationValue}
+            onChange={handleFactoryLocationChange}
+            factories={factories}
+            sections={[]}
+          />
+        </div>
+
+        {tabsInHeader && (
+          <div className="flex justify-center lg:justify-self-center">
+            <StorageHeaderTabs
+              storageCount={storageOverview.records}
+              productsCount={productsOverview.records}
+              variant={tabSwitcherStyle}
+            />
+          </div>
+        )}
+
+        <div
+          className={
+            tabsInHeader
+              ? 'flex flex-wrap items-center justify-end gap-3 lg:justify-self-end'
+              : 'flex flex-wrap items-center gap-3'
+          }
+        >
+          <StorageLayoutSwitcher
+            value={layoutMode}
+            onChange={setLayoutMode}
+            tabSwitcherStyle={tabSwitcherStyle}
+            onTabSwitcherStyleChange={setTabSwitcherStyle}
+            tabSwitcherPlacement={tabSwitcherPlacement}
+            onTabSwitcherPlacementChange={setTabSwitcherPlacement}
+          />
+          <div className="relative w-[200px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search inventory and products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`pl-9 ${appShellHeaderControlClass} bg-background`}
+            />
+          </div>
+        </div>
+      </div>
+    </AppShellHeader>
+  );
+
+  const storageBody = (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background p-8">
+      <StoragePageLayout {...layoutProps} />
+    </div>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardNavbar />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
-              <div className={appShellHeaderIconTileClass} aria-hidden>
-                <Archive className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Storage</h1>
-              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-              <MachinesInlineLocationFilters
-                which="factories"
-                variant="toolbar"
-                selectionMode="single"
-                value={factoryLocationValue}
-                onChange={handleFactoryLocationChange}
-                factories={factories}
-                sections={[]}
-                open={factoryPickerOpen}
-                onOpenChange={setFactoryPickerOpen}
-                highlight={factoryPickerHighlight}
-                onHighlightDismiss={dismissFactoryPickerHighlight}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search inventory..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-            </div>
-          </div>
-        </AppShellHeader>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden bg-background p-8">
-          <StorageKpiStrip
-            factoryId={factoryId}
-            factoryIds={factories.map((f) => f.id)}
-            factoryLabels={factoryLabels}
-            storageOverview={storageOverview}
-            isLoading={kpiLoading}
-          />
-          <StorageSection
-            factoryId={factoryId}
-            factoryLabels={factoryLabels}
-            overview={storageOverview}
-            inventory={inventoryList}
-            isLoading={loadingInventory}
-            hasError={!!inventoryError}
-            searchQuery={catalogFiltersFromUrl.searchQuery}
-            showZeroQty={showZeroQty}
-            onShowZeroQtyChange={handleShowZeroQtyChange}
-            inventoryTypeFilter={inventoryTypeFilter}
-            onInventoryTypeFilterChange={handleInventoryTypeFilterChange}
-            onAdd={handleAddInventory}
-            onRequireFactory={promptFactorySelect}
-            onEdit={setEditingInventory}
-            onClearStock={handleClearInventoryStock}
-            incomingByKey={incomingByKey}
-            incomingSummaryError={incomingSummaryIsError}
-            incomingSummaryErrorMessage={incomingSummaryErrorMessage}
-            paginationFooter={
-              inventoryTotal > 0 ? (
-                <ListPagePagination
-                  page={catalogPage}
-                  total={inventoryTotal}
-                  pageSize={API_LIMITS.STORAGE_PAGE_SIZE}
-                  isFetching={fetchingInventory}
-                  onPageChange={(page) => patchStorageParams({ page }, { resetPage: false })}
-                />
-              ) : null
-            }
-            className="min-h-0 flex-1"
-          />
-        </div>
+        {layoutMode === 'tabs' ? (
+          <Tabs
+            value={contentTab}
+            onValueChange={(v) => setContentTab(v as StorageContentTab)}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            {storageHeader}
+            {storageBody}
+          </Tabs>
+        ) : (
+          <>
+            {storageHeader}
+            {storageBody}
+          </>
+        )}
       </div>
 
       <AddInventoryDialog
@@ -498,6 +440,18 @@ const StoragePage: React.FC = () => {
         onOpenChange={(open) => !open && setEditingInventory(null)}
         inventory={editingInventory}
         onSuccess={() => setEditingInventory(null)}
+      />
+      <AddProductDialog
+        open={isAddProductOpen}
+        onOpenChange={setIsAddProductOpen}
+        factoryId={factoryId ?? 0}
+        onSuccess={() => {}}
+      />
+      <EditProductDialog
+        open={!!editingProduct}
+        onOpenChange={(open) => !open && setEditingProduct(null)}
+        product={editingProduct}
+        onSuccess={() => setEditingProduct(null)}
       />
     </div>
   );

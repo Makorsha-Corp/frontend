@@ -18,7 +18,7 @@ export interface ActionMessage {
   type: 'success' | 'info' | 'warning' | 'error';
   message: string;
   timestamp: string;
-  details?: unknown;
+  details?: any;
 }
 
 export interface ActionResponse<T> {
@@ -34,7 +34,7 @@ export interface PaginationParams {
 }
 
 export interface PaginatedResponse<T> {
-  items: T[];
+  data: T[];
   total: number;
   skip: number;
   limit: number;

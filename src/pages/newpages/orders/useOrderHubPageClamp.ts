@@ -1,26 +1,25 @@
 import { useEffect } from 'react';
 import type { SetURLSearchParams } from 'react-router-dom';
-import { ORDER_HUB_PAGE_SIZE, resolveClampedPage } from './orderHubApiParams';
+import { orderHubPageCount } from './orderHubApiParams';
 
 /** Clamp hub page URL when filter shrink drops total below current page. */
 export function useOrderHubPageClamp(
   page: number,
-  total: number | undefined,
+  total: number,
   pageParamKey: string,
   setSearchParams: SetURLSearchParams,
-  pageSize: number = ORDER_HUB_PAGE_SIZE,
 ) {
   useEffect(() => {
-    const clamped = resolveClampedPage(page, total, pageSize);
-    if (clamped === null) return;
+    const maxPage = orderHubPageCount(total);
+    if (page <= maxPage) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (clamped <= 1) next.delete(pageParamKey);
-        else next.set(pageParamKey, String(clamped));
+        if (maxPage <= 1) next.delete(pageParamKey);
+        else next.set(pageParamKey, String(maxPage));
         return next;
       },
       { replace: true },
     );
-  }, [page, total, pageParamKey, setSearchParams, pageSize]);
+  }, [page, total, pageParamKey, setSearchParams]);
 }

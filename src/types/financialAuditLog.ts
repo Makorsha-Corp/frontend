@@ -21,13 +21,13 @@ export interface FinancialAuditLog {
 
   // Changes made (JSON with before/after states)
   changes?: {
-    before?: Record<string, unknown>;
-    after?: Record<string, unknown>;
+    before?: Record<string, any>;
+    after?: Record<string, any>;
     invoice_status_changed?: {
       before: string;
       after: string;
     };
-    [key: string]: unknown;
+    [key: string]: any;
   } | null;
 
   // Human-readable description

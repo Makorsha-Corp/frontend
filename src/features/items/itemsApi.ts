@@ -65,24 +65,16 @@ export const itemsApi = createApi({
     // Get single item by ID
     getItemById: builder.query<Item, number>({
       query: (id) => `items/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'Item', id }],
+      providesTags: (result, error, id) => [{ type: 'Item', id }],
     }),
 
     getItemSummary: builder.query<ItemSummary, number>({
       query: (id) => `items/${id}/summary/`,
-      providesTags: (_result, _error, id) => [{ type: 'ItemSummary', id }],
+      providesTags: (result, error, id) => [{ type: 'ItemSummary', id }],
     }),
 
     getItemOrders: builder.query<ItemOrdersListResponse, GetItemOrdersParams>({
-      query: ({
-        itemId,
-        skip = 0,
-        limit = 50,
-        order_type,
-        from_date,
-        to_date,
-        excludePurchaseOrderId,
-      }) => {
+      query: ({ itemId, skip = 0, limit = 50, order_type, from_date, to_date }) => {
         const params = new URLSearchParams({
           skip: skip.toString(),
           limit: limit.toString(),
@@ -90,12 +82,9 @@ export const itemsApi = createApi({
         if (order_type) params.append('order_type', order_type);
         if (from_date) params.append('from_date', from_date);
         if (to_date) params.append('to_date', to_date);
-        if (excludePurchaseOrderId != null) {
-          params.append('exclude_purchase_order_id', excludePurchaseOrderId.toString());
-        }
         return `items/${itemId}/orders/?${params.toString()}`;
       },
-      providesTags: (_result, _error, { itemId }) => [{ type: 'ItemOrders', id: itemId }],
+      providesTags: (result, error, { itemId }) => [{ type: 'ItemOrders', id: itemId }],
     }),
 
     getSimilarItems: builder.query<SimilarItemsResponse, GetSimilarItemsParams>({
@@ -133,7 +122,7 @@ export const itemsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (result, error, { id }) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
         { type: 'Item', id: 'UNITS' },
@@ -156,7 +145,7 @@ export const itemsApi = createApi({
         url: `items/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_result, _error, id) => [
+      invalidatesTags: (result, error, id) => [
         { type: 'Item', id },
         { type: 'Item', id: 'LIST' },
         { type: 'Item', id: 'UNITS' },

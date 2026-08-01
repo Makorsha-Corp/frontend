@@ -79,23 +79,17 @@ export function buildProjectHref(): string {
 export function buildStorageHref(opts: {
   factoryId: number;
   itemId: number;
+  tab?: 'storage' | 'products';
   inventoryType?: string;
 }): string {
   const params = new URLSearchParams();
   params.set('factoryId', String(opts.factoryId));
   params.set('itemId', String(opts.itemId));
+  if (opts.tab === 'products') {
+    params.set('tab', 'products');
+  }
   if (opts.inventoryType) {
     params.set('inventoryType', opts.inventoryType);
   }
   return `/storage?${params.toString()}`;
-}
-
-export function buildProductsHref(opts: {
-  factoryId: number;
-  itemId: number;
-}): string {
-  const params = new URLSearchParams();
-  params.set('factoryId', String(opts.factoryId));
-  params.set('itemId', String(opts.itemId));
-  return `/products?${params.toString()}`;
 }

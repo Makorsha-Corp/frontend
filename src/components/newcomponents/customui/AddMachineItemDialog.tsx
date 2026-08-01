@@ -23,7 +23,6 @@ import type { Item } from '@/types/item';
 import toast from 'react-hot-toast';
 import { Loader2, Plus } from 'lucide-react';
 import AddItemDialog from './AddItemDialog';
-import { apiErrorDetail } from '@/utils/apiError';
 
 interface AddMachineItemDialogProps {
   open: boolean;
@@ -84,10 +83,10 @@ const AddMachineItemDialog: React.FC<AddMachineItemDialogProps> = ({
       setDefectiveQty('');
       onOpenChange(false);
       onSuccess?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add item:', error);
-      const detail = apiErrorDetail(error, '');
-      if (detail.includes('already exists')) {
+      const detail = error?.data?.detail;
+      if (typeof detail === 'string' && detail.includes('already exists')) {
         toast.error('This item already exists on this machine. Edit the existing row to update quantity.');
       } else {
         toast.error(detail || 'Failed to add item to machine');

@@ -21,7 +21,7 @@ export const factoriesApi = createApi({
     }),
     getFactoryById: builder.query<Factory, number>({
       query: (id) => `factories/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'Factory', id }],
+      providesTags: (result, error, id) => [{ type: 'Factory', id }],
     }),
     createFactory: builder.mutation<Factory, CreateFactoryRequest>({
       query: (body) => ({
@@ -37,7 +37,7 @@ export const factoriesApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'Factory', id }],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Factory', id }],
     }),
     deleteFactory: builder.mutation<void, number>({
       query: (id) => ({

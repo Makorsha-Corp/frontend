@@ -24,8 +24,6 @@ Regenerate or spot-check with ripgrep when changing the API:
 
 **Items catalog:** `GET /items/` returns `{ items, total, skip, limit, has_more }`. The Items page uses **`API_LIMITS.ITEMS_CATALOG_PAGE_SIZE` (50)** per request. Filter params: `search`, `unit`, `tag_ids` (repeatable). Distinct units: `GET /items/units/`.
 
-**Storage inventory:** `GET /inventory/` returns `{ items, total, skip, limit, has_more }` (default **`limit=50`**, max **1000**). Filter params: `search`, `item_id`, `include_zero_qty`, `factory_id`, `inventory_type`. KPI strip uses **`GET /inventory/stats/`** with the same filters (no pagination). Storage page uses **`API_LIMITS.STORAGE_PAGE_SIZE` (50)** and URL param **`storagePage`**. Legacy callers of `useGetInventoryListQuery` still receive `.items` via RTK `transformResponse`.
-
 **Purchase / expense / transfer order hubs:** list routes return `{ items, total, skip, limit, has_more }` (default **`limit=50`**, max **100**). PO list items include **`item_count`**, **`quantity_ordered_total`**, and **`quantity_received_total`** for navigator rows (no per-row items fetch on page load). KPI strips use **`GET /{type}/stats/`** with the same filter query params (no pagination). Hub pages use **`API_LIMITS.ORDER_HUB_PAGE_SIZE` (50)** and URL page params **`poPage`**, **`eoPage`**, **`trPage`**. Legacy `useGet*OrdersQuery` hooks unwrap `.items` via `transformResponse` for other callers.
 | **200** | `financial_audit_logs` (multiple list routes) |
 | **500** | **`GET /accounts/`** in **this repo** after deploy (accounts hub); not necessarily on Railway until shipped |

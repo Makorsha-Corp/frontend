@@ -67,7 +67,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
 
   const visibleSections = React.useMemo(
     () => visibleSectionsForSlice(value, allFactoryIds, sections),
-    [sections, value, allFactoryIds]
+    [sections, value.factory_ids, allFactoryIds]
   );
 
   const { factoryDropdownLabel, sectionDropdownLabel } = locationFilterLabels(

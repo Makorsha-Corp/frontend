@@ -46,7 +46,7 @@ export const projectComponentTasksApi = createApi({
     }),
     getProjectComponentTaskById: builder.query<ProjectComponentTask, number>({
       query: (id) => `project-component-tasks/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'ProjectComponentTask', id }],
+      providesTags: (result, error, id) => [{ type: 'ProjectComponentTask', id }],
     }),
     createProjectComponentTask: builder.mutation<ProjectComponentTask, CreateProjectComponentTaskDTO>({
       query: (body) => ({
@@ -75,7 +75,7 @@ export const projectComponentTasksApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'ProjectComponentTask', id }, 'ProjectComponentTask'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'ProjectComponentTask', id }, 'ProjectComponentTask'],
       async onQueryStarted(arg, api) {
         await invalidateProjectEventsOnFulfilled(arg, api);
       },

@@ -13,7 +13,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { BarChart3, Loader2, Moon, MousePointer2, Package, Palette, Sun, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
-import { apiErrorDetail } from '@/utils/apiError';
 
 type LoginTheme = 'light' | 'dark';
 
@@ -516,7 +515,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Login error:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(err, 'Login failed. Please check your credentials.'));
+      toast.error(err?.data?.detail || 'Login failed. Please check your credentials.');
     }
   };
 
@@ -526,7 +525,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Dev login error:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(err, 'Dev quick login failed.'));
+      toast.error(err?.data?.detail || 'Dev quick login failed.');
     }
   };
 
@@ -562,9 +561,9 @@ const Login2Page: React.FC = () => {
 
       toast.success('Account created! Now set up your workspace.');
       navigate('/workspace-selector');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error(apiErrorDetail(error, 'Registration failed. Please try again.'));
+      toast.error(error?.data?.detail || 'Registration failed. Please try again.');
     }
   };
 
@@ -710,7 +709,7 @@ const Login2Page: React.FC = () => {
                       </Button>
                     ) : null}
                     <p className="text-sm text-center text-card-foreground/60">
-                      Don&apos;t have an account?{' '}
+                      Don't have an account?{' '}
                       <button
                         type="button"
                         onClick={() => setMode('register')}

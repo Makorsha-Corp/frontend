@@ -42,10 +42,11 @@ import {
   brandIconTileClass,
   neutralMetricIconClass,
   neutralMetricTileClass,
+  statusMetricIconClass,
+  statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
-import { apiErrorDetail } from '@/utils/apiError';
 
 export interface SectionMachineStats {
   total: number;
@@ -228,6 +229,12 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     [workspaceMachines, factoryId]
   );
 
+  const sectionNameById = React.useMemo(() => {
+    const m = new Map<number, string>();
+    sections.forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [sections]);
+
   const { data: upcomingWork = [] } = useGetUpcomingMachineWorkQuery(
     {
       within_days: 7,
@@ -303,9 +310,9 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     try {
       await deleteSection(section.id).unwrap();
       toast.success(`Section "${section.name}" has been deactivated`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to deactivate section:', error);
-      toast.error(apiErrorDetail(error, 'Failed to deactivate section'));
+      toast.error(error?.data?.detail || 'Failed to deactivate section');
     }
   };
 

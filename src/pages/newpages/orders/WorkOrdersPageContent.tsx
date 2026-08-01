@@ -26,13 +26,17 @@ import {
   WORK_ORDER_STATUS_OPTIONS,
   priorityLabel,
   workOrderStatusLabel,
+  workOrderDisplayLabel,
 } from './workOrderConstants';
 import {
   filterWorkOrders,
   workOrderSummaryStats,
   type WorkOrderLabelContext,
+  type WorkOrderPriorityFilter,
   type WorkOrderStatusFilter,
+  type WorkTypeFilter,
 } from './workOrdersOverviewData';
+import { buildMachineIdToFactoryId } from './ordersOverviewData';
 
 const WO_LIST_LIMIT = API_LIMITS.FLEXIBLE_1000;
 
@@ -88,6 +92,17 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
   const { data: workOrderTypes = [] } = useGetWorkOrderTypesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const [deleteOrder] = useDeleteWorkOrderMutation();
 
+  const machineIdToFactoryId = useMemo(
+    () => buildMachineIdToFactoryId(machines),
+    [machines]
+  );
+
+  const machinesForFactory = useMemo(() => {
+    if (filters.factoryFilter === 'all') return machines;
+    const fid = Number(filters.factoryFilter);
+    return machines.filter((m) => machineIdToFactoryId.get(m.id) === fid);
+  }, [machines, filters.factoryFilter, machineIdToFactoryId]);
+
   const labelCtx: WorkOrderLabelContext = useMemo(
     () => ({
       factoryName: (id) => factories.find((f) => f.id === id)?.name ?? `Factory #${id}`,
@@ -140,6 +155,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
   }, [selectedOrderFromUrl]);
 
   // One-time consumption of a hub deep link, e.g. `?status=DRAFT` or `?status=IN_PROGRESS`.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const raw = searchParams.get('status');
     if (!raw) return;
@@ -149,7 +165,6 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
     } else if (names.length > 0) {
       setHubStatusScope(names);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setSelectedOrder = (orderId: number | null) => {
@@ -277,10 +292,17 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
           className={`shrink-0 max-w-[280px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
         >
           <PanelLeft className="mr-2 h-4 w-4 shrink-0" />
-          <span className="truncate">
-            Browse orders
-            <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
-          </span>
+          {selectedOrder ? (
+            <span className="truncate text-left">
+              <span className="font-medium">{selectedOrder.work_order_number}</span>
+              <span className="text-muted-foreground font-normal"> · {workOrderDisplayLabel(selectedOrder)}</span>
+            </span>
+          ) : (
+            <span className="truncate">
+              Browse orders
+              <span className="text-muted-foreground font-normal"> · {filteredOrders.length}</span>
+            </span>
+          )}
         </Button>
 
         <div className="hidden sm:block h-6 w-px bg-border shrink-0" aria-hidden />

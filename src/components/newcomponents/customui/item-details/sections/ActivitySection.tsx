@@ -5,7 +5,6 @@ import type { ItemSummary, ItemSummaryRecentActivity } from '@/types/itemSummary
 import {
   buildMachineHref,
   buildOrderHref,
-  buildProductsHref,
   buildStorageHref,
 } from '@/lib/entityLinks';
 import { cn } from '@/lib/utils';
@@ -26,23 +25,22 @@ export function ActivityMovementRow({
   const orderHref =
     act.order_type && act.order_id ? buildOrderHref(act.order_type, act.order_id) : null;
   const machineHref = act.machine_id != null ? buildMachineHref(act.machine_id) : null;
-  const stockHref =
+  const storageHref =
     act.factory_id != null && act.source !== 'machine'
-      ? act.source === 'product'
-        ? buildProductsHref({ factoryId: act.factory_id, itemId })
-        : buildStorageHref({
-            factoryId: act.factory_id,
-            itemId,
-            inventoryType: act.inventory_type ?? undefined,
-          })
+      ? buildStorageHref({
+          factoryId: act.factory_id,
+          itemId,
+          tab: act.source === 'product' ? 'products' : 'storage',
+          inventoryType: act.inventory_type ?? undefined,
+        })
       : null;
   const contextParts: React.ReactNode[] = [];
   if (act.factory_name) {
     contextParts.push(
-      stockHref ? (
+      storageHref ? (
         <EntityLink
           key="factory"
-          to={stockHref}
+          to={storageHref}
           onNavigate={onNavigate}
           className="text-xs font-normal"
         >

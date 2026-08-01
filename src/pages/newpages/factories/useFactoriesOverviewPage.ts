@@ -32,10 +32,9 @@ export function useFactoriesOverviewPage() {
   );
   const [searchQuery, setSearchQuery] = useState('');
 
-  const authFactoryId = authFactory?.id;
   useEffect(() => {
-    setFactoryFilterState(authFactoryId != null ? String(authFactoryId) : 'all');
-  }, [authFactoryId]);
+    setFactoryFilterState(authFactory ? String(authFactory.id) : 'all');
+  }, [authFactory?.id]);
 
   const setFactoryFilter = useCallback(
     (next: string) => {

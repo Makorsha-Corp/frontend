@@ -343,15 +343,12 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         })
       : undefined;
 
-  const itemName = useCallback(
-    (id: string) =>
-      itemLabels[id] ??
-      (() => {
-        const item = items.find((i) => String(i.id) === id);
-        return item ? (item.unit ? `${item.name} (${item.unit})` : item.name) : `Item #${id}`;
-      })(),
-    [itemLabels, items],
-  );
+  const itemName = (id: string) =>
+    itemLabels[id] ??
+    (() => {
+      const item = items.find((i) => String(i.id) === id);
+      return item ? (item.unit ? `${item.name} (${item.unit})` : item.name) : `Item #${id}`;
+    })();
 
   const handleItemSelect = (selection: ItemSelection) => {
     const label = formatItemDisplayLabel(selection);
@@ -679,7 +676,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     const list = names.length > 2 ? `${preview} +${names.length - 2}` : preview;
     const action = workOrderItemActionLabel(lines[0].actionType);
     return `${action} · ${list}`;
-  }, [lines, itemName]);
+  }, [lines, itemLabels, items]);
 
   const moreSummary = useMemo(() => {
     const bits: string[] = [];

@@ -43,7 +43,7 @@ const CalendarPage: React.FC = () => {
     types: activeCategories,
   });
 
-  const events = useMemo(() => data?.events ?? [], [data]);
+  const events = data?.events ?? [];
 
   const eventsByDate = useMemo(() => groupEventsByDate(events), [events]);
 

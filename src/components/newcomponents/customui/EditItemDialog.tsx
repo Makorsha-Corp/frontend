@@ -16,7 +16,6 @@ import type { Item } from '@/types/item';
 import ItemTagPickerSection from '@/components/newcomponents/customui/ItemTagPickerSection';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { apiErrorDetail } from '@/utils/apiError';
 
 interface EditItemDialogProps {
   open: boolean;
@@ -72,9 +71,9 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
 
       toast.success('Item updated successfully!');
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update item:', error);
-      toast.error(apiErrorDetail(error, 'Failed to update item'));
+      toast.error(error?.data?.detail || 'Failed to update item');
     }
   };
 

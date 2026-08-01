@@ -6,13 +6,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Building2, ExternalLink } from 'lucide-react';
 import AccountOverviewPanel from './AccountOverviewPanel';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
-import type { AccountViewHighlightContext } from './accountViewContext';
 
 export interface AccountViewDialogProps {
   accountId: number | null;
@@ -20,7 +18,6 @@ export interface AccountViewDialogProps {
   onOpenChange: (open: boolean) => void;
   /** When known, shown in title before fetch completes. */
   accountName?: string | null;
-  highlightContext?: AccountViewHighlightContext;
 }
 
 const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
@@ -28,7 +25,6 @@ const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
   open,
   onOpenChange,
   accountName: accountNameProp,
-  highlightContext,
 }) => {
   const navigate = useNavigate();
   const { data: account, isLoading } = useGetAccountByIdQuery(accountId!, {
@@ -51,17 +47,9 @@ const AccountViewDialog: React.FC<AccountViewDialogProps> = ({
             <Building2 className="h-4 w-4 text-muted-foreground" />
             {accountName ?? (accountId != null ? `Account #${accountId}` : 'Account')}
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            Account profile, open invoices, and supplier details.
-          </DialogDescription>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-          <AccountOverviewPanel
-            account={account}
-            isLoading={isLoading}
-            accountId={accountId}
-            highlightContext={highlightContext}
-          />
+          <AccountOverviewPanel account={account} isLoading={isLoading} accountId={accountId} />
         </div>
         <DialogFooter className="shrink-0 gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

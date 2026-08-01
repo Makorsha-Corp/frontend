@@ -28,7 +28,7 @@ export const machineItemsApi = createApi({
     }),
     getMachineItemById: builder.query<MachineItem, number>({
       query: (id) => `machine-items/${id}/`,
-      providesTags: (_result, _error, id) => [{ type: 'MachineItem', id }],
+      providesTags: (result, error, id) => [{ type: 'MachineItem', id }],
     }),
     createMachineItem: builder.mutation<MachineItem, CreateMachineItemRequest>({
       query: (body) => ({
@@ -55,7 +55,7 @@ export const machineItemsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_result, _error, { id }) => [{ type: 'MachineItem', id }, 'MachineItem'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'MachineItem', id }, 'MachineItem'],
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;

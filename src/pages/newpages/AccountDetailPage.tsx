@@ -179,12 +179,8 @@ const AccountDetailPage: React.FC = () => {
                 selectedInvoiceId={workspace.selectedInvoiceId}
                 invoiceOrderNumberMap={workspace.invoiceOrderNumberMap}
                 isLoading={workspace.invoiceListLoading}
-                isFetching={workspace.invoiceListFetching}
                 invoiceCountLabel={workspace.invoiceCountLabel}
-                invoicePage={workspace.invoicePage}
-                invoicesTotal={workspace.invoicesTotal}
-                invoicePageSize={workspace.invoicePageSize}
-                onInvoicePageChange={workspace.setInvoicePage}
+                listCapped={workspace.invoiceListCapped}
                 onSelectInvoice={workspace.selectInvoice}
               />
 
