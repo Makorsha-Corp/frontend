@@ -39,7 +39,7 @@ export const projectsApi = createApi({
     }),
     getProjectById: builder.query<Project, number>({
       query: (id) => `projects/${id}/`,
-      providesTags: (result, error, id) => [{ type: 'Project', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Project', id }],
     }),
     createProject: builder.mutation<Project, CreateProjectDTO>({
       query: (body) => ({
@@ -55,7 +55,7 @@ export const projectsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Project', id },
         'Project',
         { type: 'ProjectEvents', id },

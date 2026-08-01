@@ -28,8 +28,6 @@ import {
   ArrowRight,
   Package,
   Loader2,
-  MessageSquare,
-  Send,
   History,
   Check,
   CheckCircle2,

@@ -12,6 +12,7 @@ import { useGetDiscussionsQuery, useCreateDiscussionMutation } from '@/features/
 import type { Discussion } from '@/types/discussion';
 import type { WorkspaceMember } from '@/types/workspace';
 import { DISCUSSION_URL_HASH, ORDER_DISCUSSION_SECTION_ID } from '@/constants/discussion';
+import type { DiscussionEntityType } from '@/types/discussion';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ function MentionText({ text, members }: { text: string; members: WorkspaceMember
 // ── Message Input ────────────────────────────────────────────────────────────
 
 interface MessageInputProps {
-  entityType: string;
+  entityType: DiscussionEntityType;
   entityId: number;
   members: WorkspaceMember[];
   parentId?: number | null;
@@ -225,7 +226,7 @@ function MessageInput({
     if (!trimmed || isLoading) return;
     try {
       await createDiscussion({
-        entity_type: entityType as any,
+        entity_type: entityType,
         entity_id: entityId,
         message: resolveMessage(trimmed),
         parent_id: parentId ?? null,
@@ -345,7 +346,7 @@ function DiscussionItem({
 }: {
   discussion: Discussion;
   members: WorkspaceMember[];
-  entityType: string;
+  entityType: DiscussionEntityType;
   entityId: number;
   depth?: number;
 }) {
@@ -412,7 +413,7 @@ function DiscussionItem({
 // ── Thread (exported) ────────────────────────────────────────────────────────
 
 interface DiscussionThreadProps {
-  entityType: string;
+  entityType: DiscussionEntityType;
   entityId: number;
 }
 

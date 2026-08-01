@@ -14,6 +14,7 @@ import { useUpdateFactoryMutation } from '@/features/factories/factoriesApi';
 import type { Factory } from '@/types/factory';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import { apiErrorDetail } from '@/utils/apiError';
 
 interface EditFactoryDialogProps {
   open: boolean;
@@ -77,9 +78,9 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
 
       toast.success('Factory updated successfully!');
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to update factory:', error);
-      toast.error(error?.data?.detail || 'Failed to update factory');
+      toast.error(apiErrorDetail(error, 'Failed to update factory'));
     }
   };
 

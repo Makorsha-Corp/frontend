@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useGetSalesOrdersQuery, useGetSalesOrderItemsQuery } from '@/features/salesOrders/salesOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import type { SalesOrder } from '@/types/salesOrder';

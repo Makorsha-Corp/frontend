@@ -186,7 +186,10 @@ export function useWorkOrdersFilters() {
     patchParams({ sheetRowFlow: flow === 'modal-edit' ? null : flow });
   const setWeekView = (view: WorkOrdersWeekView) =>
     patchParams({ woWeekView: view === 'rows' ? null : view });
-  const setSheetDate = (iso: string) => patchParams({ woDate: iso.trim() ? iso : null });
+  const setSheetDate = useCallback(
+    (iso: string) => patchParams({ woDate: iso.trim() ? iso : null }),
+    [patchParams],
+  );
   const clearSheetDate = () => patchParams({ woDate: null, woDateScope: null });
   const setFactoryFilterWithReset = useCallback(
     (value: string) => {

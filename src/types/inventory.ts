@@ -47,6 +47,30 @@ export interface ListInventoryParams {
   limit?: number;
   inventory_type?: InventoryType;
   factory_id?: number;
+  search?: string;
+  item_id?: number;
+  include_zero_qty?: boolean;
+}
+
+export interface InventoryListResponse {
+  items: Inventory[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface InventoryStatsByTypeRow {
+  inventory_type: InventoryType;
+  unique_item_count: number;
+  total_qty: number;
+}
+
+export interface InventoryStatsResponse {
+  records: number;
+  total_qty: number;
+  estimated_value: number | string;
+  by_type: InventoryStatsByTypeRow[];
 }
 
 export interface InventoryLedgerEntry {

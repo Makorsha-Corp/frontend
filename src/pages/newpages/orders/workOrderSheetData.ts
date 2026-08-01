@@ -116,7 +116,7 @@ function buildRowMeta(
   const isRecurringFromTemplate = template?.is_recurring === true;
   const recurrenceCadence =
     template && isRecurringFromTemplate ? formatRecurrenceCadence(template) : null;
-  const templateName = template?.name?.trim() ? template.name.trim() : null;
+  const templateName = template?.template_name?.trim() ? template.template_name.trim() : null;
   const parts: string[] = [];
   if (order.priority !== 'MEDIUM') parts.push(`Priority: ${order.priority}`);
   if (order.account_id != null) {

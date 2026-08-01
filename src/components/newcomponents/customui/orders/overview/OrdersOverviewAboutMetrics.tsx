@@ -8,11 +8,11 @@ import {
 import { API_LIMITS } from '@/constants/apiLimits';
 
 interface OrdersOverviewAboutMetricsProps {
-  salesMayTruncate?: boolean;
+  hubOrdersMayTruncate?: boolean;
 }
 
 const OrdersOverviewAboutMetrics: React.FC<OrdersOverviewAboutMetricsProps> = ({
-  salesMayTruncate,
+  hubOrdersMayTruncate,
 }) => (
   <Collapsible className="rounded-lg border border-border bg-muted/20">
     <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -32,12 +32,12 @@ const OrdersOverviewAboutMetrics: React.FC<OrdersOverviewAboutMetricsProps> = ({
         is selected.
       </p>
       <p>
-        APIs use skip/limit pagination. Sales orders are merged from pages of {API_LIMITS.STRICT_100}{' '}
-        (up to {10 * API_LIMITS.STRICT_100} rows).
-        {salesMayTruncate
-          ? ' The last sales page was full — you may have more than 1000 sales orders; this view can undercount.'
+        APIs use skip/limit pagination. Purchase, transfer, expense, and sales orders are merged
+        from pages of {API_LIMITS.ORDER_HUB_LIST_MAX} (up to{' '}
+        {10 * API_LIMITS.ORDER_HUB_LIST_MAX} rows per type).
+        {hubOrdersMayTruncate
+          ? ' At least one order type hit the 1000-row cap — this view can undercount.'
           : ''}{' '}
-        Purchase, transfer, expense, and work lists load up to {API_LIMITS.FLEXIBLE_1000} each.
         Machines, factory sections, and projects load up to {API_LIMITS.FLEXIBLE_1000} for resolving
         machine/project legs to a factory.
       </p>

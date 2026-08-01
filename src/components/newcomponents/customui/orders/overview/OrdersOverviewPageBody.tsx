@@ -18,7 +18,7 @@ interface OrdersOverviewPageBodyProps {
   onFactorySelect?: (factoryId: string) => void;
   isLoading: boolean;
   loadStats: boolean;
-  salesMayTruncate?: boolean;
+  hubOrdersMayTruncate?: boolean;
   countsByType: CountsByTypeRow[];
   ordersOverTime: OrdersOverTimeRow[];
   totalOrdersCount: number;
@@ -31,7 +31,7 @@ const OrdersOverviewPageBody: React.FC<OrdersOverviewPageBodyProps> = ({
   onFactorySelect,
   isLoading,
   loadStats,
-  salesMayTruncate,
+  hubOrdersMayTruncate,
   countsByType,
   ordersOverTime,
   totalOrdersCount,
@@ -74,7 +74,7 @@ const OrdersOverviewPageBody: React.FC<OrdersOverviewPageBodyProps> = ({
       />
       {insightsRow}
       <OrdersRecentActivityTable orders={filteredRecentOrders} isLoading={isLoading} />
-      <OrdersOverviewAboutMetrics salesMayTruncate={salesMayTruncate} />
+      <OrdersOverviewAboutMetrics hubOrdersMayTruncate={hubOrdersMayTruncate} />
     </>
   );
 };

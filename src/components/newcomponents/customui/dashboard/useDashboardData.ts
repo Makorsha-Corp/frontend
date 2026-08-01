@@ -3,10 +3,9 @@ import { startOfDay, parseISO } from 'date-fns';
 import { useAppSelector } from '@/app/hooks';
 import { useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
-import { useGetProductionBatchesQuery, useGetProductionLinesQuery } from '@/features/production/productionApi';
-import { useGetAccountInvoicesQuery } from '@/features/accountInvoices/accountInvoicesApi';
-import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
-import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
+import { useGetProductionBatchesQuery, useGetProductionBatchStatsQuery } from '@/features/production/productionApi';
+import { useGetAccountInvoicesHubSummaryQuery } from '@/features/accountInvoices/accountInvoicesApi';
+import { useGetInventoryStatsQuery } from '@/features/inventory/inventoryApi';
 import {
   useGetWorkspaceQuery,
   useGetWorkspaceInvitationsQuery,
@@ -22,13 +21,11 @@ import {
   type OverviewOrder,
 } from '@/pages/newpages/orders/ordersOverviewData';
 import { useOrdersScopeData } from '@/pages/newpages/orders/useOrdersScopeData';
-import { isOpenInvoiceBalance } from '@/components/newcomponents/customui/accounts/accountInvoiceTotals';
 import type { Project } from '@/types/project';
 import type { Machine } from '@/types/machine';
 import type { MachineUpcomingWorkRow } from '@/types/machineUpcomingWork';
 import { mapUpcomingWorkToAttentionRows, splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
 import type { FactorySection } from '@/types/factorySection';
-import type { AccountInvoice } from '@/types/accountInvoice';
 import type { ProductionBatch } from '@/types/production';
 import { ORDER_TYPE_PATHS } from './dashboardConstants';
 
@@ -110,8 +107,7 @@ function buildAttentionItems(
   projects: Project[],
   upcomingMachineWork: MachineUpcomingWorkRow[],
   sectionById: Map<number, FactorySection>,
-  payableInvoices: AccountInvoice[],
-  accountNameById: Map<number, string>,
+  overduePayableCount: number,
   notInvoicedCount: number,
   batches: ProductionBatch[],
   now: Date
@@ -143,16 +139,16 @@ function buildAttentionItems(
     });
   }
 
-  for (const inv of payableInvoices) {
-    if (inv.invoice_status === 'voided' || inv.payment_status !== 'overdue') continue;
-    const due = inv.due_date ? parseISO(inv.due_date.slice(0, 10)) : now;
-    const accountName = accountNameById.get(inv.account_id) ?? `Account #${inv.account_id}`;
+  if (overduePayableCount > 0) {
     items.push({
-      id: `payable-${inv.id}`,
+      id: 'overdue-payable-summary',
       kind: 'overdue_payable',
-      title: `${accountName} · overdue payable`,
-      subtitle: `$${inv.outstanding_amount.toLocaleString()} outstanding`,
-      sortKey: due.getTime(),
+      title:
+        overduePayableCount === 1
+          ? '1 overdue payable invoice'
+          : `${overduePayableCount} overdue payable invoices`,
+      subtitle: 'Review accounts payable',
+      sortKey: now.getTime(),
       href: '/accounts/payable',
     });
   }
@@ -233,6 +229,7 @@ export function useDashboardData() {
     isLoading: scopeLoading,
     hasError: scopeError,
     salesMayTruncate,
+    hubOrdersMayTruncate,
   } = useOrdersScopeData();
 
   const { data: upcomingMachineWork = [], isLoading: loadUpcomingWork, isError: errUpcomingWork } =
@@ -247,44 +244,25 @@ export function useDashboardData() {
     limit: API_LIMITS.FLEXIBLE_1000,
     factory_id: factoryId ?? undefined,
   });
-  const { data: productionLines = [], isLoading: loadLines, isError: errLines } =
-    useGetProductionLinesQuery({
-      skip: 0,
-      limit: API_LIMITS.STRICT_100,
-      factory_id: factoryId ?? undefined,
-      active_only: false,
-    });
+
   const { data: batchesInProgressRaw = [], isLoading: loadBatches, isError: errBatches } =
     useGetProductionBatchesQuery({
       skip: 0,
       limit: API_LIMITS.STRICT_100,
       status: 'in_progress',
     });
-  const { data: allBatchesRaw = [], isLoading: loadAllBatches, isError: errAllBatches } =
-    useGetProductionBatchesQuery({
-      skip: 0,
-      limit: API_LIMITS.STRICT_100,
+
+  const { data: invoicesHubSummary, isLoading: loadInvoicesHub, isError: errInvoicesHub } =
+    useGetAccountInvoicesHubSummaryQuery();
+
+  const { data: inventoryStats, isLoading: loadInventory, isError: errInventory } =
+    useGetInventoryStatsQuery({
+      factory_id: factoryId ?? undefined,
+      include_zero_qty: false,
     });
 
-  const { data: payableInvoices = [], isLoading: loadPayable, isError: errPayable } =
-    useGetAccountInvoicesQuery(
-      { skip: 0, limit: API_LIMITS.INVOICES_HUB, invoice_type: 'payable' },
-      { skip: false }
-    );
-  const { data: receivableInvoices = [], isLoading: loadReceivable, isError: errReceivable } =
-    useGetAccountInvoicesQuery(
-      { skip: 0, limit: API_LIMITS.INVOICES_HUB, invoice_type: 'receivable' },
-      { skip: false }
-    );
-  const { data: accounts = [], isLoading: loadAccounts, isError: errAccounts } = useGetAccountsQuery(
-    { skip: 0, limit: API_LIMITS.ACCOUNTS_LIST_MAX },
-    { skip: false }
-  );
-
-  const { data: inventoryList = [], isLoading: loadInventory, isError: errInventory } =
-    useGetInventoryListQuery({
-      skip: 0,
-      limit: 500,
+  const { data: batchStats, isLoading: loadBatchStats, isError: errBatchStats } =
+    useGetProductionBatchStatsQuery({
       factory_id: factoryId ?? undefined,
     });
 
@@ -305,37 +283,26 @@ export function useDashboardData() {
   const isLoading =
     scopeLoading ||
     loadPr ||
-    loadLines ||
     loadBatches ||
-    loadAllBatches ||
-    loadPayable ||
-    loadReceivable ||
-    loadAccounts ||
+    loadInvoicesHub ||
     loadInventory ||
+    loadBatchStats ||
     loadUpcomingWork ||
     (isOwner && (loadWorkspace || loadInvites));
 
   const hasError =
     scopeError ||
     errPr ||
-    errLines ||
     errBatches ||
-    errAllBatches ||
-    errPayable ||
-    errReceivable ||
-    errAccounts ||
+    errInvoicesHub ||
     errInventory ||
+    errBatchStats ||
     errUpcomingWork ||
     (isOwner && (errWorkspace || errInvites));
 
   const sectionById = useMemo(
     () => new Map(factorySections.map((s) => [s.id, s])),
     [factorySections]
-  );
-
-  const accountNameById = useMemo(
-    () => new Map(accounts.map((a) => [a.id, a.name])),
-    [accounts]
   );
 
   const scopedOrders = useMemo(
@@ -357,25 +324,7 @@ export function useDashboardData() {
     [machines, factoryId]
   );
 
-  const lineIdsForFactory = useMemo(() => {
-    const lines =
-      factoryId != null ? productionLines.filter((l) => l.factory_id === factoryId) : productionLines;
-    return new Set(lines.map((l) => l.id));
-  }, [productionLines, factoryId]);
-
-  const batchesInProgressScoped = useMemo(() => {
-    if (factoryId == null) return batchesInProgressRaw;
-    return batchesInProgressRaw.filter((b) => lineIdsForFactory.has(b.production_line_id));
-  }, [batchesInProgressRaw, factoryId, lineIdsForFactory]);
-
-  const batchesScoped = useMemo(() => {
-    if (factoryId == null) return allBatchesRaw;
-    return allBatchesRaw.filter((b) => lineIdsForFactory.has(b.production_line_id));
-  }, [allBatchesRaw, factoryId, lineIdsForFactory]);
-
-  const inventoryScoped = useMemo(() => {
-    return inventoryList.filter((inv) => (inv.qty ?? 0) > 0);
-  }, [inventoryList]);
+  const batchesInProgressCount = batchStats?.inProgressCount ?? batchesInProgressRaw.length;
 
   const splitMachineWork = useMemo(
     () => splitUpcomingWorkByDueWindow(upcomingMachineWork, sectionById, 7),
@@ -393,25 +342,14 @@ export function useDashboardData() {
     const overdueMachineWorkCount = splitMachineWork.overdueCount;
     const upcomingMachineWorkItemCount = splitMachineWork.upcomingCount;
 
-    const payableOutstanding = payableInvoices
-      .filter((inv) => isOpenInvoiceBalance(inv))
-      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
-    const receivableOutstanding = receivableInvoices
-      .filter((inv) => isOpenInvoiceBalance(inv))
-      .reduce((sum, inv) => sum + inv.outstanding_amount, 0);
+    const payableOutstanding = invoicesHubSummary?.payable.outstandingTotal ?? 0;
+    const receivableOutstanding = invoicesHubSummary?.receivable.outstandingTotal ?? 0;
 
     const overdueInvoiceCount =
-      payableInvoices.filter(
-        (inv) => inv.invoice_status !== 'voided' && inv.payment_status === 'overdue'
-      ).length +
-      receivableInvoices.filter(
-        (inv) => inv.invoice_status !== 'voided' && inv.payment_status === 'overdue'
-      ).length;
+      (invoicesHubSummary?.payable.overdueCount ?? 0) +
+      (invoicesHubSummary?.receivable.overdueCount ?? 0);
 
-    const storageEstimatedValue = inventoryScoped.reduce(
-      (sum, inv) => sum + (inv.qty ?? 0) * (inv.avg_price ?? 0),
-      0
-    );
+    const storageEstimatedValue = toFiniteNumber(inventoryStats?.estimated_value) ?? 0;
 
     const machinesRunningCount = machinesScoped.filter((m) => m.is_running && m.is_active).length;
 
@@ -420,7 +358,7 @@ export function useDashboardData() {
       openOrdersPendingValue: stats.pendingValue,
       activeProjectsCount: activeProjects.length,
       planningProjectsCount: planningProjects.length,
-      batchesInProgressCount: batchesInProgressScoped.length,
+      batchesInProgressCount,
       maintenanceDueCount: overdueMachineWorkCount + upcomingMachineWorkItemCount,
       upcomingMachineWorkCount,
       overdueMachineWorkCount,
@@ -434,12 +372,12 @@ export function useDashboardData() {
   }, [
     scopedOrders,
     projectsScoped,
-    batchesInProgressScoped,
+    batchesInProgressCount,
     upcomingMachineWork,
     splitMachineWork,
-    payableInvoices,
-    receivableInvoices,
-    inventoryScoped,
+    invoicesHubSummary,
+    inventoryStats,
+    machinesScoped,
   ]);
 
   const notInvoicedCount = useMemo(
@@ -461,10 +399,9 @@ export function useDashboardData() {
         projectsScoped,
         upcomingMachineWork,
         sectionById,
-        payableInvoices,
-        accountNameById,
+        invoicesHubSummary?.payable.overdueCount ?? 0,
         notInvoicedCount,
-        batchesScoped,
+        batchesInProgressRaw,
         new Date()
       ),
     [
@@ -472,10 +409,9 @@ export function useDashboardData() {
       projectsScoped,
       upcomingMachineWork,
       sectionById,
-      payableInvoices,
-      accountNameById,
+      invoicesHubSummary?.payable.overdueCount,
       notInvoicedCount,
-      batchesScoped,
+      batchesInProgressRaw,
     ]
   );
 
@@ -504,6 +440,7 @@ export function useDashboardData() {
     workspacePulse,
     isLoading,
     hasError,
-    salesMayTruncate,
+    salesMayTruncate: salesMayTruncate || hubOrdersMayTruncate,
+    hubOrdersMayTruncate,
   };
 }
