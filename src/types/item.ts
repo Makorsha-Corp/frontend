@@ -21,6 +21,8 @@ export interface ItemTagInfo {
 /**
  * Item represents an entry in the item catalog
  */
+export type ItemType = 'physical' | 'service';
+
 export interface Item {
   id: number;
   workspace_id: number;
@@ -28,6 +30,7 @@ export interface Item {
   description: string | null;
   unit: string;  // e.g., "kg", "pcs", "L"
   sku?: string | null;
+  item_type: ItemType;
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
@@ -44,6 +47,7 @@ export interface CreateItemRequest {
   description?: string | null;
   unit: string;
   sku?: string | null;
+  item_type?: ItemType;  // Defaults to 'physical' server-side
   tag_ids?: number[];  // IDs of tags to assign
 }
 
@@ -55,6 +59,7 @@ export interface UpdateItemRequest {
   description?: string | null;
   unit?: string;
   sku?: string | null;
+  item_type?: ItemType;
   is_active?: boolean;
   tag_ids?: number[];  // IDs of tags to assign (replaces existing tags)
 }
