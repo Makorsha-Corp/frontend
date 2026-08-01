@@ -174,7 +174,7 @@ export const machinesApi = createApi({
 
       query: (id) => `machines/${id}/`,
 
-      providesTags: (result, error, id) => [{ type: 'Machine', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Machine', id }],
 
     }),
 
@@ -206,7 +206,7 @@ export const machinesApi = createApi({
 
       }),
 
-      invalidatesTags: (result, error, { id }) => [{ type: 'Machine', id }, 'Machine', { type: 'MachineActivity', id }],
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Machine', id }, 'Machine', { type: 'MachineActivity', id }],
 
     }),
 
@@ -240,7 +240,7 @@ export const machinesApi = createApi({
 
       }),
 
-      invalidatesTags: (result, error, { machine_id }) => [
+      invalidatesTags: (_result, _error, { machine_id }) => [
 
         { type: 'Machine', id: machine_id },
 
@@ -272,7 +272,7 @@ export const machinesApi = createApi({
 
       },
 
-      providesTags: (result, error, { machine_id }) => [
+      providesTags: (_result, _error, { machine_id }) => [
 
         { type: 'MachineActivity', id: machine_id },
 

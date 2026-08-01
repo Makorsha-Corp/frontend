@@ -28,6 +28,9 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
   const [tagsSearch, setTagsSearch] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
+  const accountsPageSize = API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
+  const accountsFetchLimit = accountsPageSize + 1;
+
   const [name, setName] = useState('');
   const [accountCode, setAccountCode] = useState('');
   const [primaryContactPerson, setPrimaryContactPerson] = useState('');
@@ -41,14 +44,19 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
   const [bankDetails, setBankDetails] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
-  const { data: accounts = [], isLoading: isLoadingAccounts } = useGetAccountsQuery({
-    skip: accountsPage * API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
-    limit: API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE,
+  const { data: accountsProbe = [], isLoading: isLoadingAccounts } = useGetAccountsQuery({
+    skip: accountsPage * accountsPageSize,
+    limit: accountsFetchLimit,
     search: accountsSearch || undefined,
   });
 
+  const accounts = useMemo(
+    () => accountsProbe.slice(0, accountsPageSize),
+    [accountsProbe, accountsPageSize],
+  );
+
   const canAccountsPrev = accountsPage > 0;
-  const canAccountsNext = accounts.length === API_LIMITS.ACCOUNTS_HUB_PAGE_SIZE;
+  const canAccountsNext = accountsProbe.length > accountsPageSize;
   const { data: tags = [], isLoading: isLoadingTags } = useGetTagsQuery();
   const [updateAccount, { isLoading: isSaving }] = useUpdateAccountMutation();
 

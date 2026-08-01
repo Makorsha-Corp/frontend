@@ -204,13 +204,13 @@ const TransferOrdersPage: React.FC = () => {
     data: pageData,
     isLoading,
     isFetching,
-  } = useGetTransferOrdersPageQuery(listQueryParams, { keepPreviousData: true });
+  } = useGetTransferOrdersPageQuery(listQueryParams);
   const { data: hubStats, isLoading: statsLoading } = useGetTransferOrderHubStatsQuery(hubFilterParams);
 
-  const orders = pageData?.items ?? [];
+  const orders = useMemo(() => pageData?.items ?? [], [pageData]);
   const ordersTotal = pageData?.total ?? 0;
 
-  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.transfer, setSearchParams);
+  useOrderHubPageClamp(listPage, pageData?.total, ORDER_HUB_PAGE_PARAMS.transfer, setSearchParams);
 
   const labelCtx: TransferLocationLabelContext = useMemo(
     () => ({ factories, machines, projects }),

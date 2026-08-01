@@ -84,7 +84,8 @@ const DashboardPage: React.FC = () => {
         <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
           {salesMayTruncate && (
             <p className="mb-4 text-xs text-muted-foreground">
-              Sales order counts may be truncated due to pagination limits.
+              Some order KPIs may be truncated — workspace has more than 1000 rows in one or more
+              order types.
             </p>
           )}
 

@@ -135,3 +135,55 @@ export interface AccountInvoiceSummaryParams {
   amount_min?: number;
   amount_max?: number;
 }
+
+export type AccountsHubSection = 'overview' | 'payable' | 'receivable';
+
+export interface AccountOpenBalanceRollupApi {
+  payable_outstanding: string;
+  receivable_outstanding: string;
+  open_payable_count: number;
+  open_receivable_count: number;
+  has_overdue_payable: boolean;
+  has_overdue_receivable: boolean;
+}
+
+export interface AccountOpenBalanceRollup {
+  payableOutstanding: number;
+  receivableOutstanding: number;
+  openPayableCount: number;
+  openReceivableCount: number;
+  hasOverduePayable: boolean;
+  hasOverdueReceivable: boolean;
+}
+
+export interface AccountHubRowApi extends AccountApiResponse {
+  account_tags?: AccountTagInfo[];
+  open_balance: AccountOpenBalanceRollupApi;
+}
+
+export interface AccountHubRow extends Account {
+  openBalance: AccountOpenBalanceRollup;
+}
+
+export interface AccountHubListApiResponse {
+  items: AccountHubRowApi[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface AccountHubListPage {
+  items: AccountHubRow[];
+  total: number;
+  skip: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+export interface AccountHubPageParams {
+  section?: AccountsHubSection;
+  search?: string;
+  skip?: number;
+  limit?: number;
+}

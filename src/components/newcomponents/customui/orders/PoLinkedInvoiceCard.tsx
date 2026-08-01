@@ -55,7 +55,6 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   invoice,
   invoiceStatus,
   invoiceLocked,
-  hasSupplier,
   hasUnsavedSupplier = false,
   baseSectionsConfirmed = false,
   isSyncingDraft = false,

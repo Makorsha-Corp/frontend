@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 export interface DatePickerFieldProps {
   /** ISO date `yyyy-MM-dd` */
   value: string;
-  onChange: (isoDate: string) => void;
+  onChange?: (isoDate: string) => void;
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
@@ -98,7 +98,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
           modifiersClassNames={calendarModifierClassNames}
           onSelect={(date) => {
             if (!date) return;
-            onChange(format(date, 'yyyy-MM-dd'));
+            onChange?.(format(date, 'yyyy-MM-dd'));
             setOpen(false);
           }}
           initialFocus

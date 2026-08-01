@@ -163,6 +163,8 @@ function buildLifecycleNotes(
 
     isSameDay(startedDay, completedDay) &&
 
+    startedDelta != null &&
+
     startedDelta !== 0 &&
 
     startedDelta === completedDelta
@@ -189,7 +191,7 @@ function buildLifecycleNotes(
 
 
 
-  if (startedDay && startedDelta !== 0) {
+  if (startedDay && startedDelta != null && startedDelta !== 0) {
 
     notes.push({
 
@@ -213,7 +215,7 @@ function buildLifecycleNotes(
 
 
 
-  if (completedDay && completedDelta !== 0) {
+  if (completedDay && completedDelta != null && completedDelta !== 0) {
 
     notes.push({
 

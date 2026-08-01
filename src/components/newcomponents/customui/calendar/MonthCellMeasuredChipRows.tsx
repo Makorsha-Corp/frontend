@@ -41,7 +41,7 @@ const MonthCellMeasuredChipRows: React.FC<MonthCellMeasuredChipRowsProps> = ({
     if (!container || !measureRoot || groups.length === 0) return;
 
     const measure = () => {
-      const rowInputs = groups.map((group, rowIndex) => {
+      const rowInputs = groups.map((_group, rowIndex) => {
         const measureRow = measureRoot.querySelector<HTMLElement>(
           `[data-measure-row="${rowIndex}"]`,
         );

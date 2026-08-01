@@ -19,7 +19,6 @@ import type {
   UpdateExpenseOrder,
   CreateExpenseOrderItem,
   UpdateExpenseOrderItem,
-  ListExpenseOrdersParams,
   ListExpenseOrdersHubParams,
   ExpenseOrderListResponse,
   ExpenseOrderHubStatsResponse,
@@ -116,7 +115,7 @@ export const expenseOrdersApi = createApi({
         ...expenseOrderCacheTagsForMutation(id),
         { type: 'ExpenseOrderEvents', id },
       ],
-      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
         try {
           const { data: updated } = await queryFulfilled;
           if (updated.invoice_id != null) {
@@ -156,7 +155,7 @@ export const expenseOrdersApi = createApi({
         { type: 'ExpenseOrderItem', id: id },
         { type: 'ExpenseOrderEvents', id },
       ],
-      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
         try {
           const { data: updated } = await queryFulfilled;
           if (updated.invoice_id != null) {

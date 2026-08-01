@@ -184,6 +184,9 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     setEditActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
     setEditActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
     setEditNotes(batch.notes ?? '');
+    // Reset drafts only for a different batch or a newer server copy, not on
+    // every refetched object identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.id, batch?.updated_at]);
 
   useEffect(() => {

@@ -23,6 +23,19 @@ export function invalidateAccountInvoiceSummary(dispatch: AppDispatch, accountId
   dispatch(accountsApi.util.invalidateTags([{ type: 'AccountInvoiceSummary', id: accountId }]));
 }
 
+export function invalidateAccountOpenInvoices(dispatch: AppDispatch, accountId: number): void {
+  dispatch(accountsApi.util.invalidateTags([{ type: 'AccountOpenInvoices', id: accountId }]));
+}
+
+export function invalidateAccountInvoicesHub(dispatch: AppDispatch): void {
+  dispatch(accountInvoicesApi.util.invalidateTags([{ type: 'AccountInvoicesHubSummary', id: 'LIST' }]));
+  dispatch(accountsApi.util.invalidateTags([{ type: 'AccountHub', id: 'LIST' }]));
+}
+
+export function invalidateAccountInvoicesPage(dispatch: AppDispatch, accountId: number): void {
+  dispatch(accountsApi.util.invalidateTags([{ type: 'AccountInvoicesPage', id: accountId }]));
+}
+
 export function invalidateInvoiceById(dispatch: AppDispatch, invoiceId: number): void {
   dispatch(
     accountInvoicesApi.util.invalidateTags([
@@ -124,6 +137,9 @@ export function invalidateInvoiceAndLinkedOrder(
   invalidateInvoiceById(dispatch, invoiceId);
   if (invoice?.account_id != null) {
     invalidateAccountInvoiceSummary(dispatch, invoice.account_id);
+    invalidateAccountOpenInvoices(dispatch, invoice.account_id);
+    invalidateAccountInvoicesPage(dispatch, invoice.account_id);
   }
+  invalidateAccountInvoicesHub(dispatch);
   invalidateLinkedOrderForInvoice(dispatch, invoice, options);
 }

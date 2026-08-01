@@ -89,7 +89,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     apiDateTo,
     setDateViewMode,
     setSheetDate,
-    clearSheetDate,
     setFactoryFilter,
     setLocationFilterSlice,
     setSectionFilter,
@@ -193,7 +192,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     error,
   } = useGetWorkOrdersSheetQuery(sheetQueryParams);
 
-  const bundles = sheetData?.items ?? [];
+  const bundles = useMemo(() => sheetData?.items ?? [], [sheetData]);
   const sheetTotal = sheetData?.total ?? 0;
 
   const [deleteOrder] = useDeleteWorkOrderMutation();
@@ -219,7 +218,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
 
   const machineIdToFactoryId = useMemo(
     () => buildMachineIdToFactoryId(machines),
-    [machines, sections],
+    [machines],
   );
 
   const machineName = useCallback(
@@ -327,11 +326,11 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     null;
 
   useEffect(() => {
-    const maxPage = sheetPageCount(sheetTotal);
-    if (sheetPage > maxPage) {
-      setSheetPage(maxPage);
-    }
-  }, [sheetTotal, sheetPage, setSheetPage]);
+    if (sheetData === undefined) return;
+    const maxPage = sheetPageCount(sheetData.total);
+    if (sheetPage <= maxPage) return;
+    setSheetPage(maxPage);
+  }, [sheetData, sheetPage, setSheetPage]);
 
   const showLargeTotalWarning =
     !applyDateFilter && sheetTotal > API_LIMITS.WORK_ORDERS_SHEET_LARGE_TOTAL_WARNING;
