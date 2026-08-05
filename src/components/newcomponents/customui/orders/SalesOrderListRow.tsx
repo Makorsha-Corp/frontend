@@ -1,14 +1,17 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { useGetSalesOrderItemsQuery } from '@/features/salesOrders/salesOrdersApi';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Trash2 } from 'lucide-react';
 import type { SalesOrder } from '@/types/salesOrder';
+import { getSalesOrderListRowBadges } from './salesOrderMilestones';
 
 interface SalesOrderListRowProps {
   order: SalesOrder;
   isSelected: boolean;
   onClick: () => void;
+  onDelete?: () => void;
   accountName: string;
-  statusLabel: string;
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
 }
@@ -17,54 +20,66 @@ const SalesOrderListRow: React.FC<SalesOrderListRowProps> = ({
   order,
   isSelected,
   onClick,
+  onDelete,
   accountName,
-  statusLabel,
   formatCurrency,
   formatDate,
 }) => {
-  const { data: items = [] } = useGetSalesOrderItemsQuery(order.id);
-  const itemCount = items.length;
-  const totalOrdered = items.reduce((sum, i) => sum + (i.quantity_ordered ?? 0), 0);
-  const totalDelivered = items.reduce((sum, i) => sum + (i.quantity_delivered ?? 0), 0);
-  const deliveredStatus =
-    totalDelivered === 0 ? 'Pending' : totalDelivered >= totalOrdered ? 'Delivered' : 'Partial';
+  const stageBadges = getSalesOrderListRowBadges(order);
+  const formattedDate = formatDate(order.order_date);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${
-        isSelected ? 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-2 border-brand-primary' : ''
-      }`}
+    <div
+      className={cn(
+        'flex w-full items-center transition-colors',
+        isSelected && 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-2 border-brand-primary'
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-card-foreground truncate">{order.sales_order_number}</span>
-        <Badge variant="secondary" className="text-xs shrink-0">{statusLabel}</Badge>
-      </div>
-      <div className="text-sm text-muted-foreground truncate mt-0.5">{accountName}</div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-        <span>{formatDate(order.order_date)}</span>
-        <span>•</span>
-        <span>Factory #{order.factory_id}</span>
-        <span>•</span>
-        <span>
-          {itemCount} sales item{itemCount !== 1 ? 's' : ''}
-        </span>
-        <span>•</span>
-        <span
-          className={
-            deliveredStatus === 'Delivered'
-              ? 'text-green-600 dark:text-green-400'
-              : deliveredStatus === 'Partial'
-                ? 'text-amber-600 dark:text-amber-400'
-                : ''
-          }
-        >
-          {deliveredStatus}
-        </span>
-      </div>
-      <div className="text-xs font-medium text-card-foreground mt-0.5">{formatCurrency(order.total_amount)}</div>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="min-w-0 flex-1 text-left px-3.5 py-2 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex min-w-0 items-center justify-between gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+            <span className="truncate text-sm font-medium text-card-foreground">{order.sales_order_number}</span>
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {stageBadges.map((badge) => (
+                <Badge key={badge.label} variant="secondary" className={cn('text-[11px] font-medium', badge.className)}>
+                  {badge.label}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-card-foreground">
+            {formatCurrency(Number(order.total_amount))}
+          </span>
+        </div>
+
+        <div className="mt-0.5 min-w-0 truncate text-xs leading-snug text-muted-foreground" title={`${accountName} · ${formattedDate}`}>
+          {accountName} · {formattedDate}
+        </div>
+      </button>
+
+      {isSelected && onDelete && (
+        <div className="flex shrink-0 items-center pr-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            title="Delete order"
+            aria-label={`Delete ${order.sales_order_number}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

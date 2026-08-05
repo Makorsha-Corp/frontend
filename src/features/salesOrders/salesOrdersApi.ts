@@ -1,7 +1,15 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import { invalidateInvoiceById } from '@/features/cache/invalidateOrderInvoiceCache';
-import type { SalesOrder, CreateSalesOrderDTO, UpdateSalesOrderDTO } from '@/types/salesOrder';
+import type {
+  SalesOrder,
+  CreateSalesOrderDTO,
+  UpdateSalesOrderDTO,
+  SalesOrderApprover,
+  SalesOrderApproversList,
+  SalesOrderSection,
+  SalesOrderEvent,
+} from '@/types/salesOrder';
 import type { SalesOrderItem, CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
 import type { ActionResponse } from '@/types/common';
@@ -19,7 +27,7 @@ export interface CreateSalesOrderWithItemsDTO {
 export const salesOrdersApi = createApi({
   reducerPath: 'salesOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['SalesOrder', 'SalesOrderItem'],
+  tagTypes: ['SalesOrder', 'SalesOrderItem', 'SalesOrderApprovers', 'SalesOrderEvents'],
   endpoints: (builder) => ({
     getSalesOrders: builder.query<SalesOrder[], ListSalesOrdersParams>({
       query: ({ skip = 0, limit = 100 } = {}) => {
@@ -96,6 +104,91 @@ export const salesOrdersApi = createApi({
         'SalesOrder',
       ],
     }),
+    finalizeSalesOrderInvoice: builder.mutation<SalesOrder, number>({
+      query: (id) => ({ url: `sales-orders/${id}/finalize-invoice/`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrderEvents', id },
+        'SalesOrder',
+      ],
+      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
+    }),
+    markSalesOrderComplete: builder.mutation<SalesOrder, number>({
+      query: (id) => ({ url: `sales-orders/${id}/complete/`, method: 'POST' }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'SalesOrder', id },
+        { type: 'SalesOrderEvents', id },
+        'SalesOrder',
+      ],
+    }),
+    setSalesOrderSectionConfirm: builder.mutation<
+      SalesOrder,
+      { orderId: number; section: SalesOrderSection; confirmed: boolean }
+    >({
+      query: ({ orderId, section, confirmed }) => ({
+        url: `sales-orders/${orderId}/section-confirm/`,
+        method: 'PATCH',
+        body: { section, confirmed },
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => [
+        { type: 'SalesOrder', id: orderId },
+        { type: 'SalesOrderEvents', id: orderId },
+        { type: 'SalesOrderApprovers', id: orderId },
+        'SalesOrder',
+      ],
+    }),
+    // Approvers
+    getSalesOrderApprovers: builder.query<SalesOrderApproversList, number>({
+      query: (orderId) => `sales-orders/${orderId}/approvers/`,
+      providesTags: (_r, _e, orderId) => [{ type: 'SalesOrderApprovers', id: orderId }],
+    }),
+    addSalesOrderApprover: builder.mutation<SalesOrderApprover, { orderId: number; user_id: number }>({
+      query: ({ orderId, user_id }) => ({
+        url: `sales-orders/${orderId}/approvers/`,
+        method: 'POST',
+        body: { user_id },
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => [{ type: 'SalesOrderApprovers', id: orderId }],
+    }),
+    removeSalesOrderApprover: builder.mutation<void, { orderId: number; userId: number }>({
+      query: ({ orderId, userId }) => ({
+        url: `sales-orders/${orderId}/approvers/${userId}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, { orderId }) => [{ type: 'SalesOrderApprovers', id: orderId }],
+    }),
+    approveSalesOrder: builder.mutation<SalesOrderApprover, number>({
+      query: (orderId) => ({ url: `sales-orders/${orderId}/approvers/me/approve/`, method: 'POST' }),
+      invalidatesTags: (_r, _e, orderId) => [
+        { type: 'SalesOrderApprovers', id: orderId },
+        { type: 'SalesOrderEvents', id: orderId },
+        { type: 'SalesOrder', id: orderId },
+        'SalesOrder',
+      ],
+    }),
+    unapproveSalesOrder: builder.mutation<SalesOrderApprover, number>({
+      query: (orderId) => ({ url: `sales-orders/${orderId}/approvers/me/approve/`, method: 'DELETE' }),
+      invalidatesTags: (_r, _e, orderId) => [
+        { type: 'SalesOrderApprovers', id: orderId },
+        { type: 'SalesOrderEvents', id: orderId },
+        { type: 'SalesOrder', id: orderId },
+        'SalesOrder',
+      ],
+    }),
+    // Events
+    getSalesOrderEvents: builder.query<SalesOrderEvent[], number>({
+      query: (orderId) => `sales-orders/${orderId}/events/`,
+      providesTags: (_r, _e, orderId) => [{ type: 'SalesOrderEvents', id: orderId }],
+    }),
   }),
 });
 
@@ -108,4 +201,13 @@ export const {
   useGetSalesOrderItemsQuery,
   useGetSalesOrderDeliveriesQuery,
   useFulfillSalesOrderItemMutation,
+  useFinalizeSalesOrderInvoiceMutation,
+  useMarkSalesOrderCompleteMutation,
+  useSetSalesOrderSectionConfirmMutation,
+  useGetSalesOrderApproversQuery,
+  useAddSalesOrderApproverMutation,
+  useRemoveSalesOrderApproverMutation,
+  useApproveSalesOrderMutation,
+  useUnapproveSalesOrderMutation,
+  useGetSalesOrderEventsQuery,
 } = salesOrdersApi;

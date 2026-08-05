@@ -6,11 +6,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useGetSalesOrdersQuery } from '@/features/salesOrders/salesOrdersApi';
-import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useAppSelector } from '@/app/hooks';
 import { Users, Search, Loader2, DollarSign, FileSpreadsheet, Mail } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
-import { getSalesOrderKanbanColumn } from '@/components/newcomponents/customui/orders/salesOrderStatusConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 // Helper to assign a pleasant gradient based on user id/initials
@@ -55,10 +53,6 @@ const SalesTeamPage: React.FC = () => {
     skip: 0,
     limit: API_LIMITS.STRICT_100,
   });
-  const { data: statuses = [] } = useGetStatusesQuery({
-    skip: 0,
-    limit: API_LIMITS.STRICT_100,
-  });
 
   const isLoading = membersLoading || ordersLoading;
 
@@ -88,15 +82,14 @@ const SalesTeamPage: React.FC = () => {
       const creatorId = o.created_by;
       if (creatorId && stats[creatorId] !== undefined) {
         stats[creatorId].count += 1;
-        const isClosed = getSalesOrderKanbanColumn(o.current_status_id, statuses) === 'completed';
-        if (isClosed) {
+        if (o.order_completed) {
           stats[creatorId].closedValue += o.total_amount || 0;
         }
       }
     });
 
     return stats;
-  }, [members, orders, statuses]);
+  }, [members, orders]);
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);

@@ -19,8 +19,7 @@ import OrdersOverviewPage from "./pages/newpages/orders/OrdersOverviewPage";
 import PurchaseOrdersPage from "./pages/newpages/orders/PurchaseOrdersPage";
 import TransferOrdersPage from "./pages/newpages/orders/TransferOrdersPage";
 import ExpenseOrdersPage from "./pages/newpages/orders/ExpenseOrdersPage";
-import SalesOverviewPage from "./pages/newpages/orders/SalesOverviewPage";
-import SalesPipelinePage from "./pages/newpages/orders/SalesPipelinePage";
+import SalesOrdersPage from "./pages/newpages/orders/SalesOrdersPage";
 import SalesTeamPage from "./pages/newpages/orders/SalesTeamPage";
 import WorkOrdersLegacyRedirect from "./pages/newpages/orders/WorkOrdersLegacyRedirect";
 
@@ -86,11 +85,10 @@ const App: React.FC = () => {
               <Route path="/orders/purchase" element={<PurchaseOrdersPage />} />
               <Route path="/orders/transfer" element={<TransferOrdersPage />} />
               <Route path="/orders/expense" element={<ExpenseOrdersPage />} />
-              <Route path="/sales" element={<Navigate to="/sales/overview" replace />} />
-              <Route path="/sales/overview" element={<SalesOverviewPage />} />
-              <Route path="/sales/pipeline" element={<SalesPipelinePage />} />
+              <Route path="/sales" element={<SalesOrdersPage />} />
+              <Route path="/sales/overview" element={<SalesOrdersPage />} />
               <Route path="/sales/team" element={<SalesTeamPage />} />
-              <Route path="/orders/sales" element={<Navigate to="/sales/overview" replace />} />
+              <Route path="/orders/sales" element={<SalesOrdersPage />} />
               <Route path="/orders/work" element={<WorkOrdersLegacyRedirect />} />
               <Route path="/management" element={<ManagementPage />} />
               <Route path="/billing/trial" element={<BillingTrialPage />} />

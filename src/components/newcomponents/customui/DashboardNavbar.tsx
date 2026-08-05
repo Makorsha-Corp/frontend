@@ -69,7 +69,7 @@ const HOVER_EDGE_WIDTH = 8; // Narrow strip for hover detect — must not block 
 
 const FACTORIES_SUB_PATHS = ['/factories', '/machines', '/storage', '/project', '/production', '/ledgers'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/work'];
-const SALES_SUB_PATHS = ['/sales', '/sales/overview', '/sales/team', '/sales/pipeline'];
+const SALES_SUB_PATHS = ['/sales', '/sales/overview', '/sales/team'];
 
 function isFactoriesRoute(pathname: string): boolean {
   return FACTORIES_SUB_PATHS.some(
@@ -686,13 +686,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
                     <DropdownMenuItem asChild>
-                      <Link to="/sales/overview">Overview</Link>
+                      <Link to="/sales/overview">Orders</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/sales/team">Team</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/sales/pipeline">Pipeline</Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -726,7 +723,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
-                          <span className="text-sm font-medium">Overview</span>
+                          <span className="text-sm font-medium">Orders</span>
                         </Link>
                       </li>
                       <li>
@@ -738,17 +735,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <span className="text-sm font-medium">Team</span>
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/sales/pipeline"
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/sales/pipeline')
-                              ? 'bg-brand-primary text-white'
-                              : navInactiveClass
-                            }`}
-                        >
-                          <span className="text-sm font-medium">Pipeline</span>
                         </Link>
                       </li>
                     </ul>
