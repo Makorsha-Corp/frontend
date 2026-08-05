@@ -58,7 +58,7 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
     const weeks: { date: string; count: number }[][] = [];
     const monthLabels: { col: number; label: string }[] = [];
     let lastMonth = -1;
-    let current = new Date(weekStart);
+    const current = new Date(weekStart);
 
     while (current <= end || weeks.length < 53) {
       const weekMonth = current.getMonth();

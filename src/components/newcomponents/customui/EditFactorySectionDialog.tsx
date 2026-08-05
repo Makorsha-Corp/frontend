@@ -14,6 +14,7 @@ import { useUpdateFactorySectionMutation } from '@/features/factorySections/fact
 import type { FactorySection } from '@/types/factorySection';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import { apiErrorDetail } from '@/utils/apiError';
 
 interface EditFactorySectionDialogProps {
   open: boolean;
@@ -63,9 +64,9 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
 
       toast.success('Section updated successfully');
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to update section:', error);
-      toast.error(error?.data?.detail || 'Failed to update section');
+      toast.error(apiErrorDetail(error, 'Failed to update section'));
     }
   };
 

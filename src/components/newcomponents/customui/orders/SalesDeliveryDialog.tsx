@@ -493,7 +493,7 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
 
       {expanded && (
         <div className="border-t border-border px-3 py-2 space-y-1.5">
-          {delivery.notes && <p className="text-xs text-muted-foreground italic">"{delivery.notes}"</p>}
+          {delivery.notes && <p className="text-xs text-muted-foreground italic">&ldquo;{delivery.notes}&rdquo;</p>}
           {itemsLoading ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />Loading items...

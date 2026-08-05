@@ -25,7 +25,7 @@ export const financialAuditLogsApi = createApi({
     >({
       query: ({ entityType, entityId, skip = 0, limit = 100 }) =>
         `financial-audit-logs/entity/${entityType}/${entityId}/?skip=${skip}&limit=${limit}`,
-      providesTags: (result, error, { entityType, entityId }) => [
+      providesTags: (_result, _error, { entityType, entityId }) => [
         { type: 'AuditLog', id: `${entityType}-${entityId}` },
       ],
     }),
@@ -37,7 +37,7 @@ export const financialAuditLogsApi = createApi({
     >({
       query: ({ entityType, entityId, skip = 0, limit = 100 }) =>
         `financial-audit-logs/related/${entityType}/${entityId}/?skip=${skip}&limit=${limit}`,
-      providesTags: (result, error, { entityType, entityId }) => [
+      providesTags: (_result, _error, { entityType, entityId }) => [
         { type: 'AuditLog', id: `related-${entityType}-${entityId}` },
       ],
     }),
@@ -59,7 +59,7 @@ export const financialAuditLogsApi = createApi({
     >({
       query: ({ userId, skip = 0, limit = 100 }) =>
         `financial-audit-logs/user/${userId}/?skip=${skip}&limit=${limit}`,
-      providesTags: (result, error, { userId }) => [{ type: 'AuditLog', id: `user-${userId}` }],
+      providesTags: (_result, _error, { userId }) => [{ type: 'AuditLog', id: `user-${userId}` }],
     }),
 
     // Get audit logs by date range

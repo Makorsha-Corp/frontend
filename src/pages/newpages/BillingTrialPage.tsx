@@ -138,7 +138,7 @@ const IntroCard: React.FC = () => (
     <div className="grid gap-3 sm:grid-cols-2">
       <BackendNote>
         <strong className="text-foreground">Two independent channels</strong> resolve every
-        payment: your browser gets redirected back with a result, and SSLCommerz's server calls
+        payment: your browser gets redirected back with a result, and SSLCommerz&apos;s server calls
         our backend directly (the IPN webhook) — whichever arrives first wins, the other is
         recorded as a no-op duplicate.
       </BackendNote>
@@ -207,8 +207,8 @@ const CheckoutCard: React.FC = () => {
         </p>
 
         <BackendNote>
-          Clicking "Initiate Payment" calls <code>POST /payments/initiate</code>. The backend
-          generates a unique <code>tran_id</code>, calls SSLCommerz's <code>init_session</code> (mocked),
+          Clicking &ldquo;Initiate Payment&rdquo; calls <code>POST /payments/initiate</code>. The backend
+          generates a unique <code>tran_id</code>, calls SSLCommerz&apos;s <code>init_session</code> (mocked),
           and inserts a <code>PaymentTransaction</code> row with <code>status=INITIATED</code> —
           before any money has moved.
         </BackendNote>
@@ -251,13 +251,13 @@ const CheckoutCard: React.FC = () => {
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="mb-1 text-sm font-semibold text-card-foreground">Step 2 — Complete on the gateway</h3>
         <p className="mb-4 text-xs text-muted-foreground">
-          In production your browser fully navigates to SSLCommerz's hosted page.
+          In production your browser fully navigates to SSLCommerz&apos;s hosted page.
         </p>
 
         <BackendNote>
           The mock gateway is a real page served by our own backend — it exercises the exact same
           success/fail/cancel/IPN endpoints the real integration will call. It opens in a new tab
-          because that's what a real full-page redirect looks like; this tab keeps polling the
+          because that&apos;s what a real full-page redirect looks like; this tab keeps polling the
           ledger below so you can watch it update live.
         </BackendNote>
 

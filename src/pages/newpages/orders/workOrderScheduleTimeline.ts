@@ -10,6 +10,9 @@ export type WorkOrderScheduleMilestoneTone = 'neutral' | 'on_time' | 'early' | '
 const SCHEDULE_CHANGE_FIELDS = new Set(['planned_date', 'end_date']);
 const NOISY_EVENT_TYPES = new Set(['updated']);
 
+/** WorkOrderEvent plus synthetic/promoted entries whose ids are strings. */
+type ScheduleTimelineEvent = Omit<WorkOrderEvent, 'id'> & { id: number | string };
+
 export interface WorkOrderEventLogEntry {
   id: string | number;
   event_type: string;
@@ -64,7 +67,6 @@ function scheduleDetailsFromMetadata(
 ): string[] {
   if (!metadata) return [];
   const lines: string[] = [];
-  const planned = metadata.planned_date as string | undefined;
   const varianceLabel = metadata.variance_label as string | undefined;
   if (eventType === 'scheduled') {
     const endDate = metadata.end_date as string | undefined;
@@ -104,7 +106,7 @@ function scheduleDetailsFromMetadata(
 
 function enrichEventEntry(
   order: WorkOrder,
-  event: WorkOrderEvent,
+  event: ScheduleTimelineEvent,
 ): WorkOrderEventLogEntry {
   const plannedDay = plannedDayFromOrder(order);
   let scheduleDetails = scheduleDetailsFromMetadata(event.event_type, event.metadata);
@@ -132,8 +134,8 @@ function enrichEventEntry(
   };
 }
 
-function extractPromotedScheduleEvents(events: WorkOrderEvent[]): WorkOrderEvent[] {
-  const promoted: WorkOrderEvent[] = [];
+function extractPromotedScheduleEvents(events: WorkOrderEvent[]): ScheduleTimelineEvent[] {
+  const promoted: ScheduleTimelineEvent[] = [];
   for (const event of events) {
     if (event.event_type !== 'updated') continue;
     const changes = (event.metadata?.changes as Array<Record<string, string>> | undefined) ?? [];
@@ -156,7 +158,7 @@ function extractPromotedScheduleEvents(events: WorkOrderEvent[]): WorkOrderEvent
   return promoted;
 }
 
-function dedupeScheduleEvents(events: WorkOrderEvent[]): WorkOrderEvent[] {
+function dedupeScheduleEvents(events: ScheduleTimelineEvent[]): ScheduleTimelineEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
     if (event.event_type !== 'schedule_updated') return true;
@@ -168,7 +170,7 @@ function dedupeScheduleEvents(events: WorkOrderEvent[]): WorkOrderEvent[] {
   });
 }
 
-function syntheticScheduledEvent(order: WorkOrder, events: WorkOrderEvent[]): WorkOrderEvent | null {
+function syntheticScheduledEvent(order: WorkOrder, events: WorkOrderEvent[]): ScheduleTimelineEvent | null {
   if (!order.planned_date?.trim()) return null;
   if (events.some((e) => e.event_type === 'scheduled')) return null;
   return {

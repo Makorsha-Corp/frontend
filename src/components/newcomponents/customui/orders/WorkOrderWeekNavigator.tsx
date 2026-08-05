@@ -118,8 +118,8 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
     setPreviewWeekStart(weekStart);
   }, []);
 
-  const HoverCalendarRow = useCallback(
-    ({ dates, displayMonth, weekNumber }: RowProps) => {
+  const HoverCalendarRow = useMemo(() => {
+    function HoverRow({ dates, displayMonth, weekNumber }: RowProps) {
       const { styles, classNames, showWeekNumber, components } = useDayPicker();
       const DayComponent = components?.Day ?? Day;
       const WeeknumberComponent = components?.WeekNumber;
@@ -148,9 +148,9 @@ const WorkOrderWeekNavigator: React.FC<WorkOrderWeekNavigatorProps> = ({
           ))}
         </tr>
       );
-    },
-    [handleRowMouseEnter],
-  );
+    }
+    return HoverRow;
+  }, [handleRowMouseEnter]);
 
   const calendarComponents = useMemo(
     () => ({

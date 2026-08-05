@@ -18,7 +18,6 @@ import {
   findAccountWithInvoices,
   getWorkspaceAuth,
   openAccountDetail,
-  selectInvoiceInNavigator,
 } from './helpers/accounts';
 
 const REGION_META: Record<string, string> = {
@@ -136,7 +135,7 @@ async function sampleAccountDetail(
   const navigator = page
     .getByRole('heading', { name: /^Invoices/ })
     .locator('xpath=ancestor::div[contains(@class,"bg-card")][1]');
-  const scrollCanvas = page.getByTestId('account-invoice-detail-panel').locator('> div').first();
+  const _scrollCanvas = page.getByTestId('account-invoice-detail-panel').locator('> div').first();
   const sectionBlock = page
     .getByTestId('account-invoice-detail-panel')
     .locator('.bg-card')

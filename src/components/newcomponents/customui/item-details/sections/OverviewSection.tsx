@@ -1,4 +1,3 @@
-import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowLeftRight, ChevronRight, Loader2, MapPin, ShoppingCart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

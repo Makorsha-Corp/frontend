@@ -1,7 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import type { RootState } from '@/app/store';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
+import { invalidateIncomingSummaryCache, invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
 import {
   invalidateInvoiceById,
 } from '@/features/cache/invalidateOrderInvoiceCache';
@@ -20,7 +20,6 @@ import type {
   CreatePurchaseOrderItem,
   UpdatePurchaseOrderItem,
   PurchaseOrderItemSyncRequest,
-  ListPurchaseOrdersParams,
   ListPurchaseOrdersHubParams,
   PurchaseOrderListResponse,
   PurchaseOrderHubStatsResponse,
@@ -111,6 +110,14 @@ export const purchaseOrdersApi = createApi({
     createPurchaseOrder: builder.mutation<PurchaseOrder, CreatePurchaseOrder>({
       query: (body) => ({ url: 'purchase-orders/', method: 'POST', body }),
       invalidatesTags: [...purchaseOrderListCacheTags, 'ActiveOrders', 'PurchaseOrderItem'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateIncomingSummaryCache(dispatch);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     updatePurchaseOrder: builder.mutation<PurchaseOrder, { id: number; data: UpdatePurchaseOrder }>({
       query: ({ id, data }) => ({ url: `purchase-orders/${id}/`, method: 'PUT', body: data }),
@@ -130,6 +137,7 @@ export const purchaseOrdersApi = createApi({
           dispatch(
             purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => updated)
           );
+          invalidateIncomingSummaryCache(dispatch);
         } catch {
           patchById.undo();
         }
@@ -182,6 +190,14 @@ export const purchaseOrdersApi = createApi({
     deletePurchaseOrder: builder.mutation<void, number>({
       query: (id) => ({ url: `purchase-orders/${id}/`, method: 'DELETE' }),
       invalidatesTags: [...purchaseOrderListCacheTags, 'ActiveOrders'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateIncomingSummaryCache(dispatch);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     createInvoiceFromPurchaseOrder: builder.mutation<PurchaseOrder, number>({
       query: (id) => ({ url: `purchase-orders/${id}/create-invoice`, method: 'POST' }),
@@ -218,6 +234,7 @@ export const purchaseOrdersApi = createApi({
           dispatch(
             purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => data),
           );
+          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -263,6 +280,14 @@ export const purchaseOrdersApi = createApi({
     addPurchaseOrderItem: builder.mutation<PurchaseOrderItem, { poId: number; data: CreatePurchaseOrderItem }>({
       query: ({ poId, data }) => ({ url: `purchase-orders/${poId}/items/`, method: 'POST', body: data }),
       invalidatesTags: (_r, _e, { poId }) => [{ type: 'PurchaseOrderItem', id: poId }, ...purchaseOrderListCacheTags, 'ActiveOrders'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateIncomingSummaryCache(dispatch);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     updatePurchaseOrderItem: builder.mutation<
       PurchaseOrderItem,
@@ -284,6 +309,7 @@ export const purchaseOrdersApi = createApi({
           if (cachedPo?.invoice_id != null) {
             invalidateInvoiceById(dispatch, cachedPo.invoice_id);
           }
+          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }
@@ -292,6 +318,14 @@ export const purchaseOrdersApi = createApi({
     removePurchaseOrderItem: builder.mutation<void, number>({
       query: (itemId) => ({ url: `purchase-orders/items/${itemId}/`, method: 'DELETE' }),
       invalidatesTags: ['PurchaseOrderItem', ...purchaseOrderListCacheTags, 'ActiveOrders'],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          invalidateIncomingSummaryCache(dispatch);
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     syncPurchaseOrderItems: builder.mutation<
       PurchaseOrder,
@@ -308,12 +342,13 @@ export const purchaseOrdersApi = createApi({
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id: poId },
       ],
-      async onQueryStarted({ poId }, { dispatch, queryFulfilled }) {
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data: updated } = await queryFulfilled;
           if (updated.invoice_id != null) {
             invalidateInvoiceById(dispatch, updated.invoice_id);
           }
+          invalidateIncomingSummaryCache(dispatch);
         } catch {
           /* mutation failed */
         }

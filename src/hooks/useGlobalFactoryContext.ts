@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useAppSelector } from '@/app/hooks';
 import type { Factory } from '@/types/factory';

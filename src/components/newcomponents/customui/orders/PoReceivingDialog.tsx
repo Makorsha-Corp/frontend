@@ -465,7 +465,7 @@ const ReceiveEventRow: React.FC<{ event: PoReceiveEvent }> = ({ event }) => {
       {expanded && (
         <div className="border-t border-border px-3 py-2 space-y-1.5">
           {event.correction_note && (
-            <p className="text-xs text-muted-foreground italic">"{event.correction_note}"</p>
+            <p className="text-xs text-muted-foreground italic">&ldquo;{event.correction_note}&rdquo;</p>
           )}
           {event.items.map((item) => (
             <div key={item.id} className="flex items-center justify-between text-xs">

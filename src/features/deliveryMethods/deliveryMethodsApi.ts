@@ -26,7 +26,7 @@ export const deliveryMethodsApi = createApi({
     }),
     getDeliveryMethodById: builder.query<DeliveryMethod, number>({
       query: (id) => `delivery-methods/${id}/`,
-      providesTags: (result, error, id) => [{ type: 'DeliveryMethod', id }],
+      providesTags: (_result, _error, id) => [{ type: 'DeliveryMethod', id }],
     }),
     createDeliveryMethod: builder.mutation<DeliveryMethod, CreateDeliveryMethodRequest>({
       query: (body) => ({
@@ -42,7 +42,7 @@ export const deliveryMethodsApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'DeliveryMethod', id }, 'DeliveryMethod'],
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'DeliveryMethod', id }, 'DeliveryMethod'],
     }),
     deleteDeliveryMethod: builder.mutation<DeliveryMethod, number>({
       query: (id) => ({

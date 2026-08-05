@@ -14,6 +14,7 @@ import { useCreateFactorySectionMutation } from '@/features/factorySections/fact
 import type { FactorySection } from '@/types/factorySection';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import { apiErrorDetail } from '@/utils/apiError';
 
 interface AddFactorySectionDialogProps {
   open: boolean;
@@ -56,9 +57,9 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
       toast.success('Section created successfully');
       setName('');
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to create section:', error);
-      toast.error(error?.data?.detail || 'Failed to create section');
+      toast.error(apiErrorDetail(error, 'Failed to create section'));
     }
   };
 

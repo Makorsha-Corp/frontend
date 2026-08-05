@@ -280,7 +280,7 @@ function SheetPartsInlinePreview({
   visibleRows,
   overflowCount,
 }: {
-  containerRef: React.RefObject<HTMLDivElement | null>;
+  containerRef: React.RefObject<HTMLDivElement>;
   visibleRows: WorkOrderSheetRow[];
   overflowCount: number;
 }) {
@@ -508,7 +508,6 @@ function startVarianceUnderlineBarClass(startVarianceTone: 'early' | 'late' | nu
 function SheetStartDateCell({
   row,
   programSummary,
-  onSheetMutated,
   onRowClick,
   hideDateLabel = false,
 }: {

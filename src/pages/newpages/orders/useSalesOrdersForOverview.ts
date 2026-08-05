@@ -48,6 +48,9 @@ export function useSalesOrdersForOverview(): {
       }
     }
     return merged;
+    // `queries` gets a new identity every render; the result only depends on
+    // each page's data, so key the memo on those.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q0.data, q1.data, q2.data, q3.data, q4.data, q5.data, q6.data, q7.data, q8.data, q9.data]);
 
   const isLoading = queries.some((q) => q.isLoading);

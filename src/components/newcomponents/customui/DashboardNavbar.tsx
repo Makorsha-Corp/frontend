@@ -67,7 +67,7 @@ interface DashboardNavbarProps {
 const HOVER_ZONE_WIDTH = 56; // Wide enough for button + easy reach once expanded
 const HOVER_EDGE_WIDTH = 8; // Narrow strip for hover detect — must not block main content clicks
 
-const FACTORIES_SUB_PATHS = ['/factories', '/machines', '/storage', '/project', '/production', '/ledgers'];
+const FACTORIES_SUB_PATHS = ['/factories', '/machines', '/storage', '/products', '/project', '/production', '/ledgers'];
 const ORDERS_SUB_PATHS = ['/orders', '/orders/purchase', '/orders/transfer', '/orders/expense', '/orders/work'];
 const SALES_SUB_PATHS = ['/sales', '/sales/overview', '/sales/team'];
 
@@ -446,6 +446,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       <Link to="/storage">Storage</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
+                      <Link to="/products">Products</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/production">Production</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -523,6 +526,18 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         >
                           <Archive size={18} />
                           <span className="text-sm font-medium">Storage</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/products"
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive('/products')
+                              ? 'bg-brand-primary text-white'
+                              : navInactiveClass
+                            }`}
+                        >
+                          <Package size={18} />
+                          <span className="text-sm font-medium">Products</span>
                         </Link>
                       </li>
                       <li>

@@ -94,7 +94,7 @@ export function buildRecurrenceProgramSummary(params: {
         order.work_order_template_id === templateId &&
         order.machine_id === machineId,
     )
-    .map((order) => {
+    .map((order): RecurrenceProgramDraft | null => {
       const plannedDate = plannedDateIso(order);
       if (!plannedDate) return null;
       return {

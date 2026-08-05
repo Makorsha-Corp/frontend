@@ -1,4 +1,3 @@
-import React from 'react';
 import * as SwitchPrimitives from '@radix-ui/react-switch';
 import { Check } from 'lucide-react';
 import {

@@ -218,13 +218,13 @@ const PurchaseOrdersPage: React.FC = () => {
     data: pageData,
     isLoading,
     isFetching,
-  } = useGetPurchaseOrdersPageQuery(listQueryParams, { keepPreviousData: true });
+  } = useGetPurchaseOrdersPageQuery(listQueryParams);
   const { data: hubStats, isLoading: statsLoading } = useGetPurchaseOrderHubStatsQuery(hubFilterParams);
 
-  const orders = pageData?.items ?? [];
+  const orders = useMemo(() => pageData?.items ?? [], [pageData]);
   const ordersTotal = pageData?.total ?? 0;
 
-  useOrderHubPageClamp(listPage, ordersTotal, ORDER_HUB_PAGE_PARAMS.purchase, setSearchParams);
+  useOrderHubPageClamp(listPage, pageData?.total, ORDER_HUB_PAGE_PARAMS.purchase, setSearchParams);
 
   const overviewStats = useMemo((): PurchaseOrderSummaryStats => {
     if (!hubStats) {

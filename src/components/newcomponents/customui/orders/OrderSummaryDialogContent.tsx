@@ -19,12 +19,13 @@ import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
-import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
+import { useGetProjectComponentByIdQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { FileSearch, Loader2, Package, Receipt } from 'lucide-react';
 import { deriveExpenseOrderStageFromOrder, eoStageBadgeClassName } from './expenseOrderMilestones';
+import { poStageBadgeClassName } from './purchaseOrderMilestones';
 import { cn } from '@/lib/utils';
 import {
   resolvePurchaseOrderDestinationLabel,
@@ -104,24 +105,31 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
     skip: 0,
     limit: API_LIMITS.FLEXIBLE_1000,
   });
-  const { data: projectComponents = [] } = useGetProjectComponentsQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+  const poProjectDestination =
+    purchaseOrder?.destination_type === 'project' ? purchaseOrder.destination_id : null;
+  const { data: projectComponent } = useGetProjectComponentByIdQuery(poProjectDestination!, {
+    skip: !open || poProjectDestination == null,
   });
 
   const destinationLookups = useMemo((): PurchaseOrderDestinationLookups => {
     const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+    const projectComponents =
+      projectComponent != null
+        ? [
+            {
+              id: projectComponent.id,
+              name: projectComponent.name,
+              project_id: projectComponent.project_id,
+              project_name: projectNameById.get(projectComponent.project_id) ?? null,
+            },
+          ]
+        : [];
     return {
       factories,
       machines,
-      projectComponents: projectComponents.map((c) => ({
-        id: c.id,
-        name: c.name,
-        project_id: c.project_id,
-        project_name: projectNameById.get(c.project_id) ?? null,
-      })),
+      projectComponents,
     };
-  }, [factories, machines, projectComponents, projects]);
+  }, [factories, machines, projectComponent, projects]);
 
   const accountName = (accountId: number | null | undefined) => {
     if (accountId == null) return '—';
@@ -175,17 +183,23 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
 
   if (purchaseOrder) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Purchase Order
-            </p>
+      <div className="space-y-4 pr-10">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Purchase Order
+          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
             <p className="text-lg font-semibold text-card-foreground">{purchaseOrder.po_number}</p>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'shrink-0 text-xs font-medium',
+                poStageBadgeClassName(purchaseOrder.current_status_name),
+              )}
+            >
+              {statusLabel(purchaseOrder.current_status_id)}
+            </Badge>
           </div>
-          <Badge variant="outline" className="shrink-0 capitalize">
-            {statusLabel(purchaseOrder.current_status_id)}
-          </Badge>
         </div>
 
         <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
@@ -342,22 +356,25 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
 
   if (expenseOrder) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Expense Order
-            </p>
+      <div className="space-y-4 pr-10">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Expense Order
+          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-2">
             <p className="text-lg font-semibold text-card-foreground">
               {expenseOrder.expense_number}
             </p>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'shrink-0 text-xs font-medium',
+                eoStageBadgeClassName(deriveExpenseOrderStageFromOrder(expenseOrder)),
+              )}
+            >
+              {deriveExpenseOrderStageFromOrder(expenseOrder)}
+            </Badge>
           </div>
-          <Badge
-            variant="outline"
-            className={cn('shrink-0', eoStageBadgeClassName(deriveExpenseOrderStageFromOrder(expenseOrder)))}
-          >
-            {deriveExpenseOrderStageFromOrder(expenseOrder)}
-          </Badge>
         </div>
 
         <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">

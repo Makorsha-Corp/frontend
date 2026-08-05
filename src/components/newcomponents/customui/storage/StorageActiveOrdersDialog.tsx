@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeftRight, ArrowUpRight, ClipboardList, Loader2, ShoppingCart } from 'lucide-react';
-import { useGetActiveOrdersForContextQuery } from '@/features/purchaseOrders/purchaseOrdersApi';
+import { useStorageActiveOrders } from '@/hooks/useStorageActiveOrders';
 import type { ActiveOrderRow } from '@/types/purchaseOrder';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,7 @@ interface StorageActiveOrdersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   factoryId: number | null;
+  factoryIds: number[];
   factoryLabel?: string | null;
 }
 
@@ -51,14 +52,14 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
   open,
   onOpenChange,
   factoryId,
+  factoryIds,
   factoryLabel,
 }) => {
   const [filter, setFilter] = useState<OrderFilter>('all');
 
-  const { data = [], isLoading, isError, error } = useGetActiveOrdersForContextQuery(
-    { factoryId: factoryId! },
-    { skip: factoryId == null || !open }
-  );
+  const { rows: data, isLoading, isError, error } = useStorageActiveOrders(factoryId, factoryIds, {
+    enabled: open,
+  });
 
   const purchaseCount = useMemo(
     () => data.filter((row) => row.order_kind === 'purchase').length,
@@ -74,7 +75,8 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
     return data.filter((row) => row.order_kind === filter);
   }, [data, filter]);
 
-  const contextLabel = factoryLabel?.trim() || 'this factory';
+  const contextLabel =
+    factoryId == null ? 'all factories' : factoryLabel?.trim() || 'this factory';
 
   return (
     <Dialog

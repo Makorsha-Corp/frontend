@@ -1,7 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import { invalidateSalesOrderById } from '@/features/cache/invalidateOrderInvoiceCache';
-import type { SalesDelivery, CreateSalesDeliveryDTO, UpdateSalesDeliveryDTO } from '@/types/salesDelivery';
+import type { SalesDelivery, CreateSalesDeliveryDTO } from '@/types/salesDelivery';
 import type { SalesDeliveryItem, CreateSalesDeliveryItemDTO } from '@/types/salesDeliveryItem';
 import type { SalesOrder } from '@/types/salesOrder';
 import type { ActionResponse } from '@/types/common';
@@ -36,7 +36,7 @@ export const salesDeliveriesApi = createApi({
     }),
     getSalesDeliveryById: builder.query<SalesDelivery, number>({
       query: (id) => `sales-deliveries/${id}/`,
-      providesTags: (result, error, id) => [{ type: 'SalesDelivery', id }],
+      providesTags: (_result, _error, id) => [{ type: 'SalesDelivery', id }],
     }),
     createSalesDelivery: builder.mutation<SalesDelivery, CreateSalesDeliveryWithItemsDTO>({
       query: ({ delivery, items }) => ({
@@ -89,7 +89,7 @@ export const salesDeliveriesApi = createApi({
     }),
     getSalesDeliveryItems: builder.query<SalesDeliveryItem[], number>({
       query: (deliveryId) => `sales-deliveries/${deliveryId}/items/`,
-      providesTags: (result, error, deliveryId) => [{ type: 'SalesDeliveryItem', id: `delivery-${deliveryId}` }],
+      providesTags: (_result, _error, deliveryId) => [{ type: 'SalesDeliveryItem', id: `delivery-${deliveryId}` }],
     }),
   }),
 });
