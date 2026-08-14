@@ -202,20 +202,29 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const finalizeReadiness = canFinalizeSalesOrderInvoice(order, approvalSummary.met, linkedInvoiceStatus);
   const markCompleteReadiness = useMemo(() => canMarkSalesOrderComplete(order, items), [order, items]);
 
-  const sectionConfirmReadiness = useMemo(
-    () => ({
-      order_info: canConfirmSalesOrderSection('order_info', order, items),
-      items: canConfirmSalesOrderSection('items', order, items),
-    }),
-    [order, items]
-  );
-
   const [draft, setDraft] = useState<SoDraft>(() => draftFromOrder(order));
   useEffect(() => {
     setDraft(draftFromOrder(order));
   }, [order.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = (changes: Partial<SoDraft>) => setDraft((d) => ({ ...d, ...changes }));
+
+  const effectiveOrderFields = useMemo(
+    () => ({
+      account_id: order.account_id,
+      order_date: order.order_date,
+      contact_name: draft.contact_name || order.contact_name,
+    }),
+    [draft.contact_name, order.account_id, order.order_date, order.contact_name]
+  );
+
+  const sectionConfirmReadiness = useMemo(
+    () => ({
+      order_info: canConfirmSalesOrderSection('order_info', effectiveOrderFields, items),
+      items: canConfirmSalesOrderSection('items', effectiveOrderFields, items),
+    }),
+    [effectiveOrderFields, items]
+  );
 
   const changedFields = useMemo<UpdateSalesOrderDTO>(() => {
     const payload: UpdateSalesOrderDTO = {};
@@ -560,7 +569,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Customer Name</Label>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Customer Name *</Label>
                       <Input
                         placeholder="Point of contact"
                         value={draft.contact_name}

@@ -53,7 +53,7 @@ export type SoSectionConfirmKey = 'order_info' | 'items';
 
 export function canConfirmSalesOrderSection(
   section: SoSectionConfirmKey,
-  order: Pick<SalesOrder, 'account_id' | 'order_date'>,
+  order: Pick<SalesOrder, 'account_id' | 'order_date' | 'contact_name'>,
   items: SalesOrderItem[]
 ): { ok: boolean; reason?: string } {
   if (section === 'order_info') {
@@ -62,6 +62,9 @@ export function canConfirmSalesOrderSection(
     }
     if (!order.order_date) {
       return { ok: false, reason: 'Set the order date first' };
+    }
+    if (!order.contact_name || !order.contact_name.trim()) {
+      return { ok: false, reason: 'Set the customer name first' };
     }
     return { ok: true };
   }
