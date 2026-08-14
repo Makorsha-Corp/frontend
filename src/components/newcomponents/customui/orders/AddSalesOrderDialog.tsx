@@ -58,7 +58,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [factoryId, setFactoryId] = useState<string>('');
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [quotationSentDate, setQuotationSentDate] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<DraftLine[]>([]);
@@ -91,7 +90,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     setAccountId('');
     setFactoryId('');
     setOrderDate(new Date().toISOString().slice(0, 10));
-    setQuotationSentDate('');
     setExpectedDeliveryDate('');
     setDescription('');
     setItems([]);
@@ -229,7 +227,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       account_id: aid,
       factory_id: fid,
       order_date: orderDate,
-      quotation_sent_date: quotationSentDate || undefined,
       expected_delivery_date: expectedDeliveryDate || undefined,
       current_status_id: 1,
       description: description || undefined,
@@ -530,25 +527,14 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         <Label>Order date *</Label>
         <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <Label>Quotation sent date</Label>
-          <Input
-            type="date"
-            value={quotationSentDate}
-            onChange={(e) => setQuotationSentDate(e.target.value)}
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label>Expected delivery date</Label>
-          <Input
-            type="date"
-            value={expectedDeliveryDate}
-            onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-            className="mt-1"
-          />
-        </div>
+      <div>
+        <Label>Expected delivery date</Label>
+        <Input
+          type="date"
+          value={expectedDeliveryDate}
+          onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+          className="mt-1"
+        />
       </div>
       <div>
         <Label>Description</Label>

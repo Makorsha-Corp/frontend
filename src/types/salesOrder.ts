@@ -5,7 +5,6 @@ export interface SalesOrder {
   account_id: number;
   factory_id: number;
   order_date: string;
-  quotation_sent_date: string | null;
   expected_delivery_date: string | null;
   total_amount: number;
   current_status_id: number;
@@ -37,7 +36,6 @@ export interface CreateSalesOrderDTO {
   account_id: number;
   factory_id: number;
   order_date: string;
-  quotation_sent_date?: string;
   expected_delivery_date?: string;
   current_status_id?: number;
   description?: string;
@@ -45,7 +43,6 @@ export interface CreateSalesOrderDTO {
 }
 
 export interface UpdateSalesOrderDTO {
-  quotation_sent_date?: string;
   expected_delivery_date?: string;
   total_amount?: number;
   is_fully_delivered?: boolean;
