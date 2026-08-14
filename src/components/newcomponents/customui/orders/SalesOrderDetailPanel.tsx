@@ -946,7 +946,6 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
           </Card>
           </div>
         </div>
-        </div>
       </div>
 
       {/* Page-wide Save bar */}
