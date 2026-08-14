@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, Loader2, Package, Plus, Truck, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ import {
 } from '@/features/salesOrders/salesOrdersApi';
 import {
   useCreateSalesDeliveryMutation,
+  useEditSalesDeliveryMutation,
   useCompleteSalesDeliveryMutation,
   useCancelSalesDeliveryMutation,
   useGetSalesDeliveryItemsQuery,
@@ -370,38 +371,9 @@ const statusBadgeClass = (status: SalesDelivery['delivery_status']) => {
 
 const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: DeliveryMethod[]; onCompleted: () => void }> = ({ delivery, deliveryMethods, onCompleted }) => {
   const [expanded, setExpanded] = useState(false);
-  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const { data: deliveryItems = [], isLoading: itemsLoading } = useGetSalesDeliveryItemsQuery(delivery.id, { skip: !expanded });
-  const [completeDelivery, { isLoading: completing }] = useCompleteSalesDeliveryMutation();
-  const [cancelDelivery, { isLoading: cancelling }] = useCancelSalesDeliveryMutation();
   const methodName = deliveryMethods.find((m) => m.id === delivery.delivery_method_id)?.name;
-
-  const handleComplete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const result = await completeDelivery(delivery.id).unwrap();
-      for (const msg of result.messages ?? []) {
-        toast.success(msg.message);
-      }
-      onCompleted();
-    } catch (err: unknown) {
-      const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to complete delivery');
-    }
-  };
-
-  const handleCancel = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await cancelDelivery(delivery.id).unwrap();
-      toast.success(`${delivery.delivery_number} cancelled — quantity freed up to plan again`);
-      setConfirmingCancel(false);
-      onCompleted();
-    } catch (err: unknown) {
-      const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to cancel delivery');
-    }
-  };
 
   return (
     <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
@@ -429,6 +401,11 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
                 {delivery.tracking_number}
               </Badge>
             )}
+            {delivery.completion_code && (
+              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
+                Code: {delivery.completion_code}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1">
@@ -438,55 +415,18 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
           </div>
         </div>
         {delivery.delivery_status === 'planned' && (
-          confirmingCancel ? (
-            <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <span className="text-xs text-muted-foreground">Cancel this plan?</span>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                onClick={handleCancel}
-                disabled={cancelling}
-              >
-                {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Yes'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                onClick={(e) => { e.stopPropagation(); setConfirmingCancel(false); }}
-                disabled={cancelling}
-              >
-                No
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setConfirmingCancel(true); }}
-                aria-label={`Cancel ${delivery.delivery_number}`}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                onClick={handleComplete}
-                disabled={completing}
-              >
-                {completing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
-                Mark Delivered
-              </Button>
-            </div>
-          )
+          <div className="shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={(e) => { e.stopPropagation(); setManageDialogOpen(true); }}
+            >
+              <Truck className="mr-1 h-3.5 w-3.5" />
+              Manage delivery
+            </Button>
+          </div>
         )}
         <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
       </button>
@@ -510,7 +450,232 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
           )}
         </div>
       )}
+
+      <ManageDeliveryDialog
+        open={manageDialogOpen}
+        onOpenChange={setManageDialogOpen}
+        delivery={delivery}
+        deliveryMethods={deliveryMethods}
+        onChanged={onCompleted}
+      />
     </div>
+  );
+};
+
+const ManageDeliveryDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  delivery: SalesDelivery;
+  deliveryMethods: DeliveryMethod[];
+  onChanged: () => void;
+}> = ({ open, onOpenChange, delivery, deliveryMethods, onChanged }) => {
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [deliveryMethodId, setDeliveryMethodId] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [notes, setNotes] = useState('');
+  const [actualDeliveryDate, setActualDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [completionCode, setCompletionCode] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editDelivery, { isLoading: saving }] = useEditSalesDeliveryMutation();
+  const [completeDelivery, { isLoading: completing }] = useCompleteSalesDeliveryMutation();
+  const [cancelDelivery, { isLoading: cancelling }] = useCancelSalesDeliveryMutation();
+
+  useEffect(() => {
+    if (!open) return;
+    setScheduledDate(delivery.scheduled_date ?? '');
+    setDeliveryMethodId(delivery.delivery_method_id != null ? String(delivery.delivery_method_id) : '');
+    setTrackingNumber(delivery.tracking_number ?? '');
+    setNotes(delivery.notes ?? '');
+    setActualDeliveryDate(new Date().toISOString().slice(0, 10));
+    setCompletionCode('');
+    setConfirmingDelete(false);
+  }, [open, delivery]);
+
+  const handleSave = async () => {
+    try {
+      await editDelivery({
+        id: delivery.id,
+        data: {
+          scheduled_date: scheduledDate || undefined,
+          delivery_method_id: deliveryMethodId ? parseInt(deliveryMethodId, 10) : undefined,
+          tracking_number: trackingNumber.trim() || undefined,
+          notes: notes.trim() || undefined,
+        },
+      }).unwrap();
+      toast.success(`${delivery.delivery_number} updated`);
+      onChanged();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to update delivery');
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      const result = await completeDelivery({
+        id: delivery.id,
+        data: {
+          actual_delivery_date: actualDeliveryDate || undefined,
+          completion_code: completionCode.trim() || undefined,
+        },
+      }).unwrap();
+      for (const msg of result.messages ?? []) {
+        toast.success(msg.message);
+      }
+      onOpenChange(false);
+      onChanged();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to complete delivery');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await cancelDelivery(delivery.id).unwrap();
+      toast.success(`${delivery.delivery_number} cancelled — quantity freed up to plan again`);
+      onOpenChange(false);
+      onChanged();
+    } catch (err: unknown) {
+      const e = err as { data?: { detail?: string } };
+      toast.error(e?.data?.detail || 'Failed to cancel delivery');
+    }
+  };
+
+  const busy = saving || completing || cancelling;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(30rem,92vw)] max-w-none max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Truck className="h-4 w-4 text-muted-foreground" />
+            Manage {delivery.delivery_number}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Details</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="so-edit-scheduled-date">Scheduled date</Label>
+                <Input
+                  id="so-edit-scheduled-date"
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="so-edit-tracking-number">Tracking number</Label>
+                <Input
+                  id="so-edit-tracking-number"
+                  placeholder="Shipment tracking number"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="so-edit-delivery-method">Delivery method</Label>
+              <Select value={deliveryMethodId} onValueChange={setDeliveryMethodId}>
+                <SelectTrigger id="so-edit-delivery-method" className="w-full bg-background">
+                  <SelectValue placeholder="Select delivery method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {deliveryMethods.map((m) => (
+                    <SelectItem key={m.id} value={m.id.toString()}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="so-edit-notes">Notes</Label>
+              <Textarea
+                id="so-edit-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" variant="outline" onClick={handleSave} disabled={busy}>
+                {saving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Save changes
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t border-border pt-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Complete delivery</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="so-actual-delivery-date">Actual delivery date</Label>
+              <Input
+                id="so-actual-delivery-date"
+                type="date"
+                value={actualDeliveryDate}
+                onChange={(e) => setActualDeliveryDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="so-delivery-completion-code">
+                Delivery completion code <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="so-delivery-completion-code"
+                placeholder="e.g. proof-of-delivery reference"
+                value={completionCode}
+                onChange={(e) => setCompletionCode(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleComplete} disabled={busy} className="bg-brand-primary hover:bg-brand-primary-hover">
+                {completing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-2 h-3.5 w-3.5" />}
+                Mark Delivered
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            {confirmingDelete ? (
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+                <span className="text-xs text-muted-foreground">Delete this planned delivery?</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={handleDelete} disabled={busy}>
+                    {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Yes, delete'}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setConfirmingDelete(false)} disabled={busy}>
+                    No
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={busy}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                Delete delivery
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

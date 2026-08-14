@@ -15,6 +15,7 @@ export interface SalesOrderItem {
   unit_price: number;
   line_total: number;
   notes: string | null;
+  fulfillment_completion_code: string | null;
 }
 
 export interface CreateSalesOrderItemDTO {

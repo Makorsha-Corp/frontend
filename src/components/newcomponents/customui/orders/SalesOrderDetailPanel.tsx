@@ -139,6 +139,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const [markOrderComplete, { isLoading: isMarkingOrderComplete }] = useMarkSalesOrderCompleteMutation();
   const [fulfillItem, { isLoading: isFulfilling }] = useFulfillSalesOrderItemMutation();
   const [fulfillingItemId, setFulfillingItemId] = useState<number | null>(null);
+  const [fulfillDialogItem, setFulfillDialogItem] = useState<{ id: number; name: string } | null>(null);
+  const [fulfillCompletionCode, setFulfillCompletionCode] = useState('');
 
   const { data: linkedInvoiceQuery } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
     skip: order.invoice_id == null,
@@ -453,13 +455,15 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     }
   };
 
-  const handleFulfill = async (itemId: number) => {
+  const handleFulfill = async (itemId: number, completionCode?: string) => {
     setFulfillingItemId(itemId);
     try {
-      const result = await fulfillItem({ orderId: order.id, itemId }).unwrap();
+      const result = await fulfillItem({ orderId: order.id, itemId, completion_code: completionCode }).unwrap();
       for (const msg of result.messages ?? []) {
         toast.success(msg.message);
       }
+      setFulfillDialogItem(null);
+      setFulfillCompletionCode('');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -736,9 +740,16 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                               <TableCell className="py-2 text-right">
                                 {!it.requires_delivery &&
                                   (isFulfilled ? (
-                                    <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                                      <CheckCircle2 className="h-3.5 w-3.5" />
-                                      Fulfilled
+                                    <span className="inline-flex flex-col items-end gap-0.5 text-xs text-green-600 dark:text-green-400">
+                                      <span className="inline-flex items-center gap-1">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Fulfilled
+                                      </span>
+                                      {it.fulfillment_completion_code && (
+                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                          Code: {it.fulfillment_completion_code}
+                                        </span>
+                                      )}
                                     </span>
                                   ) : (
                                     <BlockedActionButton
@@ -752,7 +763,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                                           : undefined
                                       }
                                       isBusy={isFulfilling && fulfillingItemId === it.id}
-                                      onAction={() => handleFulfill(it.id)}
+                                      onAction={() => setFulfillDialogItem({ id: it.id, name: it.item_name ?? `Item #${it.item_id}` })}
                                     >
                                       <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                                       Fulfill
@@ -1013,6 +1024,58 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
             </Button>
             <Button type="button" onClick={handleConfirmSectionUnconfirm}>
               Unconfirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={fulfillDialogItem != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFulfillDialogItem(null);
+            setFulfillCompletionCode('');
+          }
+        }}
+      >
+        <DialogContent className="w-[min(26rem,92vw)] max-w-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+              Fulfill {fulfillDialogItem?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="so-fulfillment-completion-code">
+              Fulfillment completion code <span className="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Input
+              id="so-fulfillment-completion-code"
+              placeholder="e.g. completion reference"
+              value={fulfillCompletionCode}
+              onChange={(e) => setFulfillCompletionCode(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setFulfillDialogItem(null);
+                setFulfillCompletionCode('');
+              }}
+              disabled={isFulfilling}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => fulfillDialogItem && handleFulfill(fulfillDialogItem.id, fulfillCompletionCode.trim() || undefined)}
+              disabled={isFulfilling}
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+            >
+              {isFulfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              Fulfill
             </Button>
           </DialogFooter>
         </DialogContent>

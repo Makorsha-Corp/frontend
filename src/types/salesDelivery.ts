@@ -8,6 +8,7 @@ export interface SalesDelivery {
   delivery_status: 'planned' | 'delivered' | 'cancelled';
   delivery_method_id: number | null;
   tracking_number: string | null;
+  completion_code: string | null;
   notes: string | null;
   created_by: number;
   created_at: string;
@@ -30,5 +31,20 @@ export interface UpdateSalesDeliveryDTO {
   delivery_status?: 'planned' | 'delivered' | 'cancelled';
   delivery_method_id?: number;
   tracking_number?: string;
+  completion_code?: string;
   notes?: string;
+}
+
+/** PATCH /{delivery_id}/ — only allowed while the delivery is still 'planned'. */
+export interface EditSalesDeliveryDTO {
+  scheduled_date?: string;
+  delivery_method_id?: number;
+  tracking_number?: string;
+  notes?: string;
+}
+
+/** POST /{delivery_id}/complete/ body — both optional. */
+export interface CompleteSalesDeliveryDTO {
+  actual_delivery_date?: string;
+  completion_code?: string;
 }

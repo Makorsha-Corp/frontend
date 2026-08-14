@@ -1,7 +1,12 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import { invalidateSalesOrderById } from '@/features/cache/invalidateOrderInvoiceCache';
-import type { SalesDelivery, CreateSalesDeliveryDTO } from '@/types/salesDelivery';
+import type {
+  SalesDelivery,
+  CreateSalesDeliveryDTO,
+  EditSalesDeliveryDTO,
+  CompleteSalesDeliveryDTO,
+} from '@/types/salesDelivery';
 import type { SalesDeliveryItem, CreateSalesDeliveryItemDTO } from '@/types/salesDeliveryItem';
 import type { SalesOrder } from '@/types/salesOrder';
 import type { ActionResponse } from '@/types/common';
@@ -57,13 +62,22 @@ export const salesDeliveriesApi = createApi({
         }
       },
     }),
-    completeSalesDelivery: builder.mutation<ActionResponse<SalesOrder>, number>({
-      query: (id) => ({
+    editSalesDelivery: builder.mutation<SalesDelivery, { id: number; data: EditSalesDeliveryDTO }>({
+      query: ({ id, data }) => ({
+        url: `sales-deliveries/${id}/`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'SalesDelivery', id }, 'SalesDelivery'],
+    }),
+    completeSalesDelivery: builder.mutation<ActionResponse<SalesOrder>, { id: number; data?: CompleteSalesDeliveryDTO }>({
+      query: ({ id, data }) => ({
         url: `sales-deliveries/${id}/complete/`,
         method: 'POST',
+        body: data ?? {},
       }),
       invalidatesTags: ['SalesDelivery', 'SalesOrder'],
-      async onQueryStarted(_id, { dispatch, queryFulfilled }) {
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
           invalidateSalesOrderById(dispatch, data.data.id);
@@ -98,6 +112,7 @@ export const {
   useGetSalesDeliveriesQuery,
   useGetSalesDeliveryByIdQuery,
   useCreateSalesDeliveryMutation,
+  useEditSalesDeliveryMutation,
   useCompleteSalesDeliveryMutation,
   useCancelSalesDeliveryMutation,
   useGetSalesDeliveryItemsQuery,

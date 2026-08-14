@@ -93,10 +93,14 @@ export const salesOrdersApi = createApi({
       query: (orderId) => `sales-orders/${orderId}/deliveries/`,
       providesTags: (_r, _e, orderId) => [{ type: 'SalesOrder', id: `deliveries-${orderId}` }],
     }),
-    fulfillSalesOrderItem: builder.mutation<ActionResponse<SalesOrder>, { orderId: number; itemId: number }>({
-      query: ({ orderId, itemId }) => ({
+    fulfillSalesOrderItem: builder.mutation<
+      ActionResponse<SalesOrder>,
+      { orderId: number; itemId: number; completion_code?: string }
+    >({
+      query: ({ orderId, itemId, completion_code }) => ({
         url: `sales-orders/${orderId}/items/${itemId}/fulfill/`,
         method: 'POST',
+        body: { completion_code: completion_code || undefined },
       }),
       invalidatesTags: (_r, _e, { orderId }) => [
         { type: 'SalesOrder', id: orderId },
