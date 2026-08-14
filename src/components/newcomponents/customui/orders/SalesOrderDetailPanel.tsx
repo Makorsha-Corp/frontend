@@ -17,7 +17,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Building2,
   Package,
   Truck,
   FileText,
@@ -70,6 +69,7 @@ import {
   useGetSalesOrderEventsQuery,
 } from '@/features/salesOrders/salesOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
+import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -102,6 +102,8 @@ interface SalesOrderDetailPanelProps {
 
 interface SoDraft {
   expected_delivery_date: string;
+  contact_name: string;
+  contact_phone: string;
   description: string;
 }
 
@@ -109,13 +111,14 @@ const confirmedSectionCardClass = 'border-muted-foreground/15 bg-muted/20';
 const confirmedSectionContentClass = 'opacity-[0.88] saturate-[0.92]';
 
 const SECTION_CONFIRM_LABELS: Record<SoSectionConfirmKey, string> = {
-  customer: 'Customer',
-  details: 'Order details',
+  order_info: 'Order details',
   items: 'Order items',
 };
 
 const draftFromOrder = (o: SalesOrder): SoDraft => ({
   expected_delivery_date: o.expected_delivery_date ?? '',
+  contact_name: o.contact_name ?? '',
+  contact_phone: o.contact_phone ?? '',
   description: o.description ?? '',
 });
 
@@ -163,6 +166,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const currentUserId = user?.id ?? null;
 
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: API_LIMITS.ACCOUNTS_LIST_MAX });
+  const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
     skip: !workspace?.id,
   });
@@ -185,14 +189,13 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const assignableMembers = members.filter((m) => m.status === 'active' && !assignedUserIds.has(m.user_id));
 
   const accountName = accounts.find((a) => a.id === order.account_id)?.name ?? `#${order.account_id}`;
+  const factoryName = factories.find((f) => f.id === order.factory_id)?.name ?? `#${order.factory_id}`;
 
   const invoiceLocked = isSalesOrderInvoiceFinalized(linkedInvoiceStatus) || order.invoice_confirmed;
   const isSoCompleted = isSalesOrderMarkedComplete(order);
-  const customerConfirmed = order.customer_confirmed;
-  const detailsConfirmed = order.details_confirmed;
+  const orderInfoConfirmed = order.order_info_confirmed;
   const itemsConfirmed = order.items_confirmed;
-  const customerDisabled = invoiceLocked || customerConfirmed;
-  const detailsDisabled = invoiceLocked || detailsConfirmed;
+  const orderInfoDisabled = invoiceLocked || orderInfoConfirmed;
   const itemsSectionConfirmed = itemsConfirmed || invoiceLocked;
 
   const confirmationsStatus = getSalesOrderConfirmationsStatus(order);
@@ -201,8 +204,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
 
   const sectionConfirmReadiness = useMemo(
     () => ({
-      customer: canConfirmSalesOrderSection('customer', order, items),
-      details: canConfirmSalesOrderSection('details', order, items),
+      order_info: canConfirmSalesOrderSection('order_info', order, items),
       items: canConfirmSalesOrderSection('items', order, items),
     }),
     [order, items]
@@ -217,14 +219,18 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
 
   const changedFields = useMemo<UpdateSalesOrderDTO>(() => {
     const payload: UpdateSalesOrderDTO = {};
-    if (!detailsDisabled) {
+    if (!orderInfoDisabled) {
       const expDate = draft.expected_delivery_date || undefined;
       if ((expDate ?? null) !== (order.expected_delivery_date ?? null)) payload.expected_delivery_date = expDate;
+      const contactName = draft.contact_name.trim() ? draft.contact_name : undefined;
+      if ((contactName ?? null) !== (order.contact_name ?? null)) payload.contact_name = contactName;
+      const contactPhone = draft.contact_phone.trim() ? draft.contact_phone : undefined;
+      if ((contactPhone ?? null) !== (order.contact_phone ?? null)) payload.contact_phone = contactPhone;
       const desc = draft.description.trim() ? draft.description : undefined;
       if ((desc ?? null) !== (order.description ?? null)) payload.description = desc;
     }
     return payload;
-  }, [draft, order, detailsDisabled]);
+  }, [draft, order, orderInfoDisabled]);
 
   const isDirty = Object.keys(changedFields).length > 0;
 
@@ -271,10 +277,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
 
   const pendingLabelToSection = (label: string): SoSectionConfirmKey | null => {
     switch (label) {
-      case 'Customer':
-        return 'customer';
-      case 'Order details':
-        return 'details';
+      case 'Order info':
+        return 'order_info';
       case 'Items':
         return 'items';
       default:
@@ -381,7 +385,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const handleToggleSectionConfirm = async (section: SoSectionConfirmKey, nextConfirmed: boolean) => {
     setConfirmingSection(section);
     try {
-      if (nextConfirmed && section === 'details' && Object.keys(changedFields).length > 0) {
+      if (nextConfirmed && section === 'order_info' && Object.keys(changedFields).length > 0) {
         const saved = await saveDetailsFields();
         if (!saved) return;
       }
@@ -501,14 +505,11 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
             onToggleMyApproval={handleToggleMyApproval}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_auto] gap-4 lg:items-stretch">
-            {/* Order Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
+            {/* Order Details — factory, customer, contact, dates, description; one confirm for the whole card */}
             <Card
-              id="so-section-details"
-              className={cn(
-                'order-1 lg:col-span-2 lg:row-start-1 flex flex-col scroll-mt-6',
-                detailsDisabled && confirmedSectionCardClass
-              )}
+              id="so-section-order_info"
+              className={cn('lg:col-span-2 flex flex-col scroll-mt-6', orderInfoDisabled && confirmedSectionCardClass)}
             >
               <CardHeader className="p-4 pb-2 shrink-0">
                 <div className="flex items-center justify-between gap-2">
@@ -520,20 +521,63 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                     <SectionConfirmActions confirmed invoiceLocked label="order details" variant="system" />
                   ) : (
                     <SectionConfirmActions
-                      id="so-confirm-details"
-                      confirmed={detailsConfirmed}
+                      id="so-confirm-order_info"
+                      confirmed={orderInfoConfirmed}
                       invoiceLocked={invoiceLocked}
-                      onToggle={() => requestSectionConfirmToggle('details', detailsConfirmed)}
-                      isLoading={confirmingSection === 'details'}
+                      onToggle={() => requestSectionConfirmToggle('order_info', orderInfoConfirmed)}
+                      isLoading={confirmingSection === 'order_info'}
                       label="order details"
-                      highlighted={scrollHighlightTarget === 'details'}
+                      highlighted={scrollHighlightTarget === 'order_info'}
                       onHighlightDismiss={dismissScrollHighlight}
                     />
                   )}
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
-                <div className={cn('space-y-3', detailsDisabled && confirmedSectionContentClass)}>
+                <div className={cn('space-y-3', orderInfoDisabled && confirmedSectionContentClass)}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Factory</Label>
+                      <div className="flex items-center h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                        <span className="text-card-foreground">{factoryName}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Customer</Label>
+                      <div className="flex items-center justify-between h-9 rounded-md border border-border pl-3 pr-1">
+                        <span className="truncate text-sm text-card-foreground">{accountName}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 shrink-0"
+                          onClick={() => setAccountViewOpen(true)}
+                        >
+                          View
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Customer Name</Label>
+                      <Input
+                        placeholder="Point of contact"
+                        value={draft.contact_name}
+                        onChange={(e) => patch({ contact_name: e.target.value })}
+                        disabled={orderInfoDisabled}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Phone Number</Label>
+                      <Input
+                        placeholder="Contact phone number"
+                        value={draft.contact_phone}
+                        onChange={(e) => patch({ contact_phone: e.target.value })}
+                        disabled={orderInfoDisabled}
+                      />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
@@ -547,7 +591,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                         type="date"
                         value={draft.expected_delivery_date}
                         onChange={(e) => patch({ expected_delivery_date: e.target.value })}
-                        disabled={detailsDisabled}
+                        disabled={orderInfoDisabled}
                       />
                     </div>
                   </div>
@@ -558,70 +602,24 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                       value={draft.description}
                       onChange={(e) => patch({ description: e.target.value })}
                       className="min-h-[56px] resize-none"
-                      disabled={detailsDisabled}
+                      disabled={orderInfoDisabled}
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Customer */}
-            <Card
-              id="so-section-customer"
-              className={cn('order-2 lg:col-span-2 lg:row-start-2 scroll-mt-6', customerDisabled && confirmedSectionCardClass)}
-            >
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    Customer
-                  </CardTitle>
-                  {invoiceLocked ? (
-                    <SectionConfirmActions confirmed invoiceLocked label="customer" variant="system" />
-                  ) : (
-                    <SectionConfirmActions
-                      id="so-confirm-customer"
-                      confirmed={customerConfirmed}
-                      invoiceLocked={invoiceLocked}
-                      onToggle={() => requestSectionConfirmToggle('customer', customerConfirmed)}
-                      isLoading={confirmingSection === 'customer'}
-                      label="customer"
-                      highlighted={scrollHighlightTarget === 'customer'}
-                      onHighlightDismiss={dismissScrollHighlight}
-                    />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className={cn('flex items-center justify-between rounded-lg border border-border px-3 py-2', customerDisabled && confirmedSectionContentClass)}>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-card-foreground">{accountName}</p>
-                    <p className="text-xs text-muted-foreground">Account #{order.account_id}</p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setAccountViewOpen(true)}>
-                    View
-                  </Button>
                 </div>
               </CardContent>
             </Card>
 
             <SoInvoiceWorkflowChecklist
-              className="order-3 max-lg:h-auto max-lg:w-full lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full scroll-mt-6"
+              className="max-lg:h-auto max-lg:w-full lg:col-start-3 scroll-mt-6"
               invoiceId={order.invoice_id ?? null}
               invoiceStatus={linkedInvoiceStatus}
               confirmationsStatus={confirmationsStatus}
               sections={[
                 {
-                  section: 'details',
-                  label: 'Order details',
-                  confirmed: detailsConfirmed,
-                  readinessHint: sectionConfirmReadiness.details.ok ? undefined : sectionConfirmReadiness.details.reason,
-                },
-                {
-                  section: 'customer',
-                  label: 'Customer',
-                  confirmed: customerConfirmed,
-                  readinessHint: sectionConfirmReadiness.customer.ok ? undefined : sectionConfirmReadiness.customer.reason,
+                  section: 'order_info',
+                  label: 'Order info',
+                  confirmed: orderInfoConfirmed,
+                  readinessHint: sectionConfirmReadiness.order_info.ok ? undefined : sectionConfirmReadiness.order_info.reason,
                 },
                 {
                   section: 'items',
@@ -822,7 +820,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                   <RefreshCw className="h-5 w-5 mx-auto text-muted-foreground/60" aria-hidden />
                   <p className="text-sm text-muted-foreground">
                     {!confirmationsStatus.allConfirmed
-                      ? 'Confirm customer, order details, and items first'
+                      ? 'Confirm order details and items first'
                       : !approvalSummary.met
                         ? 'Approvals required before finalizing the invoice'
                         : 'Ready to finalize — this creates and confirms the invoice in one step'}

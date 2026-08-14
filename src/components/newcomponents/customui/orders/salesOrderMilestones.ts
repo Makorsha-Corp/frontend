@@ -29,15 +29,14 @@ export interface SoConfirmationsStatus {
 
 export function getSalesOrderConfirmationsStatus(order: SalesOrder): SoConfirmationsStatus {
   const pendingLabels: string[] = [];
-  if (!order.customer_confirmed) pendingLabels.push('Customer');
-  if (!order.details_confirmed) pendingLabels.push('Order details');
+  if (!order.order_info_confirmed) pendingLabels.push('Order info');
   if (!order.items_confirmed) pendingLabels.push('Items');
 
   if (pendingLabels.length === 0) {
     return {
       allConfirmed: true,
       title: 'All sections confirmed',
-      reason: 'Customer, order details, and items are confirmed',
+      reason: 'Order info and items are confirmed',
       pendingLabels: [],
     };
   }
@@ -50,20 +49,17 @@ export function getSalesOrderConfirmationsStatus(order: SalesOrder): SoConfirmat
   };
 }
 
-export type SoSectionConfirmKey = 'customer' | 'details' | 'items';
+export type SoSectionConfirmKey = 'order_info' | 'items';
 
 export function canConfirmSalesOrderSection(
   section: SoSectionConfirmKey,
   order: Pick<SalesOrder, 'account_id' | 'order_date'>,
   items: SalesOrderItem[]
 ): { ok: boolean; reason?: string } {
-  if (section === 'customer') {
+  if (section === 'order_info') {
     if (order.account_id == null) {
       return { ok: false, reason: 'Select a customer first' };
     }
-    return { ok: true };
-  }
-  if (section === 'details') {
     if (!order.order_date) {
       return { ok: false, reason: 'Set the order date first' };
     }
@@ -86,7 +82,7 @@ export function canFinalizeSalesOrderInvoice(
   }
   const sections = getSalesOrderConfirmationsStatus(order);
   if (!sections.allConfirmed) {
-    return { ok: false, reason: 'Confirm customer, order details, and items first' };
+    return { ok: false, reason: 'Confirm order info and items first' };
   }
   if (!approvalMet) {
     return { ok: false, reason: 'Approvals required before finalizing the invoice' };

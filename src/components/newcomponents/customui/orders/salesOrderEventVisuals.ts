@@ -20,10 +20,8 @@ export interface SoEventVisual {
 
 export const SO_EVENT_VISUALS: Record<string, SoEventVisual> = {
   created: { icon: Plus, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
-  customer_confirmed: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
-  customer_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
-  details_confirmed: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
-  details_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
+  order_info_confirmed: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
+  order_info_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
   items_confirmed: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
   items_unconfirmed: { icon: CircleDashed, wrap: 'bg-muted', color: 'text-muted-foreground' },
   invoice_confirmed: { icon: CheckCircle2, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },

@@ -6,6 +6,8 @@ export interface SalesOrder {
   factory_id: number;
   order_date: string;
   expected_delivery_date: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   total_amount: number;
   current_status_id: number;
   is_fully_delivered: boolean;
@@ -15,8 +17,7 @@ export interface SalesOrder {
   invoice_payment_status: string | null;
 
   // Approval workflow
-  customer_confirmed: boolean;
-  details_confirmed: boolean;
+  order_info_confirmed: boolean;
   items_confirmed: boolean;
   invoice_confirmed: boolean;
   required_approvals: number | null;
@@ -37,6 +38,8 @@ export interface CreateSalesOrderDTO {
   factory_id: number;
   order_date: string;
   expected_delivery_date?: string;
+  contact_name?: string;
+  contact_phone?: string;
   current_status_id?: number;
   description?: string;
   // Note: total_amount is calculated automatically from items
@@ -44,6 +47,8 @@ export interface CreateSalesOrderDTO {
 
 export interface UpdateSalesOrderDTO {
   expected_delivery_date?: string;
+  contact_name?: string;
+  contact_phone?: string;
   total_amount?: number;
   is_fully_delivered?: boolean;
   invoice_id?: number;
@@ -81,7 +86,7 @@ export interface SalesOrderApproversList {
 
 // ─── Section confirm ──────────────────────────────────────────
 
-export type SalesOrderSection = 'customer' | 'details' | 'items';
+export type SalesOrderSection = 'order_info' | 'items';
 
 export interface SalesOrderSectionConfirmRequest {
   section: SalesOrderSection;

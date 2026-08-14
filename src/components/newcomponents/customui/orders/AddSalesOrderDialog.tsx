@@ -59,6 +59,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<DraftLine[]>([]);
   const [lineMode, setLineMode] = useState<'product' | 'misc'>('product');
@@ -91,6 +93,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     setFactoryId('');
     setOrderDate(new Date().toISOString().slice(0, 10));
     setExpectedDeliveryDate('');
+    setContactName('');
+    setContactPhone('');
     setDescription('');
     setItems([]);
     setLineMode('product');
@@ -228,6 +232,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       factory_id: fid,
       order_date: orderDate,
       expected_delivery_date: expectedDeliveryDate || undefined,
+      contact_name: contactName || undefined,
+      contact_phone: contactPhone || undefined,
       current_status_id: 1,
       description: description || undefined,
     };
@@ -535,6 +541,26 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           onChange={(e) => setExpectedDeliveryDate(e.target.value)}
           className="mt-1"
         />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <Label>Customer name</Label>
+          <Input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            placeholder="Point of contact"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Phone number</Label>
+          <Input
+            value={contactPhone}
+            onChange={(e) => setContactPhone(e.target.value)}
+            placeholder="Contact phone number"
+            className="mt-1"
+          />
+        </div>
       </div>
       <div>
         <Label>Description</Label>
