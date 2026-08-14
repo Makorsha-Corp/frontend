@@ -29,7 +29,6 @@ export function useOrdersOverviewPage() {
     expenseOrders,
     isLoading: scopeLoading,
     hasError: scopeError,
-    salesMayTruncate,
     hubOrdersMayTruncate,
   } = useOrdersScopeData();
 
@@ -107,7 +106,6 @@ export function useOrdersOverviewPage() {
     isLoading,
     loadStats,
     loadError,
-    salesMayTruncate,
     hubOrdersMayTruncate,
     scopedOrders,
     countsByType,

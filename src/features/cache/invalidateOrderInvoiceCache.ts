@@ -91,6 +91,7 @@ export function invalidateSalesOrderById(dispatch: AppDispatch, soId: number): v
       { type: 'SalesOrder', id: soId },
       'SalesOrder',
       { type: 'SalesOrderItem', id: `order-${soId}` },
+      { type: 'SalesOrderEvents', id: soId },
     ])
   );
 }

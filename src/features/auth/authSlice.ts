@@ -130,6 +130,11 @@ export const authSlice = createSlice({
       state.factory = null;
       localStorage.removeItem(SELECTED_FACTORY_KEY);
     },
+    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+      if (!state.user) return;
+      state.user = { ...state.user, ...action.payload };
+      localStorage.setItem(USER_DATA_KEY, JSON.stringify(state.user));
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
@@ -153,6 +158,7 @@ export const {
   setWorkspace,
   setFactory,
   clearFactory,
+  updateUser,
   logout,
 } = authSlice.actions;
 export default authSlice.reducer;

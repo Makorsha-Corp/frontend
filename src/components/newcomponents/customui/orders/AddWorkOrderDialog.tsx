@@ -58,7 +58,7 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: 100 }, { skip: !open });
   const { data: allMachines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 }, { skip: !open });
   const { data: projectComponents = [] } = useGetProjectComponentsQuery(
-    { skip: 0, limit: API_LIMITS.FLEXIBLE_1000 },
+    { skip: 0, limit: API_LIMITS.STRICT_100 },
     { skip: !open }
   );
   const { data: accounts = [] } = useGetAccountsQuery(

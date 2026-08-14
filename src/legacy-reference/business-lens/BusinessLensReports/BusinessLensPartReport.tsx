@@ -23,7 +23,7 @@ import {
 // Local Mock NavigationBar
 const NavigationBar: React.FC = () => (
   <div className="bg-cyan-800 text-white p-4 shadow-md flex justify-between items-center">
-    <div className="font-bold">Marker Legacy Reference</div>
+    <div className="font-bold">Kolom Legacy Reference</div>
   </div>
 );
 

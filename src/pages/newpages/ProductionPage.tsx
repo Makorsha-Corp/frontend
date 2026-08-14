@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import AppShellHeader, {
   appShellHeaderControlClass,
@@ -493,9 +492,7 @@ const ProductionPage: React.FC = () => {
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -516,14 +513,12 @@ const ProductionPage: React.FC = () => {
             onOpenChange={setIsAddFactoryOpen}
             factories={factories}
           />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
+    <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1242,7 +1237,7 @@ const ProductionPage: React.FC = () => {
         />
       )}
 
-    </div>
+    </>
   );
 };
 

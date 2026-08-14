@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   Building2,
   ChevronDown,
@@ -24,6 +24,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BRAND_NAME } from '@/constants/brand';
 
 /** Convert a workspace name to a URL-safe slug. */
 function toSlug(name: string): string {
@@ -259,8 +260,6 @@ const WorkspaceSelectorPage: React.FC = () => {
         }
         aria-hidden
       />
-      <Toaster position="top-right" />
-
       {/* Side rail */}
       <aside
         className={cn(
@@ -271,10 +270,10 @@ const WorkspaceSelectorPage: React.FC = () => {
       >
         <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:flex-none">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/15 ring-1 ring-brand-primary/25" aria-hidden>
-            <span className="text-sm font-bold text-brand-primary">M</span>
+            <span className="text-sm font-bold text-brand-primary">{BRAND_NAME.charAt(0)}</span>
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight text-brand-primary">Marker</p>
+            <p className="truncate text-sm font-semibold tracking-tight text-brand-primary">{BRAND_NAME}</p>
             <p className="truncate text-xs text-muted-foreground">Choose workspace</p>
           </div>
         </div>

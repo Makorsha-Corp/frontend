@@ -296,7 +296,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="flex items-center justify-between gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-2 min-w-0">
         <Label className="text-base">Items *</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
       </div>

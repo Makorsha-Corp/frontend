@@ -25,7 +25,7 @@ const OrdersTopFactoriesPanel: React.FC<OrdersTopFactoriesPanelProps> = ({
       value: factory.order_count,
       secondary:
         factory.total_value > 0 ? formatOverviewCurrency(factory.total_value) : undefined,
-      primary: `PO ${factory.purchase_count} · TR ${factory.transfer_count} · SO ${factory.sales_count} · WO ${factory.work_count}`,
+      primary: `PO ${factory.purchase_count} · TR ${factory.transfer_count}`,
     }))}
     emptyMessage="No factory-attributed orders in range"
   />

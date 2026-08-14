@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   UserPlus,
   UserMinus,
+  Paperclip,
+  Trash2,
 } from 'lucide-react';
 
 export type TransferOrderEventType =
@@ -70,6 +72,8 @@ const EVENT_VISUALS: Record<
   items_unconfirmed: { icon: Clock, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600' },
   section_confirmed: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600' },
   section_unconfirmed: { icon: Clock, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600' },
+  attachment_added: { icon: Paperclip, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600' },
+  attachment_removed: { icon: Trash2, wrap: 'bg-muted', color: 'text-muted-foreground' },
   default: { icon: History, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };
 

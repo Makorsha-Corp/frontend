@@ -46,6 +46,21 @@ export interface ProjectComponentLedgerEntry extends LedgerEntryBase {
   project_component_id: number;
 }
 
+export interface AttachmentLedgerEntry {
+  id: number;
+  workspace_id: number;
+  attachment_id: number;
+  transaction_type: string;
+  entity_type: string | null;
+  entity_id: number | null;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  notes: string | null;
+  performed_by: number | null;
+  performed_at: string;
+}
+
 export interface LedgerBalanceResponse {
   quantity: number;
   total_value?: string | number | null;
@@ -145,6 +160,16 @@ export interface UserTransactionsReportParams {
   user_id: number;
   start_date?: string;
   end_date?: string;
+  skip?: number;
+  limit?: number;
+}
+
+export interface AttachmentLedgerQueryParams {
+  attachment_id?: number;
+  entity_type?: string;
+  start_date?: string;
+  end_date?: string;
+  transaction_type?: string;
   skip?: number;
   limit?: number;
 }

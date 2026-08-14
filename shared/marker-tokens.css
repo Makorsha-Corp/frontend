@@ -1,6 +1,6 @@
 /**
- * Shared Marker design tokens — synced from repo-root shared/ (see shared/README.md).
- * HSL components only (no hsl() wrapper) for use as hsl(var(--token)).
+ * Shared Kolom design tokens — edit here; run `node scripts/sync-shared.mjs` from workspace root.
+ * See shared/README.md. HSL components only (no hsl() wrapper) for use as hsl(var(--token)).
  */
 
 :root {

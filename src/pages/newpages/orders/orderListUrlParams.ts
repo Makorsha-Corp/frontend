@@ -482,8 +482,6 @@ export function hubDraftSearch(kind: OverviewOrderKind): string | null {
       return transferOrdersDraftHubSearch();
     case 'expense':
       return expenseOrdersDraftHubSearch();
-    case 'work':
-      return workOrdersDraftHubSearch();
     default:
       return null;
   }
@@ -498,8 +496,6 @@ export function hubOpenSearch(kind: OverviewOrderKind): string | null {
       return transferOrdersOpenHubSearch();
     case 'expense':
       return expenseOrdersOpenHubSearch();
-    case 'work':
-      return workOrdersOpenHubSearch();
     default:
       return null;
   }

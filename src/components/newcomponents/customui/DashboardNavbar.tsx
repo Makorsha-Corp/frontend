@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -12,12 +12,8 @@ import {
   FolderKanban,
   FlaskConical,
   Settings,
-  LogOut,
-  User,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   ArrowLeftRight,
   Moon,
   Sun,
@@ -25,13 +21,17 @@ import {
   Cog,
   TrendingUp,
   CreditCard,
+  Paperclip,
+  LifeBuoy,
+  Receipt,
+  ClipboardList,
+  Layers3,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { logout } from '@/features/auth/authSlice';
-import { useLogoutMutation } from '@/features/auth/authApi';
+import { BRAND_NAME } from '@/constants/brand';
+import { useAppSelector } from '@/app/hooks';
 import { useTheme } from '@/context/ThemeContext';
-import toast from 'react-hot-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,10 +39,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import FactorySelectorDialog from './FactorySelectorDialog';
 import GlobalFactoryHoverPicker from './GlobalFactoryHoverPicker';
+import NavCollapsibleTriggerRow, {
+  handleNavSectionRowClick,
+} from './NavCollapsibleTriggerRow';
 import NotificationBell from '@/components/newcomponents/customui/notifications/NotificationBell';
+import UserAccountTrigger from '@/components/newcomponents/customui/UserAccountTrigger';
 
 interface NavItem {
   name: string;
@@ -55,6 +59,25 @@ const FACTORIES_EXPANDED_SESSION_KEY = 'erp-navbar-factories-expanded';
 const FACTORIES_LAST_PATH_SESSION_KEY = 'erp-navbar-factories-last-path';
 const ORDERS_EXPANDED_SESSION_KEY = 'erp-navbar-orders-expanded';
 const SALES_EXPANDED_SESSION_KEY = 'erp-navbar-sales-expanded';
+const NAV_SCROLL_SESSION_KEY = 'erp-navbar-scroll-top';
+
+/** In-memory scroll survives route remounts within the same tab. */
+let navScrollTopMemory = 0;
+
+function readStoredNavScrollTop(): number {
+  if (typeof sessionStorage === 'undefined') return navScrollTopMemory;
+  const raw = sessionStorage.getItem(NAV_SCROLL_SESSION_KEY);
+  if (raw == null) return navScrollTopMemory;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : navScrollTopMemory;
+}
+
+function persistNavScrollTop(value: number) {
+  navScrollTopMemory = value;
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(NAV_SCROLL_SESSION_KEY, String(value));
+  }
+}
 
 function getNavBackground(theme: 'light' | 'dark'): string {
   return theme === 'dark' ? 'hsl(var(--nav-background))' : 'hsl(var(--secondary))';
@@ -96,7 +119,6 @@ function useMobileNavViewport() {
 const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const { user, factory, workspace } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme, iconAnimating } = useTheme();
   const [factoryDialogOpen, setFactoryDialogOpen] = useState(false);
@@ -114,6 +136,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     return sessionStorage.getItem(SALES_EXPANDED_SESSION_KEY) === 'true';
   });
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const navScrollRef = useRef<HTMLElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
   });
@@ -150,12 +173,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   }, [isHoveringEdge]);
 
   const navItems: NavItem[] = [
-    { name: 'Accounts', icon: <Users size={20} />, path: '/accounts' },
+    { name: 'Help', icon: <LifeBuoy size={20} />, path: '/help' },
+    { name: 'Accounts', icon: <Building2 size={20} />, path: '/accounts/overview' },
     { name: 'BusinessLens', icon: <BarChart3 size={20} />, path: '/businesslens' },
     ...(workspace?.role === 'owner'
       ? [
           { name: 'Management', icon: <Settings size={20} />, path: '/management' },
           { name: 'Billing', icon: <CreditCard size={20} />, path: '/billing/trial' },
+          { name: 'Uploads', icon: <Paperclip size={20} />, path: '/uploads' },
         ]
       : []),
   ];
@@ -203,6 +228,20 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     setFactoriesExpanded(open);
   };
 
+  useLayoutEffect(() => {
+    const nav = navScrollRef.current;
+    if (!nav) return;
+    nav.scrollTop = readStoredNavScrollTop();
+  }, []);
+
+  useEffect(() => {
+    const nav = navScrollRef.current;
+    if (!nav) return;
+    const onScroll = () => persistNavScrollTop(nav.scrollTop);
+    nav.addEventListener('scroll', onScroll, { passive: true });
+    return () => nav.removeEventListener('scroll', onScroll);
+  }, []);
+
   useEffect(() => {
     if (isExpanded) setFactoryCompactMenuOpen(false);
   }, [isExpanded]);
@@ -214,10 +253,21 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   }, [location.pathname, isExpanded, factoryCompactMenuOpen]);
 
   const handleFactoryHeaderClick = () => {
-    setFactoriesExpanded(true);
-    if (location.pathname !== '/factories') {
+    handleNavSectionRowClick(isFactoriesActive, factoriesExpanded, setFactoriesExpanded, () => {
       navigate('/factories');
-    }
+    });
+  };
+
+  const handleOrdersHeaderClick = () => {
+    handleNavSectionRowClick(isOrdersActive, ordersExpanded, setOrdersExpanded, () => {
+      navigate('/orders');
+    });
+  };
+
+  const handleSalesHeaderClick = () => {
+    handleNavSectionRowClick(isSalesActive, salesExpanded, setSalesExpanded, () => {
+      navigate('/sales/overview');
+    });
   };
 
   const handleFactoryCompactMenuOpenChange = (open: boolean) => {
@@ -237,22 +287,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     if (location.pathname !== '/factories') {
       navigate('/factories');
     }
-  };
-
-  const [triggerLogout] = useLogoutMutation();
-
-  const handleLogout = async () => {
-    // useLogoutMutation revokes the refresh token on the server (best-effort)
-    // AND clears local auth state via its queryFn. We still dispatch logout()
-    // explicitly as a safety net in case the mutation throws before clearing.
-    try {
-      // queryFn signature requires an explicit arg even when we don't use it.
-      await triggerLogout({}).unwrap();
-    } catch {
-      dispatch(logout());
-    }
-    toast.success('Logged out successfully');
-    navigate('/login');
   };
 
   const isActive = (path: string) =>
@@ -355,7 +389,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </div>
             {isExpanded && (
               <div>
-                <h1 className="text-xl font-bold whitespace-nowrap text-white/90">Marker</h1>
+                <h1 className="text-xl font-bold whitespace-nowrap text-white/90">{BRAND_NAME}</h1>
               </div>
             )}
           </Link>
@@ -363,7 +397,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
         </div>
 
         {/* Navigation Items - scrollable when content overflows */}
-        <nav className="flex-1 min-h-0 overflow-y-auto py-6 px-3">
+        <nav
+          ref={navScrollRef}
+          className="flex-1 min-h-0 overflow-y-auto py-6 px-3 [scrollbar-gutter:stable]"
+        >
           <ul className="space-y-1">
             <li>
               <Link
@@ -461,34 +498,16 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 </DropdownMenu>
               ) : (
                 <Collapsible open={factoriesExpanded} onOpenChange={handleFactoriesOpenChange}>
-                  <div
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all w-full ${isFactoriesActive
-                        ? 'bg-brand-primary text-white'
-                        : navInactiveClass
-                      }`}
-                  >
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      title={factory ? `Factory - ${factory.name}` : 'Factory'}
-                      onClick={handleFactoryHeaderClick}
-                    >
-                      <Factory size={20} className="shrink-0" />
-                      <span className="flex-1 truncate font-medium">
-                        {factory ? factory.abbreviation : 'Factory'}
-                      </span>
-                    </button>
-                    {factoriesExpanded && <GlobalFactoryHoverPicker />}
-                    <CollapsibleTrigger asChild>
-                      <button className="shrink-0 p-1 text-white/80">
-                        {factoriesExpanded ? (
-                          <ChevronUp size={16} />
-                        ) : (
-                          <ChevronDown size={16} />
-                        )}
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
+                  <NavCollapsibleTriggerRow
+                    expanded={factoriesExpanded}
+                    isActive={isFactoriesActive}
+                    title={factory ? `Factory - ${factory.name}` : 'Factory'}
+                    label={factory ? factory.abbreviation : 'Factory'}
+                    icon={<Factory size={20} className="shrink-0" />}
+                    onToggle={handleFactoryHeaderClick}
+                    inactiveClass={navInactiveClass}
+                    trailing={<GlobalFactoryHoverPicker />}
+                  />
                   <CollapsibleContent>
                     <ul className="mt-1 ml-4 pl-4 border-l border-white/20 dark:border-border space-y-1">
                       <li>
@@ -594,44 +613,47 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                         }`}
                       title="Orders"
                     >
-                      <ShoppingCart size={20} className="shrink-0" />
+                      <Layers3 size={20} className="shrink-0" />
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
                     <DropdownMenuItem asChild>
-                      <Link to="/orders">Overview</Link>
+                      <Link to="/orders" className="flex items-center gap-2">
+                        <LayoutDashboard size={16} />
+                        Overview
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/orders/purchase">Purchase Orders</Link>
+                      <Link to="/orders/purchase" className="flex items-center gap-2">
+                        <ShoppingCart size={16} />
+                        Purchase Orders
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/orders/transfer">Transfer Orders</Link>
+                      <Link to="/orders/transfer" className="flex items-center gap-2">
+                        <ArrowLeftRight size={16} />
+                        Transfer Orders
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/orders/expense">Expense Orders</Link>
+                      <Link to="/orders/expense" className="flex items-center gap-2">
+                        <Receipt size={16} />
+                        Expense Orders
+                      </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <Collapsible open={ordersExpanded} onOpenChange={handleOrdersOpenChange}>
-                  <div
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all w-full ${isOrdersActive
-                        ? 'bg-brand-primary text-white'
-                        : navInactiveClass
-                      }`}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <button className="flex items-center gap-3 flex-1 min-w-0 text-left" title="Orders">
-                        <ShoppingCart size={20} className="shrink-0" />
-                        <span className="font-medium flex-1 truncate">Orders</span>
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleTrigger asChild>
-                      <button className="shrink-0 p-1 text-white/80">
-                        {ordersExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
+                  <NavCollapsibleTriggerRow
+                    expanded={ordersExpanded}
+                    isActive={isOrdersActive}
+                    title="Orders"
+                    label="Orders"
+                    icon={<Layers3 size={20} className="shrink-0" />}
+                    onToggle={handleOrdersHeaderClick}
+                    inactiveClass={navInactiveClass}
+                  />
                   <CollapsibleContent>
                     <ul className="mt-1 ml-4 pl-4 border-l border-white/20 dark:border-border space-y-1">
                       <li>
@@ -642,6 +664,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <LayoutDashboard size={18} />
                           <span className="text-sm font-medium">Overview</span>
                         </Link>
                       </li>
@@ -653,6 +676,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <ShoppingCart size={18} />
                           <span className="text-sm font-medium">Purchase</span>
                         </Link>
                       </li>
@@ -664,6 +688,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <ArrowLeftRight size={18} />
                           <span className="text-sm font-medium">Transfer</span>
                         </Link>
                       </li>
@@ -675,6 +700,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <Receipt size={18} />
                           <span className="text-sm font-medium">Expense</span>
                         </Link>
                       </li>
@@ -701,33 +727,30 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
                     <DropdownMenuItem asChild>
-                      <Link to="/sales/overview">Orders</Link>
+                      <Link to="/sales/overview" className="flex items-center gap-2">
+                        <ClipboardList size={16} />
+                        Orders
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/sales/team">Team</Link>
+                      <Link to="/sales/team" className="flex items-center gap-2">
+                        <Users size={16} />
+                        Team
+                      </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <Collapsible open={salesExpanded} onOpenChange={handleSalesOpenChange}>
-                  <div
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg transition-all w-full ${isSalesActive
-                        ? 'bg-brand-primary text-white'
-                        : navInactiveClass
-                      }`}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <button className="flex items-center gap-3 flex-1 min-w-0 text-left" title="Sales">
-                        <TrendingUp size={20} className="shrink-0" />
-                        <span className="font-medium flex-1 truncate">Sales</span>
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleTrigger asChild>
-                      <button className="shrink-0 p-1 text-white/80">
-                        {salesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                    </CollapsibleTrigger>
-                  </div>
+                  <NavCollapsibleTriggerRow
+                    expanded={salesExpanded}
+                    isActive={isSalesActive}
+                    title="Sales"
+                    label="Sales"
+                    icon={<TrendingUp size={20} className="shrink-0" />}
+                    onToggle={handleSalesHeaderClick}
+                    inactiveClass={navInactiveClass}
+                  />
                   <CollapsibleContent>
                     <ul className="mt-1 ml-4 pl-4 border-l border-white/20 dark:border-border space-y-1">
                       <li>
@@ -738,6 +761,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <ClipboardList size={18} />
                           <span className="text-sm font-medium">Orders</span>
                         </Link>
                       </li>
@@ -749,6 +773,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                               : navInactiveClass
                             }`}
                         >
+                          <Users size={18} />
                           <span className="text-sm font-medium">Team</span>
                         </Link>
                       </li>
@@ -778,33 +803,17 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
 
         <FactorySelectorDialog open={factoryDialogOpen} onOpenChange={setFactoryDialogOpen} />
 
-        {/* User Profile, Theme Toggle & Logout */}
-        <div className="p-4 border-t border-border/30 dark:border-border">
-          {/* User Profile Section */}
-          {user && isExpanded && (
-            <div className="flex items-center gap-3 px-3 py-2 mb-3">
-              <div className="w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center flex-shrink-0">
-                <User size={16} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/85 truncate">{user.name}</p>
-                <p className="text-xs text-white/55 truncate">{user.email}</p>
-              </div>
-            </div>
-          )}
-          {user && !isExpanded && (
-            <div className="flex justify-center mb-3">
-              <div className="w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center" title={user.name}>
-                <User size={16} className="text-white" />
-              </div>
-            </div>
+        {/* User account + theme */}
+        <div className="border-t border-border/30 p-4 dark:border-border">
+          {user && (
+            <UserAccountTrigger user={user} isExpanded={isExpanded} />
           )}
 
           <button
             type="button"
             onClick={(e) => toggleTheme(e)}
             className={cn(
-              'mb-2 flex min-h-[2.5rem] w-full items-center gap-2 rounded-lg px-3 py-2 transition-all',
+              'flex min-h-[2.5rem] w-full items-center gap-2 rounded-lg px-3 py-2 transition-all',
               navInactiveClass,
               !isExpanded ? 'justify-center' : 'justify-center sm:justify-start'
             )}
@@ -826,20 +835,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 {theme === 'light' ? 'Dark' : 'Light'}
               </span>
             )}
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className={cn(
-              'flex items-center gap-3 px-4 py-2 w-full rounded-lg transition-all hover:bg-red-500/10 hover:!text-red-300',
-              navInactiveClass,
-              !isExpanded ? 'justify-center' : ''
-            )}
-            title={!isExpanded ? 'Log out' : ''}
-          >
-            <LogOut size={20} />
-            {isExpanded && <span className="font-medium">Log out</span>}
           </button>
         </div>
       </div>

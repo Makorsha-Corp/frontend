@@ -12,6 +12,28 @@ import { Package, Plus, Loader2, Pencil, Trash2, ChevronUp, ExternalLink } from 
 import { cn } from '@/lib/utils';
 import { buildItemHref } from '@/lib/entityLinks';
 import { formatCurrency, formatNumber, type ProductsOverviewStats } from './storageConstants';
+import {
+  catalogActionsCellClass,
+  catalogActionsHeadClass,
+  catalogFactoryCellClass,
+  catalogFactoryHeadClass,
+  catalogItemCellClass,
+  catalogItemHeadClass,
+  catalogMoneyCellClass,
+  catalogMoneyHeadClass,
+  catalogNumericCellClass,
+  catalogNumericHeadClass,
+  catalogSectionCardClass,
+  catalogSectionIconTileClass,
+  catalogSectionMetaClass,
+  catalogSectionSummaryClass,
+  catalogSectionTitleClass,
+  catalogSectionToolbarClass,
+  catalogTableClass,
+  catalogTableHeadRowClass,
+  catalogTableRowClass,
+  catalogItemTextClass,
+} from './inventoryCatalogLayout';
 
 interface ProductsSectionProps {
   factoryId: number | null;
@@ -27,6 +49,7 @@ interface ProductsSectionProps {
   onRequireFactory?: () => void;
   onEdit: (prod: Product) => void;
   onDelete: (prod: Product) => void;
+  paginationFooter?: React.ReactNode;
   className?: string;
   collapsed?: boolean;
   onExpandRequest?: () => void;
@@ -46,6 +69,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   onRequireFactory,
   onEdit,
   onDelete,
+  paginationFooter,
   className,
   collapsed = false,
   onExpandRequest,
@@ -57,15 +81,15 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   const showFactoryColumn = factoryId == null;
 
   return (
-    <Card className={cn('flex min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm', collapsed ? 'shrink-0' : 'flex-1', className)}>
+    <Card className={cn(catalogSectionCardClass, collapsed ? 'shrink-0' : 'flex-1', className)}>
       <div className={cn('sticky top-0 z-10 shrink-0 bg-card', !collapsed && 'border-b border-border')}>
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className={catalogSectionToolbarClass}>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/25">
-                <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <div className={catalogSectionIconTileClass}>
+                <Package className="h-4 w-4 text-brand-primary" />
               </div>
-              <h2 className="text-sm font-semibold text-card-foreground">Products</h2>
+              <h2 className={catalogSectionTitleClass}>Products</h2>
               <Badge variant="secondary" className="tabular-nums">
                 {formatNumber(overview.records)}
               </Badge>
@@ -88,13 +112,13 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                   <Plus className="h-4 w-4" />
                 </BlockedActionButton>
               )}
-              <p className="text-xs tabular-nums text-muted-foreground">
+              <p className={catalogSectionSummaryClass}>
                 {formatNumber(overview.totalQty)} units · {formatCurrency(overview.totalCostValue)} cost ·{' '}
                 {formatCurrency(overview.totalSalesValue)} sales
               </p>
             </div>
             {!collapsed && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div className={catalogSectionMetaClass}>
                 <span>
                   Unique items:{' '}
                   <span className="font-medium tabular-nums text-card-foreground">{formatNumber(overview.uniqueCount)}</span>
@@ -170,64 +194,70 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
             )}
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b border-border bg-brand-primary/5 dark:bg-brand-primary/10">
-                  <TableHead className="py-3 text-xs font-semibold uppercase text-muted-foreground">Item</TableHead>
-                  {showFactoryColumn && (
-                    <TableHead className="w-[140px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                      Factory
-                    </TableHead>
-                  )}
-                  <TableHead className="w-[80px] py-3 text-xs font-semibold uppercase text-muted-foreground">Qty</TableHead>
-                  <TableHead className="w-[90px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                    Min. Order Qty
-                  </TableHead>
-                  <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                    Avg. Cost
-                  </TableHead>
-                  <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                    Selling Price
-                  </TableHead>
-                  <TableHead className="w-[80px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                    For Sale
-                  </TableHead>
-                  <TableHead className="w-[120px] py-3 text-right text-xs font-semibold uppercase text-muted-foreground">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((prod) => (
-                  <TableRow key={prod.id} className="border-b border-border last:border-0 hover:bg-brand-primary/5">
-                    <TableCell className="py-3 font-medium text-card-foreground">
-                      {prod.item_name ?? `Item #${prod.item_id}`}
-                      {prod.item_unit && <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>}
-                    </TableCell>
+          <>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <Table className={catalogTableClass}>
+                <colgroup>
+                  <col className="w-[280px]" />
+                  {showFactoryColumn ? <col className="w-[140px]" /> : null}
+                  <col className="w-[88px]" />
+                  <col className="w-[108px]" />
+                  <col className="w-[108px]" />
+                  <col className="w-[108px]" />
+                  <col className="w-[88px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
+                <TableHeader>
+                  <TableRow className={catalogTableHeadRowClass}>
+                    <TableHead className={catalogItemHeadClass}>Item</TableHead>
                     {showFactoryColumn && (
-                      <TableCell className="py-3 text-sm text-muted-foreground">
-                        {factoryLabels[prod.factory_id] ?? `Factory #${prod.factory_id}`}
-                      </TableCell>
+                      <TableHead className={catalogFactoryHeadClass}>Factory</TableHead>
                     )}
-                    <TableCell className="py-3 tabular-nums">{prod.qty}</TableCell>
-                    <TableCell className="py-3 tabular-nums text-muted-foreground">
-                      {prod.min_order_qty ?? '—'}
-                    </TableCell>
-                    <TableCell className="py-3 tabular-nums">{formatCurrency(prod.avg_cost)}</TableCell>
-                    <TableCell className="py-3 tabular-nums">{formatCurrency(prod.selling_price)}</TableCell>
-                    <TableCell className="py-3">
-                      <span
-                        className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
-                          prod.is_available_for_sale
-                            ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {prod.is_available_for_sale ? 'Yes' : 'No'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-3 text-right">
+                    <TableHead className={catalogNumericHeadClass}>Qty</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>Min. Order Qty</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>Avg. Cost</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>Selling Price</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>For Sale</TableHead>
+                    <TableHead className={catalogActionsHeadClass}>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((prod) => {
+                    const itemLabel = prod.item_name ?? `Item #${prod.item_id}`;
+                    const itemTitle = prod.item_unit ? `${itemLabel} (${prod.item_unit})` : itemLabel;
+                    return (
+                    <TableRow key={prod.id} className={catalogTableRowClass}>
+                      <TableCell className={catalogItemCellClass}>
+                        <span className={catalogItemTextClass} title={itemTitle}>
+                          {itemLabel}
+                          {prod.item_unit && (
+                            <span className="ml-1 text-xs text-muted-foreground">({prod.item_unit})</span>
+                          )}
+                        </span>
+                      </TableCell>
+                      {showFactoryColumn && (
+                        <TableCell className={catalogFactoryCellClass}>
+                          {factoryLabels[prod.factory_id] ?? `Factory #${prod.factory_id}`}
+                        </TableCell>
+                      )}
+                      <TableCell className={catalogNumericCellClass}>{prod.qty}</TableCell>
+                      <TableCell className={catalogNumericCellClass}>
+                        {prod.min_order_qty ?? '—'}
+                      </TableCell>
+                      <TableCell className={catalogMoneyCellClass}>{formatCurrency(prod.avg_cost)}</TableCell>
+                      <TableCell className={catalogMoneyCellClass}>{formatCurrency(prod.selling_price)}</TableCell>
+                      <TableCell className={catalogNumericCellClass}>
+                        <span
+                          className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
+                            prod.is_available_for_sale
+                              ? 'bg-brand-primary/15 text-brand-primary'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {prod.is_available_for_sale ? 'Yes' : 'No'}
+                        </span>
+                      </TableCell>
+                      <TableCell className={catalogActionsCellClass}>
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -258,12 +288,15 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            {paginationFooter}
+          </>
         )}
       </CardContent>
       )}

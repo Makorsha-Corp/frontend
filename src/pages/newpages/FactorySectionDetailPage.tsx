@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useParams, Link } from 'react-router-dom';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -97,20 +96,16 @@ const FactorySectionDetailPage: React.FC = () => {
 
   if (!factoryId || isNaN(factoryId) || !sectionIdNum || isNaN(sectionIdNum)) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 items-center justify-center">
+      <div className="flex flex-1 min-w-0 items-center justify-center">
           <p className="text-destructive">
             Invalid URL. <Link to="/factories" className="underline">Back to factories</Link>
           </p>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <DashboardNavbar />
+    <>
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {/* Header */}
         <AppShellHeader>
@@ -372,7 +367,7 @@ const FactorySectionDetailPage: React.FC = () => {
         machine={selectedMachine}
         onSuccess={() => setIsEditMachineOpen(false)}
       />
-    </div>
+    </>
   );
 };
 

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +31,7 @@ import {
   parseItemsCatalogFilters,
   parseItemsCatalogPage,
 } from '@/features/items/itemsCatalogParams';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
 const ItemsPage: React.FC = () => {
@@ -210,11 +209,8 @@ const ItemsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
@@ -358,7 +354,7 @@ const ItemsPage: React.FC = () => {
         }}
         onDelete={handleDelete}
       />
-    </div>
+    </>
   );
 };
 

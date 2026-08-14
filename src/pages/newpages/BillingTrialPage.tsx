@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderLeftGroupClass,
   appShellHeaderIconTileClass,
@@ -27,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   CreditCard,
   ExternalLink,
@@ -82,9 +81,7 @@ const BillingTrialPage: React.FC = () => {
 
   if (!workspace || workspace.role !== 'owner') {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <ShieldCheck className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 text-xl font-semibold text-card-foreground">Access Restricted</h2>
@@ -93,17 +90,12 @@ const BillingTrialPage: React.FC = () => {
               Back to Dashboard
             </Button>
           </div>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className={appShellHeaderLeftGroupClass}>
             <div className={appShellHeaderIconTileClass}>
@@ -113,13 +105,14 @@ const BillingTrialPage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="space-y-6 p-6 lg:p-8">
-          <IntroCard />
-          <CheckoutCard />
-          <LedgerTable />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-6 p-6 lg:p-8">
+            <IntroCard />
+            <CheckoutCard />
+            <LedgerTable />
+          </div>
         </div>
       </div>
-    </div>
   );
 };
 

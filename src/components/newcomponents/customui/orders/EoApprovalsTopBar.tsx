@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { AlertTriangle, Check, Clock, ShieldCheck, Wrench, X, XCircle } from 'lucide-react';
 import type { ExpenseApprovalSummary, ExpenseOrderApprover } from '@/types/expenseOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
-import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
+import { ORDER_APPROVALS_BAR_CLASS } from './orderListConstants';
 
 export interface EoApprovalsTopBarProps {
   approvers: ExpenseOrderApprover[];
@@ -46,8 +46,7 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
     <div
       id="eo-section-approvals"
       className={cn(
-        ORDER_PANEL_HEADER_CLASS,
-        '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 px-6 scroll-mt-6',
+        ORDER_APPROVALS_BAR_CLASS,
         highlighted && 'po-scroll-target-highlight'
       )}
       onMouseEnter={() => {

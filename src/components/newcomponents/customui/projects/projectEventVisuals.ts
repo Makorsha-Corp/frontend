@@ -13,6 +13,7 @@ import {
   PackagePlus,
   PackageMinus,
   DollarSign,
+  Paperclip,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -56,5 +57,7 @@ export const PROJECT_EVENT_VISUALS: Record<string, ProjectEventVisual> = {
   cost_added: visual(DollarSign, 'success'),
   cost_updated: visual(DollarSign, 'neutral'),
   cost_deleted: visual(Trash2, 'destructive'),
+  attachment_added: visual(Paperclip, 'primary'),
+  attachment_removed: visual(Trash2, 'destructive'),
   default: visual(Edit3, 'neutral'),
 };

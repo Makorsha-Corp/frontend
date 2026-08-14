@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -479,8 +480,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const formatDate = useFormatDateFromApi();
   const formatRelative = (d: string) => formatRelativeFromApi(d);
 
   return (

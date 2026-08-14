@@ -19,6 +19,8 @@ import {
   UserMinus,
   ShieldCheck,
   Wand2,
+  Paperclip,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -146,6 +148,16 @@ export const PO_EVENT_VISUALS: Record<string, PoEventVisual> = {
     icon: Wand2,
     wrap: 'bg-orange-100 dark:bg-orange-900/30',
     color: 'text-orange-600 dark:text-orange-400',
+  },
+  attachment_added: {
+    icon: Paperclip,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
+  },
+  attachment_removed: {
+    icon: Trash2,
+    wrap: 'bg-muted',
+    color: 'text-muted-foreground',
   },
   default: { icon: CheckCircle, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };

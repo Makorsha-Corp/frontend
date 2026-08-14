@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { CalendarDays, Loader2 } from 'lucide-react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
@@ -68,9 +67,7 @@ const CalendarPage: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className={appShellHeaderLeftGroupClass}>
@@ -129,7 +126,6 @@ const CalendarPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 

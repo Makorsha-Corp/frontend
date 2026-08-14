@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +20,8 @@ import AppShellHeader, {
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import ProductsKpiStrip from '@/components/newcomponents/customui/storage/ProductsKpiStrip';
 import ProductsSection from '@/components/newcomponents/customui/storage/ProductsSection';
+import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
+import { CATALOG_PAGE_SIZE } from '@/components/newcomponents/customui/storage/inventoryCatalogLayout';
 import {
   singleFactoryToSlice,
   sliceToSingleFactoryId,
@@ -55,6 +56,7 @@ const ProductsPage: React.FC = () => {
   const [filterItemId, setFilterItemId] = useState<number | null>(() => deepLink.itemId);
   const [searchQuery, setSearchQuery] = useState('');
   const [forSaleOnly, setForSaleOnly] = useState(false);
+  const [catalogPage, setCatalogPage] = useState(1);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
@@ -129,6 +131,23 @@ const ProductsPage: React.FC = () => {
     );
   }, [productsList, searchQuery, filterItemId]);
 
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [searchQuery, forSaleOnly, factoryId, filterItemId]);
+
+  const productsTotal = filteredProducts.length;
+  const paginatedProducts = useMemo(() => {
+    const start = (catalogPage - 1) * CATALOG_PAGE_SIZE;
+    return filteredProducts.slice(start, start + CATALOG_PAGE_SIZE);
+  }, [filteredProducts, catalogPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(productsTotal / CATALOG_PAGE_SIZE));
+    if (catalogPage > maxPage) {
+      setCatalogPage(maxPage);
+    }
+  }, [catalogPage, productsTotal]);
+
   const productsOverview = useMemo(() => {
     const records = filteredProducts.length;
     const totalQty = filteredProducts.reduce((sum, p) => sum + (p.qty ?? 0), 0);
@@ -167,9 +186,7 @@ const ProductsPage: React.FC = () => {
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Package className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -190,20 +207,18 @@ const ProductsPage: React.FC = () => {
             onOpenChange={setIsAddFactoryOpen}
             factories={factories}
           />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
+    <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
               <div className={appShellHeaderIconTileClass} aria-hidden>
-                <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <Package className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>Products</h1>
               <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
@@ -243,7 +258,7 @@ const ProductsPage: React.FC = () => {
             factoryId={factoryId}
             factoryLabels={factoryLabels}
             overview={productsOverview}
-            products={filteredProducts}
+            products={paginatedProducts}
             isLoading={loadingProducts}
             hasError={!!productsError}
             searchQuery={searchQuery}
@@ -253,6 +268,17 @@ const ProductsPage: React.FC = () => {
             onRequireFactory={promptFactorySelect}
             onEdit={setEditingProduct}
             onDelete={handleDeleteProduct}
+            paginationFooter={
+              productsTotal > 0 ? (
+                <ListPagePagination
+                  page={catalogPage}
+                  total={productsTotal}
+                  pageSize={CATALOG_PAGE_SIZE}
+                  isFetching={loadingProducts}
+                  onPageChange={setCatalogPage}
+                />
+              ) : null
+            }
             className="min-h-0 flex-1"
           />
         </div>
@@ -270,7 +296,7 @@ const ProductsPage: React.FC = () => {
         product={editingProduct}
         onSuccess={() => setEditingProduct(null)}
       />
-    </div>
+    </>
   );
 };
 

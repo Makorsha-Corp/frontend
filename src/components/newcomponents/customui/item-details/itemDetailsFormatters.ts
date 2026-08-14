@@ -1,4 +1,8 @@
 import type { ItemSummaryRecentActivity } from '@/types/itemSummary';
+import {
+  formatDateFromApi,
+  formatDateTimeFromApi,
+} from '@/utils/datetime';
 
 export function num(v: number | string | null | undefined): number {
   if (v == null || v === '') return 0;
@@ -17,30 +21,12 @@ export function formatMoney(v: number | string | null | undefined): string {
   return num(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
+export function formatDate(iso: string | null | undefined, timeZone?: string): string {
+  return formatDateFromApi(iso, timeZone);
 }
 
-export function formatDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
+export function formatDateTime(iso: string, timeZone?: string): string {
+  return formatDateTimeFromApi(iso, timeZone);
 }
 
 export function formatOrderDate(iso: string | null | undefined): string {

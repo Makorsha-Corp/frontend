@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
 import { useGetStatusesQuery } from '@/features/statuses/statusesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
@@ -11,7 +10,6 @@ import {
   normalizeOrders,
   type OverviewOrder,
 } from './ordersOverviewData';
-import { useSalesOrdersForOverview } from './useSalesOrdersForOverview';
 import {
   usePaginatedPurchaseOrdersForOverview,
   usePaginatedTransferOrdersForOverview,
@@ -37,16 +35,6 @@ export function useOrdersScopeData() {
     isError: errEo,
     mayTruncate: expenseMayTruncate,
   } = usePaginatedExpenseOrdersForOverview();
-  const {
-    salesOrders,
-    isLoading: loadSo,
-    isError: errSo,
-    mayTruncate: salesMayTruncate,
-  } = useSalesOrdersForOverview();
-  const { data: workOrders = [], isLoading: loadWo, isError: errWo } = useGetWorkOrdersQuery({
-    skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
-  });
   const { data: statuses = [], isLoading: loadSt, isError: errSt } = useGetStatusesQuery({
     skip: 0,
     limit: API_LIMITS.STRICT_100,
@@ -65,10 +53,9 @@ export function useOrdersScopeData() {
     limit: API_LIMITS.FLEXIBLE_1000,
   });
 
-  const isLoading = loadPo || loadTo || loadEo || loadSo || loadWo || loadSt || loadMa || loadSec || loadPr;
-  const hasError = errPo || errTo || errEo || errSo || errWo || errSt || errMa || errSec || errPr;
-  const hubOrdersMayTruncate =
-    purchaseMayTruncate || transferMayTruncate || expenseMayTruncate || salesMayTruncate;
+  const isLoading = loadPo || loadTo || loadEo || loadSt || loadMa || loadSec || loadPr;
+  const hasError = errPo || errTo || errEo || errSt || errMa || errSec || errPr;
+  const hubOrdersMayTruncate = purchaseMayTruncate || transferMayTruncate || expenseMayTruncate;
 
   const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s.name])), [statuses]);
 
@@ -86,12 +73,10 @@ export function useOrdersScopeData() {
         purchaseOrders,
         transferOrders,
         expenseOrders,
-        salesOrders,
-        workOrders,
         statusById,
         resolutionMaps
       ),
-    [purchaseOrders, transferOrders, expenseOrders, salesOrders, workOrders, statusById, resolutionMaps]
+    [purchaseOrders, transferOrders, expenseOrders, statusById, resolutionMaps]
   );
 
   return {
@@ -105,7 +90,6 @@ export function useOrdersScopeData() {
     projects,
     isLoading,
     hasError,
-    salesMayTruncate,
     hubOrdersMayTruncate,
   };
 }

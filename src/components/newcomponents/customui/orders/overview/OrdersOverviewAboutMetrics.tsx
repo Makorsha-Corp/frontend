@@ -16,31 +16,37 @@ const OrdersOverviewAboutMetrics: React.FC<OrdersOverviewAboutMetricsProps> = ({
 }) => (
   <Collapsible className="rounded-lg border border-border bg-muted/20">
     <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-      About these metrics
+      How this page counts things
       <ChevronDown className="h-4 w-4 shrink-0 transition-transform [[data-state=open]_&]:rotate-180" />
     </CollapsibleTrigger>
-    <CollapsibleContent className="px-4 pb-4 text-xs text-muted-foreground space-y-2">
+    <CollapsibleContent className="space-y-2 px-4 pb-4 text-xs text-muted-foreground">
       <p>
-        KPIs and charts use orders in the selected date range and factory. Status filter applies only
-        to the recent activity table. Pending approvals include work orders in pending approval and
-        other types whose status name is Pending or Draft. Overdue uses expected delivery or due
-        dates when available.
+        <strong className="font-medium text-foreground/80">Date range &amp; factory</strong> in the
+        header filter the summary cards, charts, and leaderboard panels. The status dropdown only
+        filters the recent activity table at the bottom.
       </p>
       <p>
-        Top items, vendors, customers, and expense categories come from line-level server aggregation
-        and respect the same date and factory filters. Expenses are excluded when a specific factory
-        is selected.
+        <strong className="font-medium text-foreground/80">Pending approvals</strong> counts orders
+        whose workflow status is literally named &quot;Pending&quot; or &quot;Draft&quot; — not every
+        order that still needs work.
       </p>
       <p>
-        APIs use skip/limit pagination. Purchase, transfer, expense, and sales orders are merged
-        from pages of {API_LIMITS.ORDER_HUB_LIST_MAX} (up to{' '}
-        {10 * API_LIMITS.ORDER_HUB_LIST_MAX} rows per type).
-        {hubOrdersMayTruncate
-          ? ' At least one order type hit the 1000-row cap — this view can undercount.'
-          : ''}{' '}
-        Machines, factory sections, and projects load up to {API_LIMITS.FLEXIBLE_1000} for resolving
-        machine/project legs to a factory.
+        <strong className="font-medium text-foreground/80">Overdue</strong> uses expected delivery
+        or due dates when the order has one.
       </p>
+      <p>
+        Only <strong className="font-medium text-foreground/80">purchase, transfer, and expense</strong>{' '}
+        orders appear here. Top vendors, items, and expense categories are calculated on the server
+        from line items. Expense totals are hidden when you pick a single factory (expenses are not
+        factory-scoped in the data model).
+      </p>
+      {hubOrdersMayTruncate ? (
+        <p>
+          <strong className="font-medium text-foreground/80">Large workspaces:</strong> counts may
+          be low if you have more than {10 * API_LIMITS.ORDER_HUB_LIST_MAX} orders of one type — the
+          page loads data in pages of {API_LIMITS.ORDER_HUB_LIST_MAX}.
+        </p>
+      ) : null}
     </CollapsibleContent>
   </Collapsible>
 );

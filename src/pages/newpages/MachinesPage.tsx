@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { sliceToFactoryFilter, singleFactoryToSlice } from '@/lib/machinesLocationFilterAdapters';
@@ -622,9 +621,7 @@ const MachinesPage: React.FC = () => {
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Cog className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -645,14 +642,12 @@ const MachinesPage: React.FC = () => {
             onOpenChange={setIsAddFactoryOpen}
             factories={factories}
           />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <DashboardNavbar />
+    <>
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {activeTab === 'workOrders' && (
           <WorkOrdersTabContent
@@ -986,7 +981,7 @@ const MachinesPage: React.FC = () => {
         machine={selectedMachine}
         onSuccess={() => setIsEditMachineOpen(false)}
       />
-    </div>
+    </>
   );
 };
 

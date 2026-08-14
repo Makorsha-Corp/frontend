@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { CountsByTypeRow } from '@/pages/newpages/orders/ordersOverviewData';
 import { ORDER_TYPE_HUB, formatOverviewCurrency } from '../../ordersOverviewConstants';
@@ -20,24 +20,21 @@ const emptyRow = (label: string): CountsByTypeRow => ({
 });
 
 const hubPillClass =
-  'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40';
-
-// Work orders now live inside the Machine detail view as quick actions rather than
-// through a standalone creation flow — drop the tile from the hub grid but keep 'work'
-// in ORDER_TYPE_HUB itself so path/label lookups elsewhere (e.g. recent activity) still work.
-const HUB_TILES = ORDER_TYPE_HUB.filter((h) => h.id !== 'work');
+  'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40';
 
 const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
   const countMap = new Map(countsByType.map((r) => [r.type, r]));
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-      {HUB_TILES.map((hub) => {
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {ORDER_TYPE_HUB.map((hub) => {
         const row = countMap.get(hub.label) ?? emptyRow(hub.label);
         const Icon = hub.icon;
         const hasDraftOrOpen = row.draftCount > 0 || row.openCount > 0;
         const draftSearch = hubDraftSearch(hub.id);
         const openSearch = hubOpenSearch(hub.id);
+        const valueLabel =
+          row.value > 0 ? formatOverviewCurrency(row.value) : 'No value tracked';
 
         return (
           <Card
@@ -48,36 +45,34 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
                 'border-amber-400/50 bg-amber-50/40 dark:bg-amber-950/20 ring-1 ring-amber-400/40'
             )}
           >
-            <Link to={hub.path} className="group block min-w-0 hover:no-underline">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
-                <div
+            <Link to={hub.path} className="group flex min-w-0 items-center gap-3 px-4 py-3 hover:no-underline">
+              <div
+                className={cn(
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                  hasDraftOrOpen ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-brand-primary/10'
+                )}
+              >
+                <Icon
                   className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    hasDraftOrOpen ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-brand-primary/10'
+                    'h-4 w-4',
+                    hasDraftOrOpen ? 'text-amber-600 dark:text-amber-400' : 'text-brand-primary'
                   )}
-                >
-                  <Icon
-                    className={cn(
-                      'h-4 w-4',
-                      hasDraftOrOpen ? 'text-amber-600 dark:text-amber-400' : 'text-brand-primary'
-                    )}
-                  />
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="truncate text-sm font-medium text-card-foreground group-hover:text-brand-primary">
+                    {hub.label}
+                  </p>
+                  <p className="shrink-0 text-lg font-bold tabular-nums leading-none">{row.count}</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </CardHeader>
-              <CardContent className="px-4 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground group-hover:text-brand-primary">
-                  {hub.label}
-                </CardTitle>
-                <p className="mt-1 text-2xl font-bold tabular-nums">{row.count}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {row.value > 0 ? formatOverviewCurrency(row.value) : 'No value tracked'}
-                </p>
-              </CardContent>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{valueLabel}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </Link>
 
             {hasDraftOrOpen ? (
-              <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 px-4 py-2">
                 {row.draftCount > 0 ? (
                   draftSearch ? (
                     <Link

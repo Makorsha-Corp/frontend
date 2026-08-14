@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useNavigate } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
@@ -21,7 +20,7 @@ import { useGetAccountsHubPageQuery, useDeleteAccountMutation } from '@/features
 import { useGetAccountInvoicesHubSummaryQuery } from '@/features/accountInvoices/accountInvoicesApi';
 import type { Account, AccountHubRow, AccountsHubSection } from '@/types/account';
 import {
-  Users,
+  Building2,
   Search,
   Plus,
   Loader2,
@@ -216,14 +215,13 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
     (isOpenReceivable || isOpenPayable);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
-      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between">
             <div className={appShellHeaderLeftGroupClass}>
               <div className={appShellHeaderIconTileClass}>
-                <Users className="h-5 w-5 text-brand-primary" />
+                <Building2 className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>Accounts</h1>
             </div>
@@ -342,7 +340,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                       ) : overviewPopulationMetrics.totalAccounts === 0 ? (
                         <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
                           <div className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-full bg-brand-primary/10">
-                            <Users className="h-10 w-10 text-brand-primary" />
+                            <Building2 className="h-10 w-10 text-brand-primary" />
                           </div>
                           <h3 className="mb-2 text-lg font-semibold text-card-foreground">
                             No accounts yet
@@ -504,7 +502,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
         account={editingAccount}
       />
       <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
-    </div>
+    </>
   );
 };
 

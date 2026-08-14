@@ -49,7 +49,7 @@ export function entityTypeToHref(
       path = buildWorkOrderHref(entityId);
       break;
     case 'sales_order':
-      path = `/orders/sales?orderId=${entityId}`;
+      path = `/sales/overview?orderId=${entityId}`;
       break;
     case 'project':
       path = `/projects?projectId=${entityId}`;
@@ -70,7 +70,13 @@ export function entityTypeToHref(
   return path;
 }
 
-export function formatNotificationEntityRef(entityType: string, entityId: number): string {
+export function formatNotificationEntityRef(
+  entityType: string,
+  entityId: number,
+  entityLabel?: string | null,
+): string {
+  const trimmed = entityLabel?.trim();
+  if (trimmed) return trimmed;
   const prefix = ENTITY_ORDER_PREFIX[entityType];
   if (prefix) return `${prefix}-${entityId}`;
   const label = ENTITY_TYPE_LABEL[entityType] ?? entityType.replace(/_/g, ' ');
@@ -108,12 +114,12 @@ function defaultSeverity(kind: NotificationKind): NotificationSeverity {
 
 function buildDiscussionTitle(n: BackendNotification): string {
   const actor = n.actor?.name ?? 'Someone';
-  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id);
+  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label);
   return `${actor} mentioned you on ${ref}`;
 }
 
 function buildApprovalTitle(n: BackendNotification, kind: NotificationKind): string {
-  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id);
+  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label);
   switch (kind) {
     case 'approval_pending':
       return `${ref} needs your approval`;
@@ -173,6 +179,6 @@ export function transformBackendNotification(n: BackendNotification): AppNotific
     body: buildNotificationBody(n, kind),
     href: entityTypeToHref(n.entity_type, n.entity_id, { scrollToDiscussion: discussion }),
     createdAt: n.created_at,
-    entityRef: formatNotificationEntityRef(n.entity_type, n.entity_id),
+    entityRef: formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label),
   };
 }

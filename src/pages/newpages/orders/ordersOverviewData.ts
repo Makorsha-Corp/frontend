@@ -10,9 +10,6 @@ import {
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import type { SalesOrder } from '@/types/salesOrder';
-import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
-import { getWorkOrderCalendarDate, getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 import type { Machine } from '@/types/machine';
 import type { Project } from '@/types/project';
 import { PO_SCOPE_OPEN_STATUS_NAMES } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
@@ -22,7 +19,7 @@ import {
   deriveExpenseOrderStageFromOrder,
 } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
 
-export type OverviewOrderKind = 'purchase' | 'transfer' | 'expense' | 'sales' | 'work';
+export type OverviewOrderKind = 'purchase' | 'transfer' | 'expense';
 
 /** Resolve PO / transfer legs that point at machines or projects to a factory_id. */
 export interface OrderResolutionMaps {
@@ -47,11 +44,10 @@ export interface OverviewOrder {
   createdAt: Date;
   /**
    * Business calendar day for date-range filter, totals, and Orders over time.
-   * Transfer → created_at, expense → expense_date, sales → order_date; else createdAt.
+   * Transfer → created_at, expense → expense_date; else createdAt.
    */
   reportDate: Date;
   statusLabel: string;
-  workStatus?: WorkOrderStatus;
   factoryId: number | null;
   /** For list row display */
   displayDate: string;
@@ -96,8 +92,6 @@ export function normalizeOrders(
   purchase: PurchaseOrder[],
   transfer: TransferOrder[],
   expense: ExpenseOrder[],
-  sales: SalesOrder[],
-  work: WorkOrder[],
   statusById: Map<number, string>,
   maps: OrderResolutionMaps
 ): OverviewOrder[] {
@@ -151,41 +145,6 @@ export function normalizeOrders(
     });
   }
 
-  for (const s of sales) {
-    const createdAt = parseISO(s.created_at);
-    out.push({
-      kind: 'sales',
-      id: s.id,
-      ref: s.sales_order_number,
-      amount: Number(s.total_amount ?? 0),
-      createdAt,
-      reportDate: parseBusinessDay(s.order_date, startOfDay(createdAt)),
-      statusLabel: statusName(statusById, s.current_status_id),
-      factoryId: s.factory_id,
-      displayDate: s.order_date?.slice(0, 10) ?? format(createdAt, 'yyyy-MM-dd'),
-      dueOrExpectedDate: s.expected_delivery_date,
-    });
-  }
-
-  for (const w of work) {
-    if (w.is_deleted) continue;
-    const createdAt = parseISO(w.created_at);
-    const calendarDate = getWorkOrderCalendarDate(w);
-    out.push({
-      kind: 'work',
-      id: w.id,
-      ref: w.work_order_number,
-      amount: Number(w.cost ?? 0),
-      createdAt,
-      reportDate: calendarDate,
-      statusLabel: w.status.replace(/_/g, ' '),
-      workStatus: w.status,
-      factoryId: w.factory_id,
-      displayDate: getWorkOrderCalendarDateString(w),
-      dueOrExpectedDate: w.end_date,
-    });
-  }
-
   return out;
 }
 
@@ -198,15 +157,11 @@ const OPEN_STATUS_NAMES_BY_KIND: Record<OverviewOrderKind, readonly string[]> = 
   purchase: PO_SCOPE_OPEN_STATUS_NAMES,
   transfer: TR_SCOPE_OPEN_STATUS_NAMES,
   expense: EO_SCOPE_OPEN_STATUS_NAMES,
-  sales: [],
-  work: [],
 };
 
 function isDraftStatusLabel(order: OverviewOrder): boolean {
   const n = order.statusLabel.trim().toLowerCase();
-  if (n === 'draft') return true;
-  if ((order.kind === 'sales' || order.kind === 'work') && n === 'pending') return true;
-  return false;
+  return n === 'draft';
 }
 
 export type OverviewOrderCountBucket = 'draft' | 'open' | 'complete';
@@ -221,16 +176,13 @@ export function classifyOverviewOrderCounts(order: OverviewOrder): OverviewOrder
     return openNames.includes(order.statusLabel) ? 'open' : 'complete';
   }
 
-  // Sales / work: non-draft, non-complete counts as open
-  return 'open';
+  return 'complete';
 }
 
 /**
- * WIP heuristic: work orders still in DRAFT (not yet approved); other types use
- * workflow status name "Pending" or "Draft" only (not substring match).
+ * WIP heuristic: status name "Pending" or "Draft" only (not substring match).
  */
 export function isPendingApprovalOrder(o: OverviewOrder): boolean {
-  if (o.kind === 'work' && o.workStatus === 'DRAFT') return true;
   if (isCompletedStatusLabel(o.statusLabel)) return false;
   const n = o.statusLabel.trim().toLowerCase();
   return n === 'pending' || n === 'draft';
@@ -282,10 +234,8 @@ export function aggregateCountsByType(orders: OverviewOrder[]): CountsByTypeRow[
     purchase: 'Purchase',
     transfer: 'Transfer',
     expense: 'Expense',
-    sales: 'Sales',
-    work: 'Work',
   };
-  const kinds: OverviewOrderKind[] = ['purchase', 'transfer', 'expense', 'sales', 'work'];
+  const kinds: OverviewOrderKind[] = ['purchase', 'transfer', 'expense'];
   return kinds.map((kind) => {
     const subset = orders.filter((o) => o.kind === kind);
     const value = subset.reduce((s, o) => s + o.amount, 0);

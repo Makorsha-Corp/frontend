@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -34,7 +34,7 @@ import {
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { Receipt, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/orders/ManageExpenseTemplatesDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
@@ -129,6 +129,13 @@ const ExpenseOrdersPage: React.FC = () => {
       );
     },
     [setSearchParams, urlFilters, eoStatusOptions],
+  );
+
+  const handleOverviewCategoryFilter = useCallback(
+    (categoryKey: string) => {
+      commitExpenseFilters({ categoryFilter: categoryKey });
+    },
+    [commitExpenseFilters],
   );
 
   useEffect(() => {
@@ -260,8 +267,7 @@ const ExpenseOrdersPage: React.FC = () => {
 
   const accountName = (id: number | null) =>
     id ? accounts.find((a) => a.id === id)?.name ?? `#${id}` : '—';
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString() : '—';
+  const formatDate = useFormatDateFromApi();
 
   const hasActiveFilters =
     dateRange.from != null ||
@@ -316,11 +322,8 @@ const ExpenseOrdersPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
@@ -545,14 +548,12 @@ const ExpenseOrdersPage: React.FC = () => {
               </div>
             ) : isLgScreen ? (
               <ExpenseOrdersOverviewPanel
-                orders={orders}
                 stats={overviewStats}
                 hubStats={hubStats}
                 isLoading={isLoading || statsLoading}
-                accountName={accountName}
                 formatCurrency={formatCurrency}
-                formatDate={formatDate}
                 onSelectOrder={(id) => setSelectedOrder(id)}
+                onCategoryFilter={handleOverviewCategoryFilter}
               />
             ) : null}
           </div>
@@ -569,7 +570,7 @@ const ExpenseOrdersPage: React.FC = () => {
       />
 
       <ManageExpenseTemplatesDialog open={manageTemplatesOpen} onOpenChange={setManageTemplatesOpen} />
-    </div>
+    </>
   );
 };
 

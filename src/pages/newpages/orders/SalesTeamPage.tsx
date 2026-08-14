@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader from '@/components/newcomponents/customui/AppShellHeader';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -8,7 +7,6 @@ import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi'
 import { useGetSalesOrdersQuery } from '@/features/salesOrders/salesOrdersApi';
 import { useAppSelector } from '@/app/hooks';
 import { Users, Search, Loader2, DollarSign, FileSpreadsheet, Mail } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 // Helper to assign a pleasant gradient based on user id/initials
@@ -95,10 +93,7 @@ const SalesTeamPage: React.FC = () => {
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-3">
@@ -190,7 +185,6 @@ const SalesTeamPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };

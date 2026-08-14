@@ -11,6 +11,8 @@ import {
   CreditCard,
   Lock,
   Unlock,
+  Paperclip,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -80,6 +82,16 @@ export const INVOICE_EVENT_VISUALS: Record<string, InvoiceEventVisual> = {
     icon: CreditCard,
     wrap: 'bg-rose-100 dark:bg-rose-900/30',
     color: 'text-rose-600 dark:text-rose-400',
+  },
+  attachment_added: {
+    icon: Paperclip,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
+  },
+  attachment_removed: {
+    icon: Trash2,
+    wrap: 'bg-muted',
+    color: 'text-muted-foreground',
   },
   default: {
     icon: Package,

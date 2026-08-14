@@ -7,11 +7,6 @@ export interface ThemeTransitionResult {
   animateIcon: boolean;
 }
 
-export function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 function setTransitionOrigin(origin?: ThemeTransitionOrigin): void {
   const root = document.documentElement;
   const x = origin?.x ?? window.innerWidth / 2;
@@ -47,7 +42,7 @@ export function runThemeTransition(
   applyTheme: () => void,
   options?: { origin?: ThemeTransitionOrigin }
 ): ThemeTransitionResult {
-  // Theme wipe always runs — intentional exception to prefers-reduced-motion (Windows animation effects off).
+  // Bypass prefers-reduced-motion — theme wipe is core UX (Windows Animation effects off).
   return runWipe(applyTheme, options?.origin);
 }
 

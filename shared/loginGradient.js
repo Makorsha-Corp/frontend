@@ -1,6 +1,6 @@
 /**
  * Login page Lavender (default) gradient — static linear mode.
- * Synced from repo-root shared/ (see shared/README.md).
+ * Shared by landingPage; LoginPage can import later.
  */
 
 const LAVENDER_LINEAR = {

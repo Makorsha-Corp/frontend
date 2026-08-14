@@ -1,4 +1,4 @@
-/** Shared react-day-picker day/cell classNames for Marker popover calendars. */
+/** Shared react-day-picker day/cell classNames for Kolom popover calendars. */
 
 export const calendarDaySelectedClass =
   "!rounded-md !bg-brand-primary !text-primary-foreground hover:!bg-brand-primary/90 hover:!text-primary-foreground focus:!bg-brand-primary focus:!text-primary-foreground dark:!bg-brand-primary dark:!text-primary-foreground dark:hover:!bg-brand-primary/90"

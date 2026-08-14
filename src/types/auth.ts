@@ -3,7 +3,24 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  timezone?: string | null;
   created_at?: string;
+}
+
+export interface ProfileMeUpdate {
+  name?: string;
+  timezone?: string | null;
+}
+
+export interface MeResponse {
+  user: User;
+  workspace: {
+    id: number;
+    name: string;
+    slug: string;
+    role: string;
+    settings?: Record<string, unknown>;
+  };
 }
 
 // Auth request types

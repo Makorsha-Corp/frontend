@@ -372,7 +372,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-2 min-w-0">
         <Label className="text-base">Items *</Label>
         <span className="text-xs tabular-nums text-muted-foreground">{items.length} added</span>
       </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -44,16 +43,13 @@ const DashboardPage: React.FC = () => {
     recentOrders,
     workspacePulse,
     isLoading,
-    salesMayTruncate,
+    hubOrdersMayTruncate,
   } = useDashboardData();
 
   const factoryContext = factory ? factory.name : 'All factories';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -82,7 +78,7 @@ const DashboardPage: React.FC = () => {
         </AppShellHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
-          {salesMayTruncate && (
+          {hubOrdersMayTruncate && (
             <p className="mb-4 text-xs text-muted-foreground">
               Some order KPIs may be truncated — workspace has more than 1000 rows in one or more
               order types.
@@ -215,7 +211,6 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 

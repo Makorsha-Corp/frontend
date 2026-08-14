@@ -1,9 +1,14 @@
 // Workspace types
+export interface WorkspaceSettings {
+  timezone?: string | null;
+}
+
 export interface Workspace {
   id: number;
   name: string;
   role: string;
   status: string;
+  settings?: WorkspaceSettings;
 }
 
 export interface WorkspaceDetails extends Workspace {
@@ -25,6 +30,7 @@ export interface WorkspaceDetails extends Workspace {
   max_members?: number | null;
   max_storage_mb?: number | null;
   max_orders_per_month?: number | null;
+  settings?: WorkspaceSettings;
 }
 
 export interface WorkspaceListItem {

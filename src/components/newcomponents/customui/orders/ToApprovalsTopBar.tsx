@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { Check, Clock, ShieldCheck, Wrench, X } from 'lucide-react';
 import type { TransferApprovalSummary, TransferOrderApprover } from '@/types/transferOrder';
 import { avatarColor, initialsOf } from './transferOrderApprovals';
-import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
+import { ORDER_APPROVALS_BAR_CLASS } from './orderListConstants';
 
 export interface ToApprovalsTopBarProps {
   approvers: TransferOrderApprover[];
@@ -45,8 +45,7 @@ const ToApprovalsTopBar: React.FC<ToApprovalsTopBarProps> = ({
     <div
       id="tr-section-approvals"
       className={cn(
-        ORDER_PANEL_HEADER_CLASS,
-        '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 px-6 scroll-mt-6',
+        ORDER_APPROVALS_BAR_CLASS,
         highlighted && 'po-scroll-target-highlight'
       )}
       onMouseEnter={() => {

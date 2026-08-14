@@ -18,7 +18,7 @@ const OrdersTopItemsPanel: React.FC<OrdersTopItemsPanelProps> = ({ items, isLoad
       label: item.item_name,
       secondary: item.item_unit ? `Unit: ${item.item_unit}` : undefined,
       value: Number(item.total_quantity),
-      primary: `PO ${formatOverviewNumber(Number(item.purchase_qty))} · TR ${formatOverviewNumber(Number(item.transfer_qty))} · SO ${formatOverviewNumber(Number(item.sales_qty))}`,
+      primary: `PO ${formatOverviewNumber(Number(item.purchase_qty))} · TR ${formatOverviewNumber(Number(item.transfer_qty))}`,
     }))}
   />
 );

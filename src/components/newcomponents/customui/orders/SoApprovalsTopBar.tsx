@@ -12,7 +12,7 @@ import { Check, Clock, ShieldCheck, Wrench } from 'lucide-react';
 import SoApproveOrderButton from './SoApproveOrderButton';
 import type { SalesOrderApprovalSummary, SalesOrderApprover } from '@/types/salesOrder';
 import type { SoConfirmationsStatus } from './salesOrderMilestones';
-import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
+import { ORDER_APPROVALS_BAR_CLASS } from './orderListConstants';
 
 const AVATAR_COLORS = [
   'bg-brand-primary',
@@ -66,7 +66,7 @@ const SoApprovalsTopBar: React.FC<SoApprovalsTopBarProps> = ({
     <TooltipProvider delayDuration={150}>
       <div
         id="so-section-approvals"
-        className={cn(ORDER_PANEL_HEADER_CLASS, '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 px-6 scroll-mt-6')}
+        className={ORDER_APPROVALS_BAR_CLASS}
       >
         <div className="flex shrink-0 items-center gap-2">
           <Tooltip>

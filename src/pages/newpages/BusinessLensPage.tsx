@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useNavigate } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
@@ -140,9 +139,8 @@ const BusinessLensPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
         <AppShellHeader sticky>
           <div className={appShellHeaderLeftGroupClass}>
@@ -284,7 +282,7 @@ const BusinessLensPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

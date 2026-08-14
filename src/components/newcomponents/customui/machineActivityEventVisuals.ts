@@ -13,6 +13,7 @@ import {
   ClipboardList,
   ShoppingCart,
   RotateCcw,
+  Paperclip,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +47,9 @@ export const MACHINE_ACTIVITY_EVENT_VISUALS: Record<string, MachineActivityEvent
   item_borrowed_returned: { icon: RotateCcw, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   consumption: { icon: PackageMinus, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400' },
   consumption_reversed: { icon: RotateCcw, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+  purchase_order_created: { icon: ShoppingCart, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
+  attachment_added: { icon: Paperclip, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+  attachment_removed: { icon: Trash2, wrap: 'bg-muted', color: 'text-muted-foreground' },
   default: { icon: Pause, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };
 

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import {
   parsePageFactoryFilterParam,
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
 import { format } from 'date-fns';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -45,7 +45,7 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import { ShoppingCart, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
@@ -138,7 +138,7 @@ const PurchaseOrdersPage: React.FC = () => {
   });
   const { data: projectComponents = [] } = useGetProjectComponentsQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.STRICT_100,
   });
   const [deleteOrder] = useDeletePurchaseOrderMutation();
 
@@ -337,7 +337,7 @@ const PurchaseOrdersPage: React.FC = () => {
   const statusLabel = (id: number) => statusMap.get(id) ?? `#${id}`;
   const destinationLabel = (order: PurchaseOrder) =>
     resolvePurchaseOrderDestinationLabel(order, destinationLookups);
-  const formatDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString() : '—');
+  const formatDate = useFormatDateFromApi();
 
   const hasActiveFilters =
     dateRange.from != null ||
@@ -398,11 +398,8 @@ const PurchaseOrdersPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
@@ -686,7 +683,7 @@ const PurchaseOrdersPage: React.FC = () => {
           setIsAddOpen(false);
         }}
       />
-    </div>
+    </>
   );
 };
 

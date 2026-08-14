@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
@@ -327,9 +326,7 @@ const ProjectsPage: React.FC = () => {
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted shadow-sm">
             <FolderKanban className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -346,14 +343,12 @@ const ProjectsPage: React.FC = () => {
             Create Your First Factory
           </Button>
           <AddFactoryDialog open={isAddFactoryOpen} onOpenChange={setIsAddFactoryOpen} factories={factories} />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
+    <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -535,7 +530,7 @@ const ProjectsPage: React.FC = () => {
           onRemoveMember={handleRemoveProjectMember}
         />
       )}
-    </div>
+    </>
   );
 };
 

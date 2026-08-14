@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,12 +50,16 @@ import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
 import PoLinkedInvoiceCard from './PoLinkedInvoiceCard';
 import PoInvoiceWorkflowChecklist from './PoInvoiceWorkflowChecklist';
 import PoApprovalsTopBar from './PoApprovalsTopBar';
+import {
+  ORDER_DETAIL_BODY_CLASS_LOOSE,
+  ORDER_DETAIL_SCROLL_CLASS,
+} from './orderListConstants';
 import ManagePoApprovalsDialog from './ManagePoApprovalsDialog';
 import PoEditOrderItemsButton from './PoEditOrderItemsButton';
 import EditPurchaseOrderItemsDialog from './EditPurchaseOrderItemsDialog';
 import PoEventLogRow from './PoEventLogRow';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
-import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
+import OrderCollaborationSection from './OrderCollaborationSection';
 import {
   canConfirmPurchaseOrderSection,
   canConfirmPoInvoice,
@@ -813,8 +818,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const formatDate = useFormatDateFromApi();
 
   const openInsightOrder = (purchaseOrderId: number) => {
     setInsightDialogPoId(purchaseOrderId);
@@ -863,24 +867,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       <div className="flex flex-1 min-h-0">
         <div
           ref={scrollContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6"
+          className={ORDER_DETAIL_SCROLL_CLASS}
         >
-        {isPoVoided && (
-          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-                This purchase order has been voided
-              </p>
-            </div>
-            {order.void_note && (
-              <p className="text-xs text-red-600 dark:text-red-400 pl-6">
-                Reason: {order.void_note}
-              </p>
-            )}
-          </div>
-        )}
-
         <PoApprovalsTopBar
           approvers={approvers}
           approvalSummary={approvalSummary}
@@ -901,6 +889,23 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           isVoided={isPoVoided}
           onVoidOrder={() => setVoidPoOpen(true)}
         />
+
+        <div className={ORDER_DETAIL_BODY_CLASS_LOOSE}>
+        {isPoVoided && (
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                This purchase order has been voided
+              </p>
+            </div>
+            {order.void_note && (
+              <p className="text-xs text-red-600 dark:text-red-400 pl-6">
+                Reason: {order.void_note}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className={cn('space-y-6', isPoVoided && 'opacity-40 pointer-events-none select-none')}>
 
@@ -1467,7 +1472,14 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           onFinalizeBlocked={handleFinalizeBlocked}
         />
 
-        <DiscussionThread entityType="purchase_order" entityId={order.id} />
+        </div>{/* end voided-dimmer wrapper — editable sections only */}
+
+        <OrderCollaborationSection
+          discussionEntityType="purchase_order"
+          attachmentEntityType="purchase_order"
+          entityId={order.id}
+          readOnly={isPoVoided}
+        />
 
         {/* Event Log (WIRED) */}
         <Card className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden">
@@ -1534,7 +1546,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           </CardContent>
         </Card>
 
-        </div>{/* end voided-dimmer wrapper */}
+        </div>
         </div>
       </div>
 

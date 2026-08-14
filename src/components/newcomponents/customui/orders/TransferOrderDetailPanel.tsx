@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useFormatDateFromApi, useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,10 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import { transferLocationName, transferLocationTypeLabel } from '@/pages/newpages/orders/transferOrderLocationLabels';
 import { transferLocationIcon } from './TransferRouteDisplay';
 import ToApprovalsTopBar from './ToApprovalsTopBar';
+import {
+  ORDER_DETAIL_BODY_CLASS,
+  ORDER_DETAIL_SCROLL_CLASS,
+} from './orderListConstants';
 import ManageToApprovalsDialog from './ManageToApprovalsDialog';
 import TrWorkflowChecklist from './TrWorkflowChecklist';
 import EditTransferOrderItemsDialog from './EditTransferOrderItemsDialog';
@@ -191,9 +196,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     (m) => m.status === 'active' && !assignedUserIds.has(m.user_id)
   );
 
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-  const formatDateTime = (d: string | null | undefined) => (d ? new Date(d).toLocaleString() : '—');
+  const formatDate = useFormatDateFromApi();
+  const formatDateTime = useFormatDateTimeFromApi();
   const itemDisplayName = (it: { item_name: string | null; item_id: number }) =>
     it.item_name ?? `Item #${it.item_id}`;
   const qtyWithUnit = (qty: number, unit: string | null) => (unit ? `${qty} ${unit}` : String(qty));
@@ -309,9 +313,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-6 py-6 space-y-4">
-          <ToApprovalsTopBar
+      <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
+        <ToApprovalsTopBar
             approvers={approvers}
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}
@@ -323,6 +326,8 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
             canApprove={readyForApproval}
             approveBlockedReason={approveBlockedReason}
           />
+
+          <div className={ORDER_DETAIL_BODY_CLASS}>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_min(280px,32%)] gap-4 lg:items-stretch">
             <Card
@@ -687,7 +692,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
       </div>
 
       {isDirty && !editsLocked && (

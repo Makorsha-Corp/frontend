@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,10 @@ import { SectionConfirmActions } from './PoSectionConfirmButton';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
 import SoInvoiceWorkflowChecklist from './SoInvoiceWorkflowChecklist';
 import SoApprovalsTopBar from './SoApprovalsTopBar';
+import {
+  ORDER_DETAIL_BODY_CLASS_LOOSE,
+  ORDER_DETAIL_SCROLL_CLASS,
+} from './orderListConstants';
 import ManageSoApprovalsDialog from './ManageSoApprovalsDialog';
 import SalesOrderEventRow from './SalesOrderEventRow';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
@@ -482,8 +487,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     v != null
       ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v)
       : '—';
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const formatDate = useFormatDateFromApi();
   const qtyWithUnit = (qty: number, unit: string | null) => (unit ? `${qty} ${unit}` : String(qty));
 
   const deliverableItems = items.filter((it) => it.requires_delivery);
@@ -503,7 +507,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
       <div className="flex flex-1 min-h-0">
-        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+        <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
           <SoApprovalsTopBar
             approvers={approvers}
             approvalSummary={approvalSummary}
@@ -520,7 +524,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
             onToggleMyApproval={handleToggleMyApproval}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
+          <div className={ORDER_DETAIL_BODY_CLASS_LOOSE}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_auto] gap-4 lg:items-stretch">
             {/* Order Details — factory, customer, contact, dates, description; one confirm for the whole card */}
             <Card
               id="so-section-order_info"
@@ -939,6 +944,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
               )}
             </CardContent>
           </Card>
+          </div>
+        </div>
         </div>
       </div>
 

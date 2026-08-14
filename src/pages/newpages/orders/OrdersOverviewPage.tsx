@@ -1,7 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, LayoutDashboard, Loader2 } from 'lucide-react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -64,9 +63,7 @@ const OrdersOverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
@@ -162,7 +159,6 @@ const OrdersOverviewPage: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
   );
 };
 

@@ -16,7 +16,6 @@ import * as React from 'react';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { prefersReducedMotion } from '@/lib/themeTransition';
 
 const PILL_SPRING = { type: 'spring' as const, stiffness: 420, damping: 32 };
 const PANEL_TRANSITION = { duration: 0.15, ease: 'easeOut' as const };
@@ -77,7 +76,6 @@ const EmphasisTabsTrigger = React.forwardRef<
 >(({ className, children, value, ...props }, ref) => {
   const { activeValue, layoutId } = useEmphasisTabsContext();
   const isActive = value === activeValue;
-  const reducedMotion = prefersReducedMotion();
 
   return (
     <TabsPrimitive.Trigger
@@ -99,7 +97,7 @@ const EmphasisTabsTrigger = React.forwardRef<
         <motion.span
           layoutId={`${layoutId}-pill`}
           className="absolute inset-0 rounded-md bg-card shadow-sm"
-          transition={reducedMotion ? { duration: 0 } : PILL_SPRING}
+          transition={PILL_SPRING}
           aria-hidden
         />
       ) : null}
@@ -118,14 +116,12 @@ function EmphasisTabPanel({
   children: React.ReactNode;
   className?: string;
 }) {
-  const reducedMotion = prefersReducedMotion();
-
   return (
     <motion.div
       key={panelKey}
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={reducedMotion ? { duration: 0 } : PANEL_TRANSITION}
+      transition={PANEL_TRANSITION}
       className={className}
     >
       {children}

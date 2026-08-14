@@ -45,11 +45,7 @@ const OrdersOverviewPageBody: React.FC<OrdersOverviewPageBodyProps> = ({
   const insightsRow = (
     <div className={insightsGridClass}>
       <OrdersTopItemsPanel items={apiStats.top_items} isLoading={loadStats} />
-      <OrdersTopAccountsPanel
-        vendors={apiStats.top_vendors}
-        customers={apiStats.top_customers}
-        isLoading={loadStats}
-      />
+      <OrdersTopAccountsPanel vendors={apiStats.top_vendors} isLoading={loadStats} />
       <OrdersExpenseCategoriesPanel
         categories={apiStats.top_expense_categories}
         isLoading={loadStats}

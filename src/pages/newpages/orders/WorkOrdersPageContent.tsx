@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
@@ -171,8 +172,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
 
   const factoryName = (id: number) => labelCtx.factoryName(id);
   const machineName = (id: number | null) => labelCtx.machineName(id);
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString() : '—';
+  const formatDate = useFormatDateFromApi();
   const formatCurrency = (v: number | null | undefined) =>
     v != null
       ? new Intl.NumberFormat('en-US', {

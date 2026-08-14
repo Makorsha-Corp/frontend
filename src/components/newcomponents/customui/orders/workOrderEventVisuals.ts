@@ -13,6 +13,8 @@ import {
   UserPlus,
   X,
   XCircle,
+  Paperclip,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -97,6 +99,16 @@ export const WO_EVENT_VISUALS: Record<string, WoEventVisual> = {
     icon: Clock,
     wrap: 'bg-amber-100 dark:bg-amber-900/30',
     color: 'text-amber-600 dark:text-amber-400',
+  },
+  attachment_added: {
+    icon: Paperclip,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
+  },
+  attachment_removed: {
+    icon: Trash2,
+    wrap: 'bg-muted',
+    color: 'text-muted-foreground',
   },
   default: { icon: History, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };

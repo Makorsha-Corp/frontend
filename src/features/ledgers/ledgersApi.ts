@@ -4,6 +4,7 @@ import type {
   InventoryLedgerEntry,
   MachineLedgerEntry,
   ProjectComponentLedgerEntry,
+  AttachmentLedgerEntry,
   LedgerBalanceResponse,
   LedgerReconcileResponse,
   ProjectComponentTotalCostResponse,
@@ -18,6 +19,7 @@ import type {
   ProjectComponentQueryParams,
   ItemMovementReportParams,
   UserTransactionsReportParams,
+  AttachmentLedgerQueryParams,
 } from '@/types/ledger';
 
 // Re-export the most commonly-consumed types for backwards compatibility
@@ -26,6 +28,7 @@ export type {
   InventoryLedgerEntry,
   MachineLedgerEntry,
   ProjectComponentLedgerEntry,
+  AttachmentLedgerEntry,
   LedgerBalanceResponse,
   LedgerReconcileResponse,
 };
@@ -134,6 +137,30 @@ export const ledgersApi = createApi({
       providesTags: (_result, _error, id) => [{ type: 'ProjectComponentCost', id }],
     }),
 
+    getAttachmentLedger: builder.query<AttachmentLedgerEntry[], AttachmentLedgerQueryParams | void>({
+      query: (args) => {
+        const {
+          attachment_id,
+          entity_type,
+          start_date,
+          end_date,
+          transaction_type,
+          skip = 0,
+          limit = 100,
+        } = args ?? {};
+        const params = new URLSearchParams();
+        params.append('skip', skip.toString());
+        params.append('limit', limit.toString());
+        if (attachment_id !== undefined) params.append('attachment_id', attachment_id.toString());
+        if (entity_type) params.append('entity_type', entity_type);
+        if (start_date) params.append('start_date', start_date);
+        if (end_date) params.append('end_date', end_date);
+        if (transaction_type) params.append('transaction_type', transaction_type);
+        return `ledgers/attachments/?${params.toString()}`;
+      },
+      providesTags: ['Ledger'],
+    }),
+
     // ─── Cross-ledger reports ───────────────────────────────────────────────
 
     getItemMovementReport: builder.query<ItemMovementReportEntry[], ItemMovementReportParams>({
@@ -176,6 +203,7 @@ export const {
   // Project component
   useGetProjectComponentLedgerQuery,
   useGetProjectComponentTotalCostQuery,
+  useGetAttachmentLedgerQuery,
   // Reports
   useGetItemMovementReportQuery,
   useGetUserTransactionsReportQuery,

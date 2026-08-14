@@ -37,7 +37,7 @@ export function buildOrderHref(orderType: string, orderId: number): string {
     case 'work_order':
       return buildWorkOrderHref(orderId);
     case 'sales_order':
-      return `/orders/sales?orderId=${orderId}`;
+      return `/sales/overview?orderId=${orderId}`;
     default:
       return '/orders';
   }

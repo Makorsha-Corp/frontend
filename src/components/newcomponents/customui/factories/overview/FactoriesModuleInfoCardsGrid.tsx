@@ -40,7 +40,7 @@ const FactoriesModuleInfoCardsGrid: React.FC<FactoriesModuleInfoCardsGridProps> 
   productionLoading,
   onMaintenanceClick,
 }) => (
-  <div className="grid h-full min-h-0 grid-cols-1 items-stretch gap-4 md:grid-cols-3">
+  <div className="grid h-full min-h-0 grid-cols-1 items-stretch gap-4 overflow-hidden md:grid-cols-3">
     <FactoriesUnifiedMachineCard
       scopeLabel={scopeLabel}
       factoryFilter={factoryFilter}

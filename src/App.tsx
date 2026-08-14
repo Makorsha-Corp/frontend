@@ -30,12 +30,17 @@ import LedgersPage from "./pages/newpages/LedgersPage";
 import CalendarPage from "./pages/newpages/calendar/CalendarPage";
 
 import { ThemeProvider } from "./context/ThemeContext";
+import { SettingsModalProvider } from "./context/SettingsModalContext";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
 import BusinessLensWizardPage from "./pages/newpages/BusinessLensWizardPage";
 import ManagementPage from "./pages/newpages/ManagementPage";
 import BillingTrialPage from "./pages/newpages/BillingTrialPage";
+import UploadsPage from "./pages/newpages/UploadsPage";
+import HelpPage from "./pages/newpages/HelpPage";
+import MobileUploadPage from "./pages/newpages/MobileUploadPage";
 import RequireAuth from "./components/newcomponents/customui/RequireAuth";
 import RequireWorkspace from "./components/newcomponents/customui/RequireWorkspace";
+import AppShellLayout from "./layouts/AppShellLayout";
 
 const App: React.FC = () => {
   return (
@@ -47,10 +52,12 @@ const App: React.FC = () => {
             v7_relativeSplatPath: true,
           }}
         >
+          <SettingsModalProvider>
           <Routes>
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<LoginPage />} />
+            <Route path="/m/:token" element={<MobileUploadPage />} />
 
             {/* Requires auth, no workspace needed */}
             <Route element={<RequireAuth />}>
@@ -59,6 +66,7 @@ const App: React.FC = () => {
 
             {/* Requires auth + workspace */}
             <Route element={<RequireWorkspace />}>
+              <Route element={<AppShellLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/factories" element={<FactoriesPage />} />
@@ -89,16 +97,20 @@ const App: React.FC = () => {
               <Route path="/sales" element={<SalesOrdersPage />} />
               <Route path="/sales/overview" element={<SalesOrdersPage />} />
               <Route path="/sales/team" element={<SalesTeamPage />} />
-              <Route path="/orders/sales" element={<SalesOrdersPage />} />
+              <Route path="/orders/sales" element={<Navigate to="/sales/overview" replace />} />
               <Route path="/orders/work" element={<WorkOrdersLegacyRedirect />} />
               <Route path="/management" element={<ManagementPage />} />
               <Route path="/billing/trial" element={<BillingTrialPage />} />
+              <Route path="/uploads" element={<UploadsPage />} />
+              <Route path="/help" element={<HelpPage />} />
               <Route path="/storage" element={<StoragePage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/businesslens" element={<BusinessLensPage />} />
               <Route path="/businesslens/:templateId" element={<BusinessLensWizardPage />} />
+              </Route>
             </Route>
           </Routes>
+          </SettingsModalProvider>
         </Router>
       </ThemeProvider>
     </Provider>

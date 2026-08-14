@@ -11,6 +11,8 @@ import type {
   RegisterRequest,
   RegisterResponse,
   User,
+  MeResponse,
+  ProfileMeUpdate,
   ValidateInvitationResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
@@ -59,9 +61,36 @@ export const authApi = createApi({
       }),
     }),
 
-    // Get current user
+    // Get current user + workspace context
+    getMe: builder.query<MeResponse, void>({
+      query: () => 'auth/me/',
+      providesTags: ['User'],
+    }),
+
+    updateMe: builder.mutation<User, ProfileMeUpdate>({
+      query: (body) => ({
+        url: 'auth/me/',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: {
+        id: number;
+        name: string;
+        email: string;
+        timezone?: string | null;
+      }) => ({
+        id: response.id,
+        name: response.name,
+        email: response.email,
+        timezone: response.timezone ?? null,
+      }),
+      invalidatesTags: ['User'],
+    }),
+
+    // Legacy alias
     getCurrentUser: builder.query<User, void>({
       query: () => 'auth/me/',
+      transformResponse: (response: MeResponse) => response.user,
       providesTags: ['User'],
     }),
 
@@ -145,6 +174,8 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useRefreshTokenMutation,
+  useGetMeQuery,
+  useUpdateMeMutation,
   useGetCurrentUserQuery,
   useGetWorkspacesQuery,
   useCreateWorkspaceMutation,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { useGetSalesOrdersQuery, useGetSalesOrderByIdQuery } from '@/features/salesOrders/salesOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { ClipboardList, Plus, Search, X } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
 import AddSalesOrderDialog from '@/components/newcomponents/customui/orders/AddSalesOrderDialog';
 import SalesOrderDetailPanel from '@/components/newcomponents/customui/orders/SalesOrderDetailPanel';
 import SalesOrderNavigatorPanel from '@/components/newcomponents/customui/orders/SalesOrderNavigatorPanel';
@@ -94,17 +93,14 @@ const SalesOrdersPage: React.FC = () => {
     v != null
       ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v)
       : '—';
-  const formatDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString() : '—');
+  const formatDate = useFormatDateFromApi();
   const accountName = (id: number) => accounts.find((a) => a.id === id)?.name ?? `Account #${id}`;
 
   const hasActiveFilters = searchInput.trim().length > 0;
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
@@ -203,7 +199,7 @@ const SalesOrdersPage: React.FC = () => {
           setIsAddOpen(false);
         }}
       />
-    </div>
+    </>
   );
 };
 

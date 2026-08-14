@@ -247,7 +247,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
   const expensesBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-2 min-w-0">
         <Label className="text-base">Expenses *</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
       </div>
@@ -512,7 +512,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
   const templateItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-2 min-w-0">
         <Label className="text-base">Expenses</Label>
         <span className="text-xs text-muted-foreground tabular-nums">
           {templateItems.length} from template

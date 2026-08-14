@@ -4,16 +4,12 @@ export const ORDER_TYPE_PATHS: Record<OverviewOrderKind, string> = {
   purchase: '/orders/purchase',
   transfer: '/orders/transfer',
   expense: '/orders/expense',
-  sales: '/orders/sales',
-  work: '/machines?tab=workOrders',
 };
 
 export const ORDER_TYPE_LABELS: Record<OverviewOrderKind, string> = {
   purchase: 'Purchase',
   transfer: 'Transfer',
   expense: 'Expense',
-  sales: 'Sales',
-  work: 'Work',
 };
 
 export const PASTEL_CHART_FILLS = [

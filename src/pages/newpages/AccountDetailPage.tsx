@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useParams, Link } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
@@ -11,7 +10,7 @@ import AppShellHeader, {
 import { Button } from '@/components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList } from '@/components/ui/breadcrumb';
 import { useGetAccountByIdQuery } from '@/features/accounts/accountsApi';
-import { Users, Loader2, ChevronLeft } from 'lucide-react';
+import { Building2, Loader2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import AccountDetailsDialog from '@/components/newcomponents/customui/accounts/AccountDetailsDialog';
@@ -50,14 +49,13 @@ const AccountDetailPage: React.FC = () => {
   const showDetailOnMobile = workspace.selectedInvoiceId != null;
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <DashboardNavbar />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between flex-wrap gap-4">
               <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
                 <div className={appShellHeaderIconTileClass}>
-                  <Users className="h-5 w-5 text-brand-primary" />
+                  <Building2 className="h-5 w-5 text-brand-primary" />
                 </div>
                 <h1 className={appShellHeaderTitleClass}>
                   <Link
@@ -239,7 +237,7 @@ const AccountDetailPage: React.FC = () => {
         onOpenChange={setIsEditDialogOpen}
         account={account ?? null}
       />
-    </div>
+    </>
   );
 };
 

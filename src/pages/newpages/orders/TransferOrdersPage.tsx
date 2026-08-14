@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import {
   parsePageFactoryFilterParam,
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
 import { format } from 'date-fns';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -41,7 +41,7 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
 import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
@@ -301,8 +301,7 @@ const TransferOrdersPage: React.FC = () => {
   const renderRouteLabel = (order: TransferOrder) => (
     <TransferRouteDisplay order={order} ctx={labelCtx} />
   );
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString() : '—';
+  const formatDate = useFormatDateFromApi();
 
   const hasActiveFilters =
     dateRange.from != null ||
@@ -358,11 +357,8 @@ const TransferOrdersPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
@@ -614,7 +610,7 @@ const TransferOrdersPage: React.FC = () => {
           setIsAddOpen(false);
         }}
       />
-    </div>
+    </>
   );
 };
 

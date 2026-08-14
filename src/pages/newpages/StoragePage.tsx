@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -374,9 +373,7 @@ const StoragePage: React.FC = () => {
 
   if (!isLoadingFactories && factories.length === 0) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Archive className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -397,14 +394,12 @@ const StoragePage: React.FC = () => {
             onOpenChange={setIsAddFactoryOpen}
             factories={factories}
           />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardNavbar />
+    <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -499,7 +494,7 @@ const StoragePage: React.FC = () => {
         inventory={editingInventory}
         onSuccess={() => setEditingInventory(null)}
       />
-    </div>
+    </>
   );
 };
 

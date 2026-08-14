@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { LayoutDashboard, Loader2, Plus, Users } from 'lucide-react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
@@ -25,7 +24,7 @@ import {
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import type { Factory } from '@/types/factory';
 import { useFactoriesOverviewPage } from '@/pages/newpages/factories/useFactoriesOverviewPage';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 const FactoriesPage: React.FC = () => {
   const overview = useFactoriesOverviewPage();
@@ -68,10 +67,7 @@ const FactoriesPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
+    <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
@@ -123,9 +119,8 @@ const FactoriesPage: React.FC = () => {
             </div>
           ) : (
             <div className="grid min-h-0 flex-1 grid-rows-[38fr_62fr] gap-0 overflow-hidden">
-              <div className="min-h-0 overflow-y-auto pb-4">
-                <div className="h-full min-h-0">
-                  <FactoriesOverviewDashboard
+              <div className="flex h-full min-h-0 flex-col overflow-hidden pb-4">
+                <FactoriesOverviewDashboard
                     data={{
                       factoryFilter: overview.factoryFilter,
                       storageSnapshot: overview.storageSnapshot,
@@ -142,7 +137,6 @@ const FactoriesPage: React.FC = () => {
                     }}
                     onMaintenanceClick={() => setIsMaintenanceDialogOpen(true)}
                   />
-                </div>
               </div>
 
               <div className="min-h-0 overflow-hidden pt-2">
@@ -204,7 +198,7 @@ const FactoriesPage: React.FC = () => {
         description={`Overdue and upcoming machine work for ${overview.scopeLabel}.`}
         emptyMessage={`No overdue or upcoming machine work for ${overview.scopeLabel}.`}
       />
-    </div>
+    </>
   );
 };
 

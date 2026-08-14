@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderLeftGroupClass,
   appShellHeaderIconTileClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
-import { useAppSelector } from '@/app/hooks';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import { setWorkspace } from '@/features/auth/authSlice';
 import {
   useGetWorkspaceMembersQuery,
   useUpdateMemberRoleMutation,
@@ -14,7 +14,11 @@ import {
   useGetWorkspaceInvitationsQuery,
   useSendInvitationMutation,
   useCancelInvitationMutation,
+  useGetWorkspaceQuery,
+  useUpdateWorkspaceMutation,
 } from '@/features/workspaces/workspaceApi';
+import TimezoneSelect from '@/components/newcomponents/customui/TimezoneSelect';
+import { detectBrowserTimezone } from '@/utils/datetime';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,9 +38,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { Check, Copy, Loader2, Mail, ShieldCheck, UserMinus, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSettingsModal } from '@/context/SettingsModalContext';
 
 const ASSIGNABLE_ROLES = ['manager', 'member', 'viewer', 'ground-team'] as const;
 type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
@@ -68,9 +73,7 @@ const ManagementPage: React.FC = () => {
 
   if (!workspace || workspace.role !== 'owner') {
     return (
-      <div className="flex min-h-screen bg-background">
-        <DashboardNavbar />
-        <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <ShieldCheck className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 text-xl font-semibold text-card-foreground">Access Restricted</h2>
@@ -79,17 +82,12 @@ const ManagementPage: React.FC = () => {
               Back to Dashboard
             </Button>
           </div>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className={appShellHeaderLeftGroupClass}>
             <div className={appShellHeaderIconTileClass}>
@@ -104,6 +102,7 @@ const ManagementPage: React.FC = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="invitations">Invitations</TabsTrigger>
+              <TabsTrigger value="settings">Workspace settings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="members">
@@ -113,9 +112,102 @@ const ManagementPage: React.FC = () => {
             <TabsContent value="invitations">
               <InvitationsTab workspaceId={workspace.id} />
             </TabsContent>
+
+            <TabsContent value="settings">
+              <WorkspaceSettingsTab workspaceId={workspace.id} />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
+  );
+};
+
+/* =========================================================================
+   Workspace settings (owner)
+   ========================================================================= */
+
+const WorkspaceSettingsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }) => {
+  const dispatch = useAppDispatch();
+  const { openSettings } = useSettingsModal();
+  const authWorkspace = useAppSelector((state) => state.auth.workspace);
+  const { data: workspaceDetails, isLoading } = useGetWorkspaceQuery(workspaceId);
+  const [updateWorkspace, { isLoading: isSaving }] = useUpdateWorkspaceMutation();
+  const [timezone, setTimezone] = useState(detectBrowserTimezone());
+
+  React.useEffect(() => {
+    const wsTz = workspaceDetails?.settings?.timezone;
+    if (typeof wsTz === 'string' && wsTz) {
+      setTimezone(wsTz);
+    }
+  }, [workspaceDetails?.settings]);
+
+  const handleSave = async () => {
+    try {
+      await updateWorkspace({
+        id: workspaceId,
+        data: {
+          settings: {
+            ...(workspaceDetails?.settings ?? {}),
+            timezone,
+          },
+        },
+      }).unwrap();
+      if (authWorkspace) {
+        dispatch(
+          setWorkspace({
+            ...authWorkspace,
+            settings: { ...authWorkspace.settings, timezone },
+          })
+        );
+      }
+      toast.success('Workspace default timezone saved');
+    } catch (err: unknown) {
+      const msg =
+        (err as { data?: { detail?: string } })?.data?.detail ??
+        'Failed to save workspace settings';
+      toast.error(msg);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading workspace…
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg space-y-6 rounded-lg border bg-card p-6 shadow-sm">
+      <div>
+        <h2 className="text-base font-semibold text-card-foreground">Default timezone</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Used when a member has not set a personal timezone in{' '}
+          <button
+            type="button"
+            onClick={() => openSettings('general')}
+            className="font-medium text-brand-primary hover:underline"
+          >
+            Preferences
+          </button>
+          . Does not override individual user choices.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="workspace-timezone">Workspace default</Label>
+        <TimezoneSelect value={timezone} onChange={setTimezone} />
+      </div>
+      <Button onClick={handleSave} disabled={isSaving}>
+        {isSaving ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving…
+          </>
+        ) : (
+          'Save default timezone'
+        )}
+      </Button>
     </div>
   );
 };

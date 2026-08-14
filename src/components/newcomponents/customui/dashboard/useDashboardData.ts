@@ -228,7 +228,6 @@ export function useDashboardData() {
     factorySections,
     isLoading: scopeLoading,
     hasError: scopeError,
-    salesMayTruncate,
     hubOrdersMayTruncate,
   } = useOrdersScopeData();
 
@@ -440,7 +439,6 @@ export function useDashboardData() {
     workspacePulse,
     isLoading,
     hasError,
-    salesMayTruncate: salesMayTruncate || hubOrdersMayTruncate,
     hubOrdersMayTruncate,
   };
 }

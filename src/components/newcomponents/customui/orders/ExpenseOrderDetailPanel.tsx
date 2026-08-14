@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,10 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 import EoApprovalsTopBar from './EoApprovalsTopBar';
+import {
+  ORDER_DETAIL_BODY_CLASS,
+  ORDER_DETAIL_SCROLL_CLASS,
+} from './orderListConstants';
 import ManageEoApprovalsDialog from './ManageEoApprovalsDialog';
 import EoWorkflowChecklist from './EoWorkflowChecklist';
 import EoLinkedInvoiceCard from './EoLinkedInvoiceCard';
@@ -211,8 +216,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         }).format(v)
       : '—';
 
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const formatDate = useFormatDateFromApi();
 
   const qtyWithUnit = (qty: number, unit: string | null) => (unit ? `${qty} ${unit}` : String(qty));
 
@@ -357,8 +361,22 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-6 py-6 space-y-4">
+      <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
+          <EoApprovalsTopBar
+            approvers={approvers}
+            approvalSummary={approvalSummary}
+            currentUserId={currentUserId}
+            myApproval={myApproval}
+            highlighted={scrollHighlightTarget === 'approvals'}
+            onHighlightDismiss={dismissScrollHighlight}
+            onManage={() => setManageApprovalsOpen(true)}
+            onToggleMyApproval={handleToggleMyApproval}
+            isVoided={order.voided}
+            onVoidOrder={orderComplete ? undefined : () => setVoidOpen(true)}
+            withdrawBlocked={orderComplete}
+          />
+
+          <div className={ORDER_DETAIL_BODY_CLASS}>
           {order.voided && (
             <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 space-y-1">
               <div className="flex items-center gap-2">
@@ -374,20 +392,6 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
               )}
             </div>
           )}
-
-          <EoApprovalsTopBar
-            approvers={approvers}
-            approvalSummary={approvalSummary}
-            currentUserId={currentUserId}
-            myApproval={myApproval}
-            highlighted={scrollHighlightTarget === 'approvals'}
-            onHighlightDismiss={dismissScrollHighlight}
-            onManage={() => setManageApprovalsOpen(true)}
-            onToggleMyApproval={handleToggleMyApproval}
-            isVoided={order.voided}
-            onVoidOrder={orderComplete ? undefined : () => setVoidOpen(true)}
-            withdrawBlocked={orderComplete}
-          />
 
           <div className={cn('space-y-4', order.voided && 'opacity-40 pointer-events-none select-none')}>
 
@@ -710,7 +714,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             </CardContent>
           </Card>
           </div>
-        </div>
+          </div>
       </div>
 
       {isDirty && !orderComplete && (

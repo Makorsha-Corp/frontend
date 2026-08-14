@@ -1,4 +1,4 @@
-import type { OrderHubRecentSummary } from './orderHub';
+import type { OrderHubRecentSummary, ExpenseOrderFinancialSnapshot } from './orderHub';
 
 export interface ExpenseOrderItem {
   id: number;
@@ -122,6 +122,7 @@ export interface ExpenseOrderHubStatsResponse {
   open_value: number;
   not_invoiced_count: number;
   recent_orders?: OrderHubRecentSummary[];
+  financial_snapshot?: ExpenseOrderFinancialSnapshot;
 }
 
 export interface ExpenseOrderApprover {

@@ -4,8 +4,6 @@ import {
   ShoppingCart,
   ArrowLeftRight,
   CreditCard,
-  Receipt,
-  Wrench,
   ChevronRight,
   Loader2,
 } from 'lucide-react';
@@ -18,8 +16,6 @@ const ORDER_ICONS: Record<OverviewOrderKind, React.ComponentType<{ className?: s
   purchase: ShoppingCart,
   transfer: ArrowLeftRight,
   expense: CreditCard,
-  sales: Receipt,
-  work: Wrench,
 };
 
 interface DashboardRecentOrdersPanelProps {

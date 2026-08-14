@@ -12,7 +12,7 @@ import { AlertTriangle, Check, Clock, ShieldCheck, Wrench, XCircle } from 'lucid
 import PoApproveOrderButton from './PoApproveOrderButton';
 import type { ApprovalSummary, PurchaseOrderApprover } from '@/types/purchaseOrder';
 import type { PoConfirmationsStatus } from './purchaseOrderMilestones';
-import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
+import { ORDER_APPROVALS_BAR_CLASS } from './orderListConstants';
 
 const AVATAR_COLORS = [
   'bg-brand-primary',
@@ -77,8 +77,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
     <div
       id="po-section-approvals"
       className={cn(
-        ORDER_PANEL_HEADER_CLASS,
-        '-mx-6 -mt-6 mb-2 flex-nowrap gap-x-4 px-6 scroll-mt-6',
+        ORDER_APPROVALS_BAR_CLASS,
         highlighted && 'po-scroll-target-highlight'
       )}
       onMouseEnter={() => {

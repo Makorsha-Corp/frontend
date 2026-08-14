@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3 } from 'lucide-react';
@@ -27,9 +26,7 @@ const BusinessLensPlaceholderReport: React.FC<BusinessLensPlaceholderReportProps
   const label = TEMPLATE_LABELS[templateId] ?? templateId;
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -80,7 +77,6 @@ const BusinessLensPlaceholderReport: React.FC<BusinessLensPlaceholderReportProps
           </Card>
         </div>
       </div>
-    </div>
   );
 };
 

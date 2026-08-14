@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { useNavigate, Link } from 'react-router-dom';
 import AppShellHeader, {
   appShellHeaderControlClass,
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useGetAccountsQuery, useDeleteAccountMutation } from '@/features/accounts/accountsApi';
 import type { Account } from '@/types/account';
-import { Search, Plus, Loader2, Pencil, Trash2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Loader2, Pencil, Trash2, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
@@ -110,9 +109,8 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
   const getAddressSummary = (acc: Account) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -131,7 +129,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
               </Breadcrumb>
               <div className="h-6 w-px bg-border" />
               <div className={appShellHeaderIconTileClass}>
-                <Users className="h-5 w-5 text-brand-primary" />
+                <Building2 className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>
                 {config.label}
@@ -190,7 +188,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                 ) : accounts.length === 0 ? (
                   <div className="py-16 text-center">
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-brand-primary/10 rounded-full mb-4">
-                      <Users className="h-10 w-10 text-brand-primary" />
+                      <Building2 className="h-10 w-10 text-brand-primary" />
                     </div>
                     <h3 className="text-lg font-semibold text-card-foreground mb-2">No {config.label} Yet</h3>
                     <p className="text-muted-foreground mb-4">Add your first {singularLabel.toLowerCase()}.</p>
@@ -308,7 +306,7 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
         account={editingAccount}
       />
       <ManageAccountsDialog open={isManageAccountsOpen} onOpenChange={setIsManageAccountsOpen} />
-    </div>
+    </>
   );
 };
 

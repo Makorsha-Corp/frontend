@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ChevronRight, ExternalLink, Mail, MailOpen, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { AppNotification } from './notificationTypes';
 import { getNotificationVisual } from './notificationVisuals';
+import { useDisplayTimezone } from '@/hooks/useDisplayTimezone';
+import { formatRelativeFromApi } from '@/utils/datetime';
 
 export interface NotificationListItemProps {
   notification: AppNotification;
@@ -26,9 +27,10 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
   onToggleRead,
   onDismiss,
 }) => {
+  const timeZone = useDisplayTimezone();
   const visual = getNotificationVisual(notification.kind, notification.severity);
   const Icon = visual.icon;
-  const timeAgo = formatDistanceToNow(parseISO(notification.createdAt), { addSuffix: true });
+  const timeAgo = formatRelativeFromApi(notification.createdAt, { timeZone });
 
   const content = (
     <>

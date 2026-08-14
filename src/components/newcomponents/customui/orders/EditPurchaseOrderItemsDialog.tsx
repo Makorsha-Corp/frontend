@@ -589,7 +589,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
             ) : null}
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                   Order items
                 </Label>

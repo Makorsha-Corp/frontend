@@ -91,7 +91,7 @@ function bailOut(api: BaseQueryApi): void {
   // Only redirect if we're not already on an auth page (avoids loops).
   if (typeof window !== 'undefined') {
     const path = window.location.pathname;
-    if (!path.startsWith('/login') && !path.startsWith('/register')) {
+    if (!path.startsWith('/login') && !path.startsWith('/register') && !path.startsWith('/m/')) {
       window.location.href = '/login?expired=1';
     }
   }

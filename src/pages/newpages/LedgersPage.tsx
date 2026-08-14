@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
@@ -13,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookOpen, Loader2, RefreshCcw } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
@@ -27,15 +26,18 @@ import {
   useReconcileMachineMutation,
   useGetProjectComponentLedgerQuery,
   useGetProjectComponentTotalCostQuery,
+  useGetAttachmentLedgerQuery,
 } from '@/features/ledgers/ledgersApi';
 import { useGetProductLedgerQuery } from '@/features/products/productsApi';
 import type {
+  AttachmentLedgerEntry,
   InventoryLedgerEntry,
   MachineLedgerEntry,
   ProjectComponentLedgerEntry,
 } from '@/types/ledger';
 import type { InventoryType } from '@/types/inventory';
 import type { ProductLedgerEntry } from '@/types/product';
+import { ATTACHMENT_ENTITY_TYPE_LABELS, type AttachmentEntityType } from '@/types/attachment';
 
 type LedgerScope =
   | 'storage'
@@ -44,13 +46,15 @@ type LedgerScope =
   | 'scrap'
   | 'machine'
   | 'project_component'
-  | 'product';
+  | 'product'
+  | 'attachment';
 
 type LedgerRow =
   | InventoryLedgerEntry
   | MachineLedgerEntry
   | ProjectComponentLedgerEntry
-  | ProductLedgerEntry;
+  | ProductLedgerEntry
+  | AttachmentLedgerEntry;
 
 const scopeOptions: Array<{ value: LedgerScope; label: string }> = [
   { value: 'storage', label: 'Storage ledger' },
@@ -60,7 +64,18 @@ const scopeOptions: Array<{ value: LedgerScope; label: string }> = [
   { value: 'machine', label: 'Machine ledger' },
   { value: 'project_component', label: 'Project component ledger' },
   { value: 'product', label: 'Products (finished goods)' },
+  { value: 'attachment', label: 'Attachments' },
 ];
+
+const ATTACHMENT_ENTITY_FILTER_OPTIONS = Object.entries(ATTACHMENT_ENTITY_TYPE_LABELS) as Array<
+  [AttachmentEntityType, string]
+>;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const inventoryTypeForScope = (scope: LedgerScope): InventoryType | null => {
   switch (scope) {
@@ -78,20 +93,22 @@ const isInventoryRow = (row: LedgerRow): row is InventoryLedgerEntry =>
 const isMachineRow = (row: LedgerRow): row is MachineLedgerEntry =>
   'machine_id' in row;
 
+const isAttachmentRow = (row: LedgerRow): row is AttachmentLedgerEntry =>
+  'attachment_id' in row && !('quantity' in row);
+
 const LedgersPage: React.FC = () => {
   const [scope, setScope] = useState<LedgerScope>('storage');
   const { factoryId, setFactoryId } = usePageFactoryScopeId();
   const [machineId, setMachineId] = useState<number | null>(null);
   const [itemId, setItemId] = useState<number | null>(null);
   const [projectComponentId, setProjectComponentId] = useState<number | null>(null);
+  const [attachmentIdFilter, setAttachmentIdFilter] = useState('');
+  const [entityTypeFilter, setEntityTypeFilter] = useState<string>('__all__');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [transactionType, setTransactionType] = useState('');
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
 
-  // Backend caps: factories le=1000, machines le=1000, items le=100,
-  // project_components le=100. Requesting above the cap returns 422 and the
-  // hook silently falls back to []; keep request sizes within those caps.
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: 500 });
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 });
@@ -102,20 +119,20 @@ const LedgersPage: React.FC = () => {
   const isMachineScope = scope === 'machine';
   const isProjectComponentScope = scope === 'project_component';
   const isProductScope = scope === 'product';
-  // Scopes that surface the start/end-date + transaction-type filter inputs.
+  const isAttachmentScope = scope === 'attachment';
   const supportsDateFilters = !isProjectComponentScope;
-  // Scopes that show a factory selector (inventory + product are factory-scoped).
   const showsFactorySelector = isInventoryScope || isProductScope;
+  const showsInventoryTable = !isAttachmentScope;
 
   const factoryItemReady = factoryId != null && itemId != null;
-  // List view: just picking a machine is enough; balance + reconcile still need both.
   const machineReady = machineId != null;
   const machineItemReady = machineId != null && itemId != null;
   const projectComponentReady = projectComponentId != null;
 
-  // Unified inventory ledger (STORAGE / DAMAGED / WASTE / SCRAP).
-  // All filters optional — listing works without picking factory/item.
-  // Backend caps `limit` at le=100 for all ledger endpoints.
+  const parsedAttachmentId = attachmentIdFilter.trim()
+    ? Number.parseInt(attachmentIdFilter.trim(), 10)
+    : undefined;
+
   const inventoryLedger = useGetInventoryLedgerQuery(
     {
       inventory_type: inventoryType ?? undefined,
@@ -168,7 +185,6 @@ const LedgersPage: React.FC = () => {
     skip: !(isProjectComponentScope && projectComponentReady),
   });
 
-  // Product (finished goods) ledger. All filters optional — omit any to broaden.
   const productLedger = useGetProductLedgerQuery(
     {
       factory_id: factoryId ?? undefined,
@@ -182,6 +198,22 @@ const LedgersPage: React.FC = () => {
     { skip: !isProductScope }
   );
 
+  const attachmentLedger = useGetAttachmentLedgerQuery(
+    {
+      attachment_id:
+        parsedAttachmentId != null && !Number.isNaN(parsedAttachmentId)
+          ? parsedAttachmentId
+          : undefined,
+      entity_type: entityTypeFilter !== '__all__' ? entityTypeFilter : undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+      transaction_type: transactionType || undefined,
+      skip: 0,
+      limit: 100,
+    },
+    { skip: !isAttachmentScope }
+  );
+
   const [reconcileInventory, reconcileInventoryState] = useReconcileInventoryMutation();
   const [reconcileMachine, reconcileMachineState] = useReconcileMachineMutation();
 
@@ -190,16 +222,19 @@ const LedgersPage: React.FC = () => {
     if (isMachineScope) return machineLedger.data ?? [];
     if (isProjectComponentScope) return projectComponentLedger.data ?? [];
     if (isProductScope) return productLedger.data ?? [];
+    if (isAttachmentScope) return attachmentLedger.data ?? [];
     return [];
   }, [
     isInventoryScope,
     isMachineScope,
     isProjectComponentScope,
     isProductScope,
+    isAttachmentScope,
     inventoryLedger.data,
     machineLedger.data,
     projectComponentLedger.data,
     productLedger.data,
+    attachmentLedger.data,
   ]);
 
   const balance = useMemo(() => {
@@ -219,7 +254,8 @@ const LedgersPage: React.FC = () => {
     inventoryLedger.isLoading ||
     machineLedger.isLoading ||
     projectComponentLedger.isLoading ||
-    productLedger.isLoading;
+    productLedger.isLoading ||
+    attachmentLedger.isLoading;
   const isReconcileLoading =
     reconcileInventoryState.isLoading ||
     reconcileMachineState.isLoading;
@@ -251,12 +287,9 @@ const LedgersPage: React.FC = () => {
     (isInventoryScope && factoryItemReady) ||
     (isMachineScope && machineItemReady);
 
-  if (!isLoadingFactories && factories.length === 0) {
+  if (!isLoadingFactories && factories.length === 0 && !isAttachmentScope) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <Toaster position="top-right" />
-        <DashboardNavbar />
-        <div className="flex-1 min-w-0 flex flex-col items-center justify-center p-8 text-center bg-card">
+      <div className="flex flex-1 min-w-0 flex-col items-center justify-center p-8 text-center bg-card">
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -277,16 +310,12 @@ const LedgersPage: React.FC = () => {
             onOpenChange={setIsAddFactoryOpen}
             factories={factories}
           />
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Toaster position="top-right" />
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className={appShellHeaderLeftGroupClass}>
@@ -295,10 +324,12 @@ const LedgersPage: React.FC = () => {
               </div>
               <h1 className={appShellHeaderTitleClass}>Ledgers</h1>
             </div>
-            <Button onClick={handleReconcile} disabled={!canReconcile || isReconcileLoading} variant="outline" className="h-9">
-              {isReconcileLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-              Reconcile
-            </Button>
+            {!isAttachmentScope ? (
+              <Button onClick={handleReconcile} disabled={!canReconcile || isReconcileLoading} variant="outline" className="h-9">
+                {isReconcileLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                Reconcile
+              </Button>
+            ) : null}
           </div>
         </AppShellHeader>
 
@@ -320,6 +351,28 @@ const LedgersPage: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
+
+              {isAttachmentScope ? (
+                <>
+                  <Input
+                    value={attachmentIdFilter}
+                    onChange={(e) => setAttachmentIdFilter(e.target.value)}
+                    placeholder="Attachment ID (optional)"
+                    inputMode="numeric"
+                  />
+                  <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
+                    <SelectTrigger><SelectValue placeholder="Entity type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All entity types</SelectItem>
+                      {ATTACHMENT_ENTITY_FILTER_OPTIONS.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              ) : null}
 
               {showsFactorySelector && (
                 <Select value={factoryId?.toString() ?? '__none__'} onValueChange={(v) => setFactoryId(v === '__none__' ? null : Number(v))}>
@@ -366,23 +419,25 @@ const LedgersPage: React.FC = () => {
                 </Select>
               )}
 
-              <Select value={itemId?.toString() ?? '__none__'} onValueChange={(v) => setItemId(v === '__none__' ? null : Number(v))}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={isProjectComponentScope ? 'Item' : 'Item (optional)'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">
-                    {isProjectComponentScope ? 'Select item' : 'All items'}
-                  </SelectItem>
-                  {items.map((item) => (
-                    <SelectItem key={item.id} value={item.id.toString()}>
-                      {item.name}
+              {!isAttachmentScope ? (
+                <Select value={itemId?.toString() ?? '__none__'} onValueChange={(v) => setItemId(v === '__none__' ? null : Number(v))}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={isProjectComponentScope ? 'Item' : 'Item (optional)'}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      {isProjectComponentScope ? 'Select item' : 'All items'}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {items.map((item) => (
+                      <SelectItem key={item.id} value={item.id.toString()}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
 
               {supportsDateFilters && (
                 <>
@@ -391,37 +446,41 @@ const LedgersPage: React.FC = () => {
                   <Input
                     value={transactionType}
                     onChange={(e) => setTransactionType(e.target.value)}
-                    placeholder="Transaction type (optional)"
+                    placeholder={isAttachmentScope ? 'Type: pending, ready, failed, deleted' : 'Transaction type (optional)'}
                   />
                 </>
               )}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${isAttachmentScope ? '' : 'md:grid-cols-3'}`}>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Entries</CardTitle></CardHeader>
               <CardContent className="text-2xl font-semibold">{rows.length}</CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">
-                  Balance Qty
-                  {isInventoryScope && !factoryItemReady && (
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      (pick factory + item)
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">{balance?.quantity ?? '—'}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Project Total Cost</CardTitle></CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {isProjectComponentScope ? String(projectComponentTotalCost.data?.total_cost ?? '—') : '—'}
-              </CardContent>
-            </Card>
+            {!isAttachmentScope ? (
+              <>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">
+                      Balance Qty
+                      {isInventoryScope && !factoryItemReady && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          (pick factory + item)
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-semibold">{balance?.quantity ?? '—'}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Project Total Cost</CardTitle></CardHeader>
+                  <CardContent className="text-2xl font-semibold">
+                    {isProjectComponentScope ? String(projectComponentTotalCost.data?.total_cost ?? '—') : '—'}
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
           </div>
 
           <Card>
@@ -433,6 +492,50 @@ const LedgersPage: React.FC = () => {
                 <div className="h-40 flex items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Loading ledger entries...
+                </div>
+              ) : isAttachmentScope ? (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Transaction</TableHead>
+                        <TableHead>File</TableHead>
+                        <TableHead>Entity</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Performed At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            No attachment ledger entries found for current filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        rows.map((row) => {
+                          if (!isAttachmentRow(row)) return null;
+                          const entityLabel =
+                            row.entity_type && row.entity_id != null
+                              ? `${ATTACHMENT_ENTITY_TYPE_LABELS[row.entity_type as AttachmentEntityType] ?? row.entity_type} #${row.entity_id}`
+                              : '—';
+                          return (
+                            <TableRow key={row.id}>
+                              <TableCell>{row.id}</TableCell>
+                              <TableCell>{row.transaction_type}</TableCell>
+                              <TableCell className="max-w-[14rem] truncate" title={row.file_name}>
+                                {row.file_name}
+                              </TableCell>
+                              <TableCell>{entityLabel}</TableCell>
+                              <TableCell>{formatBytes(row.file_size)}</TableCell>
+                              <TableCell>{new Date(row.performed_at).toLocaleString()}</TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="rounded-md border overflow-x-auto">
@@ -459,6 +562,7 @@ const LedgersPage: React.FC = () => {
                         </TableRow>
                       ) : (
                         rows.map((row) => {
+                          if (!showsInventoryTable || isAttachmentRow(row)) return null;
                           const typeLabel = isInventoryRow(row)
                             ? row.inventory_type ?? '—'
                             : isMachineRow(row)
@@ -489,7 +593,6 @@ const LedgersPage: React.FC = () => {
           </Card>
         </div>
       </div>
-    </div>
   );
 };
 

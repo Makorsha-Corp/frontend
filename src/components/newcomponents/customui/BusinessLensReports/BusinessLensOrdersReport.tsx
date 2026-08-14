@@ -9,7 +9,6 @@ import {
   Cell,
   Tooltip,
 } from 'recharts';
-import DashboardNavbar from '@/components/newcomponents/customui/DashboardNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -117,9 +116,7 @@ const BusinessLensOrdersReport: React.FC<BusinessLensOrdersReportProps> = ({ sta
     .map((t) => ({ name: t.label, value: t.total }));
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <DashboardNavbar />
-      <div className="flex-1 min-w-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="bg-card dark:bg-[hsl(var(--nav-background))] border-b border-border px-8 py-5 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
@@ -372,7 +369,6 @@ const BusinessLensOrdersReport: React.FC<BusinessLensOrdersReportProps> = ({ sta
           )}
         </div>
       </div>
-    </div>
   );
 };
 

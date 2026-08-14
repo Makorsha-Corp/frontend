@@ -16,6 +16,30 @@ import { Archive, Plus, Loader2, Pencil, Trash2, ChevronUp, ExternalLink } from 
 import { cn } from '@/lib/utils';
 import { buildItemHref } from '@/lib/entityLinks';
 import { INVENTORY_TYPES, formatCurrency, formatNumber, type StorageOverviewStats } from './storageConstants';
+import {
+  catalogActionsCellClass,
+  catalogActionsHeadClass,
+  catalogFactoryCellClass,
+  catalogFactoryHeadClass,
+  catalogItemCellClass,
+  catalogItemHeadClass,
+  catalogMoneyCellClass,
+  catalogMoneyHeadClass,
+  catalogNumericCellClass,
+  catalogNumericHeadClass,
+  catalogSectionCardClass,
+  catalogSectionIconTileClass,
+  catalogSectionMetaClass,
+  catalogSectionSummaryClass,
+  catalogSectionTitleClass,
+  catalogSectionToolbarClass,
+  catalogTableClass,
+  catalogTableHeadRowClass,
+  catalogTableRowClass,
+  catalogItemTextClass,
+  catalogIncomingHeadClass,
+  catalogTypeHeadClass,
+} from './inventoryCatalogLayout';
 
 interface StorageSectionProps {
   factoryId: number | null;
@@ -69,15 +93,15 @@ const StorageSection: React.FC<StorageSectionProps> = ({
   const showFactoryColumn = factoryId == null;
 
   return (
-    <Card className={cn('flex min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm', collapsed ? 'shrink-0' : 'flex-1', className)}>
+    <Card className={cn(catalogSectionCardClass, collapsed ? 'shrink-0' : 'flex-1', className)}>
       <div className={cn('sticky top-0 z-10 shrink-0 bg-card', !collapsed && 'border-b border-border')}>
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className={catalogSectionToolbarClass}>
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/25">
+              <div className={catalogSectionIconTileClass}>
                 <Archive className="h-4 w-4 text-brand-primary" />
               </div>
-              <h2 className="text-sm font-semibold text-card-foreground">Storage</h2>
+              <h2 className={catalogSectionTitleClass}>Storage</h2>
               <Badge variant="secondary" className="tabular-nums">
                 {formatNumber(overview.records)}
               </Badge>
@@ -100,12 +124,12 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                   <Plus className="h-4 w-4" />
                 </BlockedActionButton>
               )}
-              <p className="text-xs tabular-nums text-muted-foreground">
+              <p className={catalogSectionSummaryClass}>
                 {formatNumber(overview.totalQty)} units · {formatCurrency(overview.estimatedValue)} est.
               </p>
             </div>
             {!collapsed && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              <div className={catalogSectionMetaClass}>
                 {overview.byType.map((row) => (
                   <span key={row.type} className="text-muted-foreground">
                     {row.type}:{' '}
@@ -182,31 +206,29 @@ const StorageSection: React.FC<StorageSectionProps> = ({
         ) : (
           <>
             <div className="min-h-0 flex-1 overflow-auto">
-              <Table>
+              <Table className={catalogTableClass}>
+                <colgroup>
+                  <col className="w-[280px]" />
+                  <col className="w-[120px]" />
+                  {showFactoryColumn ? <col className="w-[140px]" /> : null}
+                  <col className="w-[100px]" />
+                  <col className="w-[88px]" />
+                  <col className="w-[108px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
                 <TableHeader>
-                  <TableRow className="border-b border-border bg-brand-primary/5 dark:bg-brand-primary/10">
-                    <TableHead className="py-3 text-xs font-semibold uppercase text-muted-foreground">Item</TableHead>
-                    <TableHead
-                      data-testid="storage-incoming-header"
-                      className="min-w-[120px] w-[120px] py-3 text-xs font-semibold uppercase text-muted-foreground"
-                    >
+                  <TableRow className={catalogTableHeadRowClass}>
+                    <TableHead className={catalogItemHeadClass}>Item</TableHead>
+                    <TableHead data-testid="storage-incoming-header" className={catalogIncomingHeadClass}>
                       Incoming
                     </TableHead>
                     {showFactoryColumn && (
-                      <TableHead className="w-[140px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                        Factory
-                      </TableHead>
+                      <TableHead className={catalogFactoryHeadClass}>Factory</TableHead>
                     )}
-                    <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                      Type
-                    </TableHead>
-                    <TableHead className="w-[80px] py-3 text-xs font-semibold uppercase text-muted-foreground">Qty</TableHead>
-                    <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
-                      Avg. Price
-                    </TableHead>
-                    <TableHead className="w-[120px] py-3 text-right text-xs font-semibold uppercase text-muted-foreground">
-                      Actions
-                    </TableHead>
+                    <TableHead className={catalogTypeHeadClass}>Type</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>Qty</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>Avg. Price</TableHead>
+                    <TableHead className={catalogActionsHeadClass}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -230,13 +252,20 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    inventory.map((inv) => (
-                      <TableRow key={inv.id} className="border-b border-border last:border-0 hover:bg-brand-primary/5">
-                        <TableCell className="py-3 font-medium text-card-foreground">
-                          {inv.item_name ?? `Item #${inv.item_id}`}
-                          {inv.item_unit && <span className="ml-1 text-xs text-muted-foreground">({inv.item_unit})</span>}
+                    inventory.map((inv) => {
+                      const itemLabel = inv.item_name ?? `Item #${inv.item_id}`;
+                      const itemTitle = inv.item_unit ? `${itemLabel} (${inv.item_unit})` : itemLabel;
+                      return (
+                      <TableRow key={inv.id} className={catalogTableRowClass}>
+                        <TableCell className={catalogItemCellClass}>
+                          <span className={catalogItemTextClass} title={itemTitle}>
+                            {itemLabel}
+                            {inv.item_unit && (
+                              <span className="ml-1 text-xs text-muted-foreground">({inv.item_unit})</span>
+                            )}
+                          </span>
                         </TableCell>
-                        <TableCell className="py-3">
+                        <TableCell className={catalogNumericCellClass}>
                           <IncomingQtyCell
                             summary={incomingByKey?.get(incomingSummaryKey(inv.factory_id, inv.item_id))}
                             itemUnit={inv.item_unit}
@@ -244,18 +273,18 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                           />
                         </TableCell>
                         {showFactoryColumn && (
-                          <TableCell className="py-3 text-sm text-muted-foreground">
+                          <TableCell className={catalogFactoryCellClass}>
                             {factoryLabels[inv.factory_id] ?? `Factory #${inv.factory_id}`}
                           </TableCell>
                         )}
-                        <TableCell className="py-3">
+                        <TableCell className={catalogNumericCellClass}>
                           <span className="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
                             {inv.inventory_type}
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 tabular-nums">{inv.qty}</TableCell>
-                        <TableCell className="py-3 tabular-nums">{formatCurrency(inv.avg_price)}</TableCell>
-                        <TableCell className="py-3 text-right">
+                        <TableCell className={catalogNumericCellClass}>{inv.qty}</TableCell>
+                        <TableCell className={catalogMoneyCellClass}>{formatCurrency(inv.avg_price)}</TableCell>
+                        <TableCell className={catalogActionsCellClass}>
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -292,7 +321,8 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { useDisplayTimezone } from '@/hooks/useDisplayTimezone';
 import { formatAbsoluteFromApi, formatRelativeFromApi } from '@/utils/datetime';
 
 export interface EventLogTimestampProps {
@@ -13,8 +14,9 @@ const EventLogTimestamp: React.FC<EventLogTimestampProps> = ({
   showAbsoluteTimes = false,
   onToggle,
 }) => {
+  const timeZone = useDisplayTimezone();
   const label = showAbsoluteTimes
-    ? formatAbsoluteFromApi(createdAt)
+    ? formatAbsoluteFromApi(createdAt, timeZone)
     : formatRelativeFromApi(createdAt);
 
   if (!onToggle) {

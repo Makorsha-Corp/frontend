@@ -9,6 +9,7 @@ export interface BackendNotification {
   notification_type: string;
   entity_type: string;
   entity_id: number;
+  entity_label: string;
   source_type: string;
   source_id: number;
   preview: string | null;

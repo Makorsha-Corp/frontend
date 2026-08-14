@@ -42,6 +42,9 @@ import { discussionsApi } from '@/features/discussions/discussionsApi';
 import { notificationsApi } from '@/features/notifications/notificationsApi';
 import { paymentsApi } from '@/features/payments/paymentsApi';
 import { calendarApi } from '@/features/calendar/calendarApi';
+import { attachmentsApi } from '@/features/attachments/attachmentsApi';
+import { mobileUploadApi } from '@/features/mobileUpload/mobileUploadApi';
+import { helpTicketsApi } from '@/features/helpTickets/helpTicketsApi';
 import { factoryScopeListenerMiddleware } from '@/app/factoryScopeListenerMiddleware';
 
 export const store = configureStore({
@@ -88,6 +91,9 @@ export const store = configureStore({
     [notificationsApi.reducerPath]: notificationsApi.reducer,
     [paymentsApi.reducerPath]: paymentsApi.reducer,
     [calendarApi.reducerPath]: calendarApi.reducer,
+    [attachmentsApi.reducerPath]: attachmentsApi.reducer,
+    [mobileUploadApi.reducerPath]: mobileUploadApi.reducer,
+    [helpTicketsApi.reducerPath]: helpTicketsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -134,6 +140,9 @@ export const store = configureStore({
       notificationsApi.middleware,
       paymentsApi.middleware,
       calendarApi.middleware,
+      attachmentsApi.middleware,
+      mobileUploadApi.middleware,
+      helpTicketsApi.middleware,
     ),
 });
 

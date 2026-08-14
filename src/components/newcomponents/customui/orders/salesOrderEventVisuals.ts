@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   CreditCard,
   FileText,
+  Paperclip,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,5 +36,7 @@ export const SO_EVENT_VISUALS: Record<string, SoEventVisual> = {
   approval_withdrawn: { icon: X, wrap: 'bg-muted', color: 'text-muted-foreground' },
   order_completed: { icon: CheckCircle2, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
   payment_status_synced: { icon: CreditCard, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+  attachment_added: { icon: Paperclip, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
+  attachment_removed: { icon: Trash2, wrap: 'bg-muted', color: 'text-muted-foreground' },
   default: { icon: CheckCircle, wrap: 'bg-muted', color: 'text-muted-foreground' },
 };

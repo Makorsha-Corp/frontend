@@ -208,7 +208,7 @@ const FactoryModuleInfoCard: React.FC<FactoryModuleInfoCardProps> = ({
       </CardHeader>
 
       {children ? (
-        <CardContent className={cn('flex min-h-0 flex-1 flex-col pt-0', compactHeader ? 'gap-2' : 'gap-3')}>
+        <CardContent className={cn('flex min-h-0 flex-1 flex-col overflow-hidden pt-0', compactHeader ? 'gap-2' : 'gap-3')}>
           {children}
         </CardContent>
       ) : null}

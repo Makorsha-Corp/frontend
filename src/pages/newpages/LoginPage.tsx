@@ -9,11 +9,12 @@ import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import toast, { Toaster } from 'react-hot-toast';
+import appToast, { APP_TOAST_DURATIONS, APP_TOAST_IDS } from '@/lib/appToast';
 import { BarChart3, Loader2, Moon, MousePointer2, Package, Palette, Sun, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { apiErrorDetail } from '@/utils/apiError';
+import { BRAND_NAME } from '@/constants/brand';
 
 type LoginTheme = 'light' | 'dark';
 
@@ -325,7 +326,7 @@ const LoginMarketingSections: React.FC<{ className?: string }> = ({ className })
         Procurement, inventory, and production in one workspace.
       </h1>
       <p className="max-w-prose text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-        Marker helps teams run orders, stock, projects, and accounts with clear roles and a single source of
+        {BRAND_NAME} helps teams run orders, stock, projects, and accounts with clear roles and a single source of
         truth—built for mills and manufacturing operations like yours.
       </p>
     </section>
@@ -390,16 +391,24 @@ const Login2Page: React.FC = () => {
   const { isAuthenticated, workspace } = useAppSelector((state) => state.auth);
   const { theme, toggleTheme } = useTheme();
 
+  const expiredToastShownRef = useRef(false);
+
   // Refresh-token flow bails out here with ?expired=1 when /auth/refresh/
   // fails (refresh token revoked, expired, or reuse-detected). Show a single
   // toast and strip the query param so a hard reload doesn't re-show it.
   useEffect(() => {
-    if (searchParams.get('expired') === '1') {
-      toast.error('Your session expired. Please sign in again.');
-      const next = new URLSearchParams(searchParams);
-      next.delete('expired');
-      setSearchParams(next, { replace: true });
-    }
+    if (searchParams.get('expired') !== '1') return;
+    if (expiredToastShownRef.current) return;
+    expiredToastShownRef.current = true;
+
+    appToast.error('Your session expired. Please sign in again.', {
+      id: APP_TOAST_IDS.sessionExpired,
+      duration: APP_TOAST_DURATIONS.auth,
+    });
+
+    const next = new URLSearchParams(searchParams);
+    next.delete('expired');
+    setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
   // Toggle between login and register
@@ -493,11 +502,17 @@ const Login2Page: React.FC = () => {
     if (response.messages && response.messages.length > 0) {
       response.messages.forEach((msg: { type?: string; message?: string }) => {
         if (msg.type === 'success' && msg.message) {
-          toast.success(msg.message);
+          appToast.success(msg.message, {
+            id: APP_TOAST_IDS.loginSuccess,
+            duration: APP_TOAST_DURATIONS.auth,
+          });
         }
       });
     } else {
-      toast.success('Login successful!');
+      appToast.success('Login successful!', {
+        id: APP_TOAST_IDS.loginSuccess,
+        duration: APP_TOAST_DURATIONS.auth,
+      });
     }
 
     navigate('/workspace-selector');
@@ -507,7 +522,7 @@ const Login2Page: React.FC = () => {
     e.preventDefault();
 
     if (!loginEmail || !loginPassword) {
-      toast.error('Email and password are required');
+      appToast.error('Email and password are required');
       return;
     }
 
@@ -516,7 +531,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Login error:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(err, 'Login failed. Please check your credentials.'));
+      appToast.error(apiErrorDetail(err, 'Login failed. Please check your credentials.'));
     }
   };
 
@@ -526,7 +541,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Dev login error:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(err, 'Dev quick login failed.'));
+      appToast.error(apiErrorDetail(err, 'Dev quick login failed.'));
     }
   };
 
@@ -535,12 +550,12 @@ const Login2Page: React.FC = () => {
     e.preventDefault();
 
     if (!registerName || !registerEmail || !registerPassword) {
-      toast.error('All fields are required');
+      appToast.error('All fields are required');
       return;
     }
 
     if (registerPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      appToast.error('Password must be at least 8 characters');
       return;
     }
 
@@ -560,11 +575,11 @@ const Login2Page: React.FC = () => {
         })
       );
 
-      toast.success('Account created! Now set up your workspace.');
+      appToast.success('Account created! Now set up your workspace.');
       navigate('/workspace-selector');
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(apiErrorDetail(error, 'Registration failed. Please try again.'));
+      appToast.error(apiErrorDetail(error, 'Registration failed. Please try again.'));
     }
   };
 
@@ -579,8 +594,6 @@ const Login2Page: React.FC = () => {
         style={gradientLayerStyle}
         aria-hidden
       />
-      <Toaster position="top-right" />
-
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 px-5 py-3 backdrop-blur-md sm:px-8 lg:hidden">
         <LoginPageChrome
           compact

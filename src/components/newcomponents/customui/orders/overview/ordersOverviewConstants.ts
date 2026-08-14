@@ -2,18 +2,15 @@ import {
   ShoppingCart,
   ArrowLeftRight,
   CreditCard,
-  Receipt,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import type { OverviewOrderKind } from '@/pages/newpages/orders/ordersOverviewData';
 
+/** Procurement hub tiles on /orders overview (purchase, transfer, expense only). */
 export const ORDER_TYPE_HUB = [
   { id: 'purchase' as const, label: 'Purchase', path: '/orders/purchase', icon: ShoppingCart },
   { id: 'transfer' as const, label: 'Transfer', path: '/orders/transfer', icon: ArrowLeftRight },
   { id: 'expense' as const, label: 'Expense', path: '/orders/expense', icon: CreditCard },
-  { id: 'sales' as const, label: 'Sales', path: '/orders/sales', icon: Receipt },
-  { id: 'work' as const, label: 'Work', path: '/machines?tab=workOrders', icon: Wrench },
 ] satisfies Array<{
   id: OverviewOrderKind;
   label: string;

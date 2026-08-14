@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,6 +136,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
   const [showUpdateEvents, setShowUpdateEvents] = useState(false);
   const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
+  const formatDate = useFormatDateFromApi();
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -147,7 +149,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const { data: apiEvents = [] } = useGetWorkOrderEventsQuery(order.id);
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
-  const { data: projectComponents = [] } = useGetProjectComponentsQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 });
+  const { data: projectComponents = [] } = useGetProjectComponentsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 });
   const { data: accounts = [] } = useGetAccountsQuery({ skip: 0, limit: API_LIMITS.ACCOUNTS_LIST_MAX });
   const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, { skip: !workspace?.id });
   const { data: linkedInvoiceQuery } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
@@ -185,8 +187,6 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const assignedUserIds = new Set(approvers.map((a) => a.user_id));
   const assignableMembers = members.filter((m) => m.status === 'active' && !assignedUserIds.has(m.user_id));
 
-  const formatDate = (d: string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
   const itemDisplayName = (it: { item_name: string | null; item_id: number }) =>
     it.item_name ?? `Item #${it.item_id}`;
   const qtyWithUnit = (qty: number, unit: string | null) => (unit ? `${qty} ${unit}` : String(qty));
