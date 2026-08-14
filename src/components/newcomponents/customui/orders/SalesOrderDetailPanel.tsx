@@ -148,6 +148,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       ? linkedInvoiceQuery
       : undefined;
   const linkedInvoiceStatus: SoLinkedInvoiceStatus = linkedInvoice?.invoice_status ?? null;
+  const hasDraft = order.invoice_id != null && !order.invoice_confirmed;
+  const hasInvoice = order.invoice_id != null;
 
   const [confirmingSection, setConfirmingSection] = useState<SoSectionConfirmKey | null>(null);
   const [unconfirmWarningOpen, setUnconfirmWarningOpen] = useState(false);
@@ -824,41 +826,12 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!order.invoice_confirmed ? (
+              {!hasInvoice ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center space-y-3">
                   <RefreshCw className="h-5 w-5 mx-auto text-muted-foreground/60" aria-hidden />
                   <p className="text-sm text-muted-foreground">
-                    {!confirmationsStatus.allConfirmed
-                      ? 'Confirm order details and items first'
-                      : !approvalSummary.met
-                        ? 'Approvals required before finalizing the invoice'
-                        : 'Ready to finalize — this creates and confirms the invoice in one step'}
+                    Confirm order details and items — a draft invoice will appear here automatically
                   </p>
-                  <div className="flex justify-center pt-1">
-                    <BlockedActionButton
-                      id="so-finalize-invoice-btn"
-                      size="sm"
-                      className={cn(
-                        'bg-green-600 hover:bg-green-700 text-white shrink-0 scroll-mt-24',
-                        scrollHighlightTarget === 'finalize' && 'po-scroll-target-highlight'
-                      )}
-                      onMouseEnter={() => {
-                        if (scrollHighlightTarget === 'finalize') dismissScrollHighlight();
-                      }}
-                      blocked={!finalizeReadiness.ok}
-                      blockedHint={
-                        !finalizeReadiness.ok
-                          ? { title: 'Cannot finalize yet', reason: finalizeReadiness.reason ?? 'Complete the required steps first' }
-                          : undefined
-                      }
-                      isBusy={isFinalizing}
-                      onAction={handleFinalizeInvoice}
-                      onBlockedClick={handleFinalizeBlocked}
-                    >
-                      <Check className="h-3.5 w-3.5 mr-1.5" />
-                      Finalize Invoice
-                    </BlockedActionButton>
-                  </div>
                 </div>
               ) : (
                 <>
@@ -868,24 +841,50 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                     accountName={accountName}
                     linkedOrderNumber={order.sales_order_number}
                     showOrderSummary={false}
-                    dueDateReadOnly
+                    dueDateReadOnly={order.invoice_confirmed}
                     showEventLog={false}
                   />
                   <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
                     <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setInvoiceDialogOpen(true)}>
                       Open full view
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={handleViewInAccounts}
-                      disabled={!order.account_id || order.invoice_id == null}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                      View on Account
-                    </Button>
+                    {hasDraft ? (
+                      <BlockedActionButton
+                        id="so-finalize-invoice-btn"
+                        size="sm"
+                        className={cn(
+                          'bg-green-600 hover:bg-green-700 text-white shrink-0 scroll-mt-24',
+                          scrollHighlightTarget === 'finalize' && 'po-scroll-target-highlight'
+                        )}
+                        onMouseEnter={() => {
+                          if (scrollHighlightTarget === 'finalize') dismissScrollHighlight();
+                        }}
+                        blocked={!finalizeReadiness.ok}
+                        blockedHint={
+                          !finalizeReadiness.ok
+                            ? { title: 'Cannot finalize yet', reason: finalizeReadiness.reason ?? 'Complete the required steps first' }
+                            : undefined
+                        }
+                        isBusy={isFinalizing}
+                        onAction={handleFinalizeInvoice}
+                        onBlockedClick={handleFinalizeBlocked}
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                        Finalize Invoice
+                      </BlockedActionButton>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={handleViewInAccounts}
+                        disabled={!order.account_id || order.invoice_id == null}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                        View on Account
+                      </Button>
+                    )}
                   </div>
                 </>
               )}

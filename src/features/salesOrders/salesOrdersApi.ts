@@ -145,6 +145,16 @@ export const salesOrdersApi = createApi({
         { type: 'SalesOrderApprovers', id: orderId },
         'SalesOrder',
       ],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          if (updated.invoice_id != null) {
+            invalidateInvoiceById(dispatch, updated.invoice_id);
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
     // Approvers
     getSalesOrderApprovers: builder.query<SalesOrderApproversList, number>({
