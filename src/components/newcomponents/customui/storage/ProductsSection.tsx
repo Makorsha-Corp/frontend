@@ -181,6 +181,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                     </TableHead>
                   )}
                   <TableHead className="w-[80px] py-3 text-xs font-semibold uppercase text-muted-foreground">Qty</TableHead>
+                  <TableHead className="w-[90px] py-3 text-xs font-semibold uppercase text-muted-foreground">
+                    Min. Order Qty
+                  </TableHead>
                   <TableHead className="w-[100px] py-3 text-xs font-semibold uppercase text-muted-foreground">
                     Avg. Cost
                   </TableHead>
@@ -208,6 +211,9 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                       </TableCell>
                     )}
                     <TableCell className="py-3 tabular-nums">{prod.qty}</TableCell>
+                    <TableCell className="py-3 tabular-nums text-muted-foreground">
+                      {prod.min_order_qty ?? '—'}
+                    </TableCell>
                     <TableCell className="py-3 tabular-nums">{formatCurrency(prod.avg_cost)}</TableCell>
                     <TableCell className="py-3 tabular-nums">{formatCurrency(prod.selling_price)}</TableCell>
                     <TableCell className="py-3">
