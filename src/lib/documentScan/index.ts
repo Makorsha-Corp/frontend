@@ -13,3 +13,9 @@ export {
 export { defaultCorners, distance, orderCorners } from './orderCorners';
 export type { OrderedCorners, Point, ScanPresetId } from './types';
 export { MAX_UPLOAD_BYTES } from './types';
+export {
+  clientToImagePoint,
+  computeFitLayout,
+  type FitLayout,
+  type ViewportTransform,
+} from './viewportCoords';

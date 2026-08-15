@@ -112,26 +112,30 @@ export default function PendingAttachmentUploadDialog({
           <DialogDescription>{descriptionText}</DialogDescription>
         </DialogHeader>
 
-        <div
-          className={cn(
-            'grid min-h-0 flex-1 gap-4',
-            scanModeActive
-              ? 'md:grid-cols-[minmax(0,1.85fr)_minmax(18rem,1fr)]'
-              : 'md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
-          )}
-        >
+        <div className="min-h-0 flex-1 overflow-y-auto max-md:-mx-1 max-md:px-1 md:overflow-hidden">
           <div
             className={cn(
-              'flex min-h-0 flex-col gap-3',
-              scanModeActive ? 'min-h-[24rem]' : 'min-h-[14rem]',
+              'grid gap-4 md:min-h-0 md:flex-1 md:overflow-hidden',
+              scanModeActive
+                ? 'md:grid-cols-[minmax(0,1.85fr)_minmax(18rem,1fr)]'
+                : 'md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]',
             )}
           >
             <div
               className={cn(
-                'flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-border bg-image-checkerboard p-3',
-                scanModeActive ? 'min-h-[18rem]' : 'md:min-h-[18rem]',
+                'flex flex-col gap-3',
+                scanModeActive ? 'md:min-h-[24rem]' : 'md:min-h-[14rem]',
               )}
             >
+              <div
+                className={cn(
+                  'flex overflow-hidden rounded-lg border border-border bg-image-checkerboard p-3',
+                  showCornerOverlay ? 'items-stretch' : 'items-center justify-center',
+                  scanModeActive
+                    ? 'max-md:min-h-[12rem] max-md:flex-none md:min-h-0 md:flex-1'
+                    : 'md:min-h-[18rem]',
+                )}
+              >
             {scan.scanPhase === 'loading' ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -145,13 +149,13 @@ export default function PendingAttachmentUploadDialog({
                 corners={scan.corners}
                 onCornersChange={scan.setCorners}
                 disabled={isUploading}
-                className="max-h-full"
+                className="min-h-0 flex-1 self-stretch"
               />
             ) : previewUrl && file && isImageFile(file) ? (
               <img
                 src={previewUrl}
                 alt={fileName || file.name}
-                className="max-h-[18rem] w-full object-contain md:max-h-[24rem]"
+                className="max-h-[40vh] w-full object-contain md:max-h-[24rem]"
               />
             ) : file && isPdfFile(file) ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -167,10 +171,16 @@ export default function PendingAttachmentUploadDialog({
             )}
             </div>
 
+            {scannedActive && showCornerOverlay ? (
+              <p className="shrink-0 text-center text-xs text-muted-foreground md:text-left">
+                Pinch to zoom · drag corners to align
+              </p>
+            ) : null}
+
             {scannedActive && scan.resultPreviewUrl ? (
-              <div className="flex min-h-[12rem] shrink-0 flex-col gap-2">
+              <div className="flex flex-col gap-2 max-md:min-h-0 md:min-h-[12rem] md:shrink-0">
                 <Label>Result</Label>
-                <div className="flex min-h-[10rem] flex-1 items-center justify-center overflow-hidden rounded-lg border border-border bg-image-checkerboard p-3">
+                <div className="flex min-h-[10rem] items-center justify-center overflow-hidden rounded-lg border border-border bg-image-checkerboard p-3 md:flex-1">
                   <img
                     src={scan.resultPreviewUrl}
                     alt="Scanned preview"
@@ -181,7 +191,7 @@ export default function PendingAttachmentUploadDialog({
             ) : null}
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <div className="flex flex-col gap-3 max-md:overflow-visible md:min-h-0 md:overflow-y-auto">
             <div className="space-y-2">
               <Label htmlFor="attachment-upload-name">File name</Label>
               <Input
@@ -333,6 +343,7 @@ export default function PendingAttachmentUploadDialog({
                 )}
               </Button>
             </DialogFooter>
+          </div>
           </div>
         </div>
       </DialogContent>

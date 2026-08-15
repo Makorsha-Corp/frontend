@@ -59,6 +59,7 @@ export default function MobileUploadQrDialog({
   const [fileName, setFileName] = useState('');
   const [note, setNote] = useState('');
   const [stopPolling, setStopPolling] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const namePrefillSessionRef = useRef<number | null>(null);
   const [createSession, { isLoading: isCreating }] = useCreateMobileUploadSessionMutation();
   const [cancelSession] = useCancelMobileUploadSessionMutation();
@@ -144,6 +145,7 @@ export default function MobileUploadQrDialog({
     if (
       sessionId != null &&
       !isPromoting &&
+      !isRemoving &&
       (session?.status === 'waiting' || session?.status === 'uploaded')
     ) {
       try {
@@ -162,6 +164,29 @@ export default function MobileUploadQrDialog({
       toast.success('Link copied');
     } catch {
       toast.error('Could not copy link');
+    }
+  };
+
+  const handleRemove = async () => {
+    if (sessionId == null || isRemoving || isPromoting) return;
+    const cancelledSessionId = sessionId;
+    setIsRemoving(true);
+    try {
+      await cancelSession(cancelledSessionId).unwrap();
+      setFileName('');
+      setNote('');
+      namePrefillSessionRef.current = null;
+      setStopPolling(false);
+      await bootstrapSession();
+      toast.success('Upload removed');
+    } catch (error) {
+      const apiDetail =
+        error && typeof error === 'object' && 'data' in error
+          ? (error as { data?: { detail?: string } }).data?.detail
+          : undefined;
+      toast.error(apiDetail ?? (error instanceof Error ? error.message : 'Could not remove upload.'));
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -195,6 +220,8 @@ export default function MobileUploadQrDialog({
     resolvedLabel ??
     `${ATTACHMENT_ENTITY_TYPE_LABELS[entityType] ?? entityType} #${entityId}`;
 
+  const busy = isPromoting || isRemoving;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[min(24rem,94vw)] max-w-none gap-4">
@@ -227,7 +254,7 @@ export default function MobileUploadQrDialog({
                 id="mobile-upload-file-name"
                 value={fileName}
                 onChange={(event) => setFileName(event.target.value)}
-                disabled={isPromoting}
+                disabled={busy}
               />
             </div>
             <div className="space-y-2">
@@ -238,24 +265,47 @@ export default function MobileUploadQrDialog({
                 onChange={(event) => setNote(event.target.value)}
                 rows={3}
                 maxLength={MAX_NOTE_LENGTH}
-                disabled={isPromoting}
+                disabled={busy}
                 className="min-h-[4.5rem] resize-none"
               />
             </div>
-            <Button type="button" onClick={() => void handleAttach()} disabled={isPromoting}>
-              {isPromoting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Attaching…
-                </>
-              ) : (
-                'Attach'
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => void handleRemove()}
+                disabled={busy}
+              >
+                {isRemoving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing…
+                  </>
+                ) : (
+                  'Remove'
+                )}
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => void handleAttach()}
+                disabled={busy}
+              >
+                {isPromoting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Attaching…
+                  </>
+                ) : (
+                  'Attach'
+                )}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">
-            {isCreating || !uploadUrl ? (
+            {isCreating || isRemoving || !uploadUrl ? (
               <div className="flex h-44 w-44 items-center justify-center rounded-lg border border-dashed border-border bg-muted/20">
                 <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
               </div>
