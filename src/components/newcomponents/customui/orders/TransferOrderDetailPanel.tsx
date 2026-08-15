@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/tooltip';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+import { isApprovalsBarScrollHighlight } from '@/lib/scrollTargetHighlight';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { transferLocationName, transferLocationTypeLabel } from '@/pages/newpages/orders/transferOrderLocationLabels';
 import { transferLocationIcon } from './TransferRouteDisplay';
@@ -214,14 +215,24 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
         ? 'tr-section-route'
         : section === 'items'
           ? 'tr-section-items'
-          : 'tr-section-approvals';
+          : section === 'approve'
+            ? 'to-approve-order-btn'
+            : 'tr-section-approvals';
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (section === 'approvals' || section === 'route' || section === 'items') {
-        setScrollHighlightTarget(section);
+      if (section === 'approvals' || section === 'route' || section === 'items' || section === 'approve') {
+        setScrollHighlightTarget(section === 'approve' ? 'approvals' : section);
       }
     }
+  };
+
+  const scrollToApprovalsFromChecklist = () => {
+    if (myApproval && !myApproval.approved && document.getElementById('to-approve-order-btn')) {
+      scrollToSection('approve');
+      return;
+    }
+    scrollToSection('approvals');
   };
 
   const dismissScrollHighlight = () => setScrollHighlightTarget(null);
@@ -319,7 +330,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}
             myApproval={myApproval}
-            highlighted={scrollHighlightTarget === 'approvals'}
+            highlighted={isApprovalsBarScrollHighlight(scrollHighlightTarget)}
             onHighlightDismiss={dismissScrollHighlight}
             onManage={() => setManageApprovalsOpen(true)}
             onToggleMyApproval={handleToggleMyApproval}
@@ -466,7 +477,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
               order={order}
               items={items}
               approvalSummary={approvalSummary}
-              onScrollToManageApprovals={() => scrollToSection('approvals')}
+              onScrollToManageApprovals={scrollToApprovalsFromChecklist}
               onMarkComplete={() => setCompleteConfirmOpen(true)}
               isMarkingComplete={isMarkingComplete}
             />

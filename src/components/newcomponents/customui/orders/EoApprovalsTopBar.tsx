@@ -1,17 +1,18 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, Clock, ShieldCheck, Wrench, X, XCircle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Wrench, XCircle } from 'lucide-react';
+import { OrderApproversStrip } from './approvals';
 import type { ExpenseApprovalSummary, ExpenseOrderApprover } from '@/types/expenseOrder';
-import { avatarColor, initialsOf } from './transferOrderApprovals';
 import { ORDER_APPROVALS_BAR_CLASS } from './orderListConstants';
+
+const UNBLOCKED_STATUS = {
+  title: 'Ready to approve',
+  reason: 'You can approve this order.',
+  pendingLabels: [] as string[],
+};
 
 export interface EoApprovalsTopBarProps {
   approvers: ExpenseOrderApprover[];
@@ -40,15 +41,10 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
   onVoidOrder,
   withdrawBlocked = false,
 }) => {
-  const sortedApprovers = [...approvers].sort((a, b) => Number(b.approved) - Number(a.approved));
-
   return (
     <div
       id="eo-section-approvals"
-      className={cn(
-        ORDER_APPROVALS_BAR_CLASS,
-        highlighted && 'po-scroll-target-highlight'
-      )}
+      className={cn(ORDER_APPROVALS_BAR_CLASS, highlighted && 'po-scroll-target-highlight')}
       onMouseEnter={() => {
         if (highlighted) onHighlightDismiss?.();
       }}
@@ -60,9 +56,7 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
           variant="outline"
           className={cn(
             'font-normal shrink-0',
-            approvalSummary.met
-              ? 'text-green-600 border-green-600/30'
-              : 'text-amber-600 border-amber-600/30'
+            approvalSummary.met ? 'text-green-600 border-green-600/30' : 'text-amber-600 border-amber-600/30'
           )}
         >
           {approvalSummary.approved_count} / {approvalSummary.required}
@@ -70,62 +64,33 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
       </div>
 
       <TooltipProvider delayDuration={150}>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-          {sortedApprovers.length === 0 ? (
-            <span className="text-xs text-muted-foreground">No approvers assigned — use Manage to add</span>
-          ) : (
-            sortedApprovers.map((approver) => (
-              <Tooltip key={approver.id}>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white',
-                      approver.approved
-                        ? avatarColor(approver.user_id)
-                        : 'bg-muted-foreground/40 opacity-60'
-                    )}
-                  >
-                    {initialsOf(approver.user_name)}
-                    {approver.approved && (
-                      <span className="absolute bottom-0 left-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-green-600 ring-1 ring-background">
-                        <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
-                      </span>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[14rem]">
-                  <p className="font-medium">
-                    {approver.user_name ?? `User #${approver.user_id}`}
-                    {approver.user_id === currentUserId ? ' (you)' : ''}
-                  </p>
-                  {(approver.user_position || approver.user_email) && (
-                    <p className="text-xs text-muted-foreground">
-                      {approver.user_position || approver.user_email}
-                    </p>
-                  )}
-                  <p className="mt-1 flex items-center gap-1 text-xs">
-                    {approver.approved ? (
-                      <>
-                        <Check className="h-3 w-3 text-green-600" />
-                        Approved
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        Pending
-                      </>
-                    )}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            ))
-          )}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          <OrderApproversStrip
+            approvers={approvers}
+            currentUserId={currentUserId}
+            myApproval={myApproval}
+            emptyMessage="No approvers assigned — use Manage to add"
+            showSelfChip={!isVoided && myApproval != null}
+            onToggleMyApproval={onToggleMyApproval}
+            selfChipProps={{
+              blocked: false,
+              blockedStatus: UNBLOCKED_STATUS,
+              withdrawBlocked,
+              withdrawBlockedReason: 'Order is complete — approval cannot be withdrawn',
+              withdrawHoverReason: 'Remove your approval from this expense order.',
+              isBusy: false,
+              popoverSide: 'bottom',
+            }}
+          />
         </div>
       </TooltipProvider>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {isVoided ? (
-          <Badge variant="outline" className="h-8 px-2.5 gap-1.5 border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 font-normal">
+          <Badge
+            variant="outline"
+            className="h-8 px-2.5 gap-1.5 border-red-300 text-red-600 dark:border-red-700 dark:text-red-400 font-normal"
+          >
             <XCircle className="h-3.5 w-3.5" />
             Voided
           </Badge>
@@ -147,36 +112,10 @@ const EoApprovalsTopBar: React.FC<EoApprovalsTopBarProps> = ({
           <Wrench className="mr-1 h-4 w-4" />
           Manage
         </Button>
-        {myApproval && !isVoided && (
-          <Button
-            type="button"
-            size="sm"
-            variant={myApproval.approved ? 'outline' : 'default'}
-            className={cn(
-              'h-8 shrink-0',
-              !myApproval.approved && 'bg-brand-primary hover:bg-brand-primary-hover',
-              myApproval.approved && withdrawBlocked && 'opacity-60'
-            )}
-            disabled={myApproval.approved && withdrawBlocked}
-            title={myApproval.approved && withdrawBlocked ? 'Order is complete — approval cannot be withdrawn' : undefined}
-            onClick={onToggleMyApproval}
-          >
-            {myApproval.approved ? (
-              <>
-                <X className="mr-1 h-4 w-4" />
-                Withdraw
-              </>
-            ) : (
-              <>
-                <Check className="mr-1 h-4 w-4" />
-                Approve
-              </>
-            )}
-          </Button>
-        )}
       </div>
     </div>
   );
 };
 
 export default EoApprovalsTopBar;
+

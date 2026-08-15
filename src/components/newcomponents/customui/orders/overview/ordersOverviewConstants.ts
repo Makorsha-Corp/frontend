@@ -19,12 +19,24 @@ export const ORDER_TYPE_HUB = [
 }>;
 
 export const PASTEL_CHART_FILLS = [
-  'var(--pastel-1, hsla(257, 43%, 70%, 1))',
-  'var(--pastel-2, hsla(192, 95%, 76%, 1))',
-  'var(--pastel-3, hsla(83, 46%, 75%, 1))',
-  'var(--pastel-4, hsla(57, 75%, 84%, 1))',
-  'var(--pastel-5, hsla(15, 77%, 90%, 1))',
+  'var(--chart-pastel-1)',
+  'var(--chart-pastel-2)',
+  'var(--chart-pastel-3)',
+  'var(--chart-pastel-4)',
+  'var(--chart-pastel-5)',
 ] as const;
+
+export const CHART_TOOLTIP_PROPS = {
+  contentStyle: {
+    backgroundColor: 'hsl(var(--card))',
+    borderColor: 'hsl(var(--border))',
+    borderRadius: '0.5rem',
+    fontSize: '12px',
+    color: 'hsl(var(--card-foreground))',
+  },
+  labelStyle: { color: 'hsl(var(--muted-foreground))' },
+  itemStyle: { color: 'hsl(var(--card-foreground))' },
+} as const;
 
 export function formatOverviewCurrency(value: number): string {
   if (value <= 0) return '—';

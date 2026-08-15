@@ -12,13 +12,7 @@ export const ORDER_TYPE_LABELS: Record<OverviewOrderKind, string> = {
   expense: 'Expense',
 };
 
-export const PASTEL_CHART_FILLS = [
-  'var(--pastel-1, hsla(257, 43%, 70%, 1))',
-  'var(--pastel-2, hsla(192, 95%, 76%, 1))',
-  'var(--pastel-3, hsla(83, 46%, 75%, 1))',
-  'var(--pastel-4, hsla(57, 75%, 84%, 1))',
-  'var(--pastel-5, hsla(15, 77%, 90%, 1))',
-] as const;
+export { PASTEL_CHART_FILLS, CHART_TOOLTIP_PROPS } from '@/components/newcomponents/customui/orders/overview/ordersOverviewConstants';
 
 export function formatDashboardCurrency(value: number): string {
   if (value <= 0) return '—';

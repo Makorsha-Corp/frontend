@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import type { OrdersOverTimeRow } from '@/pages/newpages/orders/ordersOverviewData';
-import { PASTEL_CHART_FILLS } from '@/components/newcomponents/customui/orders/overview/ordersOverviewConstants';
+import { PASTEL_CHART_FILLS, CHART_TOOLTIP_PROPS } from '@/components/newcomponents/customui/orders/overview/ordersOverviewConstants';
 
 export interface OrdersTrendChartProps {
   data: OrdersOverTimeRow[];
@@ -73,12 +73,7 @@ const OrdersTrendChart: React.FC<OrdersTrendChartProps> = ({
                 />
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--muted))', opacity: 0.25 }}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: '0.5rem',
-                    fontSize: '12px',
-                  }}
+                  {...CHART_TOOLTIP_PROPS}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
                   {data.map((row, index) => (

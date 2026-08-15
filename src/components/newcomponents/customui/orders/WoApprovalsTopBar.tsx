@@ -1,17 +1,18 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Check, Clock, ShieldCheck, UserPlus, Wrench, X, XCircle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, UserPlus, Wrench, XCircle } from 'lucide-react';
+import { OrderApproversStrip } from './approvals';
 import type { WorkOrderApprovalSummary, WorkOrderApprover } from '@/types/workOrder';
-import { avatarColor, initialsOf } from './transferOrderApprovals';
 import { ORDER_PANEL_HEADER_CLASS } from './orderListConstants';
+
+const UNBLOCKED_STATUS = {
+  title: 'Ready to approve',
+  reason: 'You can approve this order.',
+  pendingLabels: [] as string[],
+};
 
 export interface WoApprovalsTopBarProps {
   approvers: WorkOrderApprover[];
@@ -39,16 +40,16 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
   onVoidOrder,
   layout = 'bar',
 }) => {
-  const sortedApprovers = [...approvers].sort((a, b) => Number(b.approved) - Number(a.approved));
   const isInline = layout === 'inline';
-  const showApprovalBadge = sortedApprovers.length > 0 || approvalSummary.required > 0;
+  const showApprovalBadge = approvers.length > 0 || approvalSummary.required > 0;
+  const showSelfChip = myApproval != null && !isVoided && !isLocked;
 
   return (
     <div
       id="wo-section-approvals"
       className={cn(
         'flex min-w-0 flex-nowrap items-center gap-x-3 scroll-mt-6',
-        isInline ? 'flex-1' : cn(ORDER_PANEL_HEADER_CLASS, 'gap-x-4 px-6'),
+        isInline ? 'flex-1' : cn(ORDER_PANEL_HEADER_CLASS, 'gap-x-4 px-6')
       )}
     >
       <div className="flex shrink-0 items-center gap-2">
@@ -68,8 +69,8 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
       </div>
 
       <TooltipProvider delayDuration={150}>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-          {sortedApprovers.length === 0 ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          {approvers.length === 0 ? (
             !isVoided && !isLocked ? (
               <Button
                 type="button"
@@ -87,47 +88,20 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
               </span>
             )
           ) : (
-            sortedApprovers.map((approver) => (
-              <Tooltip key={approver.id}>
-                <TooltipTrigger asChild>
-                  <div
-                    className={cn(
-                      'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white',
-                      approver.approved ? avatarColor(approver.user_id) : 'bg-muted-foreground/40 opacity-60'
-                    )}
-                  >
-                    {initialsOf(approver.user_name)}
-                    {approver.approved && (
-                      <span className="absolute bottom-0 left-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-green-600 ring-1 ring-background">
-                        <Check className="h-1.5 w-1.5 text-white" strokeWidth={3} />
-                      </span>
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[14rem]">
-                  <p className="font-medium">
-                    {approver.user_name ?? `User #${approver.user_id}`}
-                    {approver.user_id === currentUserId ? ' (you)' : ''}
-                  </p>
-                  {(approver.user_position || approver.user_email) && (
-                    <p className="text-xs text-muted-foreground">{approver.user_position || approver.user_email}</p>
-                  )}
-                  <p className="mt-1 flex items-center gap-1 text-xs">
-                    {approver.approved ? (
-                      <>
-                        <Check className="h-3 w-3 text-green-600" />
-                        Approved
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        Pending
-                      </>
-                    )}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            ))
+            <OrderApproversStrip
+              approvers={approvers}
+              currentUserId={currentUserId}
+              myApproval={myApproval}
+              showSelfChip={showSelfChip}
+              onToggleMyApproval={onToggleMyApproval}
+              selfChipProps={{
+                blocked: false,
+                blockedStatus: UNBLOCKED_STATUS,
+                withdrawHoverReason: 'Remove your approval from this work order.',
+                isBusy: false,
+                popoverSide: 'bottom',
+              }}
+            />
           )}
         </div>
       </TooltipProvider>
@@ -156,31 +130,10 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
             </Button>
           )
         )}
-        {!isVoided && !isLocked && sortedApprovers.length > 0 && (
+        {!isVoided && !isLocked && approvers.length > 0 && (
           <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={onManage}>
             <Wrench className="mr-1 h-4 w-4" />
             Edit approvers
-          </Button>
-        )}
-        {myApproval && !isVoided && !isLocked && (
-          <Button
-            type="button"
-            size="sm"
-            variant={myApproval.approved ? 'outline' : 'default'}
-            className={cn('h-8 shrink-0', !myApproval.approved && 'bg-brand-primary hover:bg-brand-primary-hover')}
-            onClick={onToggleMyApproval}
-          >
-            {myApproval.approved ? (
-              <>
-                <X className="mr-1 h-4 w-4" />
-                Withdraw
-              </>
-            ) : (
-              <>
-                <Check className="mr-1 h-4 w-4" />
-                Approve
-              </>
-            )}
           </Button>
         )}
       </div>

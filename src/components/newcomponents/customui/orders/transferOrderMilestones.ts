@@ -3,7 +3,7 @@ import type { TransferOrderItem } from '@/types/transferOrder';
 import type { TransferApprovalSummary } from '@/types/transferOrder';
 import type { Status } from '@/types/status';
 
-export type TrScrollSection = 'route' | 'items' | 'approvals';
+export type TrScrollSection = 'route' | 'items' | 'approvals' | 'approve';
 
 export type TrChecklistPhase = 'approve' | 'complete' | 'done';
 

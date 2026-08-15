@@ -3,6 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 /** PO checklist / form “needs attention” glow — see `index.css` + `progressDesign.md`. */
 export const SCROLL_TARGET_HIGHLIGHT_CLASS = 'po-scroll-target-highlight';
 
+/** Whole approvals bar pulse (checklist “Go to approvals”, finalize blocked, etc.). */
+export function isApprovalsBarScrollHighlight(
+  target: string | null | undefined,
+): boolean {
+  return target === 'approvals' || target === 'approve';
+}
+
 /** Auto-dismiss after pulse (matches PO line-item ✓ highlight). */
 export const SCROLL_TARGET_HIGHLIGHT_AUTO_CLEAR_MS = 3500;
 

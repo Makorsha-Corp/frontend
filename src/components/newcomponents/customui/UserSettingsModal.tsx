@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import TimezoneSettingsPanel from '@/components/newcomponents/customui/settings/TimezoneSettingsPanel';
+import GeneralSettingsPanel from '@/components/newcomponents/customui/settings/GeneralSettingsPanel';
 import { avatarColor, initialsOf } from '@/components/newcomponents/customui/orders/transferOrderApprovals';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
@@ -111,7 +111,7 @@ const UserSettingsModal: React.FC = () => {
           </nav>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-6">
-            {activeSection === 'general' && <TimezoneSettingsPanel />}
+            {activeSection === 'general' && <GeneralSettingsPanel />}
           </div>
         </div>
 

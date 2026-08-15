@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { SectionConfirmActions } from './PoSectionConfirmButton';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
+import { isApprovalsBarScrollHighlight } from '@/lib/scrollTargetHighlight';
 import PoLinkedInvoiceCard from './PoLinkedInvoiceCard';
 import PoInvoiceWorkflowChecklist from './PoInvoiceWorkflowChecklist';
 import PoApprovalsTopBar from './PoApprovalsTopBar';
@@ -541,9 +542,17 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       onScrollStart: () => {},
       onScrollEnd: () => {
         if (generation !== scrollHighlightGenerationRef.current) return;
-        setScrollHighlightTarget('approve');
+        setScrollHighlightTarget('approvals');
       },
     });
+  };
+
+  const scrollToApprovalsFromChecklist = () => {
+    if (myApproval && !myApproval.approved && !isPoVoided && document.getElementById('po-approve-order-btn')) {
+      scrollToApproveButton();
+      return;
+    }
+    scrollToManageApprovalsCard();
   };
 
   const pendingLabelToSection = (label: string): PoSectionConfirmKey | null => {
@@ -881,8 +890,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           }
           isApproving={isApproving}
           isUnapproving={isUnapproving}
-          highlighted={scrollHighlightTarget === 'approvals'}
-          approveHighlighted={scrollHighlightTarget === 'approve'}
+          highlighted={isApprovalsBarScrollHighlight(scrollHighlightTarget)}
           onHighlightDismiss={dismissScrollHighlight}
           onManage={openManageApprovals}
           onToggleMyApproval={handleToggleMyApproval}
@@ -1191,7 +1199,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             storageFactoryName={storageFactoryName}
             onScrollToSection={scrollToPoSection}
             onScrollToFinalize={scrollToFinalizeInvoice}
-            onScrollToManageApprovals={scrollToManageApprovalsCard}
+            onScrollToManageApprovals={scrollToApprovalsFromChecklist}
             onScrollToReceiving={scrollToManageReceiving}
             onScrollToPayments={() => scrollToPoSection('invoice')}
           />

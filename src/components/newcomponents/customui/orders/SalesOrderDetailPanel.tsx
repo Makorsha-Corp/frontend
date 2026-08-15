@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { SectionConfirmActions } from './PoSectionConfirmButton';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
+import { isApprovalsBarScrollHighlight } from '@/lib/scrollTargetHighlight';
 import SoInvoiceWorkflowChecklist from './SoInvoiceWorkflowChecklist';
 import SoApprovalsTopBar from './SoApprovalsTopBar';
 import {
@@ -304,9 +305,17 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     }
   };
 
+  const scrollToApprovalsFromChecklist = () => {
+    if (myApproval && !myApproval.approved && document.getElementById('so-approve-order-btn')) {
+      scrollToElement('so-approve-order-btn', 'approvals');
+      return;
+    }
+    scrollToElement('so-section-approvals', 'approvals');
+  };
+
   const handleFinalizeBlocked = () => {
     if (!approvalSummary.met) {
-      scrollToElement('so-approve-order-btn', 'approve');
+      scrollToElement('so-approve-order-btn', 'approvals');
       return;
     }
     if (!confirmationsStatus.allConfirmed) {
@@ -520,6 +529,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
             }
             isApproving={isApproving}
             isUnapproving={isUnapproving}
+            highlighted={isApprovalsBarScrollHighlight(scrollHighlightTarget)}
+            onHighlightDismiss={dismissScrollHighlight}
             onManage={openManageApprovals}
             onToggleMyApproval={handleToggleMyApproval}
           />
@@ -657,7 +668,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
               isMarkingOrderComplete={isMarkingOrderComplete}
               onScrollToSection={scrollToSoSection}
               onScrollToFinalize={() => scrollToElement('so-finalize-invoice-btn', 'finalize')}
-              onScrollToManageApprovals={() => scrollToElement('so-section-approvals', 'approvals')}
+              onScrollToManageApprovals={scrollToApprovalsFromChecklist}
               onScrollToFulfillment={() => scrollToElement('so-section-fulfillment', 'fulfillment')}
               onScrollToPayments={() => scrollToElement('so-section-invoice', null)}
             />

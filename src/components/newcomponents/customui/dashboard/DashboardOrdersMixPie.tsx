@@ -3,7 +3,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import type { CountsByTypeRow } from '@/pages/newpages/orders/ordersOverviewData';
-import { PASTEL_CHART_FILLS } from './dashboardConstants';
+import { PASTEL_CHART_FILLS, CHART_TOOLTIP_PROPS } from './dashboardConstants';
 
 interface DashboardOrdersMixPieProps {
   data: CountsByTypeRow[];
@@ -56,7 +56,7 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
                       <Cell key={i} fill={PASTEL_CHART_FILLS[i % PASTEL_CHART_FILLS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip {...CHART_TOOLTIP_PROPS} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -73,7 +73,7 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
                     className="h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: PASTEL_CHART_FILLS[i % PASTEL_CHART_FILLS.length] }}
                   />
-                  <span className="truncate">
+                  <span className="truncate text-muted-foreground">
                     {row.type} ({row.count})
                   </span>
                 </div>
