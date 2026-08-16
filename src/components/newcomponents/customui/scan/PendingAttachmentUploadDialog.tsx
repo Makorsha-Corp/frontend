@@ -1,4 +1,5 @@
 import { FileText, Loader2, ScanLine } from 'lucide-react';
+import { useRef } from 'react';
 import { appToast } from '@/lib/appToast';
 
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ export default function PendingAttachmentUploadDialog({
   title = 'Name this attachment',
   descriptionText = 'Preview your file, add an optional description, optionally scan it, then upload.',
 }: PendingAttachmentUploadDialogProps) {
+  const dialogContentRef = useRef<HTMLDivElement>(null);
   const scan = useDocumentScan(file);
   const scannedActive = scan.version === 'scanned' && scan.scanPhase === 'ready';
 
@@ -100,6 +102,7 @@ export default function PendingAttachmentUploadDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        ref={dialogContentRef}
         className={cn(
           'flex max-w-none flex-col gap-4 overflow-hidden',
           scanModeActive
@@ -150,6 +153,7 @@ export default function PendingAttachmentUploadDialog({
                 onCornersChange={scan.setCorners}
                 disabled={isUploading}
                 className="min-h-0 flex-1 self-stretch"
+                loupePortalRef={dialogContentRef}
               />
             ) : previewUrl && file && isImageFile(file) ? (
               <img
@@ -291,30 +295,6 @@ export default function PendingAttachmentUploadDialog({
                     {SCAN_PRESETS.find((item) => item.id === scan.preset)?.description ??
                       SCAN_PRESETS.find((item) => item.id === DEFAULT_SCAN_PRESET)?.description}
                   </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Corners</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void scan.redetectCorners()}
-                      disabled={isUploading || scan.isBusy}
-                    >
-                      Re-detect
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={scan.resetToWholePhoto}
-                      disabled={isUploading || scan.isBusy}
-                    >
-                      Whole photo
-                    </Button>
-                  </div>
                 </div>
 
               </>

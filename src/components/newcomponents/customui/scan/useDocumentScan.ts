@@ -15,7 +15,6 @@ import {
   type ScanPresetId,
 } from '@/lib/documentScan';
 import { canvasToUploadFile } from '@/lib/documentScan/encodeResult';
-import { defaultCorners } from '@/lib/documentScan/orderCorners';
 import { compressOriginal } from '@/lib/imageCompression';
 import { isHeicFile } from '@/lib/heicConvert';
 
@@ -39,9 +38,6 @@ export interface UseDocumentScanResult {
   imageWidth: number;
   imageHeight: number;
   isBusy: boolean;
-  enableScan: () => Promise<void>;
-  redetectCorners: () => Promise<void>;
-  resetToWholePhoto: () => void;
   resolveUploadFile: (fileName: string) => Promise<File>;
 }
 
@@ -157,31 +153,6 @@ export function useDocumentScan(file: File | null): UseDocumentScanResult {
       throw new Error(message);
     }
   }, [canScan, decoded, preset, renderScan, runDetection]);
-
-  const redetectCorners = useCallback(async () => {
-    if (!decoded || version !== 'scanned') return;
-    setScanPhase('loading');
-    try {
-      const detection = await runDetection();
-      if (!detection) return;
-      setCornersState(detection.corners);
-      setDetectionNote(
-        detection.detected ? null : "Couldn't find the page edges — drag the dots.",
-      );
-      await renderScan(detection.corners, preset);
-      setScanPhase('ready');
-    } catch {
-      setScanPhase('error');
-    }
-  }, [decoded, preset, renderScan, runDetection, version]);
-
-  const resetToWholePhoto = useCallback(() => {
-    if (!decoded) return;
-    const whole = defaultCorners(decoded.width, decoded.height);
-    setCornersState(whole);
-    setDetectionNote(null);
-    void renderScan(whole, preset);
-  }, [decoded, preset, renderScan]);
 
   const setVersion = useCallback(
     (next: UploadVersion): Promise<void> => {
@@ -300,9 +271,6 @@ export function useDocumentScan(file: File | null): UseDocumentScanResult {
     imageWidth: decoded?.width ?? 0,
     imageHeight: decoded?.height ?? 0,
     isBusy: scanPhase === 'loading',
-    enableScan,
-    redetectCorners,
-    resetToWholePhoto,
     resolveUploadFile,
   };
 }

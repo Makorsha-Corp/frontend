@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { OrderedCorners } from '@/lib/documentScan';
 
-const LOUPE_SIZE = 120;
+import { computeLoupePositionInContainer, LOUPE_SIZE } from './loupePlacement';
+
 const LOUPE_ZOOM = 2.5;
-const LOUPE_OFFSET_Y = 28;
 
 function imagePointToLoupe(
   point: { x: number; y: number },
@@ -39,10 +40,11 @@ export interface CornerLoupeProps {
   image: HTMLImageElement | null;
   corners: OrderedCorners;
   activeCornerIndex: number;
-  pointerX: number;
-  pointerY: number;
-  viewportWidth: number;
-  viewportHeight: number;
+  pointerClientX: number;
+  pointerClientY: number;
+  portalContainer: HTMLElement | null;
+  /** Used when portalContainer is null — typically the scan viewport element. */
+  fallbackContainer?: HTMLElement | null;
   imageWidth: number;
   imageHeight: number;
 }
@@ -51,23 +53,30 @@ export default function CornerLoupe({
   image,
   corners,
   activeCornerIndex,
-  pointerX,
-  pointerY,
-  viewportWidth,
-  viewportHeight,
+  pointerClientX,
+  pointerClientY,
+  portalContainer,
+  fallbackContainer = null,
   imageWidth,
   imageHeight,
 }: CornerLoupeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const loupeLeft = Math.min(
-    Math.max(pointerX - LOUPE_SIZE / 2, 8),
-    viewportWidth - LOUPE_SIZE - 8,
-  );
-  const loupeTop = Math.min(
-    Math.max(pointerY - LOUPE_SIZE - LOUPE_OFFSET_Y, 8),
-    viewportHeight - LOUPE_SIZE - 8,
-  );
+  const placementContainer = portalContainer ?? fallbackContainer;
+  const containerRect = placementContainer?.getBoundingClientRect();
+
+  const { left: loupeLeft, top: loupeTop } = containerRect
+    ? computeLoupePositionInContainer({
+        pointerClientX,
+        pointerClientY,
+        containerRect: {
+          left: containerRect.left,
+          top: containerRect.top,
+          width: containerRect.width,
+          height: containerRect.height,
+        },
+      })
+    : { left: 0, top: 0 };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -118,11 +127,15 @@ export default function CornerLoupe({
     ctx.stroke();
   }, [activeCornerIndex, corners, image, imageHeight, imageWidth]);
 
-  return (
+  if (!placementContainer || !containerRect) {
+    return null;
+  }
+
+  const canvas = (
     <canvas
       ref={canvasRef}
       aria-hidden
-      className="pointer-events-none absolute z-20 rounded-full border-2 border-primary shadow-lg"
+      className="pointer-events-none absolute z-[60] rounded-full border-2 border-primary shadow-lg"
       style={{
         left: loupeLeft,
         top: loupeTop,
@@ -131,6 +144,12 @@ export default function CornerLoupe({
       }}
     />
   );
+
+  if (portalContainer) {
+    return createPortal(canvas, portalContainer);
+  }
+
+  return canvas;
 }
 
 export { LOUPE_SIZE };

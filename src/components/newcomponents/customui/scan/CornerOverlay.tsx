@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 
 import { clientToImagePoint } from '@/lib/documentScan/viewportCoords';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ interface CornerOverlayProps {
   onCornersChange: (corners: OrderedCorners) => void;
   disabled?: boolean;
   className?: string;
+  loupePortalRef?: RefObject<HTMLElement | null>;
 }
 
 export default function CornerOverlay({
@@ -28,10 +29,16 @@ export default function CornerOverlay({
   onCornersChange,
   disabled = false,
   className,
+  loupePortalRef,
 }: CornerOverlayProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [activeDragIndex, setActiveDragIndex] = useState<number | null>(null);
-  const [dragPointer, setDragPointer] = useState<{ x: number; y: number } | null>(null);
+  const [dragPointer, setDragPointer] = useState<{
+    x: number;
+    y: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
 
   const {
     viewportRef,
@@ -88,6 +95,8 @@ export default function CornerOverlay({
         setDragPointer({
           x: event.clientX - localRect.left,
           y: event.clientY - localRect.top,
+          clientX: event.clientX,
+          clientY: event.clientY,
         });
       }
 
@@ -116,6 +125,8 @@ export default function CornerOverlay({
       setDragPointer({
         x: event.clientX - localRect.left,
         y: event.clientY - localRect.top,
+        clientX: event.clientX,
+        clientY: event.clientY,
       });
     }
 
@@ -206,21 +217,21 @@ export default function CornerOverlay({
           })}
         </div>
         ) : null}
-
-        {showLoupe && dragPointer && activeDragIndex !== null ? (
-          <CornerLoupe
-            image={imageRef.current}
-            corners={corners}
-            activeCornerIndex={activeDragIndex}
-            pointerX={dragPointer.x}
-            pointerY={dragPointer.y}
-            viewportWidth={viewportRef.current?.clientWidth ?? 0}
-            viewportHeight={viewportRef.current?.clientHeight ?? 0}
-            imageWidth={imageWidth}
-            imageHeight={imageHeight}
-          />
-        ) : null}
       </div>
+
+      {showLoupe && dragPointer && activeDragIndex !== null ? (
+        <CornerLoupe
+          image={imageRef.current}
+          corners={corners}
+          activeCornerIndex={activeDragIndex}
+          pointerClientX={dragPointer.clientX}
+          pointerClientY={dragPointer.clientY}
+          portalContainer={loupePortalRef?.current ?? null}
+          fallbackContainer={viewportRef.current}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+        />
+      ) : null}
 
       {viewport.scale > 1 ? (
         <button
