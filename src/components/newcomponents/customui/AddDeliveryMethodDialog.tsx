@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateDeliveryMethodMutation } from '@/features/deliveryMethods/deliveryMethodsApi';
 import type { DeliveryMethod } from '@/types/deliveryMethod';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddDeliveryMethodDialogProps {
@@ -36,28 +36,28 @@ const AddDeliveryMethodDialog: React.FC<AddDeliveryMethodDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Delivery method name is required');
+      appToast.error('Delivery method name is required');
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = deliveryMethods.find((d) => d.name.toLowerCase() === nameLower);
     if (dup) {
-      toast.error('A delivery method with this name already exists');
+      appToast.error('A delivery method with this name already exists');
       return;
     }
 
     try {
       const created = await createDeliveryMethod({ name: name.trim() }).unwrap();
 
-      toast.success('Delivery method created successfully');
+      appToast.success('Delivery method created successfully');
       setName('');
       onOpenChange(false);
       onSuccess?.(created);
     } catch (error: unknown) {
       console.error('Failed to create delivery method:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to create delivery method');
+      appToast.error(err?.data?.detail || 'Failed to create delivery method');
     }
   };
 

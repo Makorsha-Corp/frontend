@@ -71,7 +71,7 @@ import {
   sliceToSingleFactoryId,
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 
 const ProjectsPage: React.FC = () => {
@@ -219,13 +219,13 @@ const ProjectsPage: React.FC = () => {
     if (!window.confirm(`Deactivate project "${project.name}"?`)) return;
     try {
       await deleteProject(project.id).unwrap();
-      toast.success('Project deactivated');
+      appToast.success('Project deactivated');
       setSelectedProjectId(null);
       setSelectedProjectData(null);
       setSelectedComponentId(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate project');
+      appToast.error(e?.data?.detail || 'Failed to deactivate project');
     }
   };
 
@@ -233,20 +233,20 @@ const ProjectsPage: React.FC = () => {
     if (!window.confirm(`Delete component "${component.name}"?`)) return;
     try {
       await deleteComponent(component.id).unwrap();
-      toast.success('Component deleted');
+      appToast.success('Component deleted');
       setSelectedComponentId(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete component');
+      appToast.error(e?.data?.detail || 'Failed to delete component');
     }
   };
 
   const handleToggleTask = async (taskId: number, isCompleted: boolean) => {
     try {
       await updateTask({ id: taskId, data: { is_completed: !isCompleted } }).unwrap();
-      toast.success(isCompleted ? 'Task marked incomplete' : 'Task completed');
+      appToast.success(isCompleted ? 'Task marked incomplete' : 'Task completed');
     } catch {
-      toast.error('Failed to update task');
+      appToast.error('Failed to update task');
     }
   };
 
@@ -259,14 +259,14 @@ const ProjectsPage: React.FC = () => {
     if (!window.confirm(`Delete note "${note.name}"?`)) return;
     try {
       await deleteNote({ id: note.id, project_component_id: note.project_component_id }).unwrap();
-      toast.success('Note deleted');
+      appToast.success('Note deleted');
       if (selectedNote?.id === note.id) {
         setIsNoteViewOpen(false);
         setSelectedNote(null);
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete note');
+      appToast.error(e?.data?.detail || 'Failed to delete note');
     }
   };
 
@@ -274,10 +274,10 @@ const ProjectsPage: React.FC = () => {
     if (!selectedProjectId) return;
     try {
       await addProjectMember({ projectId: selectedProjectId, user_id: memberUserId }).unwrap();
-      toast.success('Member added');
+      appToast.success('Member added');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add member');
+      appToast.error(e?.data?.detail || 'Failed to add member');
     }
   };
 
@@ -285,10 +285,10 @@ const ProjectsPage: React.FC = () => {
     if (!selectedProjectId) return;
     try {
       await removeProjectMember({ projectId: selectedProjectId, userId: memberUserId }).unwrap();
-      toast.success('Member removed');
+      appToast.success('Member removed');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove member');
+      appToast.error(e?.data?.detail || 'Failed to remove member');
     }
   };
 
@@ -300,14 +300,14 @@ const ProjectsPage: React.FC = () => {
         visibility,
       }).unwrap();
       setSelectedProjectData(updated);
-      toast.success(
+      appToast.success(
         visibility === 'invited_only'
           ? 'Project visible to invited members only'
           : 'Project visible to everyone in workspace'
       );
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update visibility');
+      appToast.error(e?.data?.detail || 'Failed to update visibility');
     }
   };
 
@@ -315,10 +315,10 @@ const ProjectsPage: React.FC = () => {
     if (!window.confirm(`Delete task "${task.name}"?`)) return;
     try {
       await deleteTask(task.id).unwrap();
-      toast.success('Task deleted');
+      appToast.success('Task deleted');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete task');
+      appToast.error(e?.data?.detail || 'Failed to delete task');
     }
   };
 

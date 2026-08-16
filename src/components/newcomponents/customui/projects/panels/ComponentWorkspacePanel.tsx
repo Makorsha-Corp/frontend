@@ -15,7 +15,7 @@ import {
   Paperclip,
   Flag,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import type { Project } from '@/types/project';
 import type { ProjectComponent } from '@/types/projectComponent';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
@@ -409,7 +409,7 @@ const ComponentWorkspacePanel: React.FC<ComponentWorkspacePanelProps> = ({
               <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
                 <Flag className="h-5 w-5 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">Attachments and documents support coming soon.</p>
-                <Button variant="outline" size="sm" onClick={() => toast('Documents add flow coming soon', { icon: 'ℹ️' })}>
+                <Button variant="outline" size="sm" onClick={() => appToast.neutral('Documents add flow coming soon', { icon: 'ℹ️' })}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Document
                 </Button>

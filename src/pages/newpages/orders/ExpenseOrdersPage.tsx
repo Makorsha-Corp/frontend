@@ -34,7 +34,7 @@ import {
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { Receipt, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/orders/ManageExpenseTemplatesDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
@@ -313,11 +313,11 @@ const ExpenseOrdersPage: React.FC = () => {
     if (!window.confirm(`Delete expense order ${o.expense_number}?`)) return;
     try {
       await deleteOrder(o.id).unwrap();
-      toast.success('Expense order deleted');
+      appToast.success('Expense order deleted');
       if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete');
+      appToast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 

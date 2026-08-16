@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import type { Project, ProjectPriority, ProjectStatus } from '@/types/project';
 import { useUpdateProjectMutation } from '@/features/projects/projectsApi';
@@ -64,7 +64,7 @@ const EditProjectDialog: React.FC<EditProjectDialogProps> = ({ open, onOpenChang
   const handleSave = async () => {
     if (!project) return;
     if (!name.trim()) {
-      toast.error('Project name is required');
+      appToast.error('Project name is required');
       return;
     }
 
@@ -83,12 +83,12 @@ const EditProjectDialog: React.FC<EditProjectDialogProps> = ({ open, onOpenChang
         },
       }).unwrap();
 
-      toast.success('Project updated');
+      appToast.success('Project updated');
       onSuccess?.(updated);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update project');
+      appToast.error(e?.data?.detail || 'Failed to update project');
     }
   };
 

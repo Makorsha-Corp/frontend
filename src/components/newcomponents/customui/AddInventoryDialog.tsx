@@ -22,7 +22,7 @@ import { useCreateInventoryMutation } from '@/features/inventory/inventoryApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import type { InventoryType } from '@/types/inventory';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2, Plus } from 'lucide-react';
 import AddItemDialog from './AddItemDialog';
 
@@ -65,19 +65,19 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     e.preventDefault();
 
     if (!itemId) {
-      toast.error('Please select an item');
+      appToast.error('Please select an item');
       return;
     }
 
     const qtyNum = parseInt(qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Quantity must be 0 or greater');
+      appToast.error('Quantity must be 0 or greater');
       return;
     }
 
     const priceNum = avgPrice ? parseFloat(avgPrice) : undefined;
     if (avgPrice && (isNaN(priceNum!) || priceNum! < 0)) {
-      toast.error('Average price must be 0 or greater');
+      appToast.error('Average price must be 0 or greater');
       return;
     }
 
@@ -91,7 +91,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
         note: note.trim() || undefined,
       }).unwrap();
 
-      toast.success('Inventory record added');
+      appToast.success('Inventory record added');
       setItemId(undefined);
       setQty('0');
       setAvgPrice('');
@@ -100,7 +100,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add inventory');
+      appToast.error(e?.data?.detail || 'Failed to add inventory');
     }
   };
 

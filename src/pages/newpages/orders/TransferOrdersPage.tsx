@@ -41,7 +41,7 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
 import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
@@ -348,11 +348,11 @@ const TransferOrdersPage: React.FC = () => {
     if (!window.confirm(`Delete transfer order ${o.transfer_number}?`)) return;
     try {
       await deleteOrder(o.id).unwrap();
-      toast.success('Transfer order deleted');
+      appToast.success('Transfer order deleted');
       if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete');
+      appToast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 

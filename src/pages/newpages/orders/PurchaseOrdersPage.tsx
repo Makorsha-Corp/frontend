@@ -45,7 +45,7 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import { ShoppingCart, Plus, Search, CalendarIcon, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
 import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/PurchaseOrdersOverviewPanel';
@@ -389,11 +389,11 @@ const PurchaseOrdersPage: React.FC = () => {
     if (!window.confirm(`Delete purchase order ${o.po_number}?`)) return;
     try {
       await deleteOrder(o.id).unwrap();
-      toast.success('Purchase order deleted');
+      appToast.success('Purchase order deleted');
       if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete');
+      appToast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 

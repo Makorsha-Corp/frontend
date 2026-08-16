@@ -36,7 +36,7 @@ import {
   useLineItemAddButtonHighlight,
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 interface ExistingLineDraft {
   id: number;
@@ -234,7 +234,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
 
   const handleItemSelect = (selection: ItemSelection) => {
     if (usedItemIds.has(selection.itemId)) {
-      toast.error('Item already on this order');
+      appToast.error('Item already on this order');
       return;
     }
     setItemId(String(selection.itemId));
@@ -256,7 +256,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
     const q = parseFloat(qty);
     const p = unitPrice.trim() ? parseFloat(unitPrice) : null;
     if (p != null && (Number.isNaN(p) || p < 0)) {
-      toast.error('Enter a valid unit price or leave blank');
+      appToast.error('Enter a valid unit price or leave blank');
       return;
     }
     setPendingNewLines((prev) => [
@@ -273,21 +273,21 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   const validateLines = (): boolean => {
     const activeExisting = existingLines.filter((l) => !l.removed);
     if (activeExisting.length + pendingNewLines.length === 0) {
-      toast.error('At least one order item is required');
+      appToast.error('At least one order item is required');
       return false;
     }
 
     for (const line of activeExisting) {
       const ordered = parseFloat(line.quantity_ordered);
       if (!Number.isFinite(ordered) || ordered <= 0) {
-        toast.error(`Invalid quantity for ${line.item_name ?? 'item'}`);
+        appToast.error(`Invalid quantity for ${line.item_name ?? 'item'}`);
         return false;
       }
       const trimmedPrice = line.unit_price.trim();
       if (trimmedPrice !== '') {
         const price = parseFloat(trimmedPrice);
         if (!Number.isFinite(price) || price < 0) {
-          toast.error(`Invalid unit price for ${line.item_name ?? 'item'}`);
+          appToast.error(`Invalid unit price for ${line.item_name ?? 'item'}`);
           return false;
         }
       }
@@ -297,7 +297,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
         Number(orig?.quantity_received ?? 0)
       );
       if (ordered < minOrdered) {
-        toast.error(
+        appToast.error(
           `${line.item_name ?? 'Item'}: ordered qty cannot be less than received (${minOrdered})`
         );
         return false;
@@ -306,11 +306,11 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
 
     for (const line of pendingNewLines) {
       if (!Number.isFinite(line.quantity_ordered) || line.quantity_ordered <= 0) {
-        toast.error('Invalid quantity on new line item');
+        appToast.error('Invalid quantity on new line item');
         return false;
       }
       if (line.unit_price != null && line.unit_price < 0) {
-        toast.error('Invalid unit price on new line item');
+        appToast.error('Invalid unit price on new line item');
         return false;
       }
     }
@@ -422,7 +422,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
         }
       }
 
-      toast.success('Order items updated');
+      appToast.success('Order items updated');
       onSaved?.();
       onOpenChange(false);
     } catch (err: unknown) {
@@ -433,7 +433,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
           : Array.isArray(detail)
             ? detail.map((d) => (typeof d === 'object' && d && 'msg' in d ? String(d.msg) : String(d))).join('; ')
             : undefined;
-      toast.error(message || 'Failed to save order items');
+      appToast.error(message || 'Failed to save order items');
     } finally {
       setIsSaving(false);
     }
@@ -686,7 +686,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                                 className="h-8 w-8"
                                 onClick={() => {
                                   if (line.quantity_received > 0) {
-                                    toast.error(
+                                    appToast.error(
                                       `Cannot remove ${line.item_name ?? 'this item'} — receiving has already been recorded`
                                     );
                                     return;

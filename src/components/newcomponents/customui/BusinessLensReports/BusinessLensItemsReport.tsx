@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useGetItemByIdQuery } from '@/features/items/itemsApi';
 import { CalendarIcon, BarChart3, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 type BusinessLensItemsReportProps = {
   itemId: string;
@@ -70,10 +70,10 @@ const BusinessLensItemsReport: React.FC<BusinessLensItemsReportProps> = ({
     n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const generateReport = async () => {
-    if (!startDate) return toast.error('Please select a start date');
-    if (!endDate) return toast.error('Please select an end date');
-    if (startDate > endDate) return toast.error('Start date must be before end date');
-    if (!itemId || isNaN(Number(itemId))) return toast.error('Please select an item');
+    if (!startDate) return appToast.error('Please select a start date');
+    if (!endDate) return appToast.error('Please select an end date');
+    if (startDate > endDate) return appToast.error('Start date must be before end date');
+    if (!itemId || isNaN(Number(itemId))) return appToast.error('Please select an item');
 
     setLoading(true);
     try {
@@ -104,9 +104,9 @@ const BusinessLensItemsReport: React.FC<BusinessLensItemsReportProps> = ({
         num_of_orders: orders.length,
         orders,
       });
-      toast.success('Report generated successfully!');
+      appToast.success('Report generated successfully!');
     } catch {
-      toast.error('Failed to generate report');
+      appToast.error('Failed to generate report');
     } finally {
       setLoading(false);
     }

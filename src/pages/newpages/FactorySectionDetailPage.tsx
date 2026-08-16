@@ -32,7 +32,7 @@ import {
   statusMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { apiErrorDetail } from '@/utils/apiError';
 
 const FactorySectionDetailPage: React.FC = () => {
@@ -87,10 +87,10 @@ const FactorySectionDetailPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
     try {
       await deleteMachine(machine.id).unwrap();
-      toast.success('Machine deactivated');
+      appToast.success('Machine deactivated');
       if (selectedMachineId === machine.id) setSelectedMachineId(null);
     } catch (err) {
-      toast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
+      appToast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
     }
   };
 

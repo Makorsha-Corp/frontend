@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, Loader2, Package } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import { useUpdateTransferOrderItemMutation } from '@/features/transferOrders/transferOrdersApi';
 
@@ -52,11 +52,11 @@ const ManageTransferOrderTransfersDialog: React.FC<ManageTransferOrderTransfersD
           transferred_by: transferredByDraft[item.id]?.trim() || null,
         },
       }).unwrap();
-      toast.success(`Transfer recorded for ${itemLabel(item)}`);
+      appToast.success(`Transfer recorded for ${itemLabel(item)}`);
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail ?? 'Failed to record transfer');
+      appToast.error(e?.data?.detail ?? 'Failed to record transfer');
     } finally {
       setSavingItemId(null);
     }
@@ -73,11 +73,11 @@ const ManageTransferOrderTransfersDialog: React.FC<ManageTransferOrderTransfersD
           transferred_by: null,
         },
       }).unwrap();
-      toast.success(`Transfer cleared for ${itemLabel(item)}`);
+      appToast.success(`Transfer cleared for ${itemLabel(item)}`);
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail ?? 'Failed to clear transfer');
+      appToast.error(e?.data?.detail ?? 'Failed to clear transfer');
     } finally {
       setSavingItemId(null);
     }

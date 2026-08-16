@@ -19,7 +19,7 @@ import type { OrderTemplate } from '@/types/orderTemplate';
 import { expenseCategoryLabel } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { LayoutTemplate, Loader2, Pencil, Plus, Repeat, RotateCcw, XCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import CreateEditExpenseTemplateDialog from './CreateEditExpenseTemplateDialog';
 
 export interface ManageExpenseTemplatesDialogProps {
@@ -70,10 +70,10 @@ const ManageExpenseTemplatesDialog: React.FC<ManageExpenseTemplatesDialogProps> 
     setBusyId(t.id);
     try {
       await deactivateTemplate(t.id).unwrap();
-      toast.success(`${t.template_name} deactivated`);
+      appToast.success(`${t.template_name} deactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate template');
+      appToast.error(e?.data?.detail || 'Failed to deactivate template');
     } finally {
       setBusyId(null);
     }
@@ -83,10 +83,10 @@ const ManageExpenseTemplatesDialog: React.FC<ManageExpenseTemplatesDialogProps> 
     setBusyId(t.id);
     try {
       await updateTemplate({ id: t.id, data: { is_active: true } }).unwrap();
-      toast.success(`${t.template_name} reactivated`);
+      appToast.success(`${t.template_name} reactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to reactivate template');
+      appToast.error(e?.data?.detail || 'Failed to reactivate template');
     } finally {
       setBusyId(null);
     }

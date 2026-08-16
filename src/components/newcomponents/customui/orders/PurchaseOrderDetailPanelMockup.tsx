@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -237,20 +237,20 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
   const handleAddApprover = async (userId: number) => {
     try {
       await addApprover({ poId: order.id, user_id: userId }).unwrap();
-      toast.success('Approver added');
+      appToast.success('Approver added');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
   const handleRemoveApprover = async (userId: number) => {
     try {
       await removeApprover({ poId: order.id, userId }).unwrap();
-      toast.success('Approver removed');
+      appToast.success('Approver removed');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 
@@ -258,14 +258,14 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
     try {
       if (myApproval?.approved) {
         await unapproveOrder(order.id).unwrap();
-        toast.success('Approval withdrawn');
+        appToast.success('Approval withdrawn');
       } else {
         await approveOrder(order.id).unwrap();
-        toast.success('Approved');
+        appToast.success('Approved');
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 
@@ -324,11 +324,11 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
     if (!invoiceReadiness.ok) return;
     try {
       await createInvoice(order.id).unwrap();
-      toast.success('Invoice created');
+      appToast.success('Invoice created');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create invoice');
+      appToast.error(e?.data?.detail || 'Failed to create invoice');
     }
   };
 
@@ -339,11 +339,11 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
     setLockingSection(section);
     try {
       await setSectionLock({ poId: order.id, section, locked: nextLocked }).unwrap();
-      toast.success(nextLocked ? 'Section locked' : 'Section unlocked');
+      appToast.success(nextLocked ? 'Section locked' : 'Section unlocked');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update lock');
+      appToast.error(e?.data?.detail || 'Failed to update lock');
     } finally {
       setLockingSection(null);
     }
@@ -355,11 +355,11 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
     if (!isDirty) return;
     try {
       await updatePurchaseOrder({ id: order.id, data: changedFields }).unwrap();
-      toast.success('Purchase order updated');
+      appToast.success('Purchase order updated');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save changes');
+      appToast.error(e?.data?.detail || 'Failed to save changes');
     }
   };
 
@@ -445,7 +445,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
       for (const it of items) next[it.id] = '';
       return next;
     });
-    toast.success('Receiving stored locally');
+    appToast.success('Receiving stored locally');
   };
 
   const handleSaveReceiving = async () => {
@@ -468,11 +468,11 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
           data: { quantity_received: newReceived },
         }).unwrap();
       }
-      toast.success('Receiving saved');
+      appToast.success('Receiving saved');
       closeReceiving();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save receiving');
+      appToast.error(e?.data?.detail || 'Failed to save receiving');
     } finally {
       setSavingReceiving(false);
     }

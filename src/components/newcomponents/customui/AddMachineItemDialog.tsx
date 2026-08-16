@@ -20,7 +20,7 @@ import {
 import { useCreateMachineItemMutation } from '@/features/machineItems/machineItemsApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2, Plus } from 'lucide-react';
 import AddItemDialog from './AddItemDialog';
 import { apiErrorDetail } from '@/utils/apiError';
@@ -58,13 +58,13 @@ const AddMachineItemDialog: React.FC<AddMachineItemDialogProps> = ({
     e.preventDefault();
 
     if (!itemId) {
-      toast.error('Please select an item');
+      appToast.error('Please select an item');
       return;
     }
 
     const qtyNum = parseInt(qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Quantity must be 0 or greater');
+      appToast.error('Quantity must be 0 or greater');
       return;
     }
 
@@ -77,7 +77,7 @@ const AddMachineItemDialog: React.FC<AddMachineItemDialogProps> = ({
         defective_qty: defectiveQty ? parseInt(defectiveQty, 10) : undefined,
       }).unwrap();
 
-      toast.success('Item added to machine');
+      appToast.success('Item added to machine');
       setItemId(undefined);
       setQty('');
       setReqQty('');
@@ -88,9 +88,9 @@ const AddMachineItemDialog: React.FC<AddMachineItemDialogProps> = ({
       console.error('Failed to add item:', error);
       const detail = apiErrorDetail(error, '');
       if (detail.includes('already exists')) {
-        toast.error('This item already exists on this machine. Edit the existing row to update quantity.');
+        appToast.error('This item already exists on this machine. Edit the existing row to update quantity.');
       } else {
-        toast.error(detail || 'Failed to add item to machine');
+        appToast.error(detail || 'Failed to add item to machine');
       }
     }
   };

@@ -34,7 +34,7 @@ import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDial
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import AccountsHubSectionCard from '@/components/newcomponents/customui/accounts/AccountsHubSectionCard';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { resolveClampedPage } from '@/pages/newpages/orders/orderHubApiParams';
 import ListPagePagination from '@/components/newcomponents/customui/ListPagePagination';
@@ -155,10 +155,10 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
     if (!window.confirm(`Deactivate "${account.name}"? This is a soft delete.`)) return;
     try {
       await deleteAccount(account.id).unwrap();
-      toast.success(`Account "${account.name}" has been deactivated`);
+      appToast.success(`Account "${account.name}" has been deactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate account');
+      appToast.error(e?.data?.detail || 'Failed to deactivate account');
     }
   };
 

@@ -16,7 +16,7 @@ import {
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { LayoutTemplate, Loader2, Pencil, Plus, ShieldCheck, RotateCcw, XCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import CreateEditWorkOrderTemplateDialog from './CreateEditWorkOrderTemplateDialog';
 
 export interface ManageWorkOrderTemplatesDialogProps {
@@ -58,10 +58,10 @@ const ManageWorkOrderTemplatesDialog: React.FC<ManageWorkOrderTemplatesDialogPro
     setBusyId(t.id);
     try {
       await deactivateTemplate(t.id).unwrap();
-      toast.success(`${t.template_name} deactivated`);
+      appToast.success(`${t.template_name} deactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate template');
+      appToast.error(e?.data?.detail || 'Failed to deactivate template');
     } finally {
       setBusyId(null);
     }
@@ -71,10 +71,10 @@ const ManageWorkOrderTemplatesDialog: React.FC<ManageWorkOrderTemplatesDialogPro
     setBusyId(t.id);
     try {
       await restoreTemplate(t.id).unwrap();
-      toast.success(`${t.template_name} reactivated`);
+      appToast.success(`${t.template_name} reactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to reactivate template');
+      appToast.error(e?.data?.detail || 'Failed to reactivate template');
     } finally {
       setBusyId(null);
     }

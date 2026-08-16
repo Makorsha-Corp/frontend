@@ -25,7 +25,7 @@ import {
 } from '@/features/expenseOrders/expenseOrdersApi';
 import type { ExpenseOrderItem } from '@/types/expenseOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 interface ExistingLineDraft {
   id: number;
@@ -117,15 +117,15 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
     const q = parseFloat(lineQty);
     const p = parseFloat(linePrice);
     if (!lineDescription.trim()) {
-      toast.error('Enter a description');
+      appToast.error('Enter a description');
       return;
     }
     if (isNaN(q) || q <= 0) {
-      toast.error('Enter a valid quantity');
+      appToast.error('Enter a valid quantity');
       return;
     }
     if (isNaN(p) || p < 0) {
-      toast.error('Enter a valid unit price');
+      appToast.error('Enter a valid unit price');
       return;
     }
     setPendingNewLines((prev) => [
@@ -185,12 +185,12 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
           },
         }).unwrap();
       }
-      toast.success('Expenses updated');
+      appToast.success('Expenses updated');
       onSaved?.();
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save expenses');
+      appToast.error(e?.data?.detail || 'Failed to save expenses');
     } finally {
       setIsSaving(false);
     }

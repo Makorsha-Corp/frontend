@@ -100,7 +100,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
@@ -395,11 +395,11 @@ const ProductionPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${line.name}"?`)) return;
     try {
       await deleteLine(line.id).unwrap();
-      toast.success('Line deactivated');
+      appToast.success('Line deactivated');
       setLineActionTarget(null);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to deactivate');
+      appToast.error(err?.data?.detail || 'Failed to deactivate');
     }
   };
 
@@ -407,18 +407,18 @@ const ProductionPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${formula.name}"?`)) return;
     try {
       await deleteFormula(formula.id).unwrap();
-      toast.success('Formula deactivated');
+      appToast.success('Formula deactivated');
       setFormulaActionTarget(null);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to deactivate');
+      appToast.error(err?.data?.detail || 'Failed to deactivate');
     }
   };
 
   const handleSaveLineFromPopup = async () => {
     if (!lineActionTarget) return;
     if (!lineDraftName.trim()) {
-      toast.error('Line name is required');
+      appToast.error('Line name is required');
       return;
     }
     try {
@@ -429,25 +429,25 @@ const ProductionPage: React.FC = () => {
           description: lineDraftDescription.trim() || undefined,
         },
       }).unwrap();
-      toast.success('Line updated');
+      appToast.success('Line updated');
       setIsLineEditMode(false);
       setLineActionTarget((prev) =>
         prev ? { ...prev, name: lineDraftName.trim(), description: lineDraftDescription.trim() || null } : prev
       );
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update line');
+      appToast.error(err?.data?.detail || 'Failed to update line');
     }
   };
 
   const handleSaveFormulaFromPopup = async () => {
     if (!formulaActionTarget) return;
     if (!formulaDraftName.trim()) {
-      toast.error('Formula name is required');
+      appToast.error('Formula name is required');
       return;
     }
     if (!formulaDraftCode.trim()) {
-      toast.error('Formula code is required');
+      appToast.error('Formula code is required');
       return;
     }
     const duplicate = formulas.find(
@@ -457,7 +457,7 @@ const ProductionPage: React.FC = () => {
           f.name.toLowerCase() === formulaDraftName.trim().toLowerCase())
     );
     if (duplicate) {
-      toast.error('Formula code or name already exists');
+      appToast.error('Formula code or name already exists');
       return;
     }
     try {
@@ -470,7 +470,7 @@ const ProductionPage: React.FC = () => {
             formulaDraftDuration.trim() === '' ? undefined : parseInt(formulaDraftDuration, 10),
         },
       }).unwrap();
-      toast.success('Formula updated');
+      appToast.success('Formula updated');
       setIsFormulaEditMode(false);
       setFormulaActionTarget((prev) =>
         prev
@@ -486,7 +486,7 @@ const ProductionPage: React.FC = () => {
       );
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update formula');
+      appToast.error(err?.data?.detail || 'Failed to update formula');
     }
   };
 
@@ -1287,12 +1287,12 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Name is required');
+      appToast.error('Name is required');
       return;
     }
     const fid = parseInt(selectedFactoryId, 10);
     if (!fid) {
-      toast.error('Factory is required');
+      appToast.error('Factory is required');
       return;
     }
     try {
@@ -1301,20 +1301,20 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
           id: line.id,
           data: { name: name.trim(), description: description.trim() || undefined },
         }).unwrap();
-        toast.success('Line updated');
+        appToast.success('Line updated');
       } else {
         await createLine({
           factory_id: fid,
           name: name.trim(),
           description: description.trim() || undefined,
         }).unwrap();
-        toast.success('Line created');
+        appToast.success('Line created');
       }
       onSuccess();
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -1422,11 +1422,11 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Name is required');
+      appToast.error('Name is required');
       return;
     }
     if (!formulaCode.trim()) {
-      toast.error('Formula code is required');
+      appToast.error('Formula code is required');
       return;
     }
     const dup = formulas.find(
@@ -1436,7 +1436,7 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
           f.name.toLowerCase() === name.trim().toLowerCase())
     );
     if (dup) {
-      toast.error('A formula with this code or name already exists');
+      appToast.error('A formula with this code or name already exists');
       return;
     }
     try {
@@ -1449,7 +1449,7 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
             estimated_duration_minutes: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
           },
         }).unwrap();
-        toast.success('Formula updated');
+        appToast.success('Formula updated');
       } else {
         await createFormula({
           formula_code: formulaCode.trim(),
@@ -1457,13 +1457,13 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
           description: description.trim() || undefined,
           estimated_duration_minutes: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
         }).unwrap();
-        toast.success('Formula created');
+        appToast.success('Formula created');
       }
       onSuccess();
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -1729,9 +1729,9 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
           if (scaleOps.length > 0) {
             await Promise.all(scaleOps);
-            toast.success('Batch updated and input lines scaled');
+            appToast.success('Batch updated and input lines scaled');
           } else {
-            toast.success('Batch updated');
+            appToast.success('Batch updated');
           }
           setIsInlineEditing(false);
           return;
@@ -1746,11 +1746,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           },
         }).unwrap();
       }
-      toast.success('Batch updated');
+      appToast.success('Batch updated');
       setIsInlineEditing(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update');
+      appToast.error(err?.data?.detail || 'Failed to update');
     }
   };
 
@@ -1760,7 +1760,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     const itemId = parseInt(addItemId, 10);
     const exp = addExpected.trim() ? parseInt(addExpected, 10) : undefined;
     if (!itemId) {
-      toast.error('Select an item');
+      appToast.error('Select an item');
       return;
     }
     try {
@@ -1773,19 +1773,19 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           expected_quantity: exp,
         },
       }).unwrap();
-      toast.success('Line added');
+      appToast.success('Line added');
       setAddItemId('');
       setAddExpected('');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to add line');
+      appToast.error(err?.data?.detail || 'Failed to add line');
     }
   };
 
   const handleSaveActual = async (row: ProductionBatchItem, raw: string) => {
     const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 0)) {
-      toast.error('Invalid quantity');
+      appToast.error('Invalid quantity');
       return;
     }
     try {
@@ -1793,10 +1793,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         id: row.id,
         data: { actual_quantity: n },
       }).unwrap();
-      toast.success('Saved');
+      appToast.success('Saved');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -1804,7 +1804,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     if (!canMutateItems) return;
     const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 1)) {
-      toast.error('Expected quantity must be a positive integer');
+      appToast.error('Expected quantity must be a positive integer');
       return;
     }
     try {
@@ -1812,10 +1812,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         id: row.id,
         data: { expected_quantity: n },
       }).unwrap();
-      toast.success('Expected quantity saved');
+      appToast.success('Expected quantity saved');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -1824,11 +1824,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     if (!window.confirm(`Remove draft batch ${batch.batch_number}?`)) return;
     try {
       await deleteProductionBatch(batch.id).unwrap();
-      toast.success('Draft removed');
+      appToast.success('Draft removed');
       onDeleted();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to delete');
+      appToast.error(err?.data?.detail || 'Failed to delete');
     }
   };
 
@@ -1940,10 +1940,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
                                 if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
                                 try {
                                   await removeBatchItem(row.id).unwrap();
-                                  toast.success('Removed');
+                                  appToast.success('Removed');
                                 } catch (e: unknown) {
                                   const err = e as { data?: { detail?: string } };
-                                  toast.error(err?.data?.detail || 'Failed');
+                                  appToast.error(err?.data?.detail || 'Failed');
                                 }
                               }}
                               onSaveExpected={(raw) => handleSaveExpected(row, raw)}
@@ -2035,7 +2035,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         onOpenChange={setIsAddItemDialogOpen}
         onSuccess={(item) => {
           setAddItemId(item.id.toString());
-          toast.success('Item created and selected');
+          appToast.success('Item created and selected');
         }}
       />
     </form>
@@ -2577,14 +2577,14 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     e.preventDefault();
     const lid = parseInt(lineId, 10);
     if (!lid) {
-      toast.error('Production line is required');
+      appToast.error('Production line is required');
       return;
     }
     if (
       expectedOutput.trim() !== '' &&
       (parsedExpectedOutput == null || Number.isNaN(parsedExpectedOutput) || parsedExpectedOutput < 1)
     ) {
-      toast.error('Enter a positive integer for target products, or leave blank for the formula default');
+      appToast.error('Enter a positive integer for target products, or leave blank for the formula default');
       return;
     }
 
@@ -2633,16 +2633,16 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
           await Promise.all(addOps);
         } catch {
           // Keep draft batch even if one line insert fails.
-          toast.error('Batch created, but some formula lines could not be seeded');
+          appToast.error('Batch created, but some formula lines could not be seeded');
         }
       }
 
-      toast.success('Batch created');
+      appToast.success('Batch created');
       onSuccess();
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to create');
+      appToast.error(err?.data?.detail || 'Failed to create');
     }
   };
 
@@ -2790,12 +2790,12 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           notes: notes.trim() || undefined,
         },
       }).unwrap();
-      toast.success('Batch completed — products and waste posted to inventory');
+      appToast.success('Batch completed — products and waste posted to inventory');
       onSuccess();
       onClose();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to complete');
+      appToast.error(err?.data?.detail || 'Failed to complete');
     } finally {
       setIsSubmitting(false);
     }
@@ -2885,12 +2885,12 @@ const CancelBatchDialog: React.FC<CancelBatchDialogProps> = ({
         id: batch.id,
         data: { notes: notes.trim() || undefined },
       }).unwrap();
-      toast.success('Batch cancelled');
+      appToast.success('Batch cancelled');
       onSuccess();
       onClose();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to cancel');
+      appToast.error(err?.data?.detail || 'Failed to cancel');
     } finally {
       setIsSubmitting(false);
     }
@@ -3015,11 +3015,11 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
         id: batch.id,
         data: {},
       }).unwrap();
-      toast.success('Batch started — inputs deducted from storage');
+      appToast.success('Batch started — inputs deducted from storage');
       onClose();
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to start batch');
+      appToast.error(e2?.data?.detail || 'Failed to start batch');
     }
   };
 

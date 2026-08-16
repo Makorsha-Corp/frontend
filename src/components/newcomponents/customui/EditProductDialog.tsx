@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useUpdateProductMutation } from '@/features/products/productsApi';
 import type { Product } from '@/types/product';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface EditProductDialogProps {
@@ -56,7 +56,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
     const qtyNum = parseInt(qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Quantity must be 0 or greater');
+      appToast.error('Quantity must be 0 or greater');
       return;
     }
 
@@ -73,12 +73,12 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
         },
       }).unwrap();
 
-      toast.success('Product updated');
+      appToast.success('Product updated');
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update product');
+      appToast.error(e?.data?.detail || 'Failed to update product');
     }
   };
 

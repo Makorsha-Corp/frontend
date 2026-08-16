@@ -44,7 +44,7 @@ import {
   neutralMetricTileClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { apiErrorDetail } from '@/utils/apiError';
 
 export interface SectionMachineStats {
@@ -302,10 +302,10 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     }
     try {
       await deleteSection(section.id).unwrap();
-      toast.success(`Section "${section.name}" has been deactivated`);
+      appToast.success(`Section "${section.name}" has been deactivated`);
     } catch (error) {
       console.error('Failed to deactivate section:', error);
-      toast.error(apiErrorDetail(error, 'Failed to deactivate section'));
+      appToast.error(apiErrorDetail(error, 'Failed to deactivate section'));
     }
   };
 

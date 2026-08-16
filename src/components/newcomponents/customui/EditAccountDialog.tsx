@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useUpdateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { Account, UpdateAccountRequest } from '@/types/account';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Search, X } from 'lucide-react';
 
@@ -105,7 +105,7 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
     if (!account) return;
 
     if (!name.trim()) {
-      toast.error('Account name is required');
+      appToast.error('Account name is required');
       return;
     }
 
@@ -128,12 +128,12 @@ const EditAccountDialog: React.FC<EditAccountDialogProps> = ({
 
     try {
       await updateAccount({ id: account.id, data: payload }).unwrap();
-      toast.success('Account updated successfully');
+      appToast.success('Account updated successfully');
       onOpenChange(false);
     } catch (error: unknown) {
       console.error('Failed to update account:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update account');
+      appToast.error(err?.data?.detail || 'Failed to update account');
     }
   };
 

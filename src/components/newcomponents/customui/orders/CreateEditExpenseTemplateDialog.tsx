@@ -44,7 +44,7 @@ import type { OrderTemplate, CreateOrderTemplate } from '@/types/orderTemplate';
 import { ALLOCATION_TYPES, type AllocationTypeValue } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { Info, Loader2, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
 
@@ -205,15 +205,15 @@ const CreateEditExpenseTemplateDialog: React.FC<CreateEditExpenseTemplateDialogP
     const q = parseFloat(lineQty);
     const p = parseFloat(linePrice);
     if (!lineDescription.trim()) {
-      toast.error('Enter a description for this line');
+      appToast.error('Enter a description for this line');
       return;
     }
     if (isNaN(q) || q <= 0) {
-      toast.error('Enter a valid quantity');
+      appToast.error('Enter a valid quantity');
       return;
     }
     if (isNaN(p) || p < 0) {
-      toast.error('Enter a valid unit price');
+      appToast.error('Enter a valid unit price');
       return;
     }
     setPendingNewLines((prev) => [
@@ -228,11 +228,11 @@ const CreateEditExpenseTemplateDialog: React.FC<CreateEditExpenseTemplateDialogP
 
   const handleSubmit = async () => {
     if (!templateName.trim()) {
-      toast.error('Enter a template name');
+      appToast.error('Enter a template name');
       return;
     }
     if (allocationType !== 'other' && costCenterId === 'none') {
-      toast.error(`Select a ${allocationType} for this template`);
+      appToast.error(`Select a ${allocationType} for this template`);
       return;
     }
 
@@ -289,7 +289,7 @@ const CreateEditExpenseTemplateDialog: React.FC<CreateEditExpenseTemplateDialogP
             data: { description: line.description, quantity: line.quantity, unit: line.unit || null, unit_price: line.unit_price },
           }).unwrap();
         }
-        toast.success('Template updated');
+        appToast.success('Template updated');
       } else {
         const createPayload: CreateOrderTemplate = {
           ...basePayload,
@@ -303,12 +303,12 @@ const CreateEditExpenseTemplateDialog: React.FC<CreateEditExpenseTemplateDialogP
           ],
         };
         await createTemplate(createPayload).unwrap();
-        toast.success('Template created');
+        appToast.success('Template created');
       }
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save template');
+      appToast.error(e?.data?.detail || 'Failed to save template');
     } finally {
       setIsSaving(false);
     }

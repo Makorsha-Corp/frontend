@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { startOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import {
   useDeleteWorkOrderMutation,
   useGetWorkOrderByIdQuery,
@@ -461,12 +461,12 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     if (!window.confirm(`Delete work order ${o.work_order_number}?`)) return;
     try {
       await deleteOrder(o.id).unwrap();
-      toast.success('Work order deleted');
+      appToast.success('Work order deleted');
       if (selectedOrderId === o.id) setSelectedOrder(null);
       refetch();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete');
+      appToast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 

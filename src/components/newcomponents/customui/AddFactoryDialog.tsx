@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateFactoryMutation } from '@/features/factories/factoriesApi';
 import type { Factory } from '@/types/factory';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import { apiErrorDetail } from '@/utils/apiError';
 
@@ -32,12 +32,12 @@ const AddFactoryDialog: React.FC<AddFactoryDialogProps> = ({ open, onOpenChange,
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Factory name is required');
+      appToast.error('Factory name is required');
       return;
     }
 
     if (!abbreviation.trim()) {
-      toast.error('Abbreviation is required');
+      appToast.error('Abbreviation is required');
       return;
     }
 
@@ -48,7 +48,7 @@ const AddFactoryDialog: React.FC<AddFactoryDialogProps> = ({ open, onOpenChange,
         f.name.toLowerCase() === nameLower || f.abbreviation.toLowerCase() === abbrLower
     );
     if (dup) {
-      toast.error(
+      appToast.error(
         dup.name.toLowerCase() === nameLower
           ? 'A factory with this name already exists'
           : 'A factory with this abbreviation already exists'
@@ -62,13 +62,13 @@ const AddFactoryDialog: React.FC<AddFactoryDialogProps> = ({ open, onOpenChange,
         abbreviation: abbreviation.trim().toUpperCase(),
       }).unwrap();
 
-      toast.success('Factory created successfully!');
+      appToast.success('Factory created successfully!');
       setName('');
       setAbbreviation('');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to create factory:', error);
-      toast.error(apiErrorDetail(error, 'Failed to create factory'));
+      appToast.error(apiErrorDetail(error, 'Failed to create factory'));
     }
   };
 

@@ -28,7 +28,7 @@ import {
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 function parseProductsDeepLink(params: URLSearchParams): {
   factoryId: number | null;
@@ -177,10 +177,10 @@ const ProductsPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${prod.item_name ?? `Item #${prod.item_id}`}" product?`)) return;
     try {
       await deleteProduct(prod.id).unwrap();
-      toast.success('Product deactivated');
+      appToast.success('Product deactivated');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate');
+      appToast.error(e?.data?.detail || 'Failed to deactivate');
     }
   };
 

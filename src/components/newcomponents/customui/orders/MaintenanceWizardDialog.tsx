@@ -51,7 +51,7 @@ import {
   priorityLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
 import { Loader2, Plus, AlertTriangle, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import WorkOrderTemplateSelector from './WorkOrderTemplateSelector';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
@@ -271,7 +271,7 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
       setNewTypeName('');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create work order type');
+      appToast.error(e?.data?.detail || 'Failed to create work order type');
     }
   };
 
@@ -284,7 +284,7 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 
   const handleAddLine = () => {
     if (!draftLineValid) {
-      toast.error('Pick an item, quantity, source, and action for this part line');
+      appToast.error('Pick an item, quantity, source, and action for this part line');
       return;
     }
     setPartLines((prev) => [...prev, draftLine]);
@@ -332,7 +332,7 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
 
   const handleSaveTemplate = async (name: string) => {
     if (!typeId) {
-      toast.error('Pick work order type first');
+      appToast.error('Pick work order type first');
       throw new Error('missing type');
     }
     await createTemplate({
@@ -358,16 +358,16 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
             }))
           : undefined,
     }).unwrap();
-    toast.success('Template saved');
+    appToast.success('Template saved');
   };
 
   const handleSubmit = async () => {
     if (!machineFactoryId) {
-      toast.error("Could not resolve this machine's factory");
+      appToast.error("Could not resolve this machine's factory");
       return;
     }
     if (!canSubmit) {
-      toast.error('Fill in the required fields before creating this work order');
+      appToast.error('Fill in the required fields before creating this work order');
       return;
     }
     const typeName = workOrderTypes.find((t) => String(t.id) === typeId)?.name ?? 'Maintenance';
@@ -407,12 +407,12 @@ const MaintenanceWizardDialog: React.FC<MaintenanceWizardDialogProps> = ({
         await Promise.all(approverIds.map((userId) => addApprover({ woId: wo.id, user_id: userId }).unwrap()));
       }
 
-      toast.success('Work order created');
+      appToast.success('Work order created');
       onOpenChange(false);
       onCreated(wo.id);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create work order');
+      appToast.error(e?.data?.detail || 'Failed to create work order');
     } finally {
       setIsSubmitting(false);
     }

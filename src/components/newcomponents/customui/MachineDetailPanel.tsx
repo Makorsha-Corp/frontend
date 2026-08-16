@@ -18,7 +18,7 @@ import type { Machine } from '@/types/machine';
 import type { MachineEventType } from '@/types/machine';
 import type { MachineItem } from '@/types/machineItem';
 import { Loader2, Plus, Pencil, Trash2, Play, Pause, Wrench, Power } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import EditMachineDialog from './EditMachineDialog';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import ActiveOrdersPanel from './RunningOrdersPlaceholder';
@@ -79,17 +79,17 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
         machine_id: machine.id,
         data: { machine_id: machine.id, event_type: eventType },
       }).unwrap();
-      toast.success(`Status updated to ${eventType.toLowerCase()}`);
+      appToast.success(`Status updated to ${eventType.toLowerCase()}`);
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update status'));
+      appToast.error(apiErrorDetail(error, 'Failed to update status'));
     }
   };
 
   const handleSaveEditQty = async (mi: MachineItem) => {
     const qtyNum = parseInt(editQty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Invalid quantity');
+      appToast.error('Invalid quantity');
       return;
     }
     try {
@@ -97,11 +97,11 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
         id: mi.id,
         data: { qty: qtyNum },
       }).unwrap();
-      toast.success('Quantity updated');
+      appToast.success('Quantity updated');
       setEditingItemId(null);
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update'));
+      appToast.error(apiErrorDetail(error, 'Failed to update'));
     }
   };
 
@@ -109,10 +109,10 @@ const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({
     if (!window.confirm('Remove this item from the machine?')) return;
     try {
       await deleteMachineItem(mi.id).unwrap();
-      toast.success('Item removed');
+      appToast.success('Item removed');
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to remove'));
+      appToast.error(apiErrorDetail(error, 'Failed to remove'));
     }
   };
 

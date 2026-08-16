@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUpdateItemMutation } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import ItemTagPickerSection from '@/components/newcomponents/customui/ItemTagPickerSection';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import { apiErrorDetail } from '@/utils/apiError';
 
@@ -49,12 +49,12 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
     if (!item) return;
 
     if (!name.trim()) {
-      toast.error('Item name is required');
+      appToast.error('Item name is required');
       return;
     }
 
     if (!unit.trim()) {
-      toast.error('Unit is required');
+      appToast.error('Unit is required');
       return;
     }
 
@@ -70,11 +70,11 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
         },
       }).unwrap();
 
-      toast.success('Item updated successfully!');
+      appToast.success('Item updated successfully!');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update item:', error);
-      toast.error(apiErrorDetail(error, 'Failed to update item'));
+      appToast.error(apiErrorDetail(error, 'Failed to update item'));
     }
   };
 

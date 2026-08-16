@@ -38,7 +38,7 @@ import {
   useLineItemAddButtonHighlight,
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { Check, Loader2, Package, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 interface ExistingLineDraft {
   id: number;
@@ -171,11 +171,11 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
     if (!canAddLineItem) return;
     const id = Number(itemId);
     if (existingLines.some((l) => !l.removed && l.item_id === id)) {
-      toast.error('Item already on this transfer order');
+      appToast.error('Item already on this transfer order');
       return;
     }
     if (pendingNewLines.some((l) => l.item_id === id)) {
-      toast.error('Item already in pending lines');
+      appToast.error('Item already in pending lines');
       return;
     }
     setPendingNewLines((prev) => [
@@ -229,12 +229,12 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
           data: { item_id: line.item_id, quantity: line.quantity },
         }).unwrap();
       }
-      toast.success('Transfer items saved');
+      appToast.success('Transfer items saved');
       onSaved?.();
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save items');
+      appToast.error(e?.data?.detail || 'Failed to save items');
     } finally {
       setIsSaving(false);
     }

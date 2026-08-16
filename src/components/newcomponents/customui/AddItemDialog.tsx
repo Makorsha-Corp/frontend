@@ -17,7 +17,7 @@ import {
   useLazyGetSimilarItemsQuery,
 } from '@/features/items/itemsApi';
 import { useAppDispatch } from '@/app/hooks';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import type { Item, SimilarItemMatch } from '@/types/item';
 import { ITEM_SIMILAR_NAME_MIN_LENGTH, ITEM_SIMILARITY_THRESHOLD } from '@/types/item';
@@ -63,7 +63,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     }).unwrap();
 
-    toast.success('Item created successfully!');
+    appToast.success('Item created successfully!');
     resetForm();
     onOpenChange(false);
     onSuccess?.(created);
@@ -73,12 +73,12 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Item name is required');
+      appToast.error('Item name is required');
       return;
     }
 
     if (!unit.trim()) {
-      toast.error('Unit is required');
+      appToast.error('Unit is required');
       return;
     }
 
@@ -109,7 +109,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(detail || 'Failed to create item');
+      appToast.error(detail || 'Failed to create item');
     }
   };
 
@@ -119,13 +119,13 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       const existingItem = await dispatch(
         itemsApi.endpoints.getItemById.initiate(match.id, { forceRefetch: true })
       ).unwrap();
-      toast.success(`Using existing item: ${existingItem.name}`);
+      appToast.success(`Using existing item: ${existingItem.name}`);
       resetForm();
       onOpenChange(false);
       onSuccess?.(existingItem);
     } catch (error) {
       console.error('Failed to load existing item:', error);
-      toast.error('Could not load the selected item');
+      appToast.error('Could not load the selected item');
     } finally {
       setIsResolvingSimilar(false);
     }
@@ -141,7 +141,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(detail || 'Failed to create item');
+      appToast.error(detail || 'Failed to create item');
     }
   };
 

@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import {
   CreditCard,
   ExternalLink,
@@ -168,11 +168,11 @@ const CheckoutCard: React.FC = () => {
   const handleInitiate = async () => {
     const parsedAmount = Number(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      toast.error('Enter a valid amount');
+      appToast.error('Enter a valid amount');
       return;
     }
     if (!phone.trim()) {
-      toast.error('Phone number is required by SSLCommerz');
+      appToast.error('Phone number is required by SSLCommerz');
       return;
     }
     try {
@@ -183,10 +183,10 @@ const CheckoutCard: React.FC = () => {
       }).unwrap();
       setActiveTranId(result.tran_id);
       setGatewayUrl(result.gateway_page_url);
-      toast.success(`Checkout session ${result.tran_id} created`);
+      appToast.success(`Checkout session ${result.tran_id} created`);
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to initiate payment';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
@@ -456,17 +456,17 @@ const ResolveRiskDialog: React.FC<{ txn: PaymentTransaction | null; onClose: () 
   const handleResolve = async (approve: boolean) => {
     if (!txn) return;
     if (!note.trim()) {
-      toast.error('A note is required to resolve a risk hold');
+      appToast.error('A note is required to resolve a risk hold');
       return;
     }
     try {
       await resolveRisk({ transactionId: txn.id, data: { approve, note: note.trim() } }).unwrap();
-      toast.success(approve ? 'Transaction approved' : 'Transaction rejected');
+      appToast.success(approve ? 'Transaction approved' : 'Transaction rejected');
       setNote('');
       onClose();
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to resolve risk hold';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,7 +108,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   const handleCreatePayment = async () => {
     const amount = Number(paymentAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error('Enter a valid payment amount');
+      appToast.error('Enter a valid payment amount');
       return;
     }
     try {
@@ -120,11 +120,11 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
         payment_reference: paymentReference || undefined,
         notes: paymentNotes || undefined,
       }).unwrap();
-      toast.success('Payment recorded successfully');
+      appToast.success('Payment recorded successfully');
       setPaymentOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to record payment');
+      appToast.error(e?.data?.detail || 'Failed to record payment');
     }
   };
 
@@ -136,17 +136,17 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
 
   const handleVoidPayment = async () => {
     if (!voidTargetPayment) return;
-    if (!voidNote.trim()) { toast.error('A void reason is required'); return; }
-    if (!voidAcknowledged) { toast.error('Please confirm you understand the consequences'); return; }
+    if (!voidNote.trim()) { appToast.error('A void reason is required'); return; }
+    if (!voidAcknowledged) { appToast.error('Please confirm you understand the consequences'); return; }
     try {
       await voidPayment({ id: voidTargetPayment.id, void_note: voidNote.trim() }).unwrap();
-      toast.success('Payment voided successfully');
+      appToast.success('Payment voided successfully');
       setVoidTargetPayment(null);
       setVoidNote('');
       setVoidAcknowledged(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void payment');
+      appToast.error(e?.data?.detail || 'Failed to void payment');
     }
   };
 

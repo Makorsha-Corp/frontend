@@ -14,7 +14,7 @@ import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySe
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import type { WorkOrder } from '@/types/workOrder';
 import { Wrench, Plus, Search, PanelLeft } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
 import WorkOrdersOverviewPanel from '@/components/newcomponents/customui/orders/WorkOrdersOverviewPanel';
 import WorkOrderNavigatorPanel from '@/components/newcomponents/customui/orders/WorkOrderNavigatorPanel';
@@ -197,11 +197,11 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
     if (!window.confirm(`Delete work order ${o.work_order_number}?`)) return;
     try {
       await deleteOrder(o.id).unwrap();
-      toast.success('Work order deleted');
+      appToast.success('Work order deleted');
       if (selectedOrderId === o.id) setSelectedOrder(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete');
+      appToast.error(e?.data?.detail || 'Failed to delete');
     }
   };
 
@@ -215,7 +215,7 @@ const WorkOrdersPageContent: React.FC<WorkOrdersPageContentProps> = ({
         ? Number(filters.machineFilter)
         : machines[0]?.id ?? null;
     if (!mid) {
-      toast.error('Select a machine for advanced maintenance');
+      appToast.error('Select a machine for advanced maintenance');
       return;
     }
     setAdvancedMachineId(mid);

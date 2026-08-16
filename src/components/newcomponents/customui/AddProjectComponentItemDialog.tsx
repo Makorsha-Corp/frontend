@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import { useCreateProjectComponentItemMutation } from '@/features/projectComponentItems/projectComponentItemsApi';
 
@@ -43,11 +43,11 @@ const AddProjectComponentItemDialog: React.FC<AddProjectComponentItemDialogProps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemId) {
-      toast.error('Item is required');
+      appToast.error('Item is required');
       return;
     }
     if (!qty || Number(qty) <= 0) {
-      toast.error('Quantity must be greater than 0');
+      appToast.error('Quantity must be greater than 0');
       return;
     }
     try {
@@ -56,14 +56,14 @@ const AddProjectComponentItemDialog: React.FC<AddProjectComponentItemDialogProps
         item_id: parseInt(itemId, 10),
         qty: Number(qty),
       }).unwrap();
-      toast.success('Item added');
+      appToast.success('Item added');
       setItemId('');
       setQty('');
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add item');
+      appToast.error(e?.data?.detail || 'Failed to add item');
     }
   };
 

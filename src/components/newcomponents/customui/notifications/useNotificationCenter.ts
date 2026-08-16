@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseISO } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
   kindMatchesFilter,
@@ -13,6 +14,7 @@ import {
 } from '@/features/notifications/notificationsApi';
 import { transformBackendNotification } from './notificationTransform';
 import { useNotificationStream } from './useNotificationStream';
+import { showNotificationPopup } from '@/lib/showNotificationPopup';
 
 export const READ_IDS_KEY = 'erp-notification-read-ids';
 export const DISMISSED_IDS_KEY = 'erp-notification-dismissed-ids';
@@ -51,17 +53,16 @@ export interface NotificationCenterState {
   toggleRead: (id: string) => void;
   markManyRead: (ids: string[]) => void;
   dismiss: (id: string) => void;
-  toastNotifications: AppNotification[];
-  dismissToast: (id: string) => void;
 }
 
 export function useNotificationCenter(): NotificationCenterState {
+  const navigate = useNavigate();
   const [readIds, setReadIds] = useState<Set<string>>(() => loadStringSet(READ_IDS_KEY));
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadStringSet(DISMISSED_IDS_KEY));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>('all');
-  const [toastNotifications, setToastNotifications] = useState<AppNotification[]>([]);
   const pendingToastIdsRef = useRef<Set<number>>(new Set());
+  const shownPopupIdsRef = useRef<Set<string>>(new Set());
   const dialogOpenRef = useRef(dialogOpen);
   dialogOpenRef.current = dialogOpen;
 
@@ -81,31 +82,6 @@ export function useNotificationCenter(): NotificationCenterState {
     }
   );
   const [markBackendRead] = useMarkNotificationsReadMutation();
-
-  useEffect(() => {
-    if (!backendData?.items.length || pendingToastIdsRef.current.size === 0) return;
-
-    const resolved: AppNotification[] = [];
-    for (const id of pendingToastIdsRef.current) {
-      const item = backendData.items.find((n) => n.id === id);
-      if (item) {
-        resolved.push(transformBackendNotification(item));
-        pendingToastIdsRef.current.delete(id);
-      }
-    }
-
-    if (resolved.length === 0) return;
-
-    setToastNotifications((prev) => {
-      const existingIds = new Set(prev.map((n) => n.id));
-      const fresh = resolved.filter((n) => !existingIds.has(n.id));
-      return [...fresh, ...prev];
-    });
-  }, [backendData]);
-
-  const dismissToast = useCallback((id: string) => {
-    setToastNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
 
   const backendNotifications = useMemo<AppNotification[]>(
     () =>
@@ -191,6 +167,32 @@ export function useNotificationCenter(): NotificationCenterState {
     }
   }, [markBackendRead]);
 
+  useEffect(() => {
+    if (!backendData?.items.length || pendingToastIdsRef.current.size === 0) return;
+
+    const resolved: AppNotification[] = [];
+    for (const id of pendingToastIdsRef.current) {
+      const item = backendData.items.find((n) => n.id === id);
+      if (item) {
+        resolved.push(transformBackendNotification(item));
+        pendingToastIdsRef.current.delete(id);
+      }
+    }
+
+    if (resolved.length === 0) return;
+
+    for (const notification of resolved) {
+      if (shownPopupIdsRef.current.has(notification.id)) continue;
+      shownPopupIdsRef.current.add(notification.id);
+      showNotificationPopup(notification, () => {
+        if (!isRead(notification.id)) {
+          markRead(notification.id);
+        }
+        navigate(notification.href);
+      });
+    }
+  }, [backendData, isRead, markRead, navigate]);
+
   const markUnread = useCallback((id: string) => {
     setReadIds((prev) => {
       const next = new Set(prev);
@@ -269,7 +271,5 @@ export function useNotificationCenter(): NotificationCenterState {
     toggleRead,
     markManyRead,
     dismiss,
-    toastNotifications,
-    dismissToast,
   };
 }

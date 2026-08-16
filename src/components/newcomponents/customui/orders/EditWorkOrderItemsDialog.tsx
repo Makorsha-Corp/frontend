@@ -24,7 +24,7 @@ import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType, W
 import { WORK_ORDER_ITEM_ACTION_OPTIONS, WORK_ORDER_ITEM_ACTION_EXPLAINER, workOrderItemActionLabel } from '@/pages/newpages/orders/workOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 
@@ -131,7 +131,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const handleItemSelect = (selection: ItemSelection) => {
     const id = String(selection.itemId);
     if (itemPickerTarget === 'item' && usedItemIds.has(selection.itemId)) {
-      toast.error('Item already on this order');
+      appToast.error('Item already on this order');
       return;
     }
     const label = formatItemDisplayLabel(selection);
@@ -170,7 +170,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
 
   const handleAdd = async () => {
     if (!canAdd) {
-      toast.error(
+      appToast.error(
         actionType === 'REPLACE'
           ? 'Pick item, quantity, and part being replaced'
           : 'Pick an item and quantity',
@@ -191,13 +191,13 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
           replaced_item_id: actionType === 'REPLACE' ? Number(replacedItemId) : undefined,
         },
       }).unwrap();
-      toast.success('Part added');
+      appToast.success('Part added');
       resetDraft();
       setActionType('CONSUME');
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add part');
+      appToast.error(e?.data?.detail || 'Failed to add part');
     } finally {
       setIsSaving(false);
     }
@@ -207,14 +207,14 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     setIsUpdatingQty(true);
     try {
       await updateItem({ woId, itemId: item.id, data: { quantity: nextQty } }).unwrap();
-      toast.success(
+      appToast.success(
         item.consumed_at ? 'Quantity updated — stock adjusted' : 'Quantity updated',
       );
       setEditingItem(null);
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update quantity');
+      appToast.error(e?.data?.detail || 'Failed to update quantity');
     } finally {
       setIsUpdatingQty(false);
     }
@@ -229,7 +229,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     if (!editingItem) return;
     const next = parseFloat(editQty);
     if (!(next > 0)) {
-      toast.error('Enter a valid quantity');
+      appToast.error('Enter a valid quantity');
       return;
     }
     if (next === Number(editingItem.quantity)) {
@@ -256,12 +256,12 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     setIsVoiding(true);
     try {
       await removeItem({ woId, itemId: item.id }).unwrap();
-      toast.success(item.consumed_at ? 'Part voided — stock returned' : 'Part removed');
+      appToast.success(item.consumed_at ? 'Part voided — stock returned' : 'Part removed');
       setVoidConfirmItem(null);
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove part');
+      appToast.error(e?.data?.detail || 'Failed to remove part');
     } finally {
       setIsVoiding(false);
     }

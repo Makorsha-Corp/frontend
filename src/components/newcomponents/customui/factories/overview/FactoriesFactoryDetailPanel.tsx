@@ -34,7 +34,7 @@ import type {
 import { brandIconGlyphClass, brandIconTileClass } from '@/lib/machineVisualStatus';
 import { useDeleteFactorySectionMutation } from '@/features/factorySections/factorySectionsApi';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const emptyAttention: FactoryAttentionGroups = {
   maintenanceDue: [],
@@ -163,13 +163,13 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
       if (selectedSectionId === section.id) {
         setSelectedSectionId(null);
       }
-      toast.success(`Section "${section.name}" has been deactivated`);
+      appToast.success(`Section "${section.name}" has been deactivated`);
     } catch (error: unknown) {
       const detail =
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(detail || 'Failed to deactivate section');
+      appToast.error(detail || 'Failed to deactivate section');
     }
   };
 

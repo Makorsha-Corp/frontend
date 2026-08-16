@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -327,20 +327,20 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const handleAddApprover = async (userId: number) => {
     try {
       await addApprover({ poId: order.id, user_id: userId }).unwrap();
-      toast.success('Approver added');
+      appToast.success('Approver added');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
   const handleRemoveApprover = async (userId: number) => {
     try {
       await removeApprover({ poId: order.id, userId }).unwrap();
-      toast.success('Approver removed');
+      appToast.success('Approver removed');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 
@@ -348,23 +348,23 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     try {
       if (myApproval?.approved) {
         if (linkedInvoice?.receiving_started) {
-          toast.error('Cannot withdraw approval — receiving has started on this invoice');
+          appToast.error('Cannot withdraw approval — receiving has started on this invoice');
           return;
         }
         await unapproveOrder(order.id).unwrap();
-        toast.success('Approval withdrawn');
+        appToast.success('Approval withdrawn');
       } else {
         const approvalSections = getPurchaseOrderApprovalSectionsStatus(order);
         if (!approvalSections.allConfirmed) {
-          toast.error(approvalSections.reason ?? 'Confirm all sections before approving');
+          appToast.error(approvalSections.reason ?? 'Confirm all sections before approving');
           return;
         }
         await approveOrder(order.id).unwrap();
-        toast.success('Approved');
+        appToast.success('Approved');
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 
@@ -629,12 +629,12 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     if (!order.invoice_id || !confirmReadiness.ok) return;
     try {
       await confirmInvoice(order.invoice_id).unwrap();
-      toast.success('Invoice confirmed — payments can now be recorded.');
+      appToast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmInvoiceOpen(false);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to confirm invoice');
+      appToast.error(e?.data?.detail || 'Failed to confirm invoice');
     }
   };
 
@@ -645,7 +645,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
 
   const handleMarkOrderComplete = async () => {
     if (!markCompleteReadiness.ok) {
-      toast.error(markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
+      appToast.error(markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
       return;
     }
     try {
@@ -662,11 +662,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           ? ' Hidden from open orders list — enable Complete in the sidebar to see it there.'
           : ' Stays in the open list until the invoice is fully paid.';
       }
-      toast.success(`${baseMessage}${listHint}`);
+      appToast.success(`${baseMessage}${listHint}`);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to mark order complete');
+      appToast.error(e?.data?.detail || 'Failed to mark order complete');
     }
   };
 
@@ -678,26 +678,26 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         void_note: voidNote,
         poId: order.id,
       }).unwrap();
-      toast.success(
+      appToast.success(
         'Invoice voided — re-confirm supplier and items to generate a new draft invoice'
       );
       setVoidInvoiceOpen(false);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void invoice');
+      appToast.error(e?.data?.detail || 'Failed to void invoice');
     }
   };
 
   const handleVoidPurchaseOrder = async (voidNote: string) => {
     try {
       await voidPurchaseOrder({ id: order.id, void_note: voidNote }).unwrap();
-      toast.success(`Purchase order ${order.po_number} voided`);
+      appToast.success(`Purchase order ${order.po_number} voided`);
       setVoidPoOpen(false);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void purchase order');
+      appToast.error(e?.data?.detail || 'Failed to void purchase order');
     }
   };
 
@@ -724,7 +724,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       return true;
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save section changes');
+      appToast.error(e?.data?.detail || 'Failed to save section changes');
       return false;
     }
   };
@@ -735,7 +735,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   ) => {
     if (!currentlyConfirmed) {
       if (!sectionConfirmReadiness[section].ok) {
-        toast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
+        appToast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
         return;
       }
       void handleToggleSectionConfirm(section, true);
@@ -769,11 +769,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       }
       await setSectionConfirm({ poId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
-      toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
+      appToast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update confirm');
+      appToast.error(e?.data?.detail || 'Failed to update confirm');
     } finally {
       setConfirmingSection(null);
     }
@@ -785,11 +785,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     if (!isDirty) return;
     try {
       await updatePurchaseOrder({ id: order.id, data: changedFields }).unwrap();
-      toast.success('Purchase order updated');
+      appToast.success('Purchase order updated');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save changes');
+      appToast.error(e?.data?.detail || 'Failed to save changes');
     }
   };
 
@@ -1585,7 +1585,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         onOpenChange={setReceivingOpen}
         poId={order.id}
         items={items}
-        onSaved={() => { onUpdated?.(); toast.success('Receiving updated'); }}
+        onSaved={() => { onUpdated?.(); appToast.success('Receiving updated'); }}
       />
 
       {order.invoice_id ? (

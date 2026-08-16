@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useCreateMiscellaneousProjectCostMutation } from '@/features/miscellaneousProjectCosts/miscellaneousProjectCostsApi';
 
 interface AddMiscellaneousProjectCostDialogProps {
@@ -36,11 +36,11 @@ const AddMiscellaneousProjectCostDialog: React.FC<AddMiscellaneousProjectCostDia
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Cost name is required');
+      appToast.error('Cost name is required');
       return;
     }
     if (!amount || Number(amount) <= 0) {
-      toast.error('Amount must be greater than 0');
+      appToast.error('Amount must be greater than 0');
       return;
     }
 
@@ -51,7 +51,7 @@ const AddMiscellaneousProjectCostDialog: React.FC<AddMiscellaneousProjectCostDia
         description: description.trim() || null,
         amount: Number(amount),
       }).unwrap();
-      toast.success('Misc cost added');
+      appToast.success('Misc cost added');
       setName('');
       setDescription('');
       setAmount('');
@@ -59,7 +59,7 @@ const AddMiscellaneousProjectCostDialog: React.FC<AddMiscellaneousProjectCostDia
       onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add misc cost');
+      appToast.error(e?.data?.detail || 'Failed to add misc cost');
     }
   };
 

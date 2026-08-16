@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { useGetWorkOrderByIdQuery, useDeleteWorkOrderMutation } from '@/features/workOrders/workOrdersApi';
 import WorkOrderDetailPanel from './WorkOrderDetailPanel';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import type { WorkOrderItemSourceType } from '@/types/workOrder';
 
 export interface WorkOrderModalProps {
@@ -32,12 +32,12 @@ const WorkOrderModal: React.FC<WorkOrderModalProps> = ({
     if (!window.confirm(`Delete work order ${order.work_order_number}?`)) return;
     try {
       await deleteOrder(order.id).unwrap();
-      toast.success('Work order deleted');
+      appToast.success('Work order deleted');
       onDeleted?.();
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete work order');
+      appToast.error(e?.data?.detail || 'Failed to delete work order');
     }
   };
 

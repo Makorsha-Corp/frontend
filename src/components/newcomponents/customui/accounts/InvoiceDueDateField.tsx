@@ -6,7 +6,7 @@ import { useUpdateAccountInvoiceMutation } from '@/features/accountInvoices/acco
 import type { AccountInvoice } from '@/types/accountInvoice';
 import { formatInvoiceDate } from './accountInvoiceFormatters';
 import { InvoiceDueDateEditDialog } from './InvoiceLifecycleDialogs';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 
 function toDateInputValue(value: string | null | undefined): string {
@@ -53,10 +53,10 @@ const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({
         id: invoice.id,
         data: { due_date: next || null },
       }).unwrap();
-      toast.success('Due date updated');
+      appToast.success('Due date updated');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update due date');
+      appToast.error(e?.data?.detail || 'Failed to update due date');
       setDraft(current);
       setConfirmedDraft(current);
     }

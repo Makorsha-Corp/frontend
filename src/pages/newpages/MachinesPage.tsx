@@ -35,7 +35,7 @@ import {
   statusMetricIconClass,
 } from '@/lib/machineVisualStatus';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { apiErrorDetail } from '@/utils/apiError';
 
 const machineSectionHeaderClass = (atTop = false) =>
@@ -612,10 +612,10 @@ const MachinesPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
     try {
       await deleteMachine(machine.id).unwrap();
-      toast.success('Machine deactivated');
+      appToast.success('Machine deactivated');
       if (selectedMachineId === machine.id) handleSelectMachine(null);
     } catch (err) {
-      toast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
+      appToast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
     }
   };
 

@@ -57,5 +57,22 @@ module.exports = {
         ],
       },
     },
+    {
+      files: ['**/*.ts', '**/*.tsx'],
+      excludedFiles: ['src/lib/appToast.ts', 'src/components/AppToaster.tsx'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: 'react-hot-toast',
+                message: 'Use appToast from @/lib/appToast instead.',
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
 }

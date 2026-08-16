@@ -29,7 +29,7 @@ import {
 } from '@/pages/newpages/orders/workOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 
 type TargetValue = 'none' | `machine:${number}` | `component:${number}`;
@@ -85,11 +85,11 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
     e.preventDefault();
     const fid = parseInt(factoryId, 10);
     if (isNaN(fid) || !factoryId) {
-      toast.error('Select a factory');
+      appToast.error('Select a factory');
       return;
     }
     if (!workOrderTypeId) {
-      toast.error('Select a work order type');
+      appToast.error('Select a work order type');
       return;
     }
 
@@ -110,13 +110,13 @@ const AddWorkOrderDialog: React.FC<AddWorkOrderDialogProps> = ({ open, onOpenCha
         cost: cost ? parseFloat(cost) : undefined,
         assigned_to: assignedTo.trim() || undefined,
       }).unwrap();
-      toast.success('Work order created');
+      appToast.success('Work order created');
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create work order');
+      appToast.error(e?.data?.detail || 'Failed to create work order');
     }
   };
 

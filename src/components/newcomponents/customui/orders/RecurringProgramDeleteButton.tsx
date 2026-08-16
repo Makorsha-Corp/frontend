@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -63,14 +63,14 @@ const RecurringProgramDeleteButton: React.FC<RecurringProgramDeleteButtonProps> 
         work_order_template_id: program.templateId,
         machine_id: program.machineId,
       }).unwrap();
-      toast.success(
+      appToast.success(
         result.deleted_count === 1
           ? '1 draft deleted'
           : `${result.deleted_count} drafts deleted`,
       );
       onDeleted?.(result);
     } catch {
-      toast.error('Failed to delete remaining');
+      appToast.error('Failed to delete remaining');
     } finally {
       setBusy(false);
     }

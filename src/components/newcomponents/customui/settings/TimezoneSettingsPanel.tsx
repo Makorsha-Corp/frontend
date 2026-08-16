@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import TimezoneSelect from '@/components/newcomponents/customui/TimezoneSelect';
@@ -32,9 +32,9 @@ const TimezoneSettingsPanel: React.FC = () => {
     try {
       const user = await updateMe({ timezone }).unwrap();
       dispatch(updateUser({ timezone: user.timezone ?? timezone }));
-      toast.success('Timezone preference saved');
+      appToast.success('Timezone preference saved');
     } catch {
-      toast.error('Could not save timezone');
+      appToast.error('Could not save timezone');
     }
   };
 

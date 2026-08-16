@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Settings, type LucideIcon } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ const UserSettingsModal: React.FC = () => {
     } catch {
       dispatch(logout());
     }
-    toast.success('Logged out successfully');
+    appToast.success('Logged out successfully');
     navigate('/login');
   };
 

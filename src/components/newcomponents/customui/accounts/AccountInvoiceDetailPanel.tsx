@@ -23,7 +23,7 @@ import { formatInvLabel } from './invoiceDisplayUtils';
 import OrderDetailsSummary from '@/components/newcomponents/customui/orders/OrderDetailsSummary';
 import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { canVoidPoInvoice } from '@/components/newcomponents/customui/accounts/invoiceVoidRules';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 export interface AccountInvoiceDetailPanelProps {
   invoiceId: number;
@@ -57,38 +57,38 @@ const AccountInvoiceDetailPanel: React.FC<AccountInvoiceDetailPanelProps> = ({
   const handleConfirm = async () => {
     try {
       await confirmInvoice(invoiceId).unwrap();
-      toast.success('Invoice confirmed — payments can now be recorded.');
+      appToast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to confirm invoice');
+      appToast.error(e?.data?.detail || 'Failed to confirm invoice');
     }
   };
 
   const handleVoid = async (voidNote: string) => {
     const readiness = canVoidPoInvoice(invoice?.invoice_status ?? null, invoice?.receiving_started ?? false);
     if (!readiness.ok) {
-      toast.error(readiness.reason ?? 'This invoice cannot be voided');
+      appToast.error(readiness.reason ?? 'This invoice cannot be voided');
       setVoidOpen(false);
       return;
     }
     try {
       await voidInvoice({ id: invoiceId, void_note: voidNote }).unwrap();
-      toast.success('Invoice voided successfully.');
+      appToast.success('Invoice voided successfully.');
       setVoidOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void invoice');
+      appToast.error(e?.data?.detail || 'Failed to void invoice');
     }
   };
 
   const handleRevert = async () => {
     try {
       await revertToDraft(invoiceId).unwrap();
-      toast.success('Invoice reverted to draft.');
+      appToast.success('Invoice reverted to draft.');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to revert invoice');
+      appToast.error(e?.data?.detail || 'Failed to revert invoice');
     }
   };
 

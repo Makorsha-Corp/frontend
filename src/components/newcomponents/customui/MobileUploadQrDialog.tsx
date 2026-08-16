@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Loader2, Smartphone } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { Button } from '@/components/ui/button';
@@ -101,7 +101,7 @@ export default function MobileUploadQrDialog({
       setResolvedLabel(created.entity_label ?? entityLabel ?? null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not start phone upload.';
-      toast.error(message);
+      appToast.error(message);
       onOpenChange(false);
     }
   }, [createSession, entityId, entityLabel, entityType, onOpenChange, reset]);
@@ -161,9 +161,9 @@ export default function MobileUploadQrDialog({
     if (!uploadUrl) return;
     try {
       await navigator.clipboard.writeText(uploadUrl);
-      toast.success('Link copied');
+      appToast.success('Link copied');
     } catch {
-      toast.error('Could not copy link');
+      appToast.error('Could not copy link');
     }
   };
 
@@ -178,13 +178,13 @@ export default function MobileUploadQrDialog({
       namePrefillSessionRef.current = null;
       setStopPolling(false);
       await bootstrapSession();
-      toast.success('Upload removed');
+      appToast.success('Upload removed');
     } catch (error) {
       const apiDetail =
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(apiDetail ?? (error instanceof Error ? error.message : 'Could not remove upload.'));
+      appToast.error(apiDetail ?? (error instanceof Error ? error.message : 'Could not remove upload.'));
     } finally {
       setIsRemoving(false);
     }
@@ -195,7 +195,7 @@ export default function MobileUploadQrDialog({
     const trimmedName = fileName.trim();
     const trimmedNote = note.trim();
     if (trimmedNote.length > MAX_NOTE_LENGTH) {
-      toast.error(`Description must be ${MAX_NOTE_LENGTH} characters or fewer.`);
+      appToast.error(`Description must be ${MAX_NOTE_LENGTH} characters or fewer.`);
       return;
     }
     try {
@@ -204,7 +204,7 @@ export default function MobileUploadQrDialog({
         file_name: trimmedName || null,
         note: trimmedNote || null,
       }).unwrap();
-      toast.success(`${attached.file_name} attached`);
+      appToast.success(`${attached.file_name} attached`);
       onAttached?.();
       onOpenChange(false);
     } catch (error) {
@@ -212,7 +212,7 @@ export default function MobileUploadQrDialog({
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(apiDetail ?? (error instanceof Error ? error.message : 'Could not attach file.'));
+      appToast.error(apiDetail ?? (error instanceof Error ? error.message : 'Could not attach file.'));
     }
   };
 

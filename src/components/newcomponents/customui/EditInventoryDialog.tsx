@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUpdateInventoryMutation } from '@/features/inventory/inventoryApi';
 import type { Inventory } from '@/types/inventory';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface EditInventoryDialogProps {
@@ -49,13 +49,13 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
 
     const qtyNum = parseInt(qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Quantity must be 0 or greater');
+      appToast.error('Quantity must be 0 or greater');
       return;
     }
 
     const priceNum = avgPrice ? parseFloat(avgPrice) : undefined;
     if (avgPrice && (isNaN(priceNum!) || priceNum! < 0)) {
-      toast.error('Average price must be 0 or greater');
+      appToast.error('Average price must be 0 or greater');
       return;
     }
 
@@ -69,12 +69,12 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
         },
       }).unwrap();
 
-      toast.success('Inventory updated');
+      appToast.success('Inventory updated');
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update inventory');
+      appToast.error(e?.data?.detail || 'Failed to update inventory');
     }
   };
 

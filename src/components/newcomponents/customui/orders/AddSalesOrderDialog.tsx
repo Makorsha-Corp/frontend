@@ -20,7 +20,7 @@ import type { Account } from '@/types/account';
 import type { CreateSalesOrderDTO } from '@/types/salesOrder';
 import type { CreateSalesOrderItemDTO } from '@/types/salesOrderItem';
 import { Loader2, Pencil, Plus, Trash2, Truck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
@@ -128,23 +128,23 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     const q = parseFloat(qty);
     const p = parseFloat(unitPrice);
     if (isNaN(q) || q <= 0 || isNaN(p) || p < 0) {
-      toast.error('Enter a valid quantity and unit price');
+      appToast.error('Enter a valid quantity and unit price');
       return;
     }
 
     if (lineMode === 'product') {
       const iid = parseInt(productId, 10);
       if (isNaN(iid)) {
-        toast.error('Select a product');
+        appToast.error('Select a product');
         return;
       }
       if (usedItemIds.has(iid)) {
-        toast.error('Product already on this order — edit quantity or unit price below');
+        appToast.error('Product already on this order — edit quantity or unit price below');
         return;
       }
       const selectedProduct = productsList.find((p) => p.item_id === iid);
       if (selectedProduct?.min_order_qty != null && q < selectedProduct.min_order_qty) {
-        toast.error(
+        appToast.error(
           `Minimum order quantity for ${selectedProduct.item_name ?? `item #${iid}`} is ${selectedProduct.min_order_qty}`
         );
         return;
@@ -156,7 +156,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       setProductId('');
     } else {
       if (!miscDescription.trim()) {
-        toast.error('Enter a description for this line');
+        appToast.error('Enter a description for this line');
         return;
       }
       setItems((prev) => [
@@ -205,22 +205,22 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     const aid = parseInt(accountId, 10);
     const fid = parseInt(factoryId, 10);
     if (isNaN(aid) || !accountId) {
-      toast.error('Select a customer');
+      appToast.error('Select a customer');
       return;
     }
     if (isNaN(fid) || !factoryId) {
-      toast.error('Select a factory');
+      appToast.error('Select a factory');
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one sales item');
+      appToast.error('Add at least one sales item');
       return;
     }
     for (const line of items) {
       if (line.item_id == null) continue;
       const product = productsList.find((p) => p.item_id === line.item_id);
       if (product?.min_order_qty != null && line.quantity_ordered < product.min_order_qty) {
-        toast.error(
+        appToast.error(
           `Minimum order quantity for ${product.item_name ?? `item #${line.item_id}`} is ${product.min_order_qty} (currently ${line.quantity_ordered})`
         );
         return;
@@ -249,13 +249,13 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
 
     try {
       const result = await createOrder({ order: orderData, items: itemsData }).unwrap();
-      toast.success('Sales order created');
+      appToast.success('Sales order created');
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create sales order');
+      appToast.error(e?.data?.detail || 'Failed to create sales order');
     }
   };
 

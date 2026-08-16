@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateProjectComponentTaskMutation } from '@/features/projectComponentTasks/projectComponentTasksApi';
 import { useCreateProjectComponentNoteMutation } from '@/features/projectComponentNotes/projectComponentNotesApi';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddProjectComponentTaskDialogProps {
@@ -41,7 +41,7 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error(isNote ? 'Note title is required' : 'Task name is required');
+      appToast.error(isNote ? 'Note title is required' : 'Task name is required');
       return;
     }
     try {
@@ -59,14 +59,14 @@ const AddProjectComponentTaskDialog: React.FC<AddProjectComponentTaskDialogProps
           is_note: false,
         }).unwrap();
       }
-      toast.success(isNote ? 'Note created' : 'Task created');
+      appToast.success(isNote ? 'Note created' : 'Task created');
       setName('');
       setDescription('');
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || (isNote ? 'Failed to create note' : 'Failed to create task'));
+      appToast.error(e?.data?.detail || (isNote ? 'Failed to create note' : 'Failed to create task'));
     }
   };
 

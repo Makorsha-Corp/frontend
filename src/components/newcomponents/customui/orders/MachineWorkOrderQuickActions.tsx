@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ClipboardList, ListChecks } from 'lucide-react';
 import MaintenanceWizardDialog from '@/components/newcomponents/customui/orders/MaintenanceWizardDialog';
 import type { Machine } from '@/types/machine';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 export interface MachineWorkOrderQuickActionsProps {
   machine: Machine;
@@ -25,7 +25,7 @@ const MachineWorkOrderQuickActions: React.FC<MachineWorkOrderQuickActionsProps> 
 
   const handleWizardCreated = (workOrderId: number) => {
     setWizardOpen(false);
-    toast.success('Work order created');
+    appToast.success('Work order created');
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('tab', 'workOrders');

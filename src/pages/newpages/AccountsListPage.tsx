@@ -30,7 +30,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const SECTION_CONFIG: Record<string, { label: string; tagCode: string }> = {
   suppliers: { label: 'Suppliers', tagCode: 'supplier' },
@@ -87,10 +87,10 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
     if (!window.confirm(`Deactivate "${account.name}"? This is a soft delete.`)) return;
     try {
       await deleteAccount(account.id).unwrap();
-      toast.success(`Account "${account.name}" has been deactivated`);
+      appToast.success(`Account "${account.name}" has been deactivated`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to deactivate account');
+      appToast.error(e?.data?.detail || 'Failed to deactivate account');
     }
   };
 

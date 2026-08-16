@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import CompleteWorkOrderDialog from '@/components/newcomponents/customui/orders/CompleteWorkOrderDialog';
 import {
   useApproveWorkOrderMutation,
@@ -77,22 +77,22 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   const handleApprove = async () => {
     try {
       await approveOrder(workOrderId).unwrap();
-      toast.success('Approved');
+      appToast.success('Approved');
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to approve');
+      appToast.error(e?.data?.detail || 'Failed to approve');
     }
   };
 
   const handleWithdraw = async () => {
     try {
       await unapproveOrder(workOrderId).unwrap();
-      toast.success('Approval withdrawn');
+      appToast.success('Approval withdrawn');
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to withdraw approval');
+      appToast.error(e?.data?.detail || 'Failed to withdraw approval');
     }
   };
 
@@ -100,35 +100,35 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
     if (!startEnabled) return;
     try {
       await startOrder(workOrderId).unwrap();
-      toast.success('Work started');
+      appToast.success('Work started');
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to start work order');
+      appToast.error(e?.data?.detail || 'Failed to start work order');
     }
   };
 
   const handleComplete = async (data: WorkOrderCompleteRequest) => {
     try {
       await completeOrder({ id: workOrderId, data }).unwrap();
-      toast.success('Work order completed');
+      appToast.success('Work order completed');
       setCompleteOpen(false);
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to complete work order');
+      appToast.error(e?.data?.detail || 'Failed to complete work order');
     }
   };
 
   const handleCompleteAsPlanned = async (data: WorkOrderCompleteRequest) => {
     try {
       await completeAsPlannedOrder({ id: workOrderId, data }).unwrap();
-      toast.success('Work order directly completed');
+      appToast.success('Work order directly completed');
       setCompleteAsPlannedOpen(false);
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to direct complete work order');
+      appToast.error(e?.data?.detail || 'Failed to direct complete work order');
     }
   };
 

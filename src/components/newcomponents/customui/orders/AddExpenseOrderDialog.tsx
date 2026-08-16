@@ -29,7 +29,7 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi';
 import type { CreateExpenseOrder, CreateExpenseOrderItem } from '@/types/expenseOrder';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
@@ -135,15 +135,15 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     const q = parseFloat(lineQty);
     const p = parseFloat(linePrice);
     if (!lineDescription.trim()) {
-      toast.error('Enter a description for this expense');
+      appToast.error('Enter a description for this expense');
       return;
     }
     if (isNaN(q) || q <= 0) {
-      toast.error('Enter a valid quantity');
+      appToast.error('Enter a valid quantity');
       return;
     }
     if (isNaN(p) || p < 0) {
-      toast.error('Enter a valid unit price');
+      appToast.error('Enter a valid unit price');
       return;
     }
     setItems((prev) => [
@@ -172,7 +172,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
     if (mode === 'template') {
       if (templateId == null) {
-        toast.error('Select a template');
+        appToast.error('Select a template');
         return;
       }
       try {
@@ -184,32 +184,32 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
             description: description || undefined,
           },
         }).unwrap();
-        toast.success('Expense order created from template');
+        appToast.success('Expense order created from template');
         reset();
         onSuccess(result);
         onOpenChange(false);
       } catch (err: unknown) {
         const errObj = err as { data?: { detail?: string } };
-        toast.error(errObj?.data?.detail || 'Failed to create expense order from template');
+        appToast.error(errObj?.data?.detail || 'Failed to create expense order from template');
       }
       return;
     }
 
     const aid = accountId && accountId !== 'none' ? parseInt(accountId, 10) : null;
     if (accountId && accountId !== 'none' && (isNaN(aid!) || !accountId)) {
-      toast.error('Select a valid account');
+      appToast.error('Select a valid account');
       return;
     }
     if (allocationType !== 'other' && costCenterId === 'none') {
-      toast.error(`Select a ${allocationType} for this expense order`);
+      appToast.error(`Select a ${allocationType} for this expense order`);
       return;
     }
     if (!description.trim()) {
-      toast.error('Enter a description for this expense order');
+      appToast.error('Enter a description for this expense order');
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one expense');
+      appToast.error('Add at least one expense');
       return;
     }
 
@@ -233,13 +233,13 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
     try {
       const result = await createOrder(orderData).unwrap();
-      toast.success('Expense order created');
+      appToast.success('Expense order created');
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create expense order');
+      appToast.error(e?.data?.detail || 'Failed to create expense order');
     }
   };
 

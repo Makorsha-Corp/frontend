@@ -52,7 +52,7 @@ import {
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
 import { useOrderHubPageClamp } from '@/pages/newpages/orders/useOrderHubPageClamp';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const VALID_INVENTORY_TYPES = new Set<InventoryType>(['STORAGE', 'DAMAGED', 'WASTE', 'SCRAP']);
 
@@ -354,10 +354,10 @@ const StoragePage: React.FC = () => {
       return;
     try {
       await deleteInventory(inv.id).unwrap();
-      toast.success('Stock cleared');
+      appToast.success('Stock cleared');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to clear stock');
+      appToast.error(e?.data?.detail || 'Failed to clear stock');
     }
   };
 

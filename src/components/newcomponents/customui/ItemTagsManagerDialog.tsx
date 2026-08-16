@@ -19,7 +19,7 @@ import {
   useUpdateTagMutation,
 } from '@/features/items/itemTagsApi';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 interface ItemTagsManagerDialogProps {
   open: boolean;
@@ -56,7 +56,7 @@ const ItemTagsManagerDialog: React.FC<ItemTagsManagerDialogProps> = ({ open, onO
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error('Tag name is required');
+      appToast.error('Tag name is required');
       return;
     }
 
@@ -70,35 +70,35 @@ const ItemTagsManagerDialog: React.FC<ItemTagsManagerDialogProps> = ({ open, onO
             description: description.trim() || null,
           },
         }).unwrap();
-        toast.success('Tag updated');
+        appToast.success('Tag updated');
       } else {
         await createTag({
           name: name.trim(),
           color: color || null,
           description: description.trim() || null,
         }).unwrap();
-        toast.success('Tag created');
+        appToast.success('Tag created');
       }
       resetForm();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save tag');
+      appToast.error(e?.data?.detail || 'Failed to save tag');
     }
   };
 
   const handleDelete = async (tag: ItemTag) => {
     if (tag.is_system_tag) {
-      toast.error('System tags cannot be deleted');
+      appToast.error('System tags cannot be deleted');
       return;
     }
     if (!window.confirm(`Delete tag "${tag.name}"?`)) return;
     try {
       await deleteTag(tag.id).unwrap();
-      toast.success('Tag deleted');
+      appToast.success('Tag deleted');
       if (editingTag?.id === tag.id) resetForm();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete tag');
+      appToast.error(e?.data?.detail || 'Failed to delete tag');
     }
   };
 

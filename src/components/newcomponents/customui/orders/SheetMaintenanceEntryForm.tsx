@@ -48,7 +48,7 @@ import {
 } from '@/pages/newpages/orders/workOrderConstants';
 import { ChevronDown, ChevronRight, Loader2, Plus, Trash2, Wrench } from 'lucide-react';
 import { format, parseISO, startOfDay } from 'date-fns';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
@@ -580,7 +580,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const handleCommitFooterPart = () => {
     if (!footerPartDraftValid) {
-      toast.error(
+      appToast.error(
         partsActionType === 'REPLACE'
           ? 'Pick item, quantity, and part being replaced'
           : 'Pick an item and quantity',
@@ -834,21 +834,21 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     const mid = Number(machineId);
     const typeId = Number(worksTypeId);
     if (!mid || !typeId) {
-      toast.error('Pick machine and works type');
+      appToast.error('Pick machine and works type');
       return;
     }
     if (billTo === 'external' && !accountId) {
-      toast.error('Pick a vendor account for external billing');
+      appToast.error('Pick a vendor account for external billing');
       return;
     }
     if (billTo === 'internal' && hasMiscCost === 'yes' && !(Number(cost) > 0)) {
-      toast.error('Enter a misc cost amount');
+      appToast.error('Enter a misc cost amount');
       return;
     }
     if (showRecurrenceRange) {
       const spanError = validateRecurrenceSpan(entryStartDate, recurrenceEndDate);
       if (spanError) {
-        toast.error(spanError);
+        appToast.error(spanError);
         return;
       }
       if (
@@ -891,7 +891,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         ? validPartLines
         : [];
     if (!isFooterLayout && partsOpen && validLines.length === 0) {
-      toast.error('Add at least one valid part line or collapse parts section');
+      appToast.error('Add at least one valid part line or collapse parts section');
       return;
     }
 
@@ -926,7 +926,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
           await syncEditItems(workOrderId, mid);
         }
         await syncEditApprovers(workOrderId);
-        toast.success('Entry updated');
+        appToast.success('Entry updated');
       } else {
         await submitEntry({
           machine_id: mid,
@@ -945,7 +945,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               ? validLines.map((l) => mapPartLineToApi(l, mid))
               : undefined,
         }).unwrap();
-        toast.success(
+        appToast.success(
           isFutureWorkDate
             ? 'Draft saved'
             : isPastWorkDate
@@ -959,7 +959,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       }
       onSuccess?.();
     } catch (err: unknown) {
-      toast.error(
+      appToast.error(
         workOrderEntryErrorMessage(err, isEdit ? 'Failed to update entry' : 'Failed to save entry'),
       );
     }
@@ -1059,10 +1059,10 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     setLoadingTemplateId(template.id);
     try {
       await applyTemplateData(template);
-      toast.success('Template applied — remarks and date still editable');
+      appToast.success('Template applied — remarks and date still editable');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to load template');
+      appToast.error(e?.data?.detail || 'Failed to load template');
     } finally {
       setLoadingTemplateId(null);
     }
@@ -1071,7 +1071,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const handleSaveTemplate = async (name: string) => {
     const typeId = Number(worksTypeId);
     if (!typeId) {
-      toast.error('Pick works type first');
+      appToast.error('Pick works type first');
       throw new Error('missing type');
     }
 
@@ -1111,7 +1111,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             }))
           : undefined,
     }).unwrap();
-    toast.success('Template saved');
+    appToast.success('Template saved');
   };
 
   const isFooter = layout === 'footer';

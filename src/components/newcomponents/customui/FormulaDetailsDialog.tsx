@@ -43,7 +43,7 @@ import type {
   ItemRole,
 } from '@/types/production';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2, Trash2, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 
 const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
@@ -150,7 +150,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     e.preventDefault();
     const name = stageName.trim();
     if (!name) {
-      toast.error('Stage name is required');
+      appToast.error('Stage name is required');
       return;
     }
     const nextOrder = formulaStages.length > 0 ? Math.max(...formulaStages.map((s) => s.stage_order)) + 1 : 1;
@@ -167,7 +167,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
           expected_output_item_id: stageOutputItemId ? parseInt(stageOutputItemId, 10) : undefined,
         },
       }).unwrap();
-      toast.success('Stage added');
+      appToast.success('Stage added');
       setStageName('');
       setStageLineId('');
       setStageDuration('');
@@ -175,7 +175,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
       setStageOutputItemId('');
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to add stage');
+      appToast.error(e2?.data?.detail || 'Failed to add stage');
     }
   };
 
@@ -183,10 +183,10 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     if (!window.confirm(`Remove stage "${stage.name}"?`)) return;
     try {
       await removeFormulaStage({ id: stage.id, formulaId }).unwrap();
-      toast.success('Stage removed');
+      appToast.success('Stage removed');
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to remove stage');
+      appToast.error(e2?.data?.detail || 'Failed to remove stage');
     }
   };
 
@@ -210,7 +210,7 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
       ]);
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to reorder');
+      appToast.error(e2?.data?.detail || 'Failed to reorder');
     }
   };
 
@@ -219,12 +219,12 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     const itemId = parseInt(addItemId, 10);
     const qty = parseInt(addQty, 10);
     if (!itemId || qty < 1) {
-      toast.error('Select item and enter quantity');
+      appToast.error('Select item and enter quantity');
       return;
     }
     const exists = formulaItems.some((fi) => fi.item_id === itemId && fi.item_role === addRole);
     if (exists) {
-      toast.error('This item/role combination already exists');
+      appToast.error('This item/role combination already exists');
       return;
     }
     try {
@@ -237,12 +237,12 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
           quantity: qty,
         },
       }).unwrap();
-      toast.success('Item added');
+      appToast.success('Item added');
       setAddItemId('');
       setAddQty('1');
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to add');
+      appToast.error(e2?.data?.detail || 'Failed to add');
     }
   };
 
@@ -250,10 +250,10 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     if (!window.confirm(`Remove ${getItemName(row.item_id)} from formula?`)) return;
     try {
       await removeFormulaItem(row.id).unwrap();
-      toast.success('Item removed');
+      appToast.success('Item removed');
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to remove');
+      appToast.error(e2?.data?.detail || 'Failed to remove');
     }
   };
 

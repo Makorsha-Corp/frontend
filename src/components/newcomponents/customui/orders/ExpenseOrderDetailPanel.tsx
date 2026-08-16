@@ -52,7 +52,7 @@ import {
   Pencil,
   AlertTriangle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
@@ -259,33 +259,33 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       const hint = showCompleteOrders
         ? ''
         : ' Hidden from open orders list — enable Complete in the sidebar to see it there.';
-      toast.success(`Expense order completed — invoice finalized.${hint}`);
+      appToast.success(`Expense order completed — invoice finalized.${hint}`);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to mark complete');
+      appToast.error(e?.data?.detail || 'Failed to mark complete');
     }
   };
 
   const handleSave = async () => {
     if (draft.expense_category !== 'other' && draft.cost_center_id == null) {
-      toast.error(`Select a ${draft.expense_category} for this expense order`);
+      appToast.error(`Select a ${draft.expense_category} for this expense order`);
       return;
     }
     if (!draft.description.trim()) {
-      toast.error('Description is required');
+      appToast.error('Description is required');
       return;
     }
     const hadApprovals = approvalSummary.approved_count > 0;
     try {
       await saveDraftIfDirty();
       if (hadApprovals) {
-        toast.success('Changes saved — recorded approvals were reset');
+        appToast.success('Changes saved — recorded approvals were reset');
       } else {
-        toast.success('Changes saved');
+        appToast.success('Changes saved');
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save');
+      appToast.error(e?.data?.detail || 'Failed to save');
     }
   };
 
@@ -296,7 +296,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       await addApprover({ eoId: order.id, user_id: userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
@@ -305,7 +305,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       await removeApprover({ eoId: order.id, userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 
@@ -320,7 +320,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update required approvals');
+      appToast.error(e?.data?.detail || 'Failed to update required approvals');
     }
   };
 
@@ -334,28 +334,28 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 
   const handleCreateInvoice = async () => {
     try {
       await createInvoice(order.id).unwrap();
-      toast.success('Draft invoice created');
+      appToast.success('Draft invoice created');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create invoice');
+      appToast.error(e?.data?.detail || 'Failed to create invoice');
     }
   };
 
   const handleVoidExpenseOrder = async (voidNote: string) => {
     try {
       await voidOrder({ id: order.id, void_note: voidNote }).unwrap();
-      toast.success(`Expense order ${order.expense_number} voided`);
+      appToast.success(`Expense order ${order.expense_number} voided`);
       setVoidOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void expense order');
+      appToast.error(e?.data?.detail || 'Failed to void expense order');
     }
   };
 
@@ -760,7 +760,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
         items={items}
         onSaved={() => {
           if (hadApprovalsBeforeEditRef.current) {
-            toast('Expenses updated — recorded approvals were reset', { icon: '⚠️' });
+            appToast.neutral('Expenses updated — recorded approvals were reset', { icon: '⚠️' });
           }
         }}
       />

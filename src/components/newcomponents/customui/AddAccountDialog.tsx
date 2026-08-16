@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useCreateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { CreateAccountRequest } from '@/types/account';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2, Search, X } from 'lucide-react';
 
 interface AddAccountDialogProps {
@@ -92,7 +92,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Account name is required');
+      appToast.error('Account name is required');
       return;
     }
 
@@ -113,7 +113,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
 
     try {
       await createAccount(payload).unwrap();
-      toast.success('Account created successfully');
+      appToast.success('Account created successfully');
       setName('');
       setAccountCode('');
       setPrimaryContactPerson('');
@@ -131,7 +131,7 @@ const AddAccountDialog: React.FC<AddAccountDialogProps> = ({
     } catch (error: unknown) {
       console.error('Failed to create account:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to create account');
+      appToast.error(err?.data?.detail || 'Failed to create account');
     }
   };
 

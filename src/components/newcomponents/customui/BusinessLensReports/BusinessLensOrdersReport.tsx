@@ -16,7 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, BarChart3, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 type BusinessLensOrdersReportProps = {
   start?: string;
@@ -78,18 +78,18 @@ const BusinessLensOrdersReport: React.FC<BusinessLensOrdersReportProps> = ({ sta
       : '0.00';
 
   const generateReport = async () => {
-    if (!startDate) return toast.error('Please select a start date');
-    if (!endDate) return toast.error('Please select an end date');
-    if (startDate > endDate) return toast.error('Start date must be before end date');
+    if (!startDate) return appToast.error('Please select a start date');
+    if (!endDate) return appToast.error('Please select an end date');
+    if (startDate > endDate) return appToast.error('Start date must be before end date');
 
     setLoading(true);
     try {
       // Placeholder: simulate API call
       await new Promise((r) => setTimeout(r, 500));
       setHasData(true);
-      toast.success('Report generated successfully!');
+      appToast.success('Report generated successfully!');
     } catch {
-      toast.error('Failed to load orders');
+      appToast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }

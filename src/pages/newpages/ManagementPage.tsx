@@ -38,7 +38,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Check, Copy, Loader2, Mail, ShieldCheck, UserMinus, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsModal } from '@/context/SettingsModalContext';
@@ -160,12 +160,12 @@ const WorkspaceSettingsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }
           })
         );
       }
-      toast.success('Workspace default timezone saved');
+      appToast.success('Workspace default timezone saved');
     } catch (err: unknown) {
       const msg =
         (err as { data?: { detail?: string } })?.data?.detail ??
         'Failed to save workspace settings';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
@@ -233,10 +233,10 @@ const MembersTab: React.FC<{ workspaceId: number; currentUserId: number }> = ({
   const handleRoleChange = async (userId: number, newRole: string) => {
     try {
       await updateRole({ workspaceId, userId, data: { new_role: newRole } }).unwrap();
-      toast.success('Role updated');
+      appToast.success('Role updated');
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to update role';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
@@ -244,11 +244,11 @@ const MembersTab: React.FC<{ workspaceId: number; currentUserId: number }> = ({
     if (!confirmRemove) return;
     try {
       await removeMember({ workspaceId, userId: confirmRemove.userId }).unwrap();
-      toast.success(`${confirmRemove.name} removed`);
+      appToast.success(`${confirmRemove.name} removed`);
       setConfirmRemove(null);
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to remove member';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
@@ -440,7 +440,7 @@ const InvitationsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }) => {
       setCreatedToken(result.token);
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to send invitation';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
@@ -451,11 +451,11 @@ const InvitationsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }) => {
         workspaceId,
         invitationId: confirmCancel.invitationId,
       }).unwrap();
-      toast.success(`Invitation to ${confirmCancel.email} cancelled`);
+      appToast.success(`Invitation to ${confirmCancel.email} cancelled`);
       setConfirmCancel(null);
     } catch (err: unknown) {
       const msg = (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to cancel invitation';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 

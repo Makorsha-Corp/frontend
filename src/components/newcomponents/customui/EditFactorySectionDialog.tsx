@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUpdateFactorySectionMutation } from '@/features/factorySections/factorySectionsApi';
 import type { FactorySection } from '@/types/factorySection';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import { apiErrorDetail } from '@/utils/apiError';
 
@@ -45,14 +45,14 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
     if (!section) return;
 
     if (!name.trim()) {
-      toast.error('Section name is required');
+      appToast.error('Section name is required');
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = sections.find((s) => s.id !== section.id && s.name.toLowerCase() === nameLower);
     if (dup) {
-      toast.error('A section with this name already exists in this factory');
+      appToast.error('A section with this name already exists in this factory');
       return;
     }
 
@@ -62,11 +62,11 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
         data: { name: name.trim() },
       }).unwrap();
 
-      toast.success('Section updated successfully');
+      appToast.success('Section updated successfully');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update section:', error);
-      toast.error(apiErrorDetail(error, 'Failed to update section'));
+      appToast.error(apiErrorDetail(error, 'Failed to update section'));
     }
   };
 

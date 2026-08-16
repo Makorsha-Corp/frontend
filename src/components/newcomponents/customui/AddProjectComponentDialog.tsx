@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateProjectComponentMutation } from '@/features/projectComponents/projectComponentsApi';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddProjectComponentDialogProps {
@@ -36,7 +36,7 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Component name is required');
+      appToast.error('Component name is required');
       return;
     }
     try {
@@ -45,14 +45,14 @@ const AddProjectComponentDialog: React.FC<AddProjectComponentDialogProps> = ({
         name: name.trim(),
         description: description.trim() || null,
       }).unwrap();
-      toast.success('Component created');
+      appToast.success('Component created');
       setName('');
       setDescription('');
       onOpenChange(false);
       onSuccess?.(component.id);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create component');
+      appToast.error(e?.data?.detail || 'Failed to create component');
     }
   };
 

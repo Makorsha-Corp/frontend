@@ -31,7 +31,7 @@ import {
   parseItemsCatalogFilters,
   parseItemsCatalogPage,
 } from '@/features/items/itemsCatalogParams';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 
 const ItemsPage: React.FC = () => {
@@ -197,14 +197,14 @@ const ItemsPage: React.FC = () => {
 
     try {
       await deleteItem(item.id).unwrap();
-      toast.success(`Item "${item.name}" has been marked as inactive`);
+      appToast.success(`Item "${item.name}" has been marked as inactive`);
       if (selectedItem?.id === item.id) {
         setSelectedItem(null);
         setIsDetailsDialogOpen(false);
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete item');
+      appToast.error(e?.data?.detail || 'Failed to delete item');
     }
   };
 

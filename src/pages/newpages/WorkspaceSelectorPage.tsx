@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import {
   Building2,
   ChevronDown,
@@ -123,13 +123,13 @@ const WorkspaceSelectorPage: React.FC = () => {
     } catch {
       dispatch(logout());
     }
-    toast.success('Signed out');
+    appToast.success('Signed out');
     navigate('/login');
   };
 
   const handleWorkspaceSelect = () => {
     if (!selectedWorkspaceId) {
-      toast.error('Please select a workspace');
+      appToast.error('Please select a workspace');
       return;
     }
     const selected = workspaces?.find((ws) => ws.id === selectedWorkspaceId);
@@ -142,7 +142,7 @@ const WorkspaceSelectorPage: React.FC = () => {
           status: selected.subscription_status,
         })
       );
-      toast.success(`Switched to ${selected.name}`);
+      appToast.success(`Switched to ${selected.name}`);
       navigate('/dashboard');
     }
   };
@@ -150,11 +150,11 @@ const WorkspaceSelectorPage: React.FC = () => {
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWorkspaceName.trim()) {
-      toast.error('Workspace name is required');
+      appToast.error('Workspace name is required');
       return;
     }
     if (!newWorkspaceSlug.trim()) {
-      toast.error('Workspace slug is required');
+      appToast.error('Workspace slug is required');
       return;
     }
     try {
@@ -171,18 +171,18 @@ const WorkspaceSelectorPage: React.FC = () => {
           status: result.subscription_status ?? 'trial',
         })
       );
-      toast.success(`Workspace "${result.name}" created`);
+      appToast.success(`Workspace "${result.name}" created`);
       navigate('/dashboard');
     } catch (err: unknown) {
       const msg =
         (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to create workspace';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 
   const handleValidateToken = async () => {
     if (!inviteToken.trim()) {
-      toast.error('Please enter an invite token');
+      appToast.error('Please enter an invite token');
       return;
     }
     try {
@@ -192,7 +192,7 @@ const WorkspaceSelectorPage: React.FC = () => {
     } catch (err: unknown) {
       const msg =
         (err as { data?: { detail?: string } })?.data?.detail ?? 'Invalid or expired invite token';
-      toast.error(msg);
+      appToast.error(msg);
       setInvitePreview(null);
     }
   };
@@ -205,7 +205,7 @@ const WorkspaceSelectorPage: React.FC = () => {
         workspaceId: invitePreview.workspace_id,
         data: { token: inviteToken.trim(), position: resolvedPosition },
       }).unwrap();
-      toast.success(`Joined ${invitePreview.workspace_name ?? 'workspace'} successfully`);
+      appToast.success(`Joined ${invitePreview.workspace_name ?? 'workspace'} successfully`);
       // Auto-select the joined workspace and go to dashboard
       dispatch(
         setWorkspace({
@@ -219,7 +219,7 @@ const WorkspaceSelectorPage: React.FC = () => {
     } catch (err: unknown) {
       const msg =
         (err as { data?: { detail?: string } })?.data?.detail ?? 'Failed to join workspace';
-      toast.error(msg);
+      appToast.error(msg);
     }
   };
 

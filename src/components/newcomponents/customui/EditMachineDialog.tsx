@@ -33,7 +33,7 @@ import MachineDialogItemsBlock, {
 import { useLineItemAddButtonHighlight } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import type { Machine } from '@/types/machine';
 import { API_LIMITS } from '@/constants/apiLimits';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface EditMachineDialogProps {
@@ -194,12 +194,12 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
     if (!machine) return;
 
     if (!name.trim()) {
-      toast.error('Machine name is required');
+      appToast.error('Machine name is required');
       return;
     }
 
     if (!factoryId) {
-      toast.error('Factory is required');
+      appToast.error('Factory is required');
       return;
     }
 
@@ -231,19 +231,19 @@ const EditMachineDialog: React.FC<EditMachineDialogProps> = ({
       } catch (itemErr: unknown) {
         console.error('Machine saved but items failed:', itemErr);
         const err = itemErr as { data?: { detail?: string } };
-        toast.error(err?.data?.detail || 'Machine saved, but some item changes failed.');
+        appToast.error(err?.data?.detail || 'Machine saved, but some item changes failed.');
         onSuccess?.();
         onOpenChange(false);
         return;
       }
 
-      toast.success('Machine updated successfully');
+      appToast.success('Machine updated successfully');
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const err = error as { data?: { detail?: string } };
       console.error('Failed to update machine:', error);
-      toast.error(err?.data?.detail || 'Failed to update machine');
+      appToast.error(err?.data?.detail || 'Failed to update machine');
     }
   };
 

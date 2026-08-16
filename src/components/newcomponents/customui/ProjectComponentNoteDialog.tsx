@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUpdateProjectComponentNoteMutation } from '@/features/projectComponentNotes/projectComponentNotesApi';
 import type { ProjectComponentNote } from '@/types/projectComponentNote';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface ProjectComponentNoteDialogProps {
@@ -41,7 +41,7 @@ const ProjectComponentNoteDialog: React.FC<ProjectComponentNoteDialogProps> = ({
     e.preventDefault();
     if (!note) return;
     if (!name.trim()) {
-      toast.error('Note title is required');
+      appToast.error('Note title is required');
       return;
     }
     try {
@@ -53,11 +53,11 @@ const ProjectComponentNoteDialog: React.FC<ProjectComponentNoteDialogProps> = ({
           description: description.trim() || name.trim(),
         },
       }).unwrap();
-      toast.success('Note updated');
+      appToast.success('Note updated');
       onOpenChange(false);
     } catch (err: unknown) {
       const error = err as { data?: { detail?: string } };
-      toast.error(error?.data?.detail || 'Failed to update note');
+      appToast.error(error?.data?.detail || 'Failed to update note');
     }
   };
 

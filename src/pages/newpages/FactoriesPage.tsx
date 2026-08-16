@@ -24,7 +24,7 @@ import {
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import type { Factory } from '@/types/factory';
 import { useFactoriesOverviewPage } from '@/pages/newpages/factories/useFactoriesOverviewPage';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const FactoriesPage: React.FC = () => {
   const overview = useFactoriesOverviewPage();
@@ -53,7 +53,7 @@ const FactoriesPage: React.FC = () => {
     }
     try {
       await deleteFactory(factory.id).unwrap();
-      toast.success(`Factory "${factory.name}" has been deactivated`);
+      appToast.success(`Factory "${factory.name}" has been deactivated`);
       if (overview.activeFactory?.id === factory.id) {
         overview.clearFactorySelection();
       }
@@ -62,7 +62,7 @@ const FactoriesPage: React.FC = () => {
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      toast.error(detail || 'Failed to deactivate factory');
+      appToast.error(detail || 'Failed to deactivate factory');
     }
   };
 

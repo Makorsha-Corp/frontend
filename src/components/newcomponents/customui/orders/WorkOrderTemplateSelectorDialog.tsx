@@ -35,7 +35,7 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import CreateEditWorkOrderTemplateDialog from './CreateEditWorkOrderTemplateDialog';
 
 export type TemplatePickerMode = 'pick' | 'manage';
@@ -200,11 +200,11 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
     setBusyId(t.id);
     try {
       await deactivateTemplate(t.id).unwrap();
-      toast.success(`${t.template_name} deleted`);
+      appToast.success(`${t.template_name} deleted`);
       if (highlightedId === t.id) setHighlightedId(null);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to delete template');
+      appToast.error(e?.data?.detail || 'Failed to delete template');
     } finally {
       setBusyId(null);
     }
@@ -219,7 +219,7 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
       setSaveName('');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      if (e?.data?.detail) toast.error(e.data.detail);
+      if (e?.data?.detail) appToast.error(e.data.detail);
     } finally {
       setIsSavingFromForm(false);
     }

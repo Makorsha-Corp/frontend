@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -330,20 +330,20 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const handleAddApprover = async (userId: number) => {
     try {
       await addApprover({ orderId: order.id, user_id: userId }).unwrap();
-      toast.success('Approver added');
+      appToast.success('Approver added');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
   const handleRemoveApprover = async (userId: number) => {
     try {
       await removeApprover({ orderId: order.id, userId }).unwrap();
-      toast.success('Approver removed');
+      appToast.success('Approver removed');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 
@@ -353,7 +353,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     try {
       if (myApproval?.approved) {
         if (approvalWithdrawBlocked) {
-          toast.error(
+          appToast.error(
             isSoCompleted
               ? 'Order is complete — approval cannot be withdrawn'
               : 'Cannot withdraw approval — invoice is finalized'
@@ -361,18 +361,18 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
           return;
         }
         await unapproveOrder(order.id).unwrap();
-        toast.success('Approval withdrawn');
+        appToast.success('Approval withdrawn');
       } else {
         if (!confirmationsStatus.allConfirmed) {
-          toast.error(confirmationsStatus.reason ?? 'Confirm all sections before approving');
+          appToast.error(confirmationsStatus.reason ?? 'Confirm all sections before approving');
           return;
         }
         await approveOrder(order.id).unwrap();
-        toast.success('Approved');
+        appToast.success('Approved');
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 
@@ -383,7 +383,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       return true;
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save section changes');
+      appToast.error(e?.data?.detail || 'Failed to save section changes');
       return false;
     }
   };
@@ -391,7 +391,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const requestSectionConfirmToggle = (section: SoSectionConfirmKey, currentlyConfirmed: boolean) => {
     if (!currentlyConfirmed) {
       if (!sectionConfirmReadiness[section].ok) {
-        toast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
+        appToast.error(sectionConfirmReadiness[section].reason ?? 'Section not ready to confirm');
         return;
       }
       void handleToggleSectionConfirm(section, true);
@@ -418,11 +418,11 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       }
       await setSectionConfirm({ orderId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
-      toast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
+      appToast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update confirm');
+      appToast.error(e?.data?.detail || 'Failed to update confirm');
     } finally {
       setConfirmingSection(null);
     }
@@ -432,11 +432,11 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     if (!isDirty) return;
     try {
       await updateSalesOrder({ id: order.id, data: changedFields }).unwrap();
-      toast.success('Sales order updated');
+      appToast.success('Sales order updated');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save changes');
+      appToast.error(e?.data?.detail || 'Failed to save changes');
     }
   };
 
@@ -446,26 +446,26 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     if (!finalizeReadiness.ok) return;
     try {
       await finalizeInvoice(order.id).unwrap();
-      toast.success('Invoice finalized — delivery and fulfilment are now unlocked.');
+      appToast.success('Invoice finalized — delivery and fulfilment are now unlocked.');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to finalize invoice');
+      appToast.error(e?.data?.detail || 'Failed to finalize invoice');
     }
   };
 
   const handleMarkOrderComplete = async () => {
     if (!markCompleteReadiness.ok) {
-      toast.error(markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
+      appToast.error(markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
       return;
     }
     try {
       await markOrderComplete(order.id).unwrap();
-      toast.success('Sales order marked complete');
+      appToast.success('Sales order marked complete');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to mark order complete');
+      appToast.error(e?.data?.detail || 'Failed to mark order complete');
     }
   };
 
@@ -474,14 +474,14 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     try {
       const result = await fulfillItem({ orderId: order.id, itemId, completion_code: completionCode }).unwrap();
       for (const msg of result.messages ?? []) {
-        toast.success(msg.message);
+        appToast.success(msg.message);
       }
       setFulfillDialogItem(null);
       setFulfillCompletionCode('');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to fulfill line item');
+      appToast.error(e?.data?.detail || 'Failed to fulfill line item');
     } finally {
       setFulfillingItemId(null);
     }

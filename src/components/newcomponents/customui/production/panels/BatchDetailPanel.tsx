@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,7 @@ import {
   Plus,
   ClipboardList,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import {
   ITEM_ROLES,
   BATCH_ROLE_BADGE,
@@ -252,9 +252,9 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
           if (scaleOps.length > 0) {
             await Promise.all(scaleOps);
-            toast.success('Batch updated and input lines scaled');
+            appToast.success('Batch updated and input lines scaled');
           } else {
-            toast.success('Batch updated');
+            appToast.success('Batch updated');
           }
           setIsInlineEditing(false);
           return;
@@ -269,11 +269,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           },
         }).unwrap();
       }
-      toast.success('Batch updated');
+      appToast.success('Batch updated');
       setIsInlineEditing(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update');
+      appToast.error(err?.data?.detail || 'Failed to update');
     }
   };
 
@@ -283,7 +283,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     const itemId = parseInt(addItemId, 10);
     const exp = addExpected.trim() ? parseInt(addExpected, 10) : undefined;
     if (!itemId) {
-      toast.error('Select an item');
+      appToast.error('Select an item');
       return;
     }
     try {
@@ -296,19 +296,19 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           expected_quantity: exp,
         },
       }).unwrap();
-      toast.success('Line added');
+      appToast.success('Line added');
       setAddItemId('');
       setAddExpected('');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to add line');
+      appToast.error(err?.data?.detail || 'Failed to add line');
     }
   };
 
   const handleSaveActual = async (row: ProductionBatchItem, raw: string) => {
     const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 0)) {
-      toast.error('Invalid quantity');
+      appToast.error('Invalid quantity');
       return;
     }
     try {
@@ -316,10 +316,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         id: row.id,
         data: { actual_quantity: n },
       }).unwrap();
-      toast.success('Saved');
+      appToast.success('Saved');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -327,7 +327,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     if (!canMutateItems) return;
     const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 1)) {
-      toast.error('Expected quantity must be a positive integer');
+      appToast.error('Expected quantity must be a positive integer');
       return;
     }
     try {
@@ -335,10 +335,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         id: row.id,
         data: { expected_quantity: n },
       }).unwrap();
-      toast.success('Expected quantity saved');
+      appToast.success('Expected quantity saved');
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || 'Failed to save');
     }
   };
 
@@ -347,11 +347,11 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     if (!window.confirm(`Remove draft batch ${batch.batch_number}?`)) return;
     try {
       await deleteProductionBatch(batch.id).unwrap();
-      toast.success('Draft removed');
+      appToast.success('Draft removed');
       onDeleted();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to delete');
+      appToast.error(err?.data?.detail || 'Failed to delete');
     }
   };
 
@@ -403,7 +403,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage timeline</p>
-          <p className="text-xs text-muted-foreground">Manual logs — audit only; inventory posts on batch start/complete.</p>
+          <p className="text-xs text-muted-foreground">Manual logs � audit only; inventory posts on batch start/complete.</p>
         </div>
         {canLogStages && (
           <Button type="button" size="sm" variant="outline" onClick={openNewStageLog}>
@@ -420,7 +420,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
           {batch.formula_id
             ? 'Pending stage logs appear when batch is created from a formula with stages.'
-            : 'No stage logs — add ad-hoc stages as production runs.'}
+            : 'No stage logs � add ad-hoc stages as production runs.'}
         </p>
       ) : (
         <ol className="relative space-y-0 border-l border-border/80 pl-4">
@@ -509,7 +509,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
       ) : batchItems.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
           {batch.status === 'draft' && batch.formula_id
-            ? 'No lines yet â€” they appear after Start. Add items below when allowed, or wait for the formula.'
+            ? 'No lines yet — they appear after Start. Add items below when allowed, or wait for the formula.'
             : batch.status === 'draft'
               ? 'No lines yet. Add items below, or attach a formula and start.'
               : 'No line items returned.'}
@@ -583,10 +583,10 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
                                 if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
                                 try {
                                   await removeBatchItem(row.id).unwrap();
-                                  toast.success('Removed');
+                                  appToast.success('Removed');
                                 } catch (e: unknown) {
                                   const err = e as { data?: { detail?: string } };
-                                  toast.error(err?.data?.detail || 'Failed');
+                                  appToast.error(err?.data?.detail || 'Failed');
                                 }
                               }}
                               onSaveExpected={(raw) => handleSaveExpected(row, raw)}
@@ -659,7 +659,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           id="batch-add-exp"
           type="number"
           min={0}
-          placeholder="â€”"
+          placeholder="—"
           value={addExpected}
           onChange={(e) => setAddExpected(e.target.value)}
         />
@@ -678,7 +678,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
         onOpenChange={setIsAddItemDialogOpen}
         onSuccess={(item) => {
           setAddItemId(item.id.toString());
-          toast.success('Item created and selected');
+          appToast.success('Item created and selected');
         }}
       />
     </form>
@@ -806,7 +806,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             onClick={onRequestStart}
           >
             <Play className="mr-1 h-4 w-4" />
-            Startâ€¦
+            Start…
           </Button>
           <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
             <Pencil className="mr-1 h-4 w-4" />
@@ -997,7 +997,7 @@ const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
                   setEditingExpected(false);
                 }
               }}
-              placeholder="â€”"
+              placeholder="—"
             />
           </>
         ) : (
@@ -1012,7 +1012,7 @@ const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
             }}
             title={canEditExpected ? 'Double-click to edit expected qty' : undefined}
           >
-            {row.expected_quantity ?? 'â€”'}
+            {row.expected_quantity ?? '—'}
           </button>
         )}
       </TableCell>
@@ -1044,7 +1044,7 @@ const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
                   setEditingActual(false);
                 }
               }}
-              placeholder="â€”"
+              placeholder="—"
             />
           </>
         ) : (
@@ -1059,7 +1059,7 @@ const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
             }}
             title={canEditActual ? 'Double-click to edit actual qty' : undefined}
           >
-            {row.actual_quantity ?? 'â€”'}
+            {row.actual_quantity ?? '—'}
           </button>
         )}
       </TableCell>

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUpdateFactoryMutation } from '@/features/factories/factoriesApi';
 import type { Factory } from '@/types/factory';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import { apiErrorDetail } from '@/utils/apiError';
 
@@ -42,12 +42,12 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
     if (!factory) return;
 
     if (!name.trim()) {
-      toast.error('Factory name is required');
+      appToast.error('Factory name is required');
       return;
     }
 
     if (!abbreviation.trim()) {
-      toast.error('Abbreviation is required');
+      appToast.error('Abbreviation is required');
       return;
     }
 
@@ -59,7 +59,7 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
         (f.name.toLowerCase() === nameLower || f.abbreviation.toLowerCase() === abbrLower)
     );
     if (dup) {
-      toast.error(
+      appToast.error(
         dup.name.toLowerCase() === nameLower
           ? 'A factory with this name already exists'
           : 'A factory with this abbreviation already exists'
@@ -76,11 +76,11 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
         },
       }).unwrap();
 
-      toast.success('Factory updated successfully!');
+      appToast.success('Factory updated successfully!');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update factory:', error);
-      toast.error(apiErrorDetail(error, 'Failed to update factory'));
+      appToast.error(apiErrorDetail(error, 'Failed to update factory'));
     }
   };
 

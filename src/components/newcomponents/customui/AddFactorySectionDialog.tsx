@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateFactorySectionMutation } from '@/features/factorySections/factorySectionsApi';
 import type { FactorySection } from '@/types/factorySection';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 import { apiErrorDetail } from '@/utils/apiError';
 
@@ -37,14 +37,14 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Section name is required');
+      appToast.error('Section name is required');
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = sections.find((s) => s.name.toLowerCase() === nameLower);
     if (dup) {
-      toast.error('A section with this name already exists in this factory');
+      appToast.error('A section with this name already exists in this factory');
       return;
     }
 
@@ -54,12 +54,12 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
         factory_id: factoryId,
       }).unwrap();
 
-      toast.success('Section created successfully');
+      appToast.success('Section created successfully');
       setName('');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to create section:', error);
-      toast.error(apiErrorDetail(error, 'Failed to create section'));
+      appToast.error(apiErrorDetail(error, 'Failed to create section'));
     }
   };
 

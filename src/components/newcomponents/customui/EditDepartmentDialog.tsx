@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUpdateDepartmentMutation } from '@/features/departments/departmentsApi';
 import type { Department } from '@/types/department';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface EditDepartmentDialogProps {
@@ -44,14 +44,14 @@ const EditDepartmentDialog: React.FC<EditDepartmentDialogProps> = ({
     if (!department) return;
 
     if (!name.trim()) {
-      toast.error('Department name is required');
+      appToast.error('Department name is required');
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = departments.find((d) => d.id !== department.id && d.name.toLowerCase() === nameLower);
     if (dup) {
-      toast.error('A department with this name already exists');
+      appToast.error('A department with this name already exists');
       return;
     }
 
@@ -61,12 +61,12 @@ const EditDepartmentDialog: React.FC<EditDepartmentDialogProps> = ({
         data: { name: name.trim() },
       }).unwrap();
 
-      toast.success('Department updated successfully');
+      appToast.success('Department updated successfully');
       onOpenChange(false);
     } catch (error: unknown) {
       console.error('Failed to update department:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update department');
+      appToast.error(err?.data?.detail || 'Failed to update department');
     }
   };
 

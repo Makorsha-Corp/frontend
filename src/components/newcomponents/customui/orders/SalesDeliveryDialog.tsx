@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import type { SalesOrderItem } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
 import type { DeliveryMethod } from '@/types/deliveryMethod';
@@ -122,13 +122,13 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
         },
         items: lines.map(({ item, qty }) => ({ sales_order_item_id: item.id, quantity_delivered: qty })),
       }).unwrap();
-      toast.success('Delivery planned');
+      appToast.success('Delivery planned');
       onSaved?.();
       setMode('overview');
       resetForm();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to plan delivery');
+      appToast.error(e?.data?.detail || 'Failed to plan delivery');
     }
   };
 
@@ -506,12 +506,12 @@ const ManageDeliveryDialog: React.FC<{
           notes: notes.trim() || undefined,
         },
       }).unwrap();
-      toast.success(`${delivery.delivery_number} updated`);
+      appToast.success(`${delivery.delivery_number} updated`);
       onOpenChange(false);
       onChanged();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update delivery');
+      appToast.error(e?.data?.detail || 'Failed to update delivery');
     }
   };
 
@@ -525,25 +525,25 @@ const ManageDeliveryDialog: React.FC<{
         },
       }).unwrap();
       for (const msg of result.messages ?? []) {
-        toast.success(msg.message);
+        appToast.success(msg.message);
       }
       onOpenChange(false);
       onChanged();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to complete delivery');
+      appToast.error(e?.data?.detail || 'Failed to complete delivery');
     }
   };
 
   const handleDelete = async () => {
     try {
       await cancelDelivery(delivery.id).unwrap();
-      toast.success(`${delivery.delivery_number} cancelled — quantity freed up to plan again`);
+      appToast.success(`${delivery.delivery_number} cancelled — quantity freed up to plan again`);
       onOpenChange(false);
       onChanged();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to cancel delivery');
+      appToast.error(e?.data?.detail || 'Failed to cancel delivery');
     }
   };
 

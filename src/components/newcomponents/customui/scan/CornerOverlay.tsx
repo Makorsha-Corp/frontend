@@ -80,7 +80,7 @@ export default function CornerOverlay({
   );
 
   const onHandlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event: React.PointerEvent<HTMLButtonElement>) => {
       if (activeDragIndex === null || disabled) return;
 
       const localRect = viewportRef.current?.getBoundingClientRect();
@@ -97,7 +97,7 @@ export default function CornerOverlay({
     [activeDragIndex, disabled, mapPointerToImage, updateCorner, viewportRef],
   );
 
-  const endHandleDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const endHandleDrag = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     setActiveDragIndex(null);
     setDragPointer(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {

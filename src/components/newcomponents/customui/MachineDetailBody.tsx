@@ -46,7 +46,7 @@ import {
   History,
   SlidersHorizontal,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import AddMachineItemDialog from './AddMachineItemDialog';
 import MachineActivityEventLogRow from './MachineActivityEventLogRow';
 import MachineActivityWorkOrderGroupRow from './MachineActivityWorkOrderGroupRow';
@@ -151,11 +151,11 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     if (!window.confirm('Delete this event?')) return;
     try {
       await deleteMaintenanceLog(maintenanceLogId).unwrap();
-      toast.success('Log deleted');
+      appToast.success('Log deleted');
       onMachineUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(apiErrorDetail(e, 'Failed to delete'));
+      appToast.error(apiErrorDetail(e, 'Failed to delete'));
     }
   };
 
@@ -165,10 +165,10 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
         machine_id: machine.id,
         data: { machine_id: machine.id, event_type: eventType },
       }).unwrap();
-      toast.success(`Status updated to ${eventType.toLowerCase()}`);
+      appToast.success(`Status updated to ${eventType.toLowerCase()}`);
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update status'));
+      appToast.error(apiErrorDetail(error, 'Failed to update status'));
     }
   };
 
@@ -177,7 +177,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     if (trimmed === '') return null;
     const n = parseInt(trimmed, 10);
     if (isNaN(n) || n < 0) {
-      toast.error(`Invalid ${label}`);
+      appToast.error(`Invalid ${label}`);
       return 'invalid';
     }
     return n;
@@ -186,7 +186,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
   const handleSaveItemEdit = async (mi: MachineItem) => {
     const qtyNum = parseInt(editDraft.qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      toast.error('Invalid quantity');
+      appToast.error('Invalid quantity');
       return;
     }
     const reqQty = parseOptionalQty(editDraft.req_qty, 'required quantity');
@@ -203,11 +203,11 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
           defective_qty: defectiveQty ?? undefined,
         },
       }).unwrap();
-      toast.success('Item updated');
+      appToast.success('Item updated');
       cancelItemEdit();
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to update'));
+      appToast.error(apiErrorDetail(error, 'Failed to update'));
     }
   };
 
@@ -215,10 +215,10 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     if (!window.confirm('Remove this item from the machine?')) return;
     try {
       await deleteMachineItem(mi.id).unwrap();
-      toast.success('Item removed');
+      appToast.success('Item removed');
       onMachineUpdated?.();
     } catch (error) {
-      toast.error(apiErrorDetail(error, 'Failed to remove'));
+      appToast.error(apiErrorDetail(error, 'Failed to remove'));
     }
   };
 

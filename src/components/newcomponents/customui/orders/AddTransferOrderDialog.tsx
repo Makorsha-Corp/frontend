@@ -24,7 +24,7 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { CreateTransferOrder, CreateTransferOrderItem } from '@/types/transferOrder';
 import type { InventoryType } from '@/types/inventory';
 import { ArrowDown, Check, Loader2, Pencil, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
@@ -265,7 +265,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
   const handleAddItemClick = () => {
     if (!hasValidSource) {
-      toast.error('Select a source location first');
+      appToast.error('Select a source location first');
       return;
     }
     if (!canAddLineItem) {
@@ -276,11 +276,11 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     const q = parseFloat(qty);
     const remaining = getRemainingQty(iid);
     if (q > remaining) {
-      toast.error(`Only ${remaining} available at source`);
+      appToast.error(`Only ${remaining} available at source`);
       return;
     }
     if (items.some((line) => line.item_id === iid)) {
-      toast.error('Item already on this order — edit quantity below');
+      appToast.error('Item already on this order — edit quantity below');
       return;
     }
     setItems((prev) => [...prev, { item_id: iid, quantity: q }]);
@@ -303,7 +303,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     if (itemIdNum == null) return;
     const maxQty = getRemainingQty(itemIdNum, idx);
     if (n > maxQty) {
-      toast.error(`Only ${maxQty} available at source`);
+      appToast.error(`Only ${maxQty} available at source`);
       return;
     }
     setItems((prev) =>
@@ -318,15 +318,15 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
     const sid = parseInt(sourceId, 10);
     const did = parseInt(destId, 10);
     if (isNaN(sid) || !sourceId) {
-      toast.error('Select source location');
+      appToast.error('Select source location');
       return;
     }
     if (isNaN(did) || !destId) {
-      toast.error('Select destination location');
+      appToast.error('Select destination location');
       return;
     }
     if (isSameTransferLocation(sourceType, sourceId, destType, destId)) {
-      toast.error('Destination must be different from source');
+      appToast.error('Destination must be different from source');
       return;
     }
     if (
@@ -344,7 +344,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one transfer item');
+      appToast.error('Add at least one transfer item');
       return;
     }
 
@@ -360,13 +360,13 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
     try {
       const result = await createOrder(orderData).unwrap();
-      toast.success('Transfer order created');
+      appToast.success('Transfer order created');
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create transfer order');
+      appToast.error(e?.data?.detail || 'Failed to create transfer order');
     }
   };
 
@@ -739,7 +739,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {
           if (isSameTransferLocation('machine', m.id, destType, destId)) {
-            toast.error('Source cannot be the same as destination');
+            appToast.error('Source cannot be the same as destination');
             return;
           }
           setSourceId(String(m.id));
@@ -754,7 +754,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {
           if (isSameTransferLocation('machine', sourceId, 'machine', m.id)) {
-            toast.error('Destination cannot be the same as source');
+            appToast.error('Destination cannot be the same as source');
             return;
           }
           setDestId(String(m.id));

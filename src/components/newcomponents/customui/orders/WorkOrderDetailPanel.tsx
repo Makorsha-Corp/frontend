@@ -60,7 +60,7 @@ import {
   StickyNote,
   History,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import {
   WORK_ORDER_PRIORITIES,
@@ -234,60 +234,60 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
       await updateOrder({ id: order.id, data }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update work order');
+      appToast.error(e?.data?.detail || 'Failed to update work order');
     }
   };
 
   const handleStart = async () => {
     try {
       await startOrder(order.id).unwrap();
-      toast.success('Work started');
+      appToast.success('Work started');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to start work order');
+      appToast.error(e?.data?.detail || 'Failed to start work order');
     }
   };
 
   const handleComplete = async (data: WorkOrderCompleteRequest) => {
     try {
       await completeOrder({ id: order.id, data }).unwrap();
-      toast.success('Work order completed');
+      appToast.success('Work order completed');
       setCompleteOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to complete work order');
+      appToast.error(e?.data?.detail || 'Failed to complete work order');
     }
   };
 
   const handleCompleteAsPlanned = async (data: WorkOrderCompleteRequest) => {
     try {
       await completeAsPlannedOrder({ id: order.id, data }).unwrap();
-      toast.success('Work order directly completed');
+      appToast.success('Work order directly completed');
       setCompleteAsPlannedOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to direct complete work order');
+      appToast.error(e?.data?.detail || 'Failed to direct complete work order');
     }
   };
 
   const handleVoid = async (voidNote: string) => {
     try {
       await voidOrder({ id: order.id, void_note: voidNote }).unwrap();
-      toast.success('Work order voided');
+      appToast.success('Work order voided');
       setVoidOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to void work order');
+      appToast.error(e?.data?.detail || 'Failed to void work order');
     }
   };
 
   const handleCreateInvoice = async () => {
     try {
       await createInvoice(order.id).unwrap();
-      toast.success('Invoice created');
+      appToast.success('Invoice created');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create invoice');
+      appToast.error(e?.data?.detail || 'Failed to create invoice');
     }
   };
 
@@ -301,7 +301,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 
@@ -310,7 +310,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
       await addApprover({ woId: order.id, user_id: userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
@@ -319,7 +319,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
       await removeApprover({ woId: order.id, userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 

@@ -29,7 +29,7 @@ import type {
   ProductionLine,
 } from '@/types/production';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const STAGE_STATUSES: BatchStageLogStatus[] = ['pending', 'in_progress', 'completed', 'skipped'];
 
@@ -126,11 +126,11 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
     e.preventDefault();
     const name = stageName.trim();
     if (!name) {
-      toast.error('Stage name is required');
+      appToast.error('Stage name is required');
       return;
     }
     if (status === 'completed' && !outputQty.trim()) {
-      toast.error('Output quantity required to complete stage (or mark skipped)');
+      appToast.error('Output quantity required to complete stage (or mark skipped)');
       return;
     }
 
@@ -162,7 +162,7 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
             notes: notes.trim() || null,
           },
         }).unwrap();
-        toast.success('Stage log updated');
+        appToast.success('Stage log updated');
       } else {
         await addLog({
           batchId,
@@ -173,12 +173,12 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
             ...payload,
           },
         }).unwrap();
-        toast.success('Stage logged');
+        appToast.success('Stage logged');
       }
       onOpenChange(false);
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      toast.error(e2?.data?.detail || 'Failed to save stage log');
+      appToast.error(e2?.data?.detail || 'Failed to save stage log');
     }
   };
 

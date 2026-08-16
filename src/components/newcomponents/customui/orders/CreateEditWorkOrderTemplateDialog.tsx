@@ -52,7 +52,7 @@ import {
   workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
@@ -325,10 +325,10 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setTypeId(String(created.id));
       setIsCreatingType(false);
       setNewTypeName('');
-      toast.success('Work order type added');
+      appToast.success('Work order type added');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create work order type');
+      appToast.error(e?.data?.detail || 'Failed to create work order type');
     }
   };
 
@@ -376,7 +376,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
 
   const handleAddLine = () => {
     if (!draftLineValid) {
-      toast.error('Pick an item and quantity for this part line');
+      appToast.error('Pick an item and quantity for this part line');
       return;
     }
     setLines((prev) => [...prev, draftLine]);
@@ -457,7 +457,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const handleSave = async () => {
     if (saveBlockReason) {
       pulseSaveHighlight(saveBlockReason);
-      toast.error(templateSaveBlockMessage(saveBlockReason));
+      appToast.error(templateSaveBlockMessage(saveBlockReason));
       return;
     }
     setIsSaving(true);
@@ -509,15 +509,15 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         for (const li of lineItems) {
           await addTemplateItem({ tplId: template.id, data: li }).unwrap();
         }
-        toast.success('Template updated');
+        appToast.success('Template updated');
       } else {
         await createTemplate({ ...basePayload, items: lineItems }).unwrap();
-        toast.success('Template created');
+        appToast.success('Template created');
       }
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save template');
+      appToast.error(e?.data?.detail || 'Failed to save template');
     } finally {
       setIsSaving(false);
     }

@@ -5,14 +5,14 @@ import toast, { type Toast, type ToastOptions } from 'react-hot-toast';
 export const APP_TOAST_DEFAULTS = {
   position: 'bottom-right' as const,
   duration: 4000,
-  /** Lift action toasts above NotificationToastStack (bottom-4 + ~64px toast height). */
-  containerBottomOffsetPx: 88,
+  containerBottomOffsetPx: 16,
 } as const;
 
 export const APP_TOAST_DURATIONS = {
   success: 4000,
   error: 5000,
   auth: 3000,
+  neutral: 4000,
 } as const;
 
 export const APP_TOAST_IDS = {
@@ -20,7 +20,8 @@ export const APP_TOAST_IDS = {
   loginSuccess: 'login-success',
 } as const;
 
-const baseToastStyle: CSSProperties = {
+/** Shared card styling for action toasts and notification popups. */
+export const APP_TOAST_STYLE: CSSProperties = {
   background: 'hsl(var(--card))',
   color: 'hsl(var(--card-foreground))',
   border: '1px solid hsl(var(--border))',
@@ -33,7 +34,7 @@ const baseToastStyle: CSSProperties = {
 
 function mergeOptions(
   options: ToastOptions | undefined,
-  defaults: Partial<ToastOptions>
+  defaults: Partial<ToastOptions>,
 ): ToastOptions {
   return {
     ...defaults,
@@ -48,8 +49,8 @@ export const appToast = {
       message,
       mergeOptions(options, {
         duration: APP_TOAST_DURATIONS.success,
-        style: baseToastStyle,
-      })
+        style: APP_TOAST_STYLE,
+      }),
     );
   },
 
@@ -58,8 +59,19 @@ export const appToast = {
       message,
       mergeOptions(options, {
         duration: APP_TOAST_DURATIONS.error,
-        style: baseToastStyle,
-      })
+        style: APP_TOAST_STYLE,
+      }),
+    );
+  },
+
+  /** Non-success/error feedback (warnings, info) without default green/red icons. */
+  neutral(message: string, options?: ToastOptions): string {
+    return toast(
+      message,
+      mergeOptions(options, {
+        duration: APP_TOAST_DURATIONS.neutral,
+        style: APP_TOAST_STYLE,
+      }),
     );
   },
 
@@ -67,8 +79,8 @@ export const appToast = {
     return toast.loading(
       message,
       mergeOptions(options, {
-        style: baseToastStyle,
-      })
+        style: APP_TOAST_STYLE,
+      }),
     );
   },
 
@@ -79,17 +91,17 @@ export const appToast = {
   promise<T>(
     promise: Promise<T>,
     messages: { loading: string; success: string; error: string },
-    options?: ToastOptions
+    options?: ToastOptions,
   ): Promise<T> {
     return toast.promise(
       promise,
       messages,
-      mergeOptions(options, { style: baseToastStyle })
+      mergeOptions(options, { style: APP_TOAST_STYLE }),
     );
   },
 
   custom(render: (t: Toast) => ReactElement, options?: ToastOptions): string {
-    return toast.custom(render, mergeOptions(options, { style: baseToastStyle }));
+    return toast.custom(render, mergeOptions(options, { style: APP_TOAST_STYLE }));
   },
 };
 

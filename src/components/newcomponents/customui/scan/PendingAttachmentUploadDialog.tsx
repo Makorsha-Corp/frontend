@@ -1,5 +1,5 @@
 import { FileText, Loader2, ScanLine } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -73,7 +73,7 @@ export default function PendingAttachmentUploadDialog({
     if (!file) return;
     const trimmedDescription = description.trim();
     if (trimmedDescription.length > MAX_DESCRIPTION_LENGTH) {
-      toast.error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer.`);
+      appToast.error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer.`);
       return;
     }
 
@@ -82,7 +82,7 @@ export default function PendingAttachmentUploadDialog({
       await onConfirm(resolved, resolved.name, trimmedDescription || null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not prepare upload.';
-      toast.error(message);
+      appToast.error(message);
     }
   };
 
@@ -251,7 +251,7 @@ export default function PendingAttachmentUploadDialog({
                     void scan.setVersion('scanned').catch((error: unknown) => {
                       const message =
                         error instanceof Error ? error.message : 'Document scanning failed.';
-                      toast.error(message);
+                      appToast.error(message);
                     });
                   }}
                   disabled={!scan.canScan || isUploading || scan.scanPhase === 'error'}

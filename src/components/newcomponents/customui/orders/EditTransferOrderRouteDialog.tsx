@@ -25,7 +25,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import { ArrowDown, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 const SOURCE_TYPES = [
   { value: 'storage', label: 'Storage (Factory)' },
@@ -119,15 +119,15 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
     const sid = parseInt(sourceId, 10);
     const did = parseInt(destId, 10);
     if (isNaN(sid) || !sourceId) {
-      toast.error('Select source location');
+      appToast.error('Select source location');
       return;
     }
     if (isNaN(did) || !destId) {
-      toast.error('Select destination location');
+      appToast.error('Select destination location');
       return;
     }
     if (isSameTransferLocation(sourceType, sourceId, destType, destId)) {
-      toast.error('Destination must be different from source');
+      appToast.error('Destination must be different from source');
       return;
     }
 
@@ -141,12 +141,12 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
           destination_location_id: did,
         },
       }).unwrap();
-      toast.success('Route updated');
+      appToast.success('Route updated');
       onSaved?.();
       onOpenChange(false);
     } catch (err: unknown) {
       const error = err as { data?: { detail?: string } };
-      toast.error(error?.data?.detail || 'Failed to update route');
+      appToast.error(error?.data?.detail || 'Failed to update route');
     }
   };
 
@@ -309,7 +309,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {
           if (isSameTransferLocation('machine', m.id, destType, destId)) {
-            toast.error('Source cannot be the same as destination');
+            appToast.error('Source cannot be the same as destination');
             return;
           }
           setSourceId(String(m.id));
@@ -325,7 +325,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
         description="Pick factory and section, highlight a machine, then confirm."
         onSelect={(m, ctx) => {
           if (isSameTransferLocation('machine', sourceId, 'machine', m.id)) {
-            toast.error('Destination cannot be the same as source');
+            appToast.error('Destination cannot be the same as source');
             return;
           }
           setDestId(String(m.id));

@@ -15,7 +15,7 @@ import { API_LIMITS } from '@/constants/apiLimits';
 import { useGetAccountsQuery, useUpdateAccountMutation } from '@/features/accounts/accountsApi';
 import { useGetTagsQuery } from '@/features/accounts/accountTagsApi';
 import type { UpdateAccountRequest } from '@/types/account';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 interface ManageAccountsDialogProps {
   open: boolean;
@@ -147,7 +147,7 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
   const handleSave = async () => {
     if (!selectedAccount) return;
     if (!name.trim()) {
-      toast.error('Account name is required');
+      appToast.error('Account name is required');
       return;
     }
 
@@ -168,10 +168,10 @@ const ManageAccountsDialog: React.FC<ManageAccountsDialogProps> = ({ open, onOpe
 
     try {
       await updateAccount({ id: selectedAccount.id, data: payload }).unwrap();
-      toast.success('Account updated');
+      appToast.success('Account updated');
     } catch (error: unknown) {
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to update account');
+      appToast.error(err?.data?.detail || 'Failed to update account');
     }
   };
 

@@ -22,7 +22,7 @@ import { useCreateProjectMutation } from '@/features/projects/projectsApi';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import type { Project } from '@/types/project';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddProjectDialogProps {
@@ -49,11 +49,11 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Project name is required');
+      appToast.error('Project name is required');
       return;
     }
     if (!factoryId) {
-      toast.error('Factory is required');
+      appToast.error('Factory is required');
       return;
     }
     try {
@@ -62,14 +62,14 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
         name: name.trim(),
         description: description.trim() || '',
       }).unwrap();
-      toast.success('Project created');
+      appToast.success('Project created');
       setName('');
       setDescription('');
       onOpenChange(false);
       onSuccess?.(project);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create project');
+      appToast.error(e?.data?.detail || 'Failed to create project');
     }
   };
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, FileUp, Loader2, Smartphone } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 import PendingAttachmentUploadDialog from '@/components/newcomponents/customui/scan/PendingAttachmentUploadDialog';
 import { Button } from '@/components/ui/button';
@@ -68,14 +68,14 @@ export default function MobileUploadPage() {
 
     const validationError = validateAttachmentFile(file);
     if (validationError) {
-      toast.error(validationError);
+      appToast.error(validationError);
       clearInputs();
       return;
     }
 
     const prepared = prepareAttachmentFileForUpload(file);
     if (!prepared) {
-      toast.error('Unsupported file type.');
+      appToast.error('Unsupported file type.');
       clearInputs();
       return;
     }
@@ -105,7 +105,7 @@ export default function MobileUploadPage() {
       setPhase('success');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
-      toast.error(message);
+      appToast.error(message);
       setPhase('ready');
       setProgress(null);
     }

@@ -43,7 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 import { isApprovalsBarScrollHighlight } from '@/lib/scrollTargetHighlight';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -245,10 +245,10 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     try {
       await markComplete(order.id).unwrap();
       setCompleteConfirmOpen(false);
-      toast.success('Transfer order marked complete');
+      appToast.success('Transfer order marked complete');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to mark complete');
+      appToast.error(e?.data?.detail || 'Failed to mark complete');
     }
   };
 
@@ -260,10 +260,10 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
           description: draft.description.trim() || null,
         },
       }).unwrap();
-      toast.success('Changes saved');
+      appToast.success('Changes saved');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to save');
+      appToast.error(e?.data?.detail || 'Failed to save');
     }
   };
 
@@ -274,7 +274,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
       await addApprover({ toId: order.id, user_id: userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to add approver');
+      appToast.error(e?.data?.detail || 'Failed to add approver');
     }
   };
 
@@ -283,7 +283,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
       await removeApprover({ toId: order.id, userId }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to remove approver');
+      appToast.error(e?.data?.detail || 'Failed to remove approver');
     }
   };
 
@@ -298,7 +298,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
       }).unwrap();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update required approvals');
+      appToast.error(e?.data?.detail || 'Failed to update required approvals');
     }
   };
 
@@ -312,7 +312,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to update approval');
+      appToast.error(e?.data?.detail || 'Failed to update approval');
     }
   };
 

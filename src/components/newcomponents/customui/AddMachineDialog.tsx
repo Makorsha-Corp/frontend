@@ -23,7 +23,7 @@ import MachineDialogItemsBlock, {
   type MachineItemDraft,
 } from '@/components/newcomponents/customui/MachineDialogItemsBlock';
 import { useLineItemAddButtonHighlight } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddMachineDialogProps {
@@ -120,12 +120,12 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Machine name is required');
+      appToast.error('Machine name is required');
       return;
     }
 
     if (!selectedFactoryId) {
-      toast.error('Factory is required');
+      appToast.error('Factory is required');
       return;
     }
 
@@ -168,20 +168,20 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
         }
         setIsSavingItems(false);
         if (failed > 0) {
-          toast.error(
+          appToast.error(
             `Machine created, but ${failed} item line(s) failed to save. Add them from the machine detail view.`
           );
         }
       }
 
-      toast.success('Machine created successfully');
+      appToast.success('Machine created successfully');
       reset();
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const err = error as { data?: { detail?: string } };
       console.error('Failed to create machine:', error);
-      toast.error(err?.data?.detail || 'Failed to create machine');
+      appToast.error(err?.data?.detail || 'Failed to create machine');
       setIsSavingItems(false);
     }
   };

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateDepartmentMutation } from '@/features/departments/departmentsApi';
 import type { Department } from '@/types/department';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 
 interface AddDepartmentDialogProps {
@@ -34,27 +34,27 @@ const AddDepartmentDialog: React.FC<AddDepartmentDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('Department name is required');
+      appToast.error('Department name is required');
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = departments.find((d) => d.name.toLowerCase() === nameLower);
     if (dup) {
-      toast.error('A department with this name already exists');
+      appToast.error('A department with this name already exists');
       return;
     }
 
     try {
       await createDepartment({ name: name.trim() }).unwrap();
 
-      toast.success('Department created successfully');
+      appToast.success('Department created successfully');
       setName('');
       onOpenChange(false);
     } catch (error: unknown) {
       console.error('Failed to create department:', error);
       const err = error as { data?: { detail?: string } };
-      toast.error(err?.data?.detail || 'Failed to create department');
+      appToast.error(err?.data?.detail || 'Failed to create department');
     }
   };
 

@@ -23,7 +23,7 @@ import type { Factory } from '@/types/factory';
 import type { CreatePurchaseOrder, CreatePurchaseOrderItem } from '@/types/purchaseOrder';
 import type { Item } from '@/types/item';
 import { Check, Loader2, Pencil, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
@@ -163,7 +163,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
   const handleItemSelect = (selection: ItemSelection) => {
     if (usedItemIds.has(selection.itemId)) {
-      toast.error('Item already on this order — edit quantity or unit price below');
+      appToast.error('Item already on this order — edit quantity or unit price below');
       return;
     }
     setItemId(String(selection.itemId));
@@ -185,11 +185,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const q = parseFloat(qty);
     const p = unitPrice.trim() ? parseFloat(unitPrice) : null;
     if (p != null && (Number.isNaN(p) || p < 0)) {
-      toast.error('Enter a valid unit price or leave blank');
+      appToast.error('Enter a valid unit price or leave blank');
       return;
     }
     if (usedItemIds.has(iid)) {
-      toast.error('Item already on this order — edit quantity or unit price below');
+      appToast.error('Item already on this order — edit quantity or unit price below');
       return;
     }
     setItems((prev) => [...prev, { item_id: iid, quantity_ordered: q, unit_price: p }]);
@@ -241,11 +241,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const did = parseInt(destinationId, 10);
     const aid = accountId ? parseInt(accountId, 10) : null;
     if (accountId && (aid == null || isNaN(aid))) {
-      toast.error('Invalid supplier selection');
+      appToast.error('Invalid supplier selection');
       return;
     }
     if (isNaN(did) || !destinationId) {
-      toast.error('Select a destination');
+      appToast.error('Select a destination');
       return;
     }
     if (
@@ -264,7 +264,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       return;
     }
     if (items.length === 0) {
-      toast.error('Add at least one order item');
+      appToast.error('Add at least one order item');
       return;
     }
 
@@ -284,13 +284,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
     try {
       const result = await createOrder(orderData).unwrap();
-      toast.success('Purchase order created');
+      appToast.success('Purchase order created');
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Failed to create order');
+      appToast.error(e?.data?.detail || 'Failed to create order');
     }
   };
 

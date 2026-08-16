@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookOpen, Loader2, RefreshCcw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
@@ -268,18 +268,18 @@ const LedgersPage: React.FC = () => {
           item_id: itemId!,
           inventory_type: inventoryType,
         }).unwrap();
-        toast.success(String(res?.message || `${inventoryType.toLowerCase()} reconcile complete`));
+        appToast.success(String(res?.message || `${inventoryType.toLowerCase()} reconcile complete`));
         return;
       }
       if (isMachineScope && machineItemReady) {
         const res = await reconcileMachine({ machine_id: machineId!, item_id: itemId! }).unwrap();
-        toast.success(String(res?.message || 'Machine reconcile complete'));
+        appToast.success(String(res?.message || 'Machine reconcile complete'));
         return;
       }
-      toast.error('Reconcile requires a factory + item (or machine + item) selection');
+      appToast.error('Reconcile requires a factory + item (or machine + item) selection');
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      toast.error(e?.data?.detail || 'Reconcile failed');
+      appToast.error(e?.data?.detail || 'Reconcile failed');
     }
   };
 

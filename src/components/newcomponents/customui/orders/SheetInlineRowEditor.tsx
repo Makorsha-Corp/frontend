@@ -18,7 +18,7 @@ import { WorkOrderSlotConflictDialog } from '@/components/newcomponents/customui
 import type { Item } from '@/types/item';
 import type { WorkOrder } from '@/types/workOrder';
 import { Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 
 export interface SheetInlineRowEditorProps {
   sheetDate: string;
@@ -91,14 +91,14 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
           ? [{ item_id: Number(itemId), quantity: Number(quantity) }]
           : undefined,
       }).unwrap();
-      toast.success('Row saved');
+      appToast.success('Row saved');
       setItemId('');
       setQuantity('1');
       setWorkers('');
       setRemarks('');
       onSuccess?.();
     } catch (err: unknown) {
-      toast.error(workOrderEntryErrorMessage(err, 'Failed to save row'));
+      appToast.error(workOrderEntryErrorMessage(err, 'Failed to save row'));
     }
   };
 

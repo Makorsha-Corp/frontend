@@ -4,7 +4,7 @@
  * See backend/docs/ATTACHMENT_UPLOAD_SECURITY.md — entity_type only affects linking/folders.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { appToast } from '@/lib/appToast';
 import {
   ChevronLeft,
   ChevronRight,
@@ -238,7 +238,7 @@ export default function AttachmentPanel({
       try {
         const prepared = prepareAttachmentFileForUpload(file);
         if (!prepared) {
-          toast.error('Unsupported file type.');
+          appToast.error('Unsupported file type.');
           return;
         }
 
@@ -259,7 +259,7 @@ export default function AttachmentPanel({
         });
 
         await confirmUpload(sign.attachment_id).unwrap();
-        toast.success(`${signFileName} uploaded`);
+        appToast.success(`${signFileName} uploaded`);
         jumpToLastAfterUploadRef.current = true;
       } catch (err) {
         const apiDetail =
@@ -270,7 +270,7 @@ export default function AttachmentPanel({
           apiDetail ??
           (err instanceof Error ? err.message : null) ??
           'Upload failed';
-        toast.error(message);
+        appToast.error(message);
       } finally {
         setIsUploading(false);
         setUploadProgress(null);
@@ -283,14 +283,14 @@ export default function AttachmentPanel({
   const queueFileForUpload = useCallback((file: File) => {
     const validationError = validateAttachmentFile(file);
     if (validationError) {
-      toast.error(validationError);
+      appToast.error(validationError);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     const prepared = prepareAttachmentFileForUpload(file);
     if (!prepared) {
-      toast.error('Unsupported file type.');
+      appToast.error('Unsupported file type.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -314,7 +314,7 @@ export default function AttachmentPanel({
   ) => {
     const fileName = normalizeUploadFileName(requestedName, file);
     if (!fileName) {
-      toast.error('Enter a file name (max 255 characters).');
+      appToast.error('Enter a file name (max 255 characters).');
       return;
     }
 
@@ -348,7 +348,7 @@ export default function AttachmentPanel({
 
     try {
       await deleteAttachment(attachment.id).unwrap();
-      toast.success('Attachment deleted');
+      appToast.success('Attachment deleted');
       if (previewAttachment?.id === attachment.id) setPreviewAttachment(null);
 
       if (isManagerLayout && selectedAttachmentId === attachment.id) {
@@ -364,7 +364,7 @@ export default function AttachmentPanel({
         });
       }
     } catch {
-      toast.error('Failed to delete attachment');
+      appToast.error('Failed to delete attachment');
     }
   };
 
