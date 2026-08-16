@@ -1,6 +1,8 @@
 import React from 'react';
 import AppShellHeader, {
+  AppShellHeaderRow,
   appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import {
@@ -32,7 +34,6 @@ function formatSignedCurrency(value: number): string {
 
 const DashboardPage: React.FC = () => {
   const {
-    factory,
     isOwner,
     kpis,
     attentionItems,
@@ -42,22 +43,17 @@ const DashboardPage: React.FC = () => {
     hubOrdersMayTruncate,
   } = useDashboardData();
 
-  const factoryContext = factory ? factory.name : 'All factories';
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <div className={appShellHeaderIconTileClass}>
-              <LayoutDashboard className="h-5 w-5 text-brand-primary" />
-            </div>
-            <div className="min-w-0">
+          <AppShellHeaderRow className="min-h-9">
+            <div className={appShellHeaderLeftGroupClass}>
+              <div className={appShellHeaderIconTileClass}>
+                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
+              </div>
               <h1 className={appShellHeaderTitleClass}>Dashboard</h1>
-              <p className="text-sm text-muted-foreground truncate">
-                Operations snapshot · {factoryContext}
-              </p>
             </div>
-          </div>
+          </AppShellHeaderRow>
         </AppShellHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">

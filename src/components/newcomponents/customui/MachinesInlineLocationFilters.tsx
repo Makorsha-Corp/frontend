@@ -140,7 +140,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
               }}
               className={cn(value.factory_ids.length === 0 && 'bg-accent/70')}
             >
-              All factories
+              All Factories
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {factories.length === 0 ? (

@@ -6,7 +6,7 @@ import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters'
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import MachinesWorkOrdersTabs from '@/components/newcomponents/customui/orders/MachinesWorkOrdersTabs';
+import MachinesHubHeader from '@/components/newcomponents/customui/orders/MachinesHubHeader';
 import WorkOrdersTabContent from '@/pages/newpages/orders/WorkOrdersTabContent';
 import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
@@ -20,15 +20,8 @@ import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDi
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
 import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
-import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
-import AppShellHeader, {
-  AppShellHeaderIconAction,
-  AppShellHeaderRow,
-  appShellHeaderControlClass,
-  appShellHeaderLeftGroupClass,
-  appShellHeaderScopeSeparatorClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
+import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import {
   brandIconGlyphClass,
   brandIconTileClass,
@@ -328,30 +321,9 @@ const MachinesPage: React.FC = () => {
     [pageFactoryId, activeFilters.section_ids, sectionIdNum],
   );
 
-  const handleToolbarFactoryChange = useCallback(
+  const handleToolbarLocationChange = useCallback(
     (slice: MachinesLocationFilterSlice) => {
       setPageFactory(sliceToFactoryFilter(slice));
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('filter_factory_ids');
-          next.delete('factoryId');
-          next.delete('machineId');
-          if (slice.section_ids.length === 1) {
-            next.set('sectionId', String(slice.section_ids[0]));
-          } else {
-            next.delete('sectionId');
-          }
-          return next;
-        },
-        { replace: true },
-      );
-    },
-    [setPageFactory, setSearchParams],
-  );
-
-  const handleToolbarSectionChange = useCallback(
-    (slice: MachinesLocationFilterSlice) => {
       setSearchParams(
         (prev) => {
           const next = writeFiltersToParams(prev, {
@@ -372,7 +344,7 @@ const MachinesPage: React.FC = () => {
         { replace: true },
       );
     },
-    [activeFilters, setSearchParams],
+    [activeFilters, setPageFactory, setSearchParams],
   );
 
   // Deep links (sectionId in URL) scope section only — factory is visit-local via usePageFactoryScope.
@@ -661,78 +633,16 @@ const MachinesPage: React.FC = () => {
 
         {activeTab === 'machines' && (
         <>
-        {/* Header */}
-        <AppShellHeader sticky>
-          {/* Mobile: stack tabs, filters, then icon Add */}
-          <div className="space-y-2 lg:hidden">
-            <AppShellHeaderRow>
-              <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={setActiveTab} />
-              <AppShellHeaderIconAction
-                icon={Plus}
-                onClick={() => setIsAddMachineOpen(true)}
-                ariaLabel="Add machine"
-              />
-            </AppShellHeaderRow>
-            <div className="flex flex-wrap items-center gap-2">
-              <MachinesInlineLocationFilters
-                which="factories"
-                variant="toolbar"
-                selectionMode="single"
-                value={toolbarLocationValue}
-                onChange={handleToolbarFactoryChange}
-                factories={factories}
-                sections={allSections}
-              />
-              <MachinesInlineLocationFilters
-                which="sections"
-                variant="toolbar"
-                value={toolbarLocationValue}
-                onChange={handleToolbarSectionChange}
-                factories={factories}
-                sections={allSections}
-              />
-            </div>
-          </div>
-
-          {/* Desktop — unchanged */}
-          <div className="hidden lg:block">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className={appShellHeaderLeftGroupClass}>
-                <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={setActiveTab} />
-                <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-                <MachinesInlineLocationFilters
-                  which="factories"
-                  variant="toolbar"
-                  selectionMode="single"
-                  value={toolbarLocationValue}
-                  onChange={handleToolbarFactoryChange}
-                  factories={factories}
-                  sections={allSections}
-                />
-                <MachinesInlineLocationFilters
-                  which="sections"
-                  variant="toolbar"
-                  value={toolbarLocationValue}
-                  onChange={handleToolbarSectionChange}
-                  factories={factories}
-                  sections={allSections}
-                />
-              </div>
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-                <Button
-                  onClick={() => setIsAddMachineOpen(true)}
-                  className={cn(
-                    appShellHeaderControlClass,
-                    'shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover',
-                  )}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Machine
-                </Button>
-              </div>
-            </div>
-          </div>
-        </AppShellHeader>
+        <MachinesHubHeader
+          sticky
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          factories={factories}
+          sections={allSections}
+          locationValue={toolbarLocationValue}
+          onLocationChange={handleToolbarLocationChange}
+          machinesActions={{ onAddMachine: () => setIsAddMachineOpen(true) }}
+        />
 
         {/* Content */}
         {isLoadingSection ? (

@@ -181,7 +181,7 @@ export function compactFactoryDropdownLabel(
   factories: Array<{ id: number; name: string; abbreviation: string }>,
 ): string {
   if (slice.factory_ids.length === 0) {
-    return 'All';
+    return 'Factories';
   }
   if (slice.factory_ids.length === 1) {
     const f = factories.find((x) => x.id === slice.factory_ids[0]);

@@ -23,7 +23,7 @@ import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import { API_LIMITS } from '@/constants/apiLimits';
-import WorkOrdersPageHeader from '@/components/newcomponents/customui/orders/WorkOrdersPageHeader';
+import MachinesHubHeader from '@/components/newcomponents/customui/orders/MachinesHubHeader';
 import WorkOrdersToolbar from '@/components/newcomponents/customui/orders/WorkOrdersToolbar';
 import WorkOrdersFilterPanel from '@/components/newcomponents/customui/orders/WorkOrdersFilterPanel';
 import WorkOrderSheetTable from '@/components/newcomponents/customui/orders/WorkOrderSheetTable';
@@ -56,6 +56,7 @@ import {
   filterMachinesForWorkOrderScope,
 } from '@/pages/newpages/orders/workOrdersFilterUtils';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
+import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import type { WorkOrder } from '@/types/workOrder';
 
 export interface WorkOrdersUnifiedViewProps {
@@ -430,6 +431,14 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
 
   const handleLocationFilterChange = setLocationFilterSlice;
 
+  const headerLocationValue = useMemo(
+    (): MachinesLocationFilterSlice => ({
+      factory_ids: filters.factoryFilter === 'all' ? [] : [Number(filters.factoryFilter)],
+      section_ids: filters.sectionFilter === 'all' ? [] : [Number(filters.sectionFilter)],
+    }),
+    [filters.factoryFilter, filters.sectionFilter],
+  );
+
   useEffect(() => {
     const rawOrder = searchParams.get('orderId');
     if (rawOrder) {
@@ -477,21 +486,22 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <WorkOrdersPageHeader
+      <MachinesHubHeader
         activeTab={activeTab}
         onTabChange={onTabChange}
-        onAddWork={focusFooterForAdd}
-        onManagePresetsPrograms={() => setTemplatesManagerOpen(true)}
-        onManageRecurringPrograms={() => setRecurringProgramsOpen(true)}
         factories={factories}
         sections={sections}
-        factoryFilter={filters.factoryFilter}
-        sectionFilter={filters.sectionFilter}
-        onLocationFilterChange={handleLocationFilterChange}
+        locationValue={headerLocationValue}
+        onLocationChange={handleLocationFilterChange}
         factoryPickerOpen={factoryPickerOpen}
         onFactoryPickerOpenChange={setFactoryPickerOpen}
         factoryPickerHighlight={factoryPickerHighlight}
         onFactoryPickerHighlightDismiss={dismissFactoryPickerHighlight}
+        workOrdersActions={{
+          onAddWork: focusFooterForAdd,
+          onManagePresetsPrograms: () => setTemplatesManagerOpen(true),
+          onManageRecurringPrograms: () => setRecurringProgramsOpen(true),
+        }}
       />
 
       {!selectedOrder ? (

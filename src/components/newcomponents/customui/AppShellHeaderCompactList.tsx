@@ -9,6 +9,7 @@ import AppShellHeader, {
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
+  appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
@@ -17,8 +18,10 @@ import { cn } from '@/lib/utils';
 export interface AppShellHeaderCompactListProps {
   icon: LucideIcon;
   title: string;
-  /** Extra left-side controls after title (factory picker, tabs, etc.). Hidden separator handled by caller. */
+  /** Extra left-side controls after title on desktop (factory picker, tabs, etc.). */
   leftExtras?: React.ReactNode;
+  /** Mobile-only controls in the title row (filters, selects) before search/add. */
+  mobileActions?: React.ReactNode;
   /** Desktop-only extras in the actions cluster (filters, selects). */
   desktopActions?: React.ReactNode;
   searchInput?: string;
@@ -40,6 +43,7 @@ export function AppShellHeaderCompactList({
   icon: Icon,
   title,
   leftExtras,
+  mobileActions,
   desktopActions,
   searchInput,
   onSearchInputChange,
@@ -59,14 +63,17 @@ export function AppShellHeaderCompactList({
     <AppShellHeader sticky={sticky} className={className}>
       {/* Mobile */}
       <div className="lg:hidden">
-        <AppShellHeaderRow className="flex-wrap">
-          <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
+        <AppShellHeaderRow className="flex-nowrap gap-1.5">
+          <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1 flex-nowrap gap-2')}>
             <div className={appShellHeaderIconTileClass}>
               <Icon className="h-5 w-5 text-brand-primary" />
             </div>
-            <h1 className={appShellHeaderTitleClass}>{title}</h1>
+            <h1 className={cn(appShellHeaderTitleClass, 'text-base sm:text-lg')}>{title}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          {mobileActions ? (
+            <div className="flex shrink-0 items-center gap-1.5">{mobileActions}</div>
+          ) : null}
+          <div className="flex shrink-0 items-center gap-1.5">
             {hasSearch ? (
               <AppShellHeaderInlineSearchToggle
                 open={mobileSearchOpen}
@@ -79,7 +86,9 @@ export function AppShellHeaderCompactList({
             ) : null}
           </div>
         </AppShellHeaderRow>
-        {leftExtras ? <div className="mt-2 flex flex-wrap items-center gap-2">{leftExtras}</div> : null}
+        {leftExtras && !mobileActions ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">{leftExtras}</div>
+        ) : null}
         {hasSearch ? (
           <AppShellHeaderInlineSearchField
             value={searchInput}
@@ -99,7 +108,12 @@ export function AppShellHeaderCompactList({
               <Icon className="h-5 w-5 text-brand-primary" />
             </div>
             <h1 className={appShellHeaderTitleClass}>{title}</h1>
-            {leftExtras}
+            {leftExtras ? (
+              <>
+                <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+                {leftExtras}
+              </>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {desktopActions}
