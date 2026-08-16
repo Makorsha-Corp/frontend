@@ -87,11 +87,10 @@ export function useFactoriesOverviewPage() {
     factory_id: scopedFactoryId,
   });
 
-  const { data: allMachines = [], isLoading: loadMachines, isError: errMachines } =
-    useGetMachinesQuery({
-      skip: 0,
-      limit: API_LIMITS.FLEXIBLE_1000,
-    });
+  const { data: allMachines = [], isLoading: loadMachines } = useGetMachinesQuery({
+    skip: 0,
+    limit: API_LIMITS.FLEXIBLE_1000,
+  });
 
   const { data: allInventory = [], isLoading: loadInventory } = useGetInventoryListQuery({
     skip: 0,
@@ -101,12 +100,12 @@ export function useFactoriesOverviewPage() {
 
   const { data: allProductionLines = [], isLoading: loadLines } = useGetProductionLinesQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.STRICT_100,
   });
 
   const { data: productionBatchesRaw = [], isLoading: loadBatches } = useGetProductionBatchesQuery({
     skip: 0,
-    limit: API_LIMITS.FLEXIBLE_1000,
+    limit: API_LIMITS.STRICT_100,
   });
 
   const ledgerStart = format(subDays(new Date(), 7), 'yyyy-MM-dd');
@@ -278,7 +277,7 @@ export function useFactoriesOverviewPage() {
 
   const loadMaintenanceDue = loadUpcomingWork;
 
-  const loadError = errFactories || errMachines;
+  const loadError = errFactories;
 
   const scopeLabel =
     factoryFilter === 'all'

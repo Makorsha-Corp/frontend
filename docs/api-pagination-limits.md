@@ -22,6 +22,8 @@ Regenerate or spot-check with ripgrep when changing the API:
 |--------------|-------------------|
 | **100** | `items`, `sales_orders`, **`GET /accounts/`** (default / many deployed envs), `sales_deliveries`, `statuses`, `ledgers`, `storage_items`, `project_component_*`, `production_lines`, `production_formulas`, `production_batches`, `orders`, `access_control`, … |
 
+**Factories overview:** `GET /production-lines/` and `GET /production-batches/` are `le=100`. That page must use `API_LIMITS.STRICT_100` for those two calls — `FLEXIBLE_1000` returns **400**.
+
 **Items catalog:** `GET /items/` returns `{ items, total, skip, limit, has_more }`. The Items page uses **`API_LIMITS.ITEMS_CATALOG_PAGE_SIZE` (50)** per request. Filter params: `search`, `unit`, `tag_ids` (repeatable). Distinct units: `GET /items/units/`.
 
 **Storage inventory:** `GET /inventory/` returns `{ items, total, skip, limit, has_more }` (default **`limit=50`**, max **1000**). Filter params: `search`, `item_id`, `include_zero_qty`, `factory_id`, `inventory_type`. KPI strip uses **`GET /inventory/stats/`** with the same filters (no pagination). Storage page uses **`API_LIMITS.STORAGE_PAGE_SIZE` (50)** and URL param **`storagePage`**. Legacy callers of `useGetInventoryListQuery` still receive `.items` via RTK `transformResponse`.
