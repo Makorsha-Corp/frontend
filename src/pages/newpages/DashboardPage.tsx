@@ -1,18 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import AppShellHeader, {
-  appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
-import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   ShoppingCart,
   FolderKanban,
   Layers,
   Wrench,
-  ChevronRight,
   DollarSign,
   ClipboardCheck,
   Package,
@@ -51,29 +47,16 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-3">
-              <div className={appShellHeaderIconTileClass}>
-                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
-              </div>
-              <div className="min-w-0">
-                <h1 className={appShellHeaderTitleClass}>Dashboard</h1>
-                <p className="text-sm text-muted-foreground truncate">
-                  Operations snapshot · {factoryContext}
-                </p>
-              </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <div className={appShellHeaderIconTileClass}>
+              <LayoutDashboard className="h-5 w-5 text-brand-primary" />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`${appShellHeaderControlClass} border-border bg-background`}
-              asChild
-            >
-              <Link to="/orders">
-                View orders overview
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="min-w-0">
+              <h1 className={appShellHeaderTitleClass}>Dashboard</h1>
+              <p className="text-sm text-muted-foreground truncate">
+                Operations snapshot · {factoryContext}
+              </p>
+            </div>
           </div>
         </AppShellHeader>
 

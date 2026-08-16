@@ -4,6 +4,7 @@ import { baseQueryWithReauth } from '@/app/baseQuery';
 import { invalidateIncomingSummaryCache, invalidateInventoryStockCache } from '@/features/cache/invalidateInventoryStockCache';
 import {
   invalidateInvoiceById,
+  invalidateUnlinkedDraftInvoice,
 } from '@/features/cache/invalidateOrderInvoiceCache';
 import {
   purchaseOrderListCacheTags,
@@ -126,7 +127,10 @@ export const purchaseOrdersApi = createApi({
         'ActiveOrders',
         { type: 'PurchaseOrderEvents', id },
       ],
-      async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ id, data }, { dispatch, getState, queryFulfilled }) {
+        const previousInvoiceId =
+          purchaseOrdersApi.endpoints.getPurchaseOrderById.select(id)(getState() as RootState)
+            .data?.invoice_id ?? null;
         const patchById = dispatch(
           purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, (draft) => {
             Object.assign(draft, data);
@@ -138,6 +142,9 @@ export const purchaseOrdersApi = createApi({
             purchaseOrdersApi.util.updateQueryData('getPurchaseOrderById', id, () => updated)
           );
           invalidateIncomingSummaryCache(dispatch);
+          invalidateUnlinkedDraftInvoice(dispatch, previousInvoiceId, updated.invoice_id, {
+            poId: id,
+          });
         } catch {
           patchById.undo();
         }
@@ -161,7 +168,10 @@ export const purchaseOrdersApi = createApi({
         { type: 'PurchaseOrderEvents', id: poId },
         { type: 'PurchaseOrderApprovers', id: poId },
       ],
-      async onQueryStarted({ poId, section, confirmed }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ poId, section, confirmed }, { dispatch, getState, queryFulfilled }) {
+        const previousInvoiceId =
+          purchaseOrdersApi.endpoints.getPurchaseOrderById.select(poId)(getState() as RootState)
+            .data?.invoice_id ?? null;
         const fieldMap = {
           supplier: 'supplier_confirmed',
           details: 'details_confirmed',
@@ -182,6 +192,9 @@ export const purchaseOrdersApi = createApi({
           if (updated.invoice_id != null) {
             invalidateInvoiceById(dispatch, updated.invoice_id);
           }
+          invalidateUnlinkedDraftInvoice(dispatch, previousInvoiceId, updated.invoice_id, {
+            poId,
+          });
         } catch {
           patchById.undo();
         }

@@ -190,28 +190,49 @@
   }
 }
 
-/* Themed scrollbar - MANDATORY for all scrollable areas site-wide */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--primary)) transparent;
-}
-
+/* Themed scrollbar - brand purple; WebKit full styling, Firefox via @supports (see below) */
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
-  background: transparent;
+  background: hsl(var(--primary) / 0.1);
 }
 
 *::-webkit-scrollbar-thumb {
   background: hsl(var(--primary));
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary-hover));
+}
+
+/* No end-arrow buttons — must stay on WebKit-only path (not scrollbar-width on *) */
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:vertical:start:decrement,
+*::-webkit-scrollbar-button:vertical:end:increment,
+*::-webkit-scrollbar-button:horizontal:start:decrement,
+*::-webkit-scrollbar-button:horizontal:end:increment,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:double-button {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox — scrollbar-width/color here only; on * they break WebKit arrow removal in Chrome/Edge */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary)) hsl(var(--primary) / 0.12);
+  }
 }
 
 .po-scroll-target-highlight {

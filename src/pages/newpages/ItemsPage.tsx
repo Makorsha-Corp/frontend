@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import AppShellHeader, { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -208,31 +208,102 @@ const ItemsPage: React.FC = () => {
     }
   };
 
+  const unitSelect = (
+    <Select
+      value={filterUnit || 'all'}
+      onValueChange={(value) => {
+        const unit = value === 'all' ? '' : value;
+        setFilterUnit(unit);
+        patchCatalogParams({ unitFilter: unit });
+      }}
+    >
+      <SelectTrigger className="h-9 w-[min(140px,42vw)] border-border bg-background text-sm lg:w-[140px]">
+        <SelectValue placeholder="Unit" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All units</SelectItem>
+        {unitOptions.map((unit) => (
+          <SelectItem key={unit} value={unit}>
+            {unit}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const viewTagsButton = (
+    <Button
+      variant="outline"
+      onClick={() => setIsTagsPanelOpen((open) => !open)}
+      className={cn(
+        'h-9',
+        (isTagsPanelOpen || filterTagIds.length > 0) &&
+          'border-brand-primary/40 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15 hover:text-brand-primary',
+      )}
+    >
+      <Tag className="mr-2 h-4 w-4" />
+      View Tags
+      {filterTagIds.length > 0 ? (
+        <span className="ml-2 rounded-full bg-brand-primary/20 px-1.5 py-0.5 text-xs tabular-nums">
+          {filterTagIds.length}
+        </span>
+      ) : null}
+    </Button>
+  );
+
+  const clearFiltersButton = hasActiveFilters ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={clearFilters}
+      className="h-9 text-muted-foreground hover:text-destructive"
+    >
+      <X className="mr-1 h-4 w-4" />
+      Clear filters
+    </Button>
+  ) : null;
+
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35">
-                <Package2 className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-card-foreground dark:text-foreground">
-                Items Catalog
-              </h1>
+        <AppShellHeaderCompactList
+          icon={Package2}
+          title="Items Catalog"
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          searchPlaceholder="Search items..."
+          searchAriaLabel="Search items"
+          leftExtras={
+            <div className="flex flex-wrap items-center gap-2">
+              {unitSelect}
+              {viewTagsButton}
+              {clearFiltersButton}
             </div>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Item
-            </Button>
-          </div>
-        </AppShellHeader>
+          }
+          desktopActions={
+            <>
+              {unitSelect}
+              <div className="relative w-[220px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search items..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="h-9 bg-background pl-9"
+                />
+              </div>
+              {clearFiltersButton}
+              {viewTagsButton}
+            </>
+          }
+          onAdd={() => setIsAddDialogOpen(true)}
+          addButtonLabel="Add Item"
+          addAriaLabel="Add item"
+        />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-6">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden p-4 lg:p-6">
             <ItemsOverviewPanel
               items={items}
               isLoading={isLoading}
@@ -250,68 +321,6 @@ const ItemsPage: React.FC = () => {
                   onPageChange={(page) => patchCatalogParams({ page }, { resetPage: false })}
                 />
               }
-              headerActions={
-                <>
-                  <Select
-                    value={filterUnit || 'all'}
-                    onValueChange={(value) => {
-                      const unit = value === 'all' ? '' : value;
-                      setFilterUnit(unit);
-                      patchCatalogParams({ unitFilter: unit });
-                    }}
-                  >
-                    <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-                      <SelectValue placeholder="Unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All units</SelectItem>
-                      {unitOptions.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="relative w-[220px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      type="text"
-                      placeholder="Search items..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      className="pl-9 h-9 bg-background"
-                    />
-                  </div>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-9 text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Clear filters
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsTagsPanelOpen((open) => !open)}
-                    className={cn(
-                      'h-9',
-                      (isTagsPanelOpen || filterTagIds.length > 0) &&
-                        'border-brand-primary/40 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15 hover:text-brand-primary',
-                    )}
-                  >
-                    <Tag className="mr-2 h-4 w-4" />
-                    View Tags
-                    {filterTagIds.length > 0 ? (
-                      <span className="ml-2 rounded-full bg-brand-primary/20 px-1.5 py-0.5 text-xs tabular-nums">
-                        {filterTagIds.length}
-                      </span>
-                    ) : null}
-                  </Button>
-                </>
-              }
               emptyAction={
                 !hasActiveFilters ? (
                   <Button
@@ -327,16 +336,25 @@ const ItemsPage: React.FC = () => {
           </div>
 
           {isTagsPanelOpen ? (
-            <ItemTagsFilterPanel
-              selectedTagIds={filterTagIds}
-              onSelectedTagIdsChange={(action) => {
-                const next =
-                  typeof action === 'function' ? action(filterTagIds) : action;
-                setFilterTagIds(next);
-                patchCatalogParams({ tagFilterIds: next });
-              }}
-              onClose={() => setIsTagsPanelOpen(false)}
-            />
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+                aria-label="Close tags panel"
+                onClick={() => setIsTagsPanelOpen(false)}
+              />
+              <ItemTagsFilterPanel
+                selectedTagIds={filterTagIds}
+                onSelectedTagIdsChange={(action) => {
+                  const next =
+                    typeof action === 'function' ? action(filterTagIds) : action;
+                  setFilterTagIds(next);
+                  patchCatalogParams({ tagFilterIds: next });
+                }}
+                onClose={() => setIsTagsPanelOpen(false)}
+                className="fixed inset-y-0 right-0 z-50 h-full w-[min(18rem,92vw)] shrink-0 shadow-lg lg:static lg:z-auto lg:w-72 lg:shadow-none"
+              />
+            </>
           ) : null}
         </div>
       </div>

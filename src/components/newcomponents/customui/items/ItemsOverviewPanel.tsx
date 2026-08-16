@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { Item } from '@/types/item';
+import ItemCatalogCard from '@/components/newcomponents/customui/items/ItemCatalogCard';
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
@@ -22,7 +23,6 @@ interface ItemsOverviewPanelProps {
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   emptyAction?: React.ReactNode;
-  headerActions?: React.ReactNode;
   paginationFooter?: React.ReactNode;
 }
 
@@ -35,7 +35,6 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
   onEdit,
   onDelete,
   emptyAction,
-  headerActions,
   paginationFooter,
 }) => {
   const itemColumns = useMemo(
@@ -163,29 +162,51 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
     );
   }
 
+  const emptyState = (
+    <div className="flex flex-col items-center justify-center px-4 py-16 text-muted-foreground">
+      <Package2 className="mb-3 h-12 w-12 opacity-40" />
+      <p className="text-sm text-center">No items match these filters.</p>
+      {emptyAction ? <div className="mt-4">{emptyAction}</div> : null}
+    </div>
+  );
+
   return (
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="hidden shrink-0 border-b border-border px-4 py-3 lg:block">
+          <h2 className="text-base font-semibold leading-none text-card-foreground">Items catalog</h2>
+        </div>
+
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <OrdersOverviewTable
-            title="Items catalog"
-            headerActions={headerActions}
-            columns={itemColumns}
-            rows={items}
-            onRowClick={onView}
-            emptyIcon={<Package2 className="h-12 w-12 mb-3 opacity-40" />}
-            emptyMessage="No items match these filters."
-            className="border-0 shadow-none"
-            cardClassName="border-0 shadow-none"
-          />
-          {items.length === 0 && emptyAction ? (
-            <div className="flex justify-center pb-6">{emptyAction}</div>
-          ) : null}
+          {items.length === 0 ? (
+            emptyState
+          ) : (
+            <>
+              <div className="space-y-2 p-3 lg:hidden">
+                {items.map((item) => (
+                  <ItemCatalogCard key={item.id} item={item} onView={onView} />
+                ))}
+              </div>
+              <div className="hidden lg:block">
+                <OrdersOverviewTable
+                  title="Items catalog"
+                  hideHeader
+                  disableInnerScroll
+                  columns={itemColumns}
+                  rows={items}
+                  onRowClick={onView}
+                  className="border-0 shadow-none"
+                  cardClassName="border-0 shadow-none"
+                />
+              </div>
+            </>
+          )}
           {isFetching && items.length > 0 ? (
             <p className="px-4 pb-2 text-xs text-muted-foreground">Refreshing…</p>
           ) : null}
         </div>
-        {paginationFooter}
+
+        {paginationFooter ? <div className="shrink-0">{paginationFooter}</div> : null}
       </div>
     </TooltipProvider>
   );

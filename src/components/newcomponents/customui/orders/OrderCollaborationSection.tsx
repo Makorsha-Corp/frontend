@@ -3,6 +3,7 @@ import { ChevronRight, Paperclip } from 'lucide-react';
 
 import { Tabs } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   EmphasisTabPanel,
@@ -43,6 +44,8 @@ interface OrderAttachmentsCardProps {
   count?: number;
   bodyHeightClass?: string;
   className?: string;
+  /** Inside collaboration tab card — omit outer card + section title. */
+  embeddedInTabs?: boolean;
 }
 
 function OrderAttachmentsCard({
@@ -53,6 +56,7 @@ function OrderAttachmentsCard({
   count,
   bodyHeightClass,
   className,
+  embeddedInTabs = false,
 }: OrderAttachmentsCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const canOpenDialog = entityId > 0;
@@ -66,6 +70,43 @@ function OrderAttachmentsCard({
     count != null && count > 0
       ? `Open attachments manager (${count} files)`
       : 'Open attachments manager';
+
+  if (embeddedInTabs) {
+    return (
+      <>
+        {canOpenDialog ? (
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 px-2 text-xs text-muted-foreground"
+              onClick={openDialog}
+            >
+              Manage
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+            </Button>
+          </div>
+        ) : null}
+        <AttachmentPanel
+          entityType={entityType}
+          entityId={entityId}
+          enabled={enabled}
+          readOnly={readOnly}
+          compact
+          className={cn('w-full', className)}
+        />
+        <AttachmentsManageDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          entityType={entityType}
+          entityId={entityId}
+          readOnly={readOnly}
+          count={count}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -199,40 +240,65 @@ export default function OrderCollaborationSection({
   }
 
   return (
-    <div id={ORDER_DISCUSSION_SECTION_ID} className={cn('scroll-mt-6', className)}>
+    <Card id={ORDER_DISCUSSION_SECTION_ID} className={cn('scroll-mt-6 overflow-hidden', className)}>
       <EmphasisTabsProvider value={mobileTab}>
-        <Tabs value={mobileTab} onValueChange={(value) => setMobileTab(value as CollaborationTab)}>
-          <EmphasisTabsList className="mb-4">
-            <EmphasisTabsTrigger value="discussion">Discussion</EmphasisTabsTrigger>
-            <EmphasisTabsTrigger value="attachments">
-              Attachments
-              {attachmentCount > 0 ? (
-                <Badge variant="outline" className="ml-1.5 font-normal">
-                  {attachmentCount}
-                </Badge>
-              ) : null}
-            </EmphasisTabsTrigger>
-          </EmphasisTabsList>
+        <Tabs
+          value={mobileTab}
+          onValueChange={(value) => setMobileTab(value as CollaborationTab)}
+          className="flex flex-col"
+        >
+          <div className="shrink-0 border-b border-border px-3 py-2">
+            <EmphasisTabsList className="mb-0 gap-0.5 p-0.5">
+              <EmphasisTabsTrigger
+                value="discussion"
+                title="Discussion"
+                className="px-2 text-[11px] leading-tight data-[state=active]:text-xs"
+              >
+                Discuss
+              </EmphasisTabsTrigger>
+              <EmphasisTabsTrigger
+                value="attachments"
+                title="Attachments"
+                className="px-2 text-[11px] leading-tight data-[state=active]:text-xs"
+              >
+                <span className="inline-flex items-center gap-1">
+                  Files
+                  {attachmentCount > 0 ? (
+                    <Badge
+                      variant="outline"
+                      className="h-4 min-w-4 shrink-0 px-1 py-0 text-[10px] font-normal leading-none"
+                    >
+                      {attachmentCount}
+                    </Badge>
+                  ) : null}
+                </span>
+              </EmphasisTabsTrigger>
+            </EmphasisTabsList>
+          </div>
 
-          <EmphasisTabPanel panelKey={mobileTab}>
-            {mobileTab === 'discussion' ? (
-              <DiscussionThread
-                entityType={discussionEntityType}
-                entityId={entityId}
-                readOnly={readOnly}
-              />
-            ) : (
-              <OrderAttachmentsCard
-                entityType={attachmentEntityType}
-                entityId={entityId}
-                readOnly={readOnly}
-                count={attachmentCount}
-                enabled={mobileTab === 'attachments'}
-              />
-            )}
-          </EmphasisTabPanel>
+          <div className="px-3 pb-3 pt-2.5">
+            <EmphasisTabPanel panelKey={mobileTab}>
+              {mobileTab === 'discussion' ? (
+                <DiscussionThread
+                  entityType={discussionEntityType}
+                  entityId={entityId}
+                  readOnly={readOnly}
+                  embeddedInTabs
+                />
+              ) : (
+                <OrderAttachmentsCard
+                  entityType={attachmentEntityType}
+                  entityId={entityId}
+                  readOnly={readOnly}
+                  count={attachmentCount}
+                  enabled={mobileTab === 'attachments'}
+                  embeddedInTabs
+                />
+              )}
+            </EmphasisTabPanel>
+          </div>
         </Tabs>
       </EmphasisTabsProvider>
-    </div>
+    </Card>
   );
 }

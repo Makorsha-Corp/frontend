@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
-import { invalidateInvoiceById } from '@/features/cache/invalidateOrderInvoiceCache';
+import { invalidateInvoiceById, invalidateUnlinkedDraftInvoice } from '@/features/cache/invalidateOrderInvoiceCache';
 import type {
   SalesOrder,
   CreateSalesOrderDTO,
@@ -149,12 +149,16 @@ export const salesOrdersApi = createApi({
         { type: 'SalesOrderApprovers', id: orderId },
         'SalesOrder',
       ],
-      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ orderId }, { dispatch, getState, queryFulfilled }) {
+        const previousInvoiceId =
+          salesOrdersApi.endpoints.getSalesOrderById.select(orderId)(getState()).data?.invoice_id ??
+          null;
         try {
           const { data: updated } = await queryFulfilled;
           if (updated.invoice_id != null) {
             invalidateInvoiceById(dispatch, updated.invoice_id);
           }
+          invalidateUnlinkedDraftInvoice(dispatch, previousInvoiceId, updated.invoice_id);
         } catch {
           /* mutation failed */
         }

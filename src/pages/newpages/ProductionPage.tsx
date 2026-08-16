@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
-import AppShellHeader, {
+import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
+import {
   appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
   appShellHeaderScopeSeparatorClass,
-  appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import {
@@ -520,14 +518,13 @@ const ProductionPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader sticky>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
-              <div className={appShellHeaderIconTileClass}>
-                <FlaskConical className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Production</h1>
-              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+        <AppShellHeaderCompactList
+          sticky
+          icon={FlaskConical}
+          title="Production"
+          leftExtras={
+            <>
+              <div className={cn(appShellHeaderScopeSeparatorClass, 'hidden lg:block')} aria-hidden />
               <MachinesInlineLocationFilters
                 which="factories"
                 variant="toolbar"
@@ -536,11 +533,9 @@ const ProductionPage: React.FC = () => {
                 factories={factories}
                 sections={[]}
               />
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <>
+              <div className="flex w-full flex-wrap items-center gap-2 lg:hidden">
                 <Select value={lineId?.toString() ?? 'all'} onValueChange={handleLineChange}>
-                  <SelectTrigger className="w-[200px] h-9">
+                  <SelectTrigger className="h-9 w-[min(200px,100%)]">
                     <SelectValue placeholder="Production line" />
                   </SelectTrigger>
                   <SelectContent>
@@ -554,7 +549,7 @@ const ProductionPage: React.FC = () => {
                 </Select>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-9 w-[170px] justify-start bg-background border-border">
+                    <Button variant="outline" className="h-9 w-[min(170px,100%)] justify-start border-border bg-background">
                       {batchStatusFilterLabel}
                     </Button>
                   </PopoverTrigger>
@@ -589,19 +584,77 @@ const ProductionPage: React.FC = () => {
                     </div>
                   </PopoverContent>
                 </Popover>
-              </>
+              </div>
+            </>
+          }
+          searchInput={searchQuery}
+          onSearchInputChange={setSearchQuery}
+          searchPlaceholder="Search production..."
+          searchAriaLabel="Search production"
+          desktopActions={
+            <>
+              <Select value={lineId?.toString() ?? 'all'} onValueChange={handleLineChange}>
+                <SelectTrigger className="h-9 w-[200px]">
+                  <SelectValue placeholder="Production line" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All lines</SelectItem>
+                  {linesForFactory.map((l) => (
+                    <SelectItem key={l.id} value={l.id.toString()}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-9 w-[170px] justify-start border-border bg-background">
+                    {batchStatusFilterLabel}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="start">
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      onClick={selectAllBatchStatuses}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                      onClick={clearBatchStatusFilter}
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="space-y-2">
+                    {BATCH_STATUSES.map((s) => (
+                      <label key={s} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted/50">
+                        <Checkbox
+                          checked={batchStatusFilter.includes(s)}
+                          onCheckedChange={() => toggleBatchStatusFilter(s)}
+                        />
+                        <span className="text-sm capitalize">{s.replace('_', ' ')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search production..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
+                  className="h-9 pl-9"
                 />
               </div>
-            </div>
-          </div>
-        </AppShellHeader>
+            </>
+          }
+        />
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
           <Tabs

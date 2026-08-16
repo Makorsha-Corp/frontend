@@ -16,6 +16,7 @@ import {
   isFactoryRowChecked,
   isSectionRowChecked,
   locationFilterLabels,
+  compactFactoryDropdownLabel,
   selectAllFactories,
   selectAllSections,
   selectSingleFactory,
@@ -46,6 +47,8 @@ export interface MachinesInlineLocationFiltersProps {
   /** Draw attention to the trigger when factory selection is required (PO scroll-target glow). */
   highlight?: boolean;
   onHighlightDismiss?: () => void;
+  /** Inline header row: short label + content-width trigger (Factories mobile header). */
+  compact?: boolean;
 }
 
 const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps> = ({
@@ -62,6 +65,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   onOpenChange,
   highlight = false,
   onHighlightDismiss,
+  compact = false,
 }) => {
   const allFactoryIds = React.useMemo(() => factories.map((f) => f.id), [factories]);
 
@@ -77,6 +81,9 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
     factories,
     sections
   );
+  const displayFactoryLabel = compact
+    ? compactFactoryDropdownLabel(value, factories)
+    : factoryDropdownLabel;
 
   const isBreadcrumb = variant === 'breadcrumb';
   const breadcrumbBaseClass =
@@ -85,23 +92,29 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
       : 'h-8 max-w-[min(242px,44vw)] justify-start gap-1 border-none bg-transparent px-1.5 text-[15px] font-medium text-card-foreground dark:text-foreground shadow-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
   const triggerClassName = isBreadcrumb
     ? breadcrumbBaseClass
-    : cn(
-        appShellHeaderBoxedControlClass,
-        'max-w-[min(200px,32vw)] justify-between gap-1 px-2.5 text-xs sm:text-sm focus-visible:ring-inset',
-      );
+    : compact
+      ? cn(
+          appShellHeaderBoxedControlClass,
+          'h-9 w-auto shrink-0 max-w-[min(120px,28vw)] justify-between gap-1 px-2 text-xs focus-visible:ring-inset',
+        )
+      : cn(
+          appShellHeaderBoxedControlClass,
+          'max-w-[min(200px,32vw)] justify-between gap-1 px-2.5 text-xs sm:text-sm focus-visible:ring-inset',
+        );
   const chevronClassName = isBreadcrumb
     ? 'h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
     : 'h-4 w-4 shrink-0 opacity-70';
 
   if (which === 'factories') {
     return (
-      <div className={className}>
+      <div className={cn(compact && 'shrink-0', className)}>
         <DropdownMenu open={open} onOpenChange={onOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
               variant={isBreadcrumb ? 'ghost' : 'outline'}
               className={cn(triggerClassName, highlight && SCROLL_TARGET_HIGHLIGHT_CLASS)}
+              aria-label={compact ? `Factory scope: ${factoryDropdownLabel}` : undefined}
               onMouseEnter={() => {
                 if (highlight) onHighlightDismiss?.();
               }}
@@ -109,7 +122,9 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
                 if (highlight) onHighlightDismiss?.();
               }}
             >
-              <span className="truncate text-card-foreground dark:text-foreground">{factoryDropdownLabel}</span>
+              <span className="truncate text-card-foreground dark:text-foreground">
+                {displayFactoryLabel}
+              </span>
               <ChevronDown className={chevronClassName} aria-hidden />
             </Button>
           </DropdownMenuTrigger>

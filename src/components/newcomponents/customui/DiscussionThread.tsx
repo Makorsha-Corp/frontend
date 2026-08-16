@@ -661,6 +661,8 @@ interface DiscussionThreadProps {
   compactBodyHeightClass?: string;
   /** Tailwind min-height class for compact scroll area (default min-h-[11.05rem]). */
   compactBodyMinHeightClass?: string;
+  /** Inside collaboration tab card — omit outer card + section title. */
+  embeddedInTabs?: boolean;
   className?: string;
 }
 
@@ -672,6 +674,7 @@ export default function DiscussionThread({
   compactBody = false,
   compactBodyHeightClass = 'h-[17.0625rem]',
   compactBodyMinHeightClass = 'min-h-[11.05rem]',
+  embeddedInTabs = false,
   className,
 }: DiscussionThreadProps) {
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
@@ -833,6 +836,56 @@ export default function DiscussionThread({
     );
   };
 
+  const threadBody = (
+    <>
+      {readOnly ? (
+        <p className="shrink-0 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          This order is voided — discussion is read-only.
+        </p>
+      ) : null}
+
+      {compactBody ? (
+        <div
+          ref={messagesScrollRef}
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto pr-2.5',
+            compactBodyMinHeightClass,
+          )}
+        >
+          {renderMessageArea()}
+        </div>
+      ) : isLoading ? (
+        renderMessageArea()
+      ) : discussions.length === 0 ? (
+        renderMessageArea()
+      ) : (
+        <div
+          ref={messagesScrollRef}
+          className={cn(
+            'flex flex-col gap-4 overflow-y-auto pr-2.5',
+            fillHeight ? 'min-h-0 flex-1' : embeddedInTabs ? 'max-h-[min(20rem,40vh)]' : 'max-h-80',
+          )}
+        >
+          {renderMessageArea()}
+        </div>
+      )}
+
+      {!readOnly ? (
+        <div className="shrink-0">
+          <MessageInput entityType={entityType} entityId={entityId} members={members} />
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (embeddedInTabs) {
+    return (
+      <div className={cn('flex flex-col gap-4', className)}>
+        {threadBody}
+      </div>
+    );
+  }
+
   return (
     <Card className={cn((fillHeight || compactBody) && 'flex h-full min-h-0 flex-col', className)}>
       <CardHeader className="p-4 pb-3 shrink-0">
@@ -853,47 +906,7 @@ export default function DiscussionThread({
           compactBody && cn(compactBodyHeightClass, 'min-h-0 shrink-0 overflow-hidden'),
         )}
       >
-        {readOnly ? (
-          <p className="shrink-0 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            This order is voided — discussion is read-only.
-          </p>
-        ) : null}
-
-        {compactBody ? (
-          <div
-            ref={messagesScrollRef}
-            className={cn(
-              'min-h-0 flex-1 overflow-y-auto pr-2.5',
-              compactBodyMinHeightClass,
-            )}
-          >
-            {renderMessageArea()}
-          </div>
-        ) : isLoading ? (
-          renderMessageArea()
-        ) : discussions.length === 0 ? (
-          renderMessageArea()
-        ) : (
-          <div
-            ref={messagesScrollRef}
-            className={cn(
-              'flex flex-col gap-4 overflow-y-auto pr-2.5',
-              fillHeight ? 'min-h-0 flex-1' : 'max-h-80',
-            )}
-          >
-            {renderMessageArea()}
-          </div>
-        )}
-
-        {!readOnly ? (
-          <div className="shrink-0">
-            <MessageInput
-              entityType={entityType}
-              entityId={entityId}
-              members={members}
-            />
-          </div>
-        ) : null}
+        {threadBody}
       </CardContent>
     </Card>
   );

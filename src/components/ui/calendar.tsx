@@ -10,6 +10,7 @@ import {
   CalendarMonthYearOverlay,
   type CalendarCaptionOverlay,
 } from "@/components/ui/calendar-caption-picker"
+import { CalendarDayWithTodayTooltip } from "@/components/ui/calendar-today-day"
 import {
   calendarDayCellClass,
   calendarDayOutsideClass,
@@ -105,6 +106,7 @@ function Calendar({
     () => ({
       IconLeft: () => <ChevronLeft className="h-4 w-4" />,
       IconRight: () => <ChevronRight className="h-4 w-4" />,
+      Day: CalendarDayWithTodayTooltip,
       ...(enableCaptionPicker && !components?.CaptionLabel
         ? { CaptionLabel: CalendarCaptionLabel }
         : {}),

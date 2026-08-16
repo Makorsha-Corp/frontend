@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Loader2, Plus, Users } from 'lucide-react';
-import AppShellHeader, {
-  appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
-  appShellHeaderScopeSeparatorClass,
-  appShellHeaderTitleClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
-import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
+import { Loader2 } from 'lucide-react';
+import FactoriesPageHeader from '@/components/newcomponents/customui/factories/FactoriesPageHeader';
 import FactoriesOverviewDashboard from '@/components/newcomponents/customui/factories/overview/FactoriesOverviewDashboard';
 import FactoriesShrunkGrid from '@/components/newcomponents/customui/factories/overview/FactoriesShrunkGrid';
 import FactoriesFactoryDetailPanel from '@/components/newcomponents/customui/factories/overview/FactoriesFactoryDetailPanel';
@@ -15,7 +8,6 @@ import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDial
 import EditFactoryDialog from '@/components/newcomponents/customui/EditFactoryDialog';
 import DepartmentsManageDialog from '@/components/newcomponents/customui/DepartmentsManageDialog';
 import UpcomingMaintenanceDialog from '@/components/newcomponents/customui/UpcomingMaintenanceDialog';
-import { Button } from '@/components/ui/button';
 import { useDeleteFactoryMutation } from '@/features/factories/factoriesApi';
 import {
   factoryFilterToSlice,
@@ -25,6 +17,7 @@ import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters'
 import type { Factory } from '@/types/factory';
 import { useFactoriesOverviewPage } from '@/pages/newpages/factories/useFactoriesOverviewPage';
 import { appToast } from '@/lib/appToast';
+import { cn } from '@/lib/utils';
 
 const FactoriesPage: React.FC = () => {
   const overview = useFactoriesOverviewPage();
@@ -69,45 +62,20 @@ const FactoriesPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader sticky>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
-              <div className={appShellHeaderIconTileClass}>
-                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Factories Overview</h1>
-              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-              <MachinesInlineLocationFilters
-                which="factories"
-                variant="toolbar"
-                value={factoryLocationValue}
-                onChange={handleFactoryLocationChange}
-                factories={overview.factories}
-                sections={[]}
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className={appShellHeaderControlClass}
-                onClick={() => setIsDeptsDialogOpen(true)}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Departments
-              </Button>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Factory
-              </Button>
-            </div>
-          </div>
-        </AppShellHeader>
+        <FactoriesPageHeader
+          factories={overview.factories}
+          factoryLocationValue={factoryLocationValue}
+          onFactoryLocationChange={handleFactoryLocationChange}
+          onOpenDepartments={() => setIsDeptsDialogOpen(true)}
+          onAddFactory={() => setIsAddDialogOpen(true)}
+        />
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6 md:p-8">
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4',
+            'lg:grid lg:grid-rows-[38fr_62fr] lg:gap-0 lg:overflow-hidden lg:p-6 xl:p-8',
+          )}
+        >
           {overview.loadError ? (
             <div className="flex flex-1 items-center justify-center">
               <p className="text-destructive">Failed to load factory overview. Please try again.</p>
@@ -118,28 +86,33 @@ const FactoriesPage: React.FC = () => {
               <p className="text-muted-foreground">Loading overview…</p>
             </div>
           ) : (
-            <div className="grid min-h-0 flex-1 grid-rows-[38fr_62fr] gap-0 overflow-hidden">
-              <div className="flex h-full min-h-0 flex-col overflow-hidden pb-4">
+            <>
+              <div
+                className={cn(
+                  'flex shrink-0 flex-col',
+                  'lg:min-h-0 lg:h-full lg:overflow-hidden lg:pb-4',
+                )}
+              >
                 <FactoriesOverviewDashboard
-                    data={{
-                      factoryFilter: overview.factoryFilter,
-                      storageSnapshot: overview.storageSnapshot,
-                      productionSnapshot: overview.productionSnapshot,
-                      scopeLabel: overview.scopeLabel,
-                      machineStatus: overview.machineStatus,
-                      overdueRows: overview.overdueRows,
-                      upcomingRows: overview.upcomingRows,
-                      overdueCount: overview.overdueCount,
-                      upcomingCount: overview.upcomingCount,
-                      loadMaintenanceDue: overview.loadMaintenanceDue,
-                      loadInventory: overview.loadInventory,
-                      loadBatches: overview.loadBatches,
-                    }}
-                    onMaintenanceClick={() => setIsMaintenanceDialogOpen(true)}
-                  />
+                  data={{
+                    factoryFilter: overview.factoryFilter,
+                    storageSnapshot: overview.storageSnapshot,
+                    productionSnapshot: overview.productionSnapshot,
+                    scopeLabel: overview.scopeLabel,
+                    machineStatus: overview.machineStatus,
+                    overdueRows: overview.overdueRows,
+                    upcomingRows: overview.upcomingRows,
+                    overdueCount: overview.overdueCount,
+                    upcomingCount: overview.upcomingCount,
+                    loadMaintenanceDue: overview.loadMaintenanceDue,
+                    loadInventory: overview.loadInventory,
+                    loadBatches: overview.loadBatches,
+                  }}
+                  onMaintenanceClick={() => setIsMaintenanceDialogOpen(true)}
+                />
               </div>
 
-              <div className="min-h-0 overflow-hidden pt-2">
+              <div className={cn('min-h-0', 'lg:overflow-hidden lg:pt-2')}>
                 {overview.bottomPanelMode === 'grid' ? (
                   <FactoriesShrunkGrid
                     factories={overview.allFactoriesForManage}
@@ -165,12 +138,12 @@ const FactoriesPage: React.FC = () => {
                     onEditFactory={() => setEditingFactory(overview.activeFactory)}
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted-foreground lg:h-full">
                     Factory not found.
                   </div>
                 )}
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

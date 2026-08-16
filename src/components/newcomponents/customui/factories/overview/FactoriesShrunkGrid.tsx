@@ -187,8 +187,8 @@ const FactoriesShrunkGrid: React.FC<FactoriesShrunkGridProps> = ({
   isDeleting,
   isLoading,
 }) => (
-  <Card className="flex h-full min-h-0 flex-col overflow-hidden border-border bg-card shadow-sm">
-    <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+  <Card className="flex h-auto flex-col overflow-hidden border-border bg-card shadow-sm lg:h-full lg:min-h-0">
+    <CardContent className="flex flex-col p-0 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="text-sm text-muted-foreground">
           {!isLoading && (
@@ -208,7 +208,7 @@ const FactoriesShrunkGrid: React.FC<FactoriesShrunkGridProps> = ({
           />
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto bg-background p-4">
+      <div className="bg-background p-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {factories.map((factory) => (
             <FactoryOverviewCard

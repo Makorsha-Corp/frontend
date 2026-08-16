@@ -333,7 +333,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="shrink-0 border-b border-border bg-card">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 lg:flex-nowrap lg:px-6">
           <div className="flex items-center gap-3 min-w-0 shrink-0">
             {variant === 'page' && (
               <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0">
@@ -353,10 +353,22 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
             </Badge>
           </div>
 
-          <div className="hidden lg:block h-8 w-px shrink-0 bg-border" aria-hidden />
+          {import.meta.env.DEV ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive lg:ml-0"
+              onClick={onDelete}
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete work order
+            </Button>
+          ) : null}
 
           <WoApprovalsTopBar
-            layout="inline"
+            layout="header-inline"
+            orderId={order.id}
             approvers={approvers}
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}
@@ -367,19 +379,22 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
             isLocked={isLocked}
             onVoidOrder={() => setVoidOpen(true)}
           />
+        </div>
 
-          {import.meta.env.DEV ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="mr-1 h-4 w-4" />
-              Delete work order
-            </Button>
-          ) : null}
+        <div className="lg:hidden">
+          <WoApprovalsTopBar
+            layout="header-mobile"
+            orderId={order.id}
+            approvers={approvers}
+            approvalSummary={approvalSummary}
+            currentUserId={currentUserId}
+            myApproval={myApproval}
+            onManage={() => setManageApprovalsOpen(true)}
+            onToggleMyApproval={handleToggleMyApproval}
+            isVoided={isVoided}
+            isLocked={isLocked}
+            onVoidOrder={() => setVoidOpen(true)}
+          />
         </div>
 
         {isVoided && (

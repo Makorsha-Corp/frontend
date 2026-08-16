@@ -25,6 +25,7 @@ import { useAutoSelectGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { API_LIMITS } from '@/constants/apiLimits';
 import AccountSelectorDialog from '@/components/newcomponents/customui/AccountSelectorDialog';
 import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/AccountSelectSummaryButton';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import type { SalesOrder } from '@/types/salesOrder';
 
 interface AddSalesOrderDialogProps {
@@ -289,7 +290,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         </div>
         {lineMode === 'product' ? (
           !parsedFactoryId ? (
-            <p className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+            <p className="flex h-10 items-center rounded-md border border-dashed border-border bg-background px-3 text-xs text-muted-foreground">
               Select a factory first to see products available to sell
             </p>
           ) : (
@@ -529,18 +530,27 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <Label>Order date *</Label>
-        <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
-      </div>
-      <div>
-        <Label>Expected delivery date</Label>
-        <Input
-          type="date"
-          value={expectedDeliveryDate}
-          onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-          className="mt-1"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Order date *</Label>
+          <DatePickerField
+            value={orderDate}
+            onChange={setOrderDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Order date"
+          />
+        </div>
+        <div>
+          <Label>Expected delivery date</Label>
+          <DatePickerField
+            value={expectedDeliveryDate}
+            onChange={setExpectedDeliveryDate}
+            placeholder="Optional"
+            recurrenceStartDate={orderDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Expected delivery date"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -573,16 +583,16 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-6 sm:max-w-none">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden pb-4 pt-0 md:grid-cols-2 md:gap-8 md:items-stretch">
-            <div className="flex min-h-0 min-w-0 flex-col self-stretch overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto pb-4 pt-0 md:grid-cols-2 md:gap-8 md:items-stretch md:overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-col self-stretch md:overflow-hidden">
               <div className="shrink-0 pb-4 text-left">
                 <DialogTitle className="text-brand-heading">Add Sales Order</DialogTitle>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto pl-2 pr-4 md:flex md:flex-col md:justify-center md:py-2">
+              <div className="min-h-0 flex-1 py-2 pl-2 pr-4 md:overflow-y-auto">
                 {orderFieldsBlock}
               </div>
             </div>
-            <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
+            <div className="flex min-h-0 min-w-0 flex-col border-t border-border pt-6 md:min-h-0 md:overflow-hidden md:border-t-0 md:border-l md:border-border md:pt-0 md:pl-8">
               {salesItemsBlock}
             </div>
           </div>

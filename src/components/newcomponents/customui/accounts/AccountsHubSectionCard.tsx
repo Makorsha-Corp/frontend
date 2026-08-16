@@ -10,8 +10,12 @@ export interface AccountsHubSectionCardDetail {
 
 export interface AccountsHubSectionCardProps {
   title: string;
+  /** Shorter label for mobile compact strip (defaults to title). */
+  compactTitle?: string;
   value: React.ReactNode;
   subtitle?: string;
+  /** Shorter subtitle for mobile compact strip (defaults to subtitle). */
+  compactSubtitle?: string;
   footer?: string;
   details?: AccountsHubSectionCardDetail[];
   icon?: LucideIcon;
@@ -26,8 +30,10 @@ export interface AccountsHubSectionCardProps {
 /** Clickable KPI tile for Accounts hub section navigation (Overview / Payable / Receivable). */
 const AccountsHubSectionCard: React.FC<AccountsHubSectionCardProps> = ({
   title,
+  compactTitle,
   value,
   subtitle,
+  compactSubtitle,
   footer,
   details,
   icon: Icon,
@@ -43,7 +49,7 @@ const AccountsHubSectionCard: React.FC<AccountsHubSectionCardProps> = ({
     onClick={onClick}
     aria-label={ariaLabel ?? title}
     aria-pressed={selected}
-    className="h-full w-full text-left"
+    className="h-full w-full min-w-0 text-left"
   >
     <Card
       className={cn(
@@ -51,15 +57,37 @@ const AccountsHubSectionCard: React.FC<AccountsHubSectionCardProps> = ({
         tintClassName,
         selected
           ? 'border-brand-primary ring-1 ring-brand-primary/30 bg-brand-primary/5 dark:bg-brand-primary/10'
-          : 'hover:bg-muted/20'
+          : 'hover:bg-muted/20',
       )}
     >
-      <CardContent className="flex h-full items-start gap-4 p-4">
+      {/* Mobile: compact 3-across strip cell */}
+      <CardContent className="flex h-full min-w-0 flex-col p-3 lg:hidden">
+        <div className="mb-1 flex min-w-0 items-center gap-1.5">
+          {Icon ? (
+            <Icon className={cn('h-3.5 w-3.5 shrink-0 opacity-80', iconClassName ?? 'text-muted-foreground')} />
+          ) : null}
+          <span className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {compactTitle ?? title}
+          </span>
+        </div>
+        <p className="truncate text-lg font-bold tabular-nums leading-none text-foreground">{value}</p>
+        {(compactSubtitle ?? subtitle) ? (
+          <p
+            className="mt-1 truncate text-[10px] text-muted-foreground"
+            title={compactSubtitle ?? subtitle}
+          >
+            {compactSubtitle ?? subtitle}
+          </p>
+        ) : null}
+      </CardContent>
+
+      {/* Desktop: full KPI tile */}
+      <CardContent className="hidden h-full items-start gap-4 p-4 lg:flex">
         {Icon ? (
           <div
             className={cn(
               'flex h-12 w-12 shrink-0 items-center justify-center rounded-lg',
-              iconContainerClassName ?? 'bg-muted'
+              iconContainerClassName ?? 'bg-muted',
             )}
           >
             <Icon className={cn('h-6 w-6', iconClassName ?? 'text-muted-foreground')} />
@@ -83,7 +111,7 @@ const AccountsHubSectionCard: React.FC<AccountsHubSectionCardProps> = ({
             <div
               className={cn(
                 'mt-3 grid gap-x-4 gap-y-1 border-t border-border pt-3',
-                details.length >= 3 ? 'grid-cols-3' : 'grid-cols-2'
+                details.length >= 3 ? 'grid-cols-3' : 'grid-cols-2',
               )}
             >
               {details.map((detail) => (

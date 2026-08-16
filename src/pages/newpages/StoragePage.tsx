@@ -16,12 +16,10 @@ import { Archive, Search } from 'lucide-react';
 import AddInventoryDialog from '@/components/newcomponents/customui/AddInventoryDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import EditInventoryDialog from '@/components/newcomponents/customui/EditInventoryDialog';
-import AppShellHeader, {
+import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
+import {
   appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
   appShellHeaderScopeSeparatorClass,
-  appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import StorageKpiStrip from '@/components/newcomponents/customui/storage/StorageKpiStrip';
@@ -51,6 +49,7 @@ import {
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
+import { cn } from '@/lib/utils';
 import { useOrderHubPageClamp } from '@/pages/newpages/orders/useOrderHubPageClamp';
 import { appToast } from '@/lib/appToast';
 
@@ -401,14 +400,12 @@ const StoragePage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
-              <div className={appShellHeaderIconTileClass} aria-hidden>
-                <Archive className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Storage</h1>
-              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+        <AppShellHeaderCompactList
+          icon={Archive}
+          title="Storage"
+          leftExtras={
+            <>
+              <div className={cn(appShellHeaderScopeSeparatorClass, 'hidden lg:block')} aria-hidden />
               <MachinesInlineLocationFilters
                 which="factories"
                 variant="toolbar"
@@ -422,22 +419,25 @@ const StoragePage: React.FC = () => {
                 highlight={factoryPickerHighlight}
                 onHighlightDismiss={dismissFactoryPickerHighlight}
               />
+            </>
+          }
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          searchPlaceholder="Search inventory..."
+          searchAriaLabel="Search inventory"
+          desktopActions={
+            <div className="relative w-[200px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search inventory..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className={`pl-9 ${appShellHeaderControlClass} bg-background`}
+              />
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search inventory..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-            </div>
-          </div>
-        </AppShellHeader>
+          }
+        />
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden bg-background p-8">
           <StorageKpiStrip

@@ -326,6 +326,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
         <ToApprovalsTopBar
+            orderId={order.id}
             approvers={approvers}
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}

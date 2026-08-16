@@ -144,6 +144,19 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   const [isButtonMounted, setIsButtonMounted] = useState(false);
   const isMobileNav = useMobileNavViewport();
   const isExpanded = !isCollapsed && !isMobileNav;
+  const navInactiveClass = 'text-white/75 hover:bg-white/10 hover:text-white';
+  const navIconProps = { size: 20 as const, className: 'shrink-0' };
+  const topNavLinkClass = (active: boolean) =>
+    cn(
+      'flex items-center gap-3 py-3 rounded-lg transition-all',
+      isExpanded ? 'px-4' : 'justify-center px-2',
+      active ? 'bg-brand-primary text-white' : navInactiveClass,
+    );
+  const compactSectionTriggerClass = (active: boolean) =>
+    cn(
+      'flex w-full cursor-pointer items-center justify-center px-2 py-3 rounded-lg',
+      active ? 'bg-brand-primary text-white' : navInactiveClass,
+    );
 
   // Sync parent's content margin on mount (in case we're collapsed from localStorage)
   useEffect(() => {
@@ -173,14 +186,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   }, [isHoveringEdge]);
 
   const navItems: NavItem[] = [
-    { name: 'Help', icon: <LifeBuoy size={20} />, path: '/help' },
-    { name: 'Accounts', icon: <Building2 size={20} />, path: '/accounts/overview' },
-    { name: 'BusinessLens', icon: <BarChart3 size={20} />, path: '/businesslens' },
+    { name: 'Help', icon: <LifeBuoy {...navIconProps} />, path: '/help' },
+    { name: 'Accounts', icon: <Building2 {...navIconProps} />, path: '/accounts/overview' },
+    { name: 'BusinessLens', icon: <BarChart3 {...navIconProps} />, path: '/businesslens' },
     ...(workspace?.role === 'owner'
       ? [
-          { name: 'Management', icon: <Settings size={20} />, path: '/management' },
-          { name: 'Billing', icon: <CreditCard size={20} />, path: '/billing/trial' },
-          { name: 'Uploads', icon: <Paperclip size={20} />, path: '/uploads' },
+          { name: 'Management', icon: <Settings {...navIconProps} />, path: '/management' },
+          { name: 'Billing', icon: <CreditCard {...navIconProps} />, path: '/billing/trial' },
+          { name: 'Uploads', icon: <Paperclip {...navIconProps} />, path: '/uploads' },
         ]
       : []),
   ];
@@ -291,8 +304,6 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
 
   const isActive = (path: string) =>
     location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path + '/'));
-
-  const navInactiveClass = 'text-white/75 hover:bg-white/10 hover:text-white';
 
   const navBackgroundStyle = useMemo((): React.CSSProperties => {
     return { background: getNavBackground(theme) };
@@ -405,13 +416,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             <li>
               <Link
                 to="/dashboard"
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/dashboard')
-                    ? 'bg-brand-primary text-white'
-                    : navInactiveClass
-                  } ${!isExpanded ? 'justify-center' : ''}`}
+                className={topNavLinkClass(isActive('/dashboard'))}
                 title={!isExpanded ? 'Overview' : ''}
               >
-                <LayoutDashboard size={20} />
+                <LayoutDashboard {...navIconProps} />
                 {isExpanded && <span className="font-medium">Overview</span>}
               </Link>
             </li>
@@ -419,13 +427,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             <li>
               <Link
                 to="/calendar"
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/calendar')
-                    ? 'bg-brand-primary text-white'
-                    : navInactiveClass
-                  } ${!isExpanded ? 'justify-center' : ''}`}
+                className={topNavLinkClass(isActive('/calendar'))}
                 title={!isExpanded ? 'Calendar' : ''}
               >
-                <CalendarDays size={20} />
+                <CalendarDays {...navIconProps} />
                 {isExpanded && <span className="font-medium">Calendar</span>}
               </Link>
             </li>
@@ -434,13 +439,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             <li>
               <Link
                 to="/items"
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive('/items')
-                    ? 'bg-brand-primary text-white'
-                    : navInactiveClass
-                  } ${!isExpanded ? 'justify-center' : ''}`}
+                className={topNavLinkClass(isActive('/items'))}
                 title={!isExpanded ? 'Items' : ''}
               >
-                <Package size={20} />
+                <Package {...navIconProps} />
                 {isExpanded && <span className="font-medium">Items</span>}
               </Link>
             </li>
@@ -453,15 +455,12 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className={`flex items-center justify-center w-full px-2 py-3 rounded-lg cursor-pointer ${isFactoriesActive
-                          ? 'bg-brand-primary text-white'
-                          : navInactiveClass
-                        }`}
+                      className={compactSectionTriggerClass(isFactoriesActive)}
                       title={factory ? `Factory - ${factory.name}` : 'Factory'}
                       onPointerDown={handleCompactFactoryTriggerPointerDown}
                       onClick={handleCompactFactoryTriggerClick}
                     >
-                      <Factory size={20} className="shrink-0" />
+                      <Factory {...navIconProps} />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
@@ -503,7 +502,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     isActive={isFactoriesActive}
                     title={factory ? `Factory - ${factory.name}` : 'Factory'}
                     label={factory ? factory.abbreviation : 'Factory'}
-                    icon={<Factory size={20} className="shrink-0" />}
+                    icon={<Factory {...navIconProps} />}
                     onToggle={handleFactoryHeaderClick}
                     inactiveClass={navInactiveClass}
                     trailing={<GlobalFactoryHoverPicker />}
@@ -606,14 +605,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div
-                      className={`flex items-center justify-center w-full px-2 py-3 rounded-lg cursor-pointer ${isOrdersActive
-                          ? 'bg-brand-primary text-white'
-                          : navInactiveClass
-                        }`}
-                      title="Orders"
-                    >
-                      <Layers3 size={20} className="shrink-0" />
+                    <div className={compactSectionTriggerClass(isOrdersActive)} title="Orders">
+                      <Layers3 {...navIconProps} />
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
@@ -650,7 +643,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     isActive={isOrdersActive}
                     title="Orders"
                     label="Orders"
-                    icon={<Layers3 size={20} className="shrink-0" />}
+                    icon={<Layers3 {...navIconProps} />}
                     onToggle={handleOrdersHeaderClick}
                     inactiveClass={navInactiveClass}
                   />
@@ -715,14 +708,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div
-                      className={`flex items-center justify-center w-full px-2 py-3 rounded-lg cursor-pointer ${isSalesActive
-                          ? 'bg-brand-primary text-white'
-                          : navInactiveClass
-                        }`}
-                      title="Sales"
-                    >
-                      <TrendingUp size={20} className="shrink-0" />
+                    <div className={compactSectionTriggerClass(isSalesActive)} title="Sales">
+                      <TrendingUp {...navIconProps} />
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" className="w-56">
@@ -747,7 +734,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     isActive={isSalesActive}
                     title="Sales"
                     label="Sales"
-                    icon={<TrendingUp size={20} className="shrink-0" />}
+                    icon={<TrendingUp {...navIconProps} />}
                     onToggle={handleSalesHeaderClick}
                     inactiveClass={navInactiveClass}
                   />
@@ -787,10 +774,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               <li key={item.name}>
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive(item.path)
-                      ? 'bg-brand-primary text-white'
-                      : navInactiveClass
-                    } ${!isExpanded ? 'justify-center' : ''}`}
+                  className={topNavLinkClass(isActive(item.path))}
                   title={!isExpanded ? item.name : ''}
                 >
                   {item.icon}

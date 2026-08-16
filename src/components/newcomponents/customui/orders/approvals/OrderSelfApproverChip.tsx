@@ -17,8 +17,9 @@ const OrderSelfApproverChip: React.FC<OrderSelfApproverChipProps> = ({
   ...buttonProps
 }) => {
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-muted/20 py-0.5 pl-0.5 pr-1">
+    <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-muted/20 py-0.5 pl-0.5 pr-0.5">
       <OrderApproverAvatar approver={approver} currentUserId={currentUserId} />
+      <div className="h-4 w-px shrink-0 bg-border/80" aria-hidden />
       <OrderApproveActionButton
         approved={approver.approved}
         onToggle={onToggleMyApproval}

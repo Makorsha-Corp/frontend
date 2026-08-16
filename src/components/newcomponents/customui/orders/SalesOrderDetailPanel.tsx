@@ -518,6 +518,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       <div className="flex flex-1 min-h-0">
         <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
           <SoApprovalsTopBar
+            orderId={order.id}
             approvers={approvers}
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}
@@ -1028,6 +1029,12 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
           <p className="text-sm text-muted-foreground">
             All current order approvals will be withdrawn. Approvers must approve the order again after sections are re-confirmed.
           </p>
+          {linkedInvoiceStatus === 'draft' && (
+            <p className="text-sm text-muted-foreground">
+              The linked draft invoice will be deleted. Re-confirming sections generates a new
+              draft.
+            </p>
+          )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"

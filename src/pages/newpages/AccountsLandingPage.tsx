@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppShellHeader, {
+  AppShellHeaderIconAction,
   appShellHeaderControlClass,
   appShellHeaderIconTileClass,
   appShellHeaderLeftGroupClass,
@@ -29,11 +30,13 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   LayoutDashboard,
+  Settings2,
 } from 'lucide-react';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
 import AccountsHubSectionCard from '@/components/newcomponents/customui/accounts/AccountsHubSectionCard';
+import AccountHubRowCard from '@/components/newcomponents/customui/accounts/AccountHubRowCard';
 import { appToast } from '@/lib/appToast';
 import { API_LIMITS } from '@/constants/apiLimits';
 import { resolveClampedPage } from '@/pages/newpages/orders/orderHubApiParams';
@@ -196,12 +199,6 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
     );
   };
 
-  const tableSectionHint = isAllAccounts
-    ? 'Overview'
-    : isOpenPayable
-      ? 'open payable balances'
-      : 'open receivable balances';
-
   const getContactSummary = (acc: AccountHubRow) => acc.primary_contact_person || acc.primary_email || acc.primary_phone || '-';
   const getAddressSummary = (acc: AccountHubRow) => [acc.address, acc.city, acc.country].filter(Boolean).join(', ') || '-';
 
@@ -214,28 +211,41 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
     accountsTotal === 0 &&
     (isOpenReceivable || isOpenPayable);
 
+  const tableVariant = isAllAccounts ? 'overview' : isOpenPayable ? 'payable' : 'receivable';
+
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader>
-          <div className="flex items-center justify-between">
-            <div className={appShellHeaderLeftGroupClass}>
+          <div className="flex items-center justify-between gap-2">
+            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
               <div className={appShellHeaderIconTileClass}>
                 <Building2 className="h-5 w-5 text-brand-primary" />
               </div>
               <h1 className={appShellHeaderTitleClass}>Accounts</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
+              <AppShellHeaderIconAction
+                icon={Settings2}
+                variant="outline"
+                onClick={() => setIsManageAccountsOpen(true)}
+                ariaLabel="Manage accounts"
+              />
+              <AppShellHeaderIconAction
+                icon={Plus}
+                onClick={() => setIsAddDialogOpen(true)}
+                ariaLabel="Add account"
+              />
               <Button
                 variant="outline"
                 onClick={() => setIsManageAccountsOpen(true)}
-                className={appShellHeaderControlClass}
+                className={`hidden lg:inline-flex ${appShellHeaderControlClass}`}
               >
                 Manage Accounts
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
+                className={`hidden lg:inline-flex ${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add account
@@ -244,20 +254,22 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
           </div>
         </AppShellHeader>
 
-        <div className="flex flex-1 flex-col min-h-0 overflow-hidden p-8 gap-6 bg-background">
+        <div className="flex flex-1 flex-col min-h-0 overflow-hidden gap-4 bg-background p-4 lg:gap-6 lg:p-8">
           <div
-            className="grid shrink-0 grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid shrink-0 grid-cols-3 items-stretch gap-2 lg:gap-4"
             role="tablist"
             aria-label="Accounts sections"
           >
             <AccountsHubSectionCard
               title="All accounts"
+              compactTitle="All"
               icon={LayoutDashboard}
               iconContainerClassName="bg-muted"
               iconClassName="text-muted-foreground"
               tintClassName="bg-muted/[0.15] dark:bg-muted/[0.25]"
               value={overviewPopulationMetrics.totalAccounts}
               subtitle="Full catalog · search applies"
+              compactSubtitle="Catalog"
               details={[
                 { label: 'With open payable', value: overviewPopulationMetrics.withOpenPayable },
                 { label: 'With open receivable', value: overviewPopulationMetrics.withOpenReceivable },
@@ -268,12 +280,14 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
             />
             <AccountsHubSectionCard
               title="Accounts Payable"
+              compactTitle="Payable"
               icon={ArrowDownLeft}
               iconContainerClassName="bg-amber-500/10"
               iconClassName="text-amber-600 dark:text-amber-400"
               tintClassName="bg-amber-500/[0.03] dark:bg-amber-500/[0.06]"
               value={formatCurrency(payableSectionMetrics.outstanding)}
               subtitle="Accounts with open payables"
+              compactSubtitle="Open payables"
               details={[
                 { label: 'Accounts in list', value: payableSectionMetrics.accountsInList },
                 { label: 'Open invoices', value: payableSectionMetrics.openInvoiceCount },
@@ -284,12 +298,14 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
             />
             <AccountsHubSectionCard
               title="Accounts Receivable"
+              compactTitle="Receivable"
               icon={ArrowUpRight}
               iconContainerClassName="bg-emerald-500/10"
               iconClassName="text-emerald-600 dark:text-emerald-400"
               tintClassName="bg-emerald-500/[0.03] dark:bg-emerald-500/[0.06]"
               value={formatCurrency(receivableSectionMetrics.outstanding)}
               subtitle="Accounts with open receivables"
+              compactSubtitle="Open receivables"
               details={[
                 { label: 'Accounts in list', value: receivableSectionMetrics.accountsInList },
                 { label: 'Open invoices', value: receivableSectionMetrics.openInvoiceCount },
@@ -303,32 +319,20 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
           <div className="flex min-h-0 flex-1 flex-col min-w-0">
                 <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card shadow-sm">
                   <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
-                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {!isLoading && (
-                          <span className="font-medium">
-                            {accountsTotal}{' '}
-                            {accountsTotal === 1 ? 'account' : 'accounts'}
-                            {showAccountsPager ? ` · page ${accountPage}` : ''}
-                            {accountsTotal > 0 ? ` · ${tableSectionHint}` : ''}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-[200px] min-w-[140px]">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                          <Input
-                            type="text"
-                            placeholder={searchPlaceholder}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="h-9 pl-10"
-                          />
-                        </div>
+                    <div className="flex shrink-0 border-b border-border px-4 py-3">
+                      <div className="relative w-full min-w-0 lg:ml-auto lg:w-[240px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                        <Input
+                          type="text"
+                          placeholder={searchPlaceholder}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="h-9 w-full pl-10"
+                        />
                       </div>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                       {isLoading ? (
                         <div className="flex min-h-full items-center justify-center py-16">
                           <Loader2 className="h-12 w-12 animate-spin text-brand-primary" />
@@ -365,119 +369,132 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                           </p>
                         </div>
                       ) : (
-                        <div className="min-h-full">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-muted/50">
-                                <TableHead className="w-[60px]">ID</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Code</TableHead>
-                                <TableHead>Contact Details</TableHead>
-                                <TableHead>Address</TableHead>
-                                {isAllAccounts ? (
-                                  <>
-                                    <TableHead>Tags</TableHead>
-                                    <TableHead>Open balances</TableHead>
-                                  </>
-                                ) : null}
-                                {isOpenPayable ? (
-                                  <>
-                                    <TableHead className="text-right">Open payable</TableHead>
-                                    <TableHead className="text-right">Open invoices</TableHead>
-                                  </>
-                                ) : null}
-                                {isOpenReceivable ? (
-                                  <>
-                                    <TableHead className="text-right">Open receivable</TableHead>
-                                    <TableHead className="text-right">Open invoices</TableHead>
-                                  </>
-                                ) : null}
-                                <TableHead className="w-[100px] text-right">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {accountsRowsForTable.map((acc) => {
-                                const rollup = getRollup(acc);
-                                return (
-                                <TableRow
-                                  key={acc.id}
-                                  className="cursor-pointer hover:bg-muted/30"
-                                  onClick={() => handleView(acc)}
-                                >
-                                  <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
-                                  <TableCell className="font-medium">{acc.name}</TableCell>
-                                  <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
-                                  <TableCell>{getContactSummary(acc)}</TableCell>
-                                  <TableCell>{getAddressSummary(acc)}</TableCell>
+                        <>
+                          <div className="space-y-2 p-3 lg:hidden">
+                            {accountsRowsForTable.map((acc) => (
+                              <AccountHubRowCard
+                                key={acc.id}
+                                account={acc}
+                                variant={tableVariant}
+                                onView={handleView}
+                                formatCurrency={formatCurrency}
+                              />
+                            ))}
+                          </div>
+                          <div className="hidden lg:block">
+                            <Table>
+                              <TableHeader className="sticky top-0 z-10 bg-card">
+                                <TableRow className="bg-muted/50">
+                                  <TableHead className="w-[60px]">ID</TableHead>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Code</TableHead>
+                                  <TableHead>Contact Details</TableHead>
+                                  <TableHead>Address</TableHead>
                                   {isAllAccounts ? (
                                     <>
-                                      <TableCell>{renderAccountTags(acc)}</TableCell>
-                                      <TableCell className="text-sm tabular-nums">
-                                        {formatOpenBalancesSummary(acc)}
-                                      </TableCell>
+                                      <TableHead>Tags</TableHead>
+                                      <TableHead>Open balances</TableHead>
                                     </>
                                   ) : null}
                                   {isOpenPayable ? (
                                     <>
-                                      <TableCell className="text-right tabular-nums">
-                                        {rollup.payableOutstanding > 0
-                                          ? formatCurrency(rollup.payableOutstanding)
-                                          : '-'}
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums">
-                                        {rollup.openPayableCount > 0 ? rollup.openPayableCount : '-'}
-                                      </TableCell>
+                                      <TableHead className="text-right">Open payable</TableHead>
+                                      <TableHead className="text-right">Open invoices</TableHead>
                                     </>
                                   ) : null}
                                   {isOpenReceivable ? (
                                     <>
-                                      <TableCell className="text-right tabular-nums">
-                                        {rollup.receivableOutstanding > 0
-                                          ? formatCurrency(rollup.receivableOutstanding)
-                                          : '-'}
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums">
-                                        {rollup.openReceivableCount > 0 ? rollup.openReceivableCount : '-'}
-                                      </TableCell>
+                                      <TableHead className="text-right">Open receivable</TableHead>
+                                      <TableHead className="text-right">Open invoices</TableHead>
                                     </>
                                   ) : null}
-                                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="mr-1 h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
-                                            onClick={() => handleEdit(acc)}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Edit</TooltipContent>
-                                      </Tooltip>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                            onClick={() => handleDelete(acc)}
-                                            disabled={isDeleting}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Deactivate</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </TableCell>
+                                  <TableHead className="w-[100px] text-right">Actions</TableHead>
                                 </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
+                              </TableHeader>
+                              <TableBody>
+                                {accountsRowsForTable.map((acc) => {
+                                  const rollup = getRollup(acc);
+                                  return (
+                                    <TableRow
+                                      key={acc.id}
+                                      className="cursor-pointer hover:bg-muted/30"
+                                      onClick={() => handleView(acc)}
+                                    >
+                                      <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
+                                      <TableCell className="font-medium">{acc.name}</TableCell>
+                                      <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
+                                      <TableCell>{getContactSummary(acc)}</TableCell>
+                                      <TableCell>{getAddressSummary(acc)}</TableCell>
+                                      {isAllAccounts ? (
+                                        <>
+                                          <TableCell>{renderAccountTags(acc)}</TableCell>
+                                          <TableCell className="text-sm tabular-nums">
+                                            {formatOpenBalancesSummary(acc)}
+                                          </TableCell>
+                                        </>
+                                      ) : null}
+                                      {isOpenPayable ? (
+                                        <>
+                                          <TableCell className="text-right tabular-nums">
+                                            {rollup.payableOutstanding > 0
+                                              ? formatCurrency(rollup.payableOutstanding)
+                                              : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-right tabular-nums">
+                                            {rollup.openPayableCount > 0 ? rollup.openPayableCount : '-'}
+                                          </TableCell>
+                                        </>
+                                      ) : null}
+                                      {isOpenReceivable ? (
+                                        <>
+                                          <TableCell className="text-right tabular-nums">
+                                            {rollup.receivableOutstanding > 0
+                                              ? formatCurrency(rollup.receivableOutstanding)
+                                              : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-right tabular-nums">
+                                            {rollup.openReceivableCount > 0 ? rollup.openReceivableCount : '-'}
+                                          </TableCell>
+                                        </>
+                                      ) : null}
+                                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="mr-1 h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
+                                                onClick={() => handleEdit(acc)}
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Edit</TooltipContent>
+                                          </Tooltip>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                                onClick={() => handleDelete(acc)}
+                                                disabled={isDeleting}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Deactivate</TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </>
                       )}
                     </div>
                     {showAccountsPager && accountsTotal > hubPageSize ? (

@@ -18,13 +18,14 @@ import {
   Loader2,
   LogOut,
   Moon,
-  MousePointer2,
   Sun,
   Ticket,
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BRAND_NAME } from '@/constants/brand';
+import { LOGIN_LAVENDER_RADIAL } from '@/lib/loginLavenderGradient';
+import type { WorkspaceListItem } from '@/types/workspace';
 
 /** Convert a workspace name to a URL-safe slug. */
 function toSlug(name: string): string {
@@ -49,7 +50,6 @@ const WorkspaceSelectorPage: React.FC = () => {
   const [newWorkspaceSlug, setNewWorkspaceSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [ownerPosition, setOwnerPosition] = useState('');
-  const [gradientFollowsMouse, setGradientFollowsMouse] = useState(true);
 
   // Join-with-token state
   const [showJoinToken, setShowJoinToken] = useState(false);
@@ -92,7 +92,6 @@ const WorkspaceSelectorPage: React.FC = () => {
   const pageRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!gradientFollowsMouse) return;
     const root = pageRootRef.current;
     if (!root) return;
     const setOrigin = (clientX: number, clientY: number) => {
@@ -113,7 +112,7 @@ const WorkspaceSelectorPage: React.FC = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('touchmove', onTouchMove);
     };
-  }, [gradientFollowsMouse]);
+  }, []);
 
   const [triggerLogout] = useLogoutMutation();
 
@@ -127,24 +126,31 @@ const WorkspaceSelectorPage: React.FC = () => {
     navigate('/login');
   };
 
+  const enterWorkspace = (ws: WorkspaceListItem) => {
+    dispatch(
+      setWorkspace({
+        id: ws.id,
+        name: ws.name,
+        role: ws.role,
+        status: ws.subscription_status,
+      })
+    );
+    appToast.success(`Switched to ${ws.name}`);
+    navigate('/dashboard');
+  };
+
   const handleWorkspaceSelect = () => {
     if (!selectedWorkspaceId) {
       appToast.error('Please select a workspace');
       return;
     }
     const selected = workspaces?.find((ws) => ws.id === selectedWorkspaceId);
-    if (selected) {
-      dispatch(
-        setWorkspace({
-          id: selected.id,
-          name: selected.name,
-          role: selected.role,
-          status: selected.subscription_status,
-        })
-      );
-      appToast.success(`Switched to ${selected.name}`);
-      navigate('/dashboard');
-    }
+    if (selected) enterWorkspace(selected);
+  };
+
+  const handleWorkspaceRowDoubleClick = (ws: WorkspaceListItem) => {
+    setSelectedWorkspaceId(ws.id);
+    enterWorkspace(ws);
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -245,80 +251,53 @@ const WorkspaceSelectorPage: React.FC = () => {
       className="relative flex min-h-screen flex-col overflow-hidden bg-background transition-colors lg:flex-row"
     >
       <div
-        className={cn(
-          'pointer-events-none absolute inset-0',
-          !gradientFollowsMouse &&
-            'bg-gradient-to-br from-background from-[8%] via-background via-[45%] to-brand-primary/[0.28] dark:from-background dark:via-background dark:via-[48%] dark:to-brand-primary/[0.28]'
-        )}
-        style={
-          gradientFollowsMouse
-            ? {
-                background:
-                  'radial-gradient(ellipse 320% 280% at var(--login-grad-x, 72%) var(--login-grad-y, 65%), hsl(var(--primary) / 0.32) 0%, hsl(var(--background)) 46%, hsl(var(--background)) 100%)',
-              }
-            : undefined
-        }
+        className="pointer-events-none absolute inset-0"
+        style={{ background: LOGIN_LAVENDER_RADIAL }}
         aria-hidden
       />
       {/* Side rail */}
       <aside
         className={cn(
-          'relative z-[1] flex shrink-0 flex-row flex-wrap items-center justify-between gap-3 border-b border-border/35 bg-background/20 px-4 py-3 backdrop-blur-3xl backdrop-saturate-150',
+          'relative z-[1] flex shrink-0 flex-col gap-4 border-b border-border/35 bg-background/20 px-4 py-3 backdrop-blur-3xl backdrop-saturate-150',
           'dark:border-border/50 dark:bg-background/5 dark:backdrop-saturate-100',
-          'lg:w-[min(100%,15rem)] lg:flex-col lg:items-stretch lg:justify-between lg:gap-6 lg:border-b-0 lg:border-r lg:px-4 lg:py-6 xl:w-64'
+          'lg:w-[min(100%,15rem)] lg:min-h-screen lg:justify-between lg:gap-6 lg:border-b-0 lg:border-r lg:px-4 lg:py-6 xl:w-64'
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:flex-none">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/15 ring-1 ring-brand-primary/25" aria-hidden>
-            <span className="text-sm font-bold text-brand-primary">{BRAND_NAME.charAt(0)}</span>
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight text-brand-primary">{BRAND_NAME}</p>
-            <p className="truncate text-xs text-muted-foreground">Choose workspace</p>
-          </div>
-        </div>
-
-        <div className="flex flex-row items-center gap-1 sm:gap-2 lg:flex-col lg:items-stretch">
-          <div className="flex justify-end gap-1 sm:gap-2 lg:justify-stretch">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setGradientFollowsMouse((v) => !v)}
-              className={cn(
-                'h-9 w-9 shrink-0 rounded-full border-border bg-card',
-                gradientFollowsMouse && 'ring-2 ring-brand-primary/35 ring-offset-2 ring-offset-background'
-              )}
-              title={gradientFollowsMouse ? 'Fixed gradient' : 'Follow cursor'}
-              type="button"
-              aria-pressed={gradientFollowsMouse}
-            >
-              <MousePointer2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={(e) => toggleTheme(e)}
-              className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
-              type="button"
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            >
-              {theme === 'light' ? (
-                <Moon className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
-              ) : (
-                <Sun className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
-              )}
-            </Button>
+        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/15 ring-1 ring-brand-primary/25" aria-hidden>
+              <span className="text-sm font-bold text-brand-primary">{BRAND_NAME.charAt(0)}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-tight text-foreground">{BRAND_NAME}</p>
+              <p className="truncate text-xs text-muted-foreground">Choose workspace</p>
+            </div>
           </div>
           <Button
             variant="outline"
-            className="h-9 gap-2 rounded-full border-border bg-card px-3 text-muted-foreground hover:text-foreground lg:w-full lg:justify-center"
+            size="icon"
+            onClick={(e) => toggleTheme(e)}
+            className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
             type="button"
-            onClick={handleLogout}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
-            <span className="text-sm font-medium">Sign out</span>
+            {theme === 'light' ? (
+              <Moon className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+            ) : (
+              <Sun className={cn('h-4 w-4', iconAnimating && 'theme-toggle-icon--animate')} />
+            )}
           </Button>
         </div>
+
+        <Button
+          variant="outline"
+          className="h-9 w-full gap-2 rounded-full border-border bg-card px-3 text-muted-foreground hover:text-foreground lg:justify-center"
+          type="button"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span className="text-sm font-medium">Sign out</span>
+        </Button>
       </aside>
 
       <main className="relative z-[1] flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto px-4 py-8 sm:px-8 lg:justify-center lg:px-10 lg:py-10">
@@ -360,6 +339,7 @@ const WorkspaceSelectorPage: React.FC = () => {
                             key={ws.id}
                             type="button"
                             onClick={() => setSelectedWorkspaceId(ws.id)}
+                            onDoubleClick={() => handleWorkspaceRowDoubleClick(ws)}
                             className={cn(
                               'w-full rounded-2xl border-2 p-4 text-left transition-all',
                               'hover:border-brand-primary-hover hover:shadow-md',
@@ -414,7 +394,7 @@ const WorkspaceSelectorPage: React.FC = () => {
                       </CardContent>
                       <CardFooter className="border-t border-border/80 pt-4">
                         <Button
-                          className="h-11 w-full text-base font-semibold bg-brand-secondary hover:bg-brand-secondary/90"
+                          className="h-11 w-full text-base font-semibold bg-brand-primary hover:bg-brand-primary-hover"
                           onClick={handleWorkspaceSelect}
                           disabled={!selectedWorkspaceId}
                         >

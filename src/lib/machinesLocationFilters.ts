@@ -174,3 +174,18 @@ export function locationFilterLabels(
 
   return { factoryDropdownLabel, sectionDropdownLabel };
 }
+
+/** Short factory trigger label for compact mobile headers (e.g. Factories overview). */
+export function compactFactoryDropdownLabel(
+  slice: MachinesLocationFilterSlice,
+  factories: Array<{ id: number; name: string; abbreviation: string }>,
+): string {
+  if (slice.factory_ids.length === 0) {
+    return 'All';
+  }
+  if (slice.factory_ids.length === 1) {
+    const f = factories.find((x) => x.id === slice.factory_ids[0]);
+    return f?.abbreviation ?? f?.name ?? '1';
+  }
+  return String(slice.factory_ids.length);
+}

@@ -363,6 +363,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
           <EoApprovalsTopBar
+            orderId={order.id}
             approvers={approvers}
             approvalSummary={approvalSummary}
             currentUserId={currentUserId}
@@ -407,17 +408,17 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
               }}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Receipt className="h-4 w-4 text-muted-foreground" />
                       Order details
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1 break-words">
                       {allocationSummary} · {order.expense_number}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 self-start">
                     <Badge
                       variant="secondary"
                       className={cn('text-xs', eoStageBadgeClassName(stageName))}
@@ -571,8 +572,8 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             }}
           >
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                     Expenses ({items.length})
@@ -583,7 +584,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 self-start">
                   <Button
                     type="button"
                     variant="outline"
@@ -606,9 +607,9 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
             </CardHeader>
             <CardContent className="p-0">
               {itemsLoading ? (
-                <p className="text-sm text-muted-foreground py-8 px-6">Loading expenses…</p>
+                <p className="text-sm text-muted-foreground py-8 px-4 lg:px-6">Loading expenses…</p>
               ) : items.length === 0 ? (
-                <div className="px-6 py-8 text-center">
+                <div className="px-4 py-8 text-center lg:px-6">
                   <p className="text-sm text-muted-foreground">No expense lines</p>
                   <Button
                     type="button"
@@ -625,30 +626,50 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                   </Button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="py-2 w-10">#</TableHead>
-                        <TableHead className="py-2">Description</TableHead>
-                        <TableHead className="py-2">Qty</TableHead>
-                        <TableHead className="py-2">Unit price</TableHead>
-                        <TableHead className="py-2">Line total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((it) => (
-                        <TableRow key={it.id} className="border-b border-border">
-                          <TableCell className="py-2 text-muted-foreground">{it.line_number}</TableCell>
-                          <TableCell className="py-2 font-medium text-sm">{it.description ?? '—'}</TableCell>
-                          <TableCell className="py-2">{qtyWithUnit(it.quantity, it.unit)}</TableCell>
-                          <TableCell className="py-2">{formatCurrency(it.unit_price)}</TableCell>
-                          <TableCell className="py-2">{formatCurrency(it.line_subtotal)}</TableCell>
+                <>
+                  <div className="divide-y divide-border lg:hidden">
+                    {items.map((it) => (
+                      <div key={it.id} className="px-4 py-3 space-y-1.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 text-sm font-medium text-card-foreground">
+                            <span className="text-muted-foreground font-normal mr-1.5">#{it.line_number}</span>
+                            {it.description ?? '—'}
+                          </p>
+                          <p className="shrink-0 text-sm font-medium tabular-nums">
+                            {formatCurrency(it.line_subtotal)}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {qtyWithUnit(it.quantity, it.unit)} · {formatCurrency(it.unit_price)} each
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden lg:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="py-2 w-10">#</TableHead>
+                          <TableHead className="py-2">Description</TableHead>
+                          <TableHead className="py-2">Qty</TableHead>
+                          <TableHead className="py-2">Unit price</TableHead>
+                          <TableHead className="py-2">Line total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {items.map((it) => (
+                          <TableRow key={it.id} className="border-b border-border">
+                            <TableCell className="py-2 text-muted-foreground">{it.line_number}</TableCell>
+                            <TableCell className="py-2 font-medium text-sm">{it.description ?? '—'}</TableCell>
+                            <TableCell className="py-2">{qtyWithUnit(it.quantity, it.unit)}</TableCell>
+                            <TableCell className="py-2">{formatCurrency(it.unit_price)}</TableCell>
+                            <TableCell className="py-2">{formatCurrency(it.line_subtotal)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -718,8 +739,8 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
       </div>
 
       {isDirty && !orderComplete && (
-        <div className="shrink-0 border-t border-border bg-card px-6 py-3 flex items-center justify-end gap-3">
-          <span className="mr-auto text-sm text-muted-foreground flex items-center gap-1.5">
+        <div className="shrink-0 border-t border-border bg-card px-4 py-3 flex flex-wrap items-center justify-end gap-2 sm:gap-3 lg:px-6">
+          <span className="mr-auto text-sm text-muted-foreground flex items-center gap-1.5 w-full sm:w-auto">
             <Clock className="h-4 w-4" />
             Unsaved changes
           </span>

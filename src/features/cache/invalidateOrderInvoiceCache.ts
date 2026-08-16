@@ -144,3 +144,15 @@ export function invalidateInvoiceAndLinkedOrder(
   invalidateAccountInvoicesHub(dispatch);
   invalidateLinkedOrderForInvoice(dispatch, invoice, options);
 }
+
+export function invalidateUnlinkedDraftInvoice(
+  dispatch: AppDispatch,
+  previousInvoiceId: number | null | undefined,
+  nextInvoiceId: number | null | undefined,
+  options?: { poId?: number | null },
+): void {
+  if (previousInvoiceId == null || previousInvoiceId === nextInvoiceId) {
+    return;
+  }
+  invalidateInvoiceAndLinkedOrder(dispatch, previousInvoiceId, undefined, options);
+}

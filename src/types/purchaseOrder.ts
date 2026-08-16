@@ -98,6 +98,7 @@ export type PurchaseOrderEventType =
   | 'invoice_created'
   | 'invoice_voided'
   | 'invoice_draft_created'
+  | 'invoice_draft_deleted'
   | 'approvals_reset'
   | 'supplier_updated'
   | 'details_updated'

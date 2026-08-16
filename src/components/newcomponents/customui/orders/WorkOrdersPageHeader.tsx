@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { ClipboardPen, LayoutTemplate, Repeat2 } from 'lucide-react';
 import AppShellHeader, {
+  AppShellHeaderIconAction,
+  AppShellHeaderRow,
   appShellHeaderControlClass,
   appShellHeaderLeftGroupClass,
   appShellHeaderScopeSeparatorClass,
@@ -62,10 +64,13 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
 
   return (
     <AppShellHeader>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className={appShellHeaderLeftGroupClass}>
+      {/* Mobile: stack location filters; icon Add; outline actions collapse to icons later on sm */}
+      <div className="space-y-2 lg:hidden">
+        <AppShellHeaderRow>
           <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={onTabChange} />
-          <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+          <AppShellHeaderIconAction icon={ClipboardPen} onClick={onAddWork} ariaLabel="Add work" />
+        </AppShellHeaderRow>
+        <div className="flex flex-wrap items-center gap-2">
           <MachinesInlineLocationFilters
             which="factories"
             variant="toolbar"
@@ -89,35 +94,89 @@ const WorkOrdersPageHeader: React.FC<WorkOrdersPageHeaderProps> = ({
             sections={sections}
           />
         </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
+            size="icon"
             className={appShellHeaderControlClass}
             onClick={onManageRecurringPrograms}
+            aria-label="Manage recurring programs"
           >
-            <Repeat2 className="mr-2 h-4 w-4" />
-            Recurrings
+            <Repeat2 className="h-4 w-4" />
           </Button>
           <Button
             type="button"
             variant="outline"
+            size="icon"
             className={appShellHeaderControlClass}
             onClick={onManagePresetsPrograms}
+            aria-label="Manage work order templates"
           >
-            <LayoutTemplate className="mr-2 h-4 w-4" />
-            Templates
+            <LayoutTemplate className="h-4 w-4" />
           </Button>
+        </div>
+      </div>
 
-          <Button
-            type="button"
-            className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-            onClick={onAddWork}
-          >
-            <ClipboardPen className="mr-2 h-4 w-4" />
-            Add work
-          </Button>
+      {/* Desktop — unchanged */}
+      <div className="hidden lg:block">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className={appShellHeaderLeftGroupClass}>
+            <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={onTabChange} />
+            <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+            <MachinesInlineLocationFilters
+              which="factories"
+              variant="toolbar"
+              selectionMode="single"
+              value={locationValue}
+              onChange={handleLocationChange}
+              factories={factories}
+              sections={sections}
+              open={factoryPickerOpen}
+              onOpenChange={onFactoryPickerOpenChange}
+              highlight={factoryPickerHighlight}
+              onHighlightDismiss={onFactoryPickerHighlightDismiss}
+            />
+            <MachinesInlineLocationFilters
+              which="sections"
+              variant="toolbar"
+              selectionMode="single"
+              value={locationValue}
+              onChange={handleLocationChange}
+              factories={factories}
+              sections={sections}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className={appShellHeaderControlClass}
+              onClick={onManageRecurringPrograms}
+            >
+              <Repeat2 className="mr-2 h-4 w-4" />
+              Recurrings
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className={appShellHeaderControlClass}
+              onClick={onManagePresetsPrograms}
+            >
+              <LayoutTemplate className="mr-2 h-4 w-4" />
+              Templates
+            </Button>
+
+            <Button
+              type="button"
+              className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
+              onClick={onAddWork}
+            >
+              <ClipboardPen className="mr-2 h-4 w-4" />
+              Add work
+            </Button>
+          </div>
         </div>
       </div>
     </AppShellHeader>

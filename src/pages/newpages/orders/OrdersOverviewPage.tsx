@@ -65,8 +65,8 @@ const OrdersOverviewPage: React.FC = () => {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className={`${appShellHeaderLeftGroupClass} min-w-0 flex-1`}>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+            <div className={`${appShellHeaderLeftGroupClass} min-w-0 w-full lg:flex-1`}>
               <div className={appShellHeaderIconTileClass}>
                 <LayoutDashboard className="h-5 w-5 text-brand-primary" />
               </div>
@@ -75,30 +75,33 @@ const OrdersOverviewPage: React.FC = () => {
               <MachinesInlineLocationFilters
                 which="factories"
                 variant="toolbar"
+                compact
                 value={factoryLocationValue}
                 onChange={handleFactoryLocationChange}
                 factories={factories}
                 sections={[]}
               />
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:shrink-0 lg:gap-3">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
+                    className={`min-w-0 flex-1 justify-start truncate border-border bg-background px-2.5 sm:px-3 lg:min-w-[200px] lg:flex-none ${appShellHeaderControlClass}`}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+                    <CalendarIcon className="mr-1.5 h-4 w-4 shrink-0 sm:mr-2" />
+                    <span className="truncate">
+                      {dateRange.from ? (
+                        dateRange.to ? (
+                          `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
+                        ) : (
+                          format(dateRange.from, 'MMM d')
+                        )
                       ) : (
-                        format(dateRange.from, 'MMM d')
-                      )
-                    ) : (
-                      'Date range'
-                    )}
+                        'Date range'
+                      )}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -112,7 +115,7 @@ const OrdersOverviewPage: React.FC = () => {
               </Popover>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger
-                  className={`w-[160px] border-border bg-background ${appShellHeaderControlClass}`}
+                  className={`min-w-0 flex-1 border-border bg-background px-2.5 sm:px-3 lg:w-[160px] lg:flex-none ${appShellHeaderControlClass}`}
                 >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>

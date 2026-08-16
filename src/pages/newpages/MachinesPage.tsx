@@ -23,6 +23,8 @@ import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/n
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import AppShellHeader, {
+  AppShellHeaderIconAction,
+  AppShellHeaderRow,
   appShellHeaderControlClass,
   appShellHeaderLeftGroupClass,
   appShellHeaderScopeSeparatorClass,
@@ -661,10 +663,17 @@ const MachinesPage: React.FC = () => {
         <>
         {/* Header */}
         <AppShellHeader sticky>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className={appShellHeaderLeftGroupClass}>
+          {/* Mobile: stack tabs, filters, then icon Add */}
+          <div className="space-y-2 lg:hidden">
+            <AppShellHeaderRow>
               <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={setActiveTab} />
-              <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+              <AppShellHeaderIconAction
+                icon={Plus}
+                onClick={() => setIsAddMachineOpen(true)}
+                ariaLabel="Add machine"
+              />
+            </AppShellHeaderRow>
+            <div className="flex flex-wrap items-center gap-2">
               <MachinesInlineLocationFilters
                 which="factories"
                 variant="toolbar"
@@ -683,17 +692,44 @@ const MachinesPage: React.FC = () => {
                 sections={allSections}
               />
             </div>
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-              <Button
-                onClick={() => setIsAddMachineOpen(true)}
-                className={cn(
-                  appShellHeaderControlClass,
-                  'shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover'
-                )}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Machine
-              </Button>
+          </div>
+
+          {/* Desktop — unchanged */}
+          <div className="hidden lg:block">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className={appShellHeaderLeftGroupClass}>
+                <MachinesWorkOrdersTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
+                <MachinesInlineLocationFilters
+                  which="factories"
+                  variant="toolbar"
+                  selectionMode="single"
+                  value={toolbarLocationValue}
+                  onChange={handleToolbarFactoryChange}
+                  factories={factories}
+                  sections={allSections}
+                />
+                <MachinesInlineLocationFilters
+                  which="sections"
+                  variant="toolbar"
+                  value={toolbarLocationValue}
+                  onChange={handleToolbarSectionChange}
+                  factories={factories}
+                  sections={allSections}
+                />
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+                <Button
+                  onClick={() => setIsAddMachineOpen(true)}
+                  className={cn(
+                    appShellHeaderControlClass,
+                    'shrink-0 bg-brand-primary shadow-sm hover:bg-brand-primary-hover',
+                  )}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Machine
+                </Button>
+              </div>
             </div>
           </div>
         </AppShellHeader>

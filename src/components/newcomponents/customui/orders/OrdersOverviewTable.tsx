@@ -35,6 +35,8 @@ export interface OrdersOverviewTableProps<T extends { id: number | string }> {
   headerActions?: React.ReactNode;
   titleAddon?: React.ReactNode;
   hideHeader?: boolean;
+  /** When true, table scrolls with parent instead of nested overflow-auto. */
+  disableInnerScroll?: boolean;
   getRowClassName?: (row: T) => string;
 }
 
@@ -58,9 +60,45 @@ function OrdersOverviewTable<T extends { id: number | string }>({
   headerActions,
   titleAddon,
   hideHeader = false,
+  disableInnerScroll = false,
   getRowClassName,
 }: OrdersOverviewTableProps<T>) {
   const hasToolbar = Boolean(headerActions || titleAddon);
+
+  const tableContent = (
+    <Table>
+      <TableHeader className="sticky top-0 z-10 bg-card">
+        <TableRow>
+          {columns.map((col) => (
+            <TableHead
+              key={col.id}
+              className={cn(alignClass(col.align), col.headerClassName)}
+            >
+              {col.header}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow
+            key={row.id}
+            className={cn('cursor-pointer hover:bg-muted/50', getRowClassName?.(row))}
+            onClick={() => onRowClick(row)}
+          >
+            {columns.map((col) => (
+              <TableCell
+                key={col.id}
+                className={cn(alignClass(col.align), col.cellClassName)}
+              >
+                {col.cell(row)}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
   return (
     <Card className={cn('border-border', cardClassName, className)}>
@@ -88,40 +126,11 @@ function OrdersOverviewTable<T extends { id: number | string }>({
             <p className="text-sm text-center">{emptyMessage}</p>
             {emptyActions ? <div className="mt-4 flex flex-wrap justify-center gap-2">{emptyActions}</div> : null}
           </div>
+        ) : disableInnerScroll ? (
+          tableContent
         ) : (
           <div className="max-h-full overflow-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-card">
-                <TableRow>
-                  {columns.map((col) => (
-                    <TableHead
-                      key={col.id}
-                      className={cn(alignClass(col.align), col.headerClassName)}
-                    >
-                      {col.header}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn('cursor-pointer hover:bg-muted/50', getRowClassName?.(row))}
-                    onClick={() => onRowClick(row)}
-                  >
-                    {columns.map((col) => (
-                      <TableCell
-                        key={col.id}
-                        className={cn(alignClass(col.align), col.cellClassName)}
-                      >
-                        {col.cell(row)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {tableContent}
           </div>
         )}
       </CardContent>

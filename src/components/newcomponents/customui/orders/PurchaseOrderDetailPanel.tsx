@@ -879,6 +879,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           className={ORDER_DETAIL_SCROLL_CLASS}
         >
         <PoApprovalsTopBar
+          orderId={order.id}
           approvers={approvers}
           approvalSummary={approvalSummary}
           currentUserId={currentUserId}
@@ -1692,6 +1693,12 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             All current order approvals will be withdrawn. Approvers must approve the order again
             after sections are re-confirmed.
           </p>
+          {linkedInvoiceStatus === 'draft' && (
+            <p className="text-sm text-muted-foreground">
+              The linked draft invoice will be deleted. Re-confirming sections generates a new
+              draft.
+            </p>
+          )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"

@@ -6,20 +6,9 @@ import {
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
 import { format } from 'date-fns';
-import AppShellHeader, {
-  appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
-  appShellHeaderScopeSeparatorClass,
-  appShellHeaderTitleClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-} from '@/components/ui/breadcrumb';
+import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -40,7 +29,7 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
-import { ArrowLeftRight, Plus, Search, CalendarIcon, X } from 'lucide-react';
+import { ArrowLeftRight, CalendarIcon, X } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
@@ -359,60 +348,21 @@ const TransferOrdersPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
-              <div className={appShellHeaderIconTileClass}>
-                <ArrowLeftRight className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Transfer Orders</h1>
-              {selectedOrder && (
-                <>
-                  <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-                  <Breadcrumb className="min-w-0">
-                    <BreadcrumbList className="items-center text-card-foreground dark:text-foreground">
-                      <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
-                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
-                          <span className="truncate px-1.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
-                            {selectedOrder.transfer_number}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrder(null)}
-                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            aria-label="Close transfer order"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </span>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative w-[220px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search by TR# or route..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={() => setIsAddOpen(true)}
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Transfer Order
-              </Button>
-            </div>
-          </div>
-        </AppShellHeader>
+        <OrderHubShellHeader
+          icon={ArrowLeftRight}
+          title="Transfer Orders"
+          selectedOrderLabel={selectedOrder?.transfer_number ?? null}
+          onClearSelection={() => setSelectedOrder(null)}
+          backAriaLabel="Back to transfer orders"
+          closeSelectionAriaLabel="Close transfer order"
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          searchPlaceholder="Search by TR# or route..."
+          searchAriaLabel="Search transfer orders"
+          onAdd={() => setIsAddOpen(true)}
+          addButtonLabel="Add Transfer Order"
+          addAriaLabel="Add transfer order"
+        />
 
         {filtersBarOpen ? (
           <div

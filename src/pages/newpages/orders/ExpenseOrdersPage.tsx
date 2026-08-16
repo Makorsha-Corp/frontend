@@ -2,20 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import AppShellHeader, {
-  appShellHeaderControlClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
-  appShellHeaderScopeSeparatorClass,
-  appShellHeaderTitleClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-} from '@/components/ui/breadcrumb';
+import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -33,7 +22,7 @@ import {
 } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { Receipt, Plus, Search, CalendarIcon, X } from 'lucide-react';
+import { Receipt, CalendarIcon, X } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/orders/ManageExpenseTemplatesDialog';
@@ -324,60 +313,21 @@ const ExpenseOrdersPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className={cn(appShellHeaderLeftGroupClass, 'min-w-0 flex-1')}>
-              <div className={appShellHeaderIconTileClass}>
-                <Receipt className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Expense Orders</h1>
-              {selectedOrder && (
-                <>
-                  <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-                  <Breadcrumb className="min-w-0">
-                    <BreadcrumbList className="items-center text-card-foreground dark:text-foreground">
-                      <BreadcrumbItem className="max-w-[min(280px,50vw)] min-w-0">
-                        <span className="inline-flex h-7 max-w-[min(280px,50vw)] min-w-0 items-center gap-0.5">
-                          <span className="truncate px-1.5 text-[15px] font-medium text-card-foreground dark:text-foreground">
-                            {selectedOrder.expense_number}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrder(null)}
-                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            aria-label="Close expense order"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </span>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative w-[220px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search by # or category..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className={`pl-9 ${appShellHeaderControlClass} bg-background`}
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={() => setIsAddOpen(true)}
-                className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Expense Order
-              </Button>
-            </div>
-          </div>
-        </AppShellHeader>
+        <OrderHubShellHeader
+          icon={Receipt}
+          title="Expense Orders"
+          selectedOrderLabel={selectedOrder?.expense_number ?? null}
+          onClearSelection={() => setSelectedOrder(null)}
+          backAriaLabel="Back to expense orders"
+          closeSelectionAriaLabel="Close expense order"
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          searchPlaceholder="Search by # or category..."
+          searchAriaLabel="Search expense orders"
+          onAdd={() => setIsAddOpen(true)}
+          addButtonLabel="Add Expense Order"
+          addAriaLabel="Add expense order"
+        />
 
         {filtersBarOpen ? (
           <div
