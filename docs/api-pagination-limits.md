@@ -20,9 +20,9 @@ Regenerate or spot-check with ripgrep when changing the API:
 
 | Typical `le` | Example endpoints |
 |--------------|-------------------|
-| **100** | `items`, `sales_orders`, **`GET /accounts/`** (default / many deployed envs), `sales_deliveries`, `statuses`, `ledgers`, `storage_items`, `project_component_*`, `production_lines`, `production_formulas`, `production_batches`, `orders`, `access_control`, … |
+| **100** | `items`, `sales_orders`, **`GET /accounts/`** (default / many deployed envs), `sales_deliveries`, `statuses`, `ledgers`, `storage_items`, `project_component_*`, `production_formulas`, `orders`, `access_control`, … |
 
-**Factories overview:** `GET /production-lines/` and `GET /production-batches/` are `le=100`. That page must use `API_LIMITS.STRICT_100` for those two calls — `FLEXIBLE_1000` returns **400**.
+**Factories overview:** `GET /production-lines/` and `GET /production-batches/` are `le=1000` in this repo. Live Railway was `le=100` until that backend ships — Vercel sending `limit=1000` is the **400**. Frontend overview uses `STRICT_100` so it works against the old cap.
 
 **Items catalog:** `GET /items/` returns `{ items, total, skip, limit, has_more }`. The Items page uses **`API_LIMITS.ITEMS_CATALOG_PAGE_SIZE` (50)** per request. Filter params: `search`, `unit`, `tag_ids` (repeatable). Distinct units: `GET /items/units/`.
 
