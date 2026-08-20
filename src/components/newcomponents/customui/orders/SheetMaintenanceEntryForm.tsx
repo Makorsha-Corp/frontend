@@ -46,7 +46,8 @@ import {
   priorityLabel,
   workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { ChevronDown, ChevronRight, Loader2, Plus, Trash2, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Package, Plus, Receipt, Trash2, Wrench } from 'lucide-react';
+import { OptionalPanelSummaryButton } from './OptionalPanelSummaryButton';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { appToast } from '@/lib/appToast';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
@@ -82,6 +83,14 @@ import {
   recurrenceRangeChanged,
 } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
 import { listPlannedRecurrenceDates } from '@/pages/newpages/orders/workOrderRecurrenceDates';
+import LineItemCommitCheckButton, {
+  partDraftHintText,
+} from '@/components/newcomponents/customui/orders/LineItemCommitCheckButton';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  hasUncommittedPartDraft,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 const FOOTER_TEMPLATE_HINT =
   'Templates prefill row defaults. For recurring templates, work date is the program start — set end date and save to schedule or reschedule drafts in range.';
@@ -198,6 +207,13 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   /** Footer-only: explicit "no parts this visit" vs picking an action before adding lines. */
   const [footerPartsIntent, setFooterPartsIntent] = useState<'none' | WorkOrderItemActionType>('none');
   const [partDraft, setPartDraft] = useState(emptyFooterPartDraft);
+  const [addHintOpen, setAddHintOpen] = useState(false);
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
@@ -578,15 +594,23 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     Number(partDraft.quantity) > 0 &&
     (partsActionType !== 'REPLACE' || Boolean(partDraft.replacedItemId));
 
-  const handleCommitFooterPart = () => {
-    if (!footerPartDraftValid) {
-      appToast.error(
-        partsActionType === 'REPLACE'
-          ? 'Pick item, quantity, and part being replaced'
-          : 'Pick an item and quantity',
-      );
-      return;
+  const hasUnaddedPartDraft = useMemo(
+    () => hasUncommittedPartDraft(partDraft),
+    [partDraft],
+  );
+
+  useEffect(() => {
+    if (footerPartDraftValid) setAddHintOpen(false);
+  }, [footerPartDraftValid]);
+
+  useEffect(() => {
+    if (!hasUnaddedPartDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
     }
+  }, [hasUnaddedPartDraft, dismissAddButtonHighlight]);
+
+  const commitFooterPart = () => {
     setLines((prev) => [
       ...prev,
       {
@@ -600,6 +624,17 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       },
     ]);
     setPartDraft(emptyFooterPartDraft());
+    setAddHintOpen(false);
+    setUnaddedHintOpen(false);
+    dismissAddButtonHighlight();
+  };
+
+  const handleCommitFooterPartClick = () => {
+    if (!footerPartDraftValid) {
+      setAddHintOpen(true);
+      return;
+    }
+    commitFooterPart();
   };
 
   const mapPartLineToApi = (line: PartLineDraft, mid: number) => {
@@ -695,7 +730,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const shouldSyncParts = partsOpen || (isFooterLayout && validPartLines.length > 0);
 
   const partsChipSummary = useMemo(() => {
-    if (isFooterLayout && footerPartsIntent === 'none') return 'No parts';
+    if (isFooterLayout && footerPartsIntent === 'none' && validPartLines.length === 0) {
+      return '';
+    }
     if (validPartLines.length === 0) {
       return workOrderItemActionLabel(partsActionType);
     }
@@ -730,7 +767,10 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     partItems,
   ]);
 
-  const moreSummary = useMemo(() => {
+  const partsIsEmpty =
+    isFooterLayout && footerPartsIntent === 'none' && validPartLines.length === 0;
+
+  const moreSummaryBits = useMemo(() => {
     const bits: string[] = [];
     if (priority !== 'MEDIUM') bits.push(priorityLabel(priority));
     if (billTo === 'external') {
@@ -742,8 +782,11 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     if (approverUserIds.length > 0) {
       bits.push(`${approverUserIds.length} approver${approverUserIds.length === 1 ? '' : 's'}`);
     }
-    return bits.length > 0 ? bits.join(' · ') : 'Medium · Internal';
+    return bits;
   }, [priority, billTo, accountId, accounts, hasMiscCost, cost, approverUserIds]);
+
+  const isBillingDefault = moreSummaryBits.length === 0;
+  const moreSummary = moreSummaryBits.join(' · ');
 
   const manualFieldsTouched = useMemo(() => {
     if (selectedTemplateId || isEdit) return false;
@@ -844,6 +887,23 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     if (billTo === 'internal' && hasMiscCost === 'yes' && !(Number(cost) > 0)) {
       appToast.error('Enter a misc cost amount');
       return;
+    }
+    if (isFooterLayout && footerPartsIntent !== 'none' && hasUnaddedPartDraft) {
+      if (!partsOverlayOpen) {
+        setMoreOverlayOpen(false);
+        setPartsOverlayOpen(true);
+      }
+      if (
+        handleUnaddedItemDraftOnSubmit({
+          hasUnaddedItemDraft: true,
+          unaddedHintOpen,
+          setUnaddedHintOpen,
+          pulseAddButtonHighlight,
+          clearDraft: () => setPartDraft(emptyFooterPartDraft()),
+        }) === 'blocked'
+      ) {
+        return;
+      }
     }
     if (showRecurrenceRange) {
       const spanError = validateRecurrenceSpan(entryStartDate, recurrenceEndDate);
@@ -1059,7 +1119,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     setLoadingTemplateId(template.id);
     try {
       await applyTemplateData(template);
-      appToast.success('Template applied — remarks and date still editable');
+      appToast.success('Template applied — date, remarks, and workers still editable');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       appToast.error(e?.data?.detail || 'Failed to load template');
@@ -1171,6 +1231,8 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       </div>
 
       {lines.length > 0 ? (
+        <>
+          <p className="text-xs text-muted-foreground tabular-nums">{lines.length} part(s) added</p>
         <div className="space-y-1 rounded-md border border-border/60">
           {lines.map((line) => (
             <div
@@ -1200,6 +1262,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </div>
           ))}
         </div>
+        </>
       ) : footerPartsIntent === 'none' ? (
         <p className="text-xs text-muted-foreground">
           No parts used on this visit — close or save the entry when ready.
@@ -1210,8 +1273,11 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
       {footerPartsIntent !== 'none' ? (
       <div className="space-y-3 rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="grid gap-1">
+        <p className="text-xs text-muted-foreground">
+          Pick item and quantity, then press ✓ to add to the list above.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-[8rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">
               {partsActionType === 'REPLACE' ? 'New item' : 'Item'}
             </Label>
@@ -1224,7 +1290,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               onClick={() => openItemPicker('item')}
             />
           </div>
-          <div className="grid gap-1">
+          <div className="grid w-20 gap-1">
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <StepNumberInput
               min={0.01}
@@ -1234,6 +1300,19 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
               className="h-9"
             />
           </div>
+          <LineItemCommitCheckButton
+            canCommit={footerPartDraftValid}
+            highlighted={addButtonHighlighted}
+            hintOpen={(addHintOpen || unaddedHintOpen) && !footerPartDraftValid}
+            hintText={partDraftHintText(partsActionType === 'REPLACE')}
+            onCommit={handleCommitFooterPartClick}
+            onDismissHint={() => {
+              setAddHintOpen(false);
+              setUnaddedHintOpen(false);
+            }}
+            onDismissHighlight={dismissAddButtonHighlight}
+            size="sm"
+          />
         </div>
 
         {partsActionType === 'REPLACE' && (
@@ -1249,18 +1328,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             />
           </div>
         )}
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full bg-background"
-          disabled={!footerPartDraftValid}
-          onClick={handleCommitFooterPart}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          Add part
-        </Button>
       </div>
       ) : null}
     </div>
@@ -1655,14 +1722,13 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </SelectContent>
           </Select>
         </div>
-        <div className={cn('grid gap-1', templateLocked && 'opacity-60')}>
+        <div className="grid gap-1">
           <Label className="text-xs text-muted-foreground">Name of Workers</Label>
           <Input
             value={workers}
             onChange={(e) => setWorkers(e.target.value)}
             placeholder="Ali, Rahim"
             className="h-9"
-            disabled={templateLocked}
           />
         </div>
         <div className="grid gap-1 md:col-span-1 col-span-2">
@@ -1724,7 +1790,14 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             </span>
             <span className="text-muted-foreground">
               {' '}
-              · {variant === 'parts' ? partsChipSummary : moreSummary}
+              ·{' '}
+              {variant === 'parts'
+                ? partsIsEmpty
+                  ? 'None added'
+                  : partsChipSummary
+                : isBillingDefault
+                  ? 'Defaults'
+                  : moreSummary}
             </span>
           </p>
         </div>
@@ -1743,43 +1816,39 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       <div ref={footerActionBarRef} className="flex items-stretch gap-2">
         <div className="relative min-w-0 flex-1">
           {partsOverlayOpen && footerChipOverlay('parts')}
-          <button
-            type="button"
-            className={cn(
-              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
-              partsOverlayOpen
-                ? 'border-brand-primary/40 bg-brand-primary/5'
-                : 'border-border/60',
-              templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
-            )}
-            disabled={templateLocked}
+          <OptionalPanelSummaryButton
+            title="Parts / consumables (optional)"
+            summary={partsChipSummary}
+            emptyLabel="Optional — click to add"
+            isEmpty={partsIsEmpty}
+            open={partsOverlayOpen}
             onClick={togglePartsOverlay}
-          >
-            <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
-            <span className="min-w-0 max-w-[58%] text-right text-xs leading-snug text-muted-foreground line-clamp-2">
-              {partsChipSummary}
-            </span>
-          </button>
+            disabled={templateLocked}
+            icon={Package}
+            ariaLabel={
+              partsIsEmpty
+                ? 'Add or edit parts and consumables. Currently optional, none added.'
+                : `Add or edit parts and consumables. Currently: ${partsChipSummary}.`
+            }
+          />
         </div>
         <div className="relative min-w-0 flex-1">
           {moreOverlayOpen && footerChipOverlay('billing')}
-          <button
-            type="button"
-            className={cn(
-              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
-              moreOverlayOpen
-                ? 'border-brand-primary/40 bg-brand-primary/5'
-                : 'border-border/60',
-              templateLocked && 'cursor-not-allowed opacity-60 hover:bg-transparent',
-            )}
-            disabled={templateLocked}
+          <OptionalPanelSummaryButton
+            title="Billing & approvals"
+            summary={moreSummary}
+            emptyLabel="Click to set billing & approvals"
+            isEmpty={isBillingDefault}
+            open={moreOverlayOpen}
             onClick={toggleMoreOverlay}
-          >
-            <span className="shrink-0 text-sm font-medium text-foreground">Billing & approvals</span>
-            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">
-              {moreSummary}
-            </span>
-          </button>
+            disabled={templateLocked}
+            icon={Receipt}
+            ariaLabel={
+              isBillingDefault
+                ? 'Set billing and approvals. Currently using defaults.'
+                : `Edit billing and approvals. Currently: ${moreSummary}.`
+            }
+          />
         </div>
         <div className="shrink-0 self-center">{submitButton}</div>
       </div>

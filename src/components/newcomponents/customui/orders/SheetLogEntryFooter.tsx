@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SCROLL_TARGET_HIGHLIGHT_CLASS } from '@/lib/scrollTargetHighlight';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import SheetMaintenanceEntryForm from './SheetMaintenanceEntryForm';
 import type { Machine } from '@/types/machine';
@@ -33,6 +34,9 @@ export interface SheetLogEntryFooterProps {
   onSuccess?: () => void;
   /** When footer opened but no factory — prompt header factory picker. */
   onRequestFactorySelect?: () => void;
+  /** Pulse glow when opened via header “Add work” (matches factory picker highlight). */
+  highlight?: boolean;
+  onHighlightDismiss?: () => void;
   className?: string;
 }
 
@@ -56,6 +60,8 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
       onOpenChange,
       onRequestFactorySelect,
       onSuccess,
+      highlight = false,
+      onHighlightDismiss,
       className,
     },
     ref,
@@ -108,8 +114,12 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
             isClosing
               ? 'animate-out slide-out-to-bottom-4 fade-out-0 duration-200'
               : 'animate-in slide-in-from-bottom-4 fade-in-0 duration-300',
+            highlight && SCROLL_TARGET_HIGHLIGHT_CLASS,
             className,
           )}
+          onPointerDown={() => {
+            if (highlight) onHighlightDismiss?.();
+          }}
         >
           <CollapsibleTrigger asChild>
             <button
@@ -119,6 +129,9 @@ const SheetLogEntryFooter = React.forwardRef<HTMLDivElement, SheetLogEntryFooter
                 'hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                 isExpanded && 'border-b border-border/60 bg-muted/40',
               )}
+              onMouseEnter={() => {
+                if (highlight) onHighlightDismiss?.();
+              }}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <Plus className="h-4 w-4 shrink-0 text-brand-primary" />

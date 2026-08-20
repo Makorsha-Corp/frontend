@@ -15,6 +15,8 @@ export interface SheetApproverChipsProps {
   approvers: WorkOrderApprover[];
   maxVisible?: number;
   className?: string;
+  /** Tighter avatars for sheet table cells (default true). */
+  compact?: boolean;
 }
 
 function approvalProgress(approvers: WorkOrderApprover[]) {
@@ -26,6 +28,7 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
   approvers,
   maxVisible = 4,
   className,
+  compact = true,
 }) => {
   if (approvers.length === 0) {
     return (
@@ -37,44 +40,39 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
   const visible = sorted.slice(0, maxVisible);
   const overflow = sorted.length - visible.length;
   const { approved, total } = approvalProgress(approvers);
+  const avatarSize = compact ? 'h-6 w-6 text-[10px]' : 'h-7 w-7 text-[11px]';
+  const statusSize = compact ? 'h-2.5 w-2.5' : 'h-3 w-3';
+  const statusIcon = compact ? 'h-1.5 w-1.5' : 'h-2 w-2';
 
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
-      <span
-        className={cn(
-          'text-[11px] font-medium leading-none',
-          approved === total ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
-        )}
-      >
-        {approved}/{total} approved
-      </span>
-
-      <TooltipProvider delayDuration={150}>
-        <div className="flex flex-wrap items-center gap-1">
-          {visible.map((approver) => (
-            <Tooltip key={approver.id}>
-              <TooltipTrigger asChild>
-                <div
+    <TooltipProvider delayDuration={150}>
+      <div className={cn('flex flex-wrap items-center gap-1 leading-none', className)}>
+        {visible.map((approver) => (
+          <Tooltip key={approver.id}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  'relative flex shrink-0 items-center justify-center rounded-full font-semibold text-white',
+                  avatarSize,
+                  approver.approved ? avatarColor(approver.user_id) : 'bg-muted-foreground/35',
+                )}
+              >
+                {initialsOf(approver.user_name)}
+                <span
                   className={cn(
-                    'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white',
-                    approver.approved ? avatarColor(approver.user_id) : 'bg-muted-foreground/35',
+                    'absolute bottom-0 right-0 flex items-center justify-center rounded-full ring-1 ring-background',
+                    statusSize,
+                    approver.approved ? 'bg-emerald-600' : 'bg-amber-500',
                   )}
                 >
-                  {initialsOf(approver.user_name)}
-                  <span
-                    className={cn(
-                      'absolute -bottom-0.5 -left-0.5 flex h-3 w-3 items-center justify-center rounded-full ring-1 ring-background',
-                      approver.approved ? 'bg-emerald-600' : 'bg-amber-500',
-                    )}
-                  >
-                    {approver.approved ? (
-                      <Check className="h-2 w-2 text-white" strokeWidth={3} />
-                    ) : (
-                      <Clock className="h-2 w-2 text-white" strokeWidth={2.5} />
-                    )}
-                  </span>
-                </div>
-              </TooltipTrigger>
+                  {approver.approved ? (
+                    <Check className={cn(statusIcon, 'text-white')} strokeWidth={3} />
+                  ) : (
+                    <Clock className={cn(statusIcon, 'text-white')} strokeWidth={2.5} />
+                  )}
+                </span>
+              </div>
+            </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[14rem] text-xs">
                 <p className="font-medium">{approver.user_name ?? `User #${approver.user_id}`}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-muted-foreground">
@@ -93,12 +91,20 @@ const SheetApproverChips: React.FC<SheetApproverChipsProps> = ({
               </TooltipContent>
             </Tooltip>
           ))}
-          {overflow > 0 ? (
-            <span className="text-[10px] text-muted-foreground">+{overflow}</span>
-          ) : null}
-        </div>
-      </TooltipProvider>
-    </div>
+        {overflow > 0 ? (
+          <span className="text-[10px] text-muted-foreground">+{overflow}</span>
+        ) : null}
+        <span
+          className={cn(
+            'shrink-0 font-medium tabular-nums',
+            compact ? 'text-[10px]' : 'text-[11px]',
+            approved === total ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
+          )}
+        >
+          {approved}/{total}
+        </span>
+      </div>
+    </TooltipProvider>
   );
 };
 

@@ -5,7 +5,11 @@ import type { Factory } from '@/types/factory';
 import type { FactorySection } from '@/types/factorySection';
 import type { Machine } from '@/types/machine';
 import { cn } from '@/lib/utils';
-import { machineStatusSegmentClass, type MachineVisualKind } from '@/lib/machineVisualStatus';
+import {
+  getMachineVisualKind,
+  machineStatusSegmentClass,
+  type MachineVisualKind,
+} from '@/lib/machineVisualStatus';
 import DueStatusCard from './DueStatusCard';
 import { useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
 import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
@@ -17,12 +21,10 @@ export interface FactoryMachinesStatusPanelProps {
   sections: FactorySection[];
 }
 
-type StatusBucket = 'active' | 'maintenance' | 'stoppedIdle';
+type StatusBucket = 'running' | 'idle' | 'off' | 'maintenance';
 
 function bucketForMachine(m: Machine): StatusBucket {
-  if (m.is_running) return 'active';
-  if (m.latest_status_type === 'MAINTENANCE') return 'maintenance';
-  return 'stoppedIdle';
+  return getMachineVisualKind(m);
 }
 
 export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProps> = ({
@@ -45,22 +47,30 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   );
 
   const counts = useMemo(() => {
-    let active = 0;
+    let running = 0;
+    let idle = 0;
+    let off = 0;
     let maintenance = 0;
-    let stoppedIdle = 0;
     for (const m of machines) {
       const b = bucketForMachine(m);
-      if (b === 'active') active += 1;
-      else if (b === 'maintenance') maintenance += 1;
-      else stoppedIdle += 1;
+      if (b === 'running') running += 1;
+      else if (b === 'idle') idle += 1;
+      else if (b === 'off') off += 1;
+      else maintenance += 1;
     }
-    return { active, maintenance, stoppedIdle, total: machines.length };
+    return { running, idle, off, maintenance, total: machines.length };
   }, [machines]);
 
-  const segments: { key: StatusBucket; label: string; count: number; segmentKind: MachineVisualKind }[] = [
-    { key: 'active', label: 'Active', count: counts.active, segmentKind: 'running' },
-    { key: 'maintenance', label: 'Maintenance', count: counts.maintenance, segmentKind: 'maintenance' },
-    { key: 'stoppedIdle', label: 'Stopped / idle', count: counts.stoppedIdle, segmentKind: 'stopped' },
+  const segments: {
+    key: StatusBucket;
+    label: string;
+    count: number;
+    segmentKind: MachineVisualKind;
+  }[] = [
+    { key: 'running', label: 'Running', count: counts.running, segmentKind: 'running' },
+    { key: 'idle', label: 'Idle', count: counts.idle, segmentKind: 'idle' },
+    { key: 'off', label: 'Off', count: counts.off, segmentKind: 'off' },
+    { key: 'maintenance', label: 'Maint.', count: counts.maintenance, segmentKind: 'maintenance' },
   ];
 
   const pct = (n: number) => (counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0);
@@ -105,7 +115,7 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
                   ) : null
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center text-sm">
+              <div className="grid grid-cols-4 gap-2 text-center text-sm">
                 {segments.map((segment) => (
                   <div key={segment.key}>
                     <p className="text-xl font-semibold tabular-nums text-card-foreground">

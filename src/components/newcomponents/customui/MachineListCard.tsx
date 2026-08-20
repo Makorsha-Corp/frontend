@@ -6,11 +6,10 @@ import { Cog, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getMachineVisualKind,
-  getMachineStatusLabel,
   machineListTopBarClass,
-  machineBadgeClass,
   machineListCardSelectedClass,
 } from '@/lib/machineVisualStatus';
+import MachineStatusBadge from './MachineStatusBadge';
 
 export interface MachineListCardProps {
   machine: Machine;
@@ -31,7 +30,6 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   onExpandDetails,
 }) => {
   const kind = getMachineVisualKind(machine);
-  const label = getMachineStatusLabel(machine);
   const expand = onExpandDetails ?? onSelect;
   const showExpandButton = onExpandDetails != null;
 
@@ -64,9 +62,7 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
                 {machine.name}
               </CardTitle>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium leading-tight', machineBadgeClass[kind])}>
-                  {label}
-                </span>
+                <MachineStatusBadge machine={machine} />
                 <span className="text-xs text-muted-foreground tabular-nums leading-tight">#{machine.id}</span>
               </div>
               {[machine.model_number, machine.manufacturer].filter(Boolean).length > 0 ? (

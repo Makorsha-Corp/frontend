@@ -4,7 +4,7 @@ import { appToast } from '@/lib/appToast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -74,6 +74,10 @@ import {
   type PoLinkedInvoiceStatus,
   type PoSectionConfirmKey,
 } from './purchaseOrderMilestones';
+import {
+  isPoPlanningDateLocked,
+  isPoStructuralDetailsLocked,
+} from './orderDateEditPolicy';
 import AccountInvoiceDialog from '@/components/newcomponents/customui/accounts/AccountInvoiceDialog';
 import {
   InvoiceConfirmDialog,
@@ -396,7 +400,12 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const detailsConfirmed = order.details_confirmed ?? false;
   const itemsConfirmed = order.items_confirmed ?? false;
   const supplierDisabled = invoiceLocked || supplierConfirmed || isPoVoided;
-  const coreDetailsDisabled = invoiceLocked || detailsConfirmed || isPoVoided;
+  const structuralDetailsDisabled = isPoStructuralDetailsLocked(
+    invoiceLocked,
+    detailsConfirmed,
+    isPoVoided,
+  );
+  const planningDatesDisabled = isPoPlanningDateLocked(invoiceLocked, isPoVoided);
   const itemsSectionConfirmed = itemsConfirmed || invoiceLocked || isPoVoided;
 
   const confirmReadiness = canConfirmPoInvoice(order, approvalSummary.met, linkedInvoiceStatus);
@@ -606,7 +615,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         payload.account_id = draft.account_id;
       }
     }
-    if (!coreDetailsDisabled) {
+    if (!structuralDetailsDisabled) {
       if (draft.destination_type !== order.destination_type) {
         payload.destination_type = draft.destination_type;
       }
@@ -623,7 +632,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     const required = draft.required_approvals.trim() === '' ? null : Number(draft.required_approvals);
     if (required !== (order.required_approvals ?? null)) payload.required_approvals = required;
     return payload;
-  }, [draft, order, supplierDisabled, coreDetailsDisabled]);
+  }, [draft, order, supplierDisabled, structuralDetailsDisabled]);
 
   const handleConfirmInvoice = async () => {
     if (!order.invoice_id || !confirmReadiness.ok) return;
@@ -924,7 +933,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             id="po-section-details"
             className={cn(
               'order-1 lg:col-span-2 lg:row-start-1 flex flex-col scroll-mt-6',
-              coreDetailsDisabled && confirmedSectionCardClass
+              structuralDetailsDisabled && confirmedSectionCardClass
             )}
           >
             <CardHeader className="p-4 pb-2 shrink-0">
@@ -958,7 +967,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
               <div
                 className={cn(
                   'space-y-3',
-                  coreDetailsDisabled && confirmedSectionContentClass
+                  structuralDetailsDisabled && confirmedSectionContentClass
                 )}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -970,7 +979,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                         patch({ destination_type: v, destination_id: null });
                         setMachineDisplayLine('');
                       }}
-                      disabled={coreDetailsDisabled}
+                      disabled={structuralDetailsDisabled}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -988,7 +997,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                       <>
                         <MachineSelectSummaryButton
                           onClick={() => {
-                            if (!coreDetailsDisabled) setMachinePickerOpen(true);
+                            if (!structuralDetailsDisabled) setMachinePickerOpen(true);
                           }}
                           ariaLabel={
                             machineDisplayLine
@@ -1002,7 +1011,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                               : String(draft.destination_id)
                           }
                           compactLabel
-                          className={cn('mt-0', coreDetailsDisabled && 'pointer-events-none')}
+                          className={cn('mt-0', structuralDetailsDisabled && 'pointer-events-none')}
                         />
                         <MachineSelectorDialog
                           open={machinePickerOpen}
@@ -1021,7 +1030,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                       <Select
                         value={draft.destination_id != null ? String(draft.destination_id) : undefined}
                         onValueChange={(v) => patch({ destination_id: Number(v) })}
-                        disabled={coreDetailsDisabled}
+                        disabled={structuralDetailsDisabled}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select location" />
@@ -1037,46 +1046,15 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
-                    <Input
-                      type="date"
-                      value={draft.order_date}
-                      onChange={(e) => patch({ order_date: e.target.value })}
-                      disabled={coreDetailsDisabled}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      className={cn(
-                        'text-xs uppercase tracking-wide',
-                        coreDetailsDisabled
-                          ? 'font-medium text-card-foreground dark:text-foreground'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      Expected Delivery
-                    </Label>
-                    <Input
-                      type="date"
-                      value={draft.expected_delivery_date}
-                      onChange={(e) => patch({ expected_delivery_date: e.target.value })}
-                      className={coreDetailsDisabled ? 'bg-background' : undefined}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Completed</Label>
-                    <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
-                      {order.actual_delivery_date ? (
-                        <span className="text-card-foreground">{formatDate(order.actual_delivery_date)}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs leading-tight">
-                          Set when all items received
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                <div className="space-y-2 sm:max-w-xs">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
+                  <DatePickerField
+                    value={draft.order_date}
+                    onChange={(order_date) => patch({ order_date })}
+                    disabled={structuralDetailsDisabled}
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Order date"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Description</Label>
@@ -1085,8 +1063,36 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     value={draft.description}
                     onChange={(e) => patch({ description: e.target.value })}
                     className="min-h-[56px] resize-none"
-                    disabled={coreDetailsDisabled}
+                    disabled={structuralDetailsDisabled}
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Expected Delivery
+                  </Label>
+                  <DatePickerField
+                    value={draft.expected_delivery_date}
+                    onChange={(expected_delivery_date) => patch({ expected_delivery_date })}
+                    disabled={planningDatesDisabled}
+                    placeholder="Optional"
+                    recurrenceStartDate={draft.order_date}
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Expected delivery date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Completed</Label>
+                  <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                    {order.actual_delivery_date ? (
+                      <span className="text-card-foreground">{formatDate(order.actual_delivery_date)}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs leading-tight">
+                        Set when all items received
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>

@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
-import { sliceToFactoryFilter, singleFactoryToSlice } from '@/lib/machinesLocationFilterAdapters';
-import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
+import { sliceToFactoryFilter } from '@/lib/machinesLocationFilterAdapters';
+import {
+  machinesPageLocationToSlice,
+  normalizeLocationSlice,
+  resolveMachinesPageLocation,
+  type MachinesLocationFilterSlice,
+} from '@/lib/machinesLocationFilters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MachinesHubHeader from '@/components/newcomponents/customui/orders/MachinesHubHeader';
 import WorkOrdersTabContent from '@/pages/newpages/orders/WorkOrdersTabContent';
-import { useGetFactoriesQuery, useGetFactoryByIdQuery } from '@/features/factories/factoriesApi';
-import { useGetFactorySectionByIdQuery } from '@/features/factorySections/factorySectionsApi';
+import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery, useGetUpcomingMachineWorkQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
@@ -26,6 +30,7 @@ import {
   brandIconGlyphClass,
   brandIconTileClass,
   machineKpiValueClass,
+  neutralMetricIconClass,
   neutralMetricTileClass,
   statusMetricIconClass,
 } from '@/lib/machineVisualStatus';
@@ -119,6 +124,8 @@ const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
   </div>
 );
 
+const machineKpiStripCellClass = 'flex min-h-[3.5rem] items-center gap-3';
+
 const machineKpiFilterChipClass = (active: boolean) =>
   cn(
     'flex cursor-pointer items-center gap-3 rounded-lg border px-2.5 py-1.5 text-left shadow-sm transition-[background-color,border-color,box-shadow]',
@@ -150,35 +157,6 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
   const sort_by = params.get('sort_by');
   const sort_dir = params.get('sort_dir');
   const search = params.get('search') ?? '';
-  const factory_ids = (params.get('filter_factory_ids') ?? '')
-    .split(',')
-    .map((v) => parseInt(v, 10))
-    .filter((n) => Number.isFinite(n));
-  const section_ids = (params.get('filter_section_ids') ?? '')
-    .split(',')
-    .map((v) => parseInt(v, 10))
-    .filter((n) => Number.isFinite(n));
-
-  // Legacy scope params (factoryId/sectionId) — used by deep links and factory drill-down.
-  const resolvedFactoryIds =
-    factory_ids.length > 0
-      ? factory_ids
-      : (() => {
-          const factoryId = params.get('factoryId');
-          if (!factoryId) return [];
-          const id = parseInt(factoryId, 10);
-          return Number.isFinite(id) ? [id] : [];
-        })();
-
-  const resolvedSectionIds =
-    section_ids.length > 0
-      ? section_ids
-      : (() => {
-          const sectionId = params.get('sectionId');
-          if (!sectionId) return [];
-          const id = parseInt(sectionId, 10);
-          return Number.isFinite(id) ? [id] : [];
-        })();
 
   return {
     search,
@@ -201,8 +179,8 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
         : 'all',
     sort_by: sort_by === 'created_at' || sort_by === 'maintenance_date' ? sort_by : 'name',
     sort_dir: sort_dir === 'desc' ? 'desc' : 'asc',
-    factory_ids: resolvedFactoryIds,
-    section_ids: resolvedSectionIds,
+    factory_ids: [],
+    section_ids: [],
   };
 };
 
@@ -219,7 +197,6 @@ const MachinesPage: React.FC = () => {
   const sectionIdParam = searchParams.get('sectionId');
   const machineIdParam = searchParams.get('machineId');
   const detailsParam = searchParams.get('details');
-  const selectedFactoryId = pageFactoryId;
 
   useEffect(() => {
     if (!searchParams.has('factoryId')) return;
@@ -258,7 +235,9 @@ const MachinesPage: React.FC = () => {
     [searchParams]
   );
   const selectedMachineId = machineIdParam ? parseInt(machineIdParam, 10) : null;
-  const sectionIdNum = sectionIdParam ? parseInt(sectionIdParam, 10) : null;
+  const sectionIdFromUrl = sectionIdParam ? parseInt(sectionIdParam, 10) : null;
+  const validSectionIdFromUrl =
+    sectionIdFromUrl != null && Number.isFinite(sectionIdFromUrl) ? sectionIdFromUrl : null;
 
   const handleSelectMachine = useCallback((id: number | null) => {
     setSearchParams((prev) => {
@@ -301,41 +280,45 @@ const MachinesPage: React.FC = () => {
     setOrDelete('latest_event_type', filters.latest_event_type, defaultMachineFilters.latest_event_type);
     setOrDelete('sort_by', filters.sort_by, defaultMachineFilters.sort_by);
     setOrDelete('sort_dir', filters.sort_dir, defaultMachineFilters.sort_dir);
-    if (filters.factory_ids.length > 0) next.set('filter_factory_ids', filters.factory_ids.join(','));
-    else next.delete('filter_factory_ids');
-    if (filters.section_ids.length > 0) next.set('filter_section_ids', filters.section_ids.join(','));
-    else next.delete('filter_section_ids');
+    next.delete('filter_factory_ids');
+    next.delete('filter_section_ids');
     return next;
   };
 
+  const { data: allSections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: 1000 });
+
+  const location = React.useMemo(
+    () => resolveMachinesPageLocation(pageFactoryId, validSectionIdFromUrl, allSections),
+    [pageFactoryId, validSectionIdFromUrl, allSections],
+  );
+
+  useEffect(() => {
+    if (validSectionIdFromUrl == null || allSections.length === 0) return;
+    const section = allSections.find((s) => s.id === validSectionIdFromUrl);
+    if (!section) return;
+    if (pageFactoryId !== section.factory_id) {
+      setPageFactory(String(section.factory_id));
+    }
+  }, [validSectionIdFromUrl, allSections, pageFactoryId, setPageFactory]);
+
   const toolbarLocationValue = React.useMemo(
-    () => ({
-      ...singleFactoryToSlice(pageFactoryId),
-      section_ids:
-        activeFilters.section_ids.length > 0
-          ? activeFilters.section_ids
-          : sectionIdNum != null && Number.isFinite(sectionIdNum)
-            ? [sectionIdNum]
-            : [],
-    }),
-    [pageFactoryId, activeFilters.section_ids, sectionIdNum],
+    () => machinesPageLocationToSlice(location),
+    [location],
   );
 
   const handleToolbarLocationChange = useCallback(
     (slice: MachinesLocationFilterSlice) => {
-      setPageFactory(sliceToFactoryFilter(slice));
+      const normalized = normalizeLocationSlice(slice, allSections);
+      setPageFactory(sliceToFactoryFilter(normalized));
       setSearchParams(
         (prev) => {
-          const next = writeFiltersToParams(prev, {
-            ...activeFilters,
-            factory_ids: [],
-            section_ids: slice.section_ids,
-          });
+          const next = writeFiltersToParams(prev, activeFilters);
           next.delete('filter_factory_ids');
+          next.delete('filter_section_ids');
           next.delete('factoryId');
           next.delete('machineId');
-          if (slice.section_ids.length === 1) {
-            next.set('sectionId', String(slice.section_ids[0]));
+          if (normalized.section_ids.length === 1) {
+            next.set('sectionId', String(normalized.section_ids[0]));
           } else {
             next.delete('sectionId');
           }
@@ -344,80 +327,55 @@ const MachinesPage: React.FC = () => {
         { replace: true },
       );
     },
-    [activeFilters, setPageFactory, setSearchParams],
+    [activeFilters, allSections, setPageFactory, setSearchParams],
   );
 
-  // Deep links (sectionId in URL) scope section only — factory is visit-local via usePageFactoryScope.
-  const { data: section, isLoading: isLoadingSection } = useGetFactorySectionByIdQuery(sectionIdNum!, {
-    skip: !sectionIdNum || isNaN(sectionIdNum),
-  });
-
-  const factoryId = section?.factory_id ?? selectedFactoryId ?? undefined;
-
-  const { data: factory } = useGetFactoryByIdQuery(factoryId!, {
-    skip: !factoryId,
-  });
-
-  const { data: sections = [] } = useGetFactorySectionsQuery(
-    { factory_id: factoryId!, limit: 500 },
-    { skip: !factoryId }
+  const factory = React.useMemo(
+    () => (location.factoryId != null ? factories.find((f) => f.id === location.factoryId) : undefined),
+    [factories, location.factoryId],
   );
-  const { data: allSections = [] } = useGetFactorySectionsQuery({ skip: 0, limit: 1000 });
 
-  const allFactoryIdsList = React.useMemo(() => factories.map((f) => f.id), [factories]);
+  const sections = React.useMemo(
+    () =>
+      location.factoryId != null
+        ? allSections.filter((s) => s.factory_id === location.factoryId)
+        : [],
+    [allSections, location.factoryId],
+  );
+
+  const sectionForDialogs = React.useMemo(
+    () =>
+      location.sectionId != null
+        ? allSections.find((s) => s.id === location.sectionId) ?? null
+        : null,
+    [allSections, location.sectionId],
+  );
 
   const commitMachineFilters = (nextFilters: MachinesFiltersValue) => {
-    const prevFilters = parseMachineFiltersFromParams(searchParams);
-    const locationChanged =
-      prevFilters.factory_ids.join(',') !== nextFilters.factory_ids.join(',') ||
-      prevFilters.section_ids.join(',') !== nextFilters.section_ids.join(',');
-
-    const effF =
-      nextFilters.factory_ids.length === 0 ? allFactoryIdsList : nextFilters.factory_ids;
-    const fset = new Set(effF);
-    const allS = allSections.filter((s) => fset.has(s.factory_id)).map((s) => s.id);
-    const effS =
-      nextFilters.section_ids.length === 0
-        ? allS
-        : nextFilters.section_ids.filter((id) => allS.includes(id));
-
-    if (locationChanged) {
-      const ids = nextFilters.factory_ids;
-      if (ids.length === 0 || ids.length >= allFactoryIdsList.length) {
-        setPageFactory('all');
-      } else if (ids.length === 1) {
-        setPageFactory(String(ids[0]));
-      } else {
-        setPageFactory('all');
-      }
-    }
-
-    setSearchParams((prev) => {
-      const next = writeFiltersToParams(prev, nextFilters);
-      if (locationChanged) {
-        next.delete('factoryId');
-        if (nextFilters.factory_ids.length === 0) {
-          next.delete('filter_factory_ids');
-        }
-        if (effS.length === 1) next.set('sectionId', String(effS[0]));
-        else next.delete('sectionId');
-        next.delete('machineId');
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams((prev) => writeFiltersToParams(prev, nextFilters), { replace: true });
   };
 
   const clearFilters = () => {
     setPageFactory('all');
-    commitMachineFilters(defaultMachineFilters);
+    setSearchParams(
+      (prev) => {
+        const next = writeFiltersToParams(prev, defaultMachineFilters);
+        next.delete('sectionId');
+        next.delete('filter_factory_ids');
+        next.delete('filter_section_ids');
+        next.delete('machineId');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const { data: machines, isLoading: machinesLoading, error: machinesError } = useGetMachinesQuery(
     {
       skip: 0,
       limit: 1000,
-      factory_id: factoryId,
-      factory_section_id: sectionIdNum || undefined,
+      factory_id: location.factoryId ?? undefined,
+      factory_section_id: location.sectionId ?? undefined,
       search: activeFilters.search || undefined,
       is_running:
         activeFilters.running_status === 'all'
@@ -442,26 +400,20 @@ const MachinesPage: React.FC = () => {
 
   const { data: upcomingMachineWork = [] } = useGetUpcomingMachineWorkQuery({
     within_days: 7,
-    factory_id: factoryId,
+    factory_id: location.factoryId ?? undefined,
   });
+
+  const upcomingMachineWorkFiltered = React.useMemo(() => {
+    if (location.sectionId == null) return upcomingMachineWork;
+    return upcomingMachineWork.filter((row) => row.factory_section_id === location.sectionId);
+  }, [upcomingMachineWork, location.sectionId]);
 
   const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
-  const effectiveFilteredMachines = React.useMemo(() => {
-    let list = machines ?? [];
-    if (activeFilters.factory_ids.length > 0) {
-      const allowedFactoryIds = new Set(activeFilters.factory_ids);
-      list = list.filter((m) => allowedFactoryIds.has(m.factory_id));
-    }
-    if (activeFilters.section_ids.length > 0) {
-      const allowedSectionIds = new Set(activeFilters.section_ids);
-      list = list.filter((m) => m.factory_section_id != null && allowedSectionIds.has(m.factory_section_id));
-    }
-    return list;
-  }, [machines, activeFilters.factory_ids, activeFilters.section_ids]);
+  const effectiveFilteredMachines = machines ?? [];
 
   const machinesGroupedBySection = React.useMemo(() => {
-    if (!factory || sectionIdNum) return [];
+    if (!factory || location.sectionId != null) return [];
     const grouped = new Map<number | 'unassigned', Machine[]>();
     for (const machine of effectiveFilteredMachines) {
       const key = machine.factory_section_id ?? 'unassigned';
@@ -481,10 +433,10 @@ const MachinesPage: React.FC = () => {
       groups.push({ key: 'unassigned', label: 'Unassigned', machines: unassignedMachines });
     }
     return groups;
-  }, [factory, sectionIdNum, effectiveFilteredMachines, sections]);
+  }, [factory, location.sectionId, effectiveFilteredMachines, sections]);
 
   const machinesGroupedByFactorySection = React.useMemo(() => {
-    if (factory || sectionIdNum) return [];
+    if (factory || location.sectionId != null) return [];
     const sectionById = new Map(allSections.map((s) => [s.id, s]));
     const factoryById = new Map(factories.map((f) => [f.id, f]));
 
@@ -523,20 +475,30 @@ const MachinesPage: React.FC = () => {
       })
       .filter((g) => g.factory && g.sections.length > 0)
       .sort((a, b) => (a.factory?.name ?? '').localeCompare(b.factory?.name ?? ''));
-  }, [factory, sectionIdNum, allSections, factories, effectiveFilteredMachines]);
+  }, [factory, location.sectionId, allSections, factories, effectiveFilteredMachines]);
 
   const selectedMachine = effectiveFilteredMachines.find((m) => m.id === selectedMachineId) ?? null;
 
-  const upcomingMachineWorkCount = upcomingMachineWork.length;
+  const upcomingMachineWorkCount = upcomingMachineWorkFiltered.length;
 
   const runningCount = effectiveFilteredMachines.filter((m) => m.is_running).length;
   const stoppedCount = effectiveFilteredMachines.length - runningCount;
 
-  const kpiContextLabel = section
-    ? section.name
-    : factory
-      ? factory.name
-      : 'All workspace machines';
+  const kpiScopeFactoryName =
+    location.factoryId != null
+      ? factories.find((f) => f.id === location.factoryId)?.name ?? 'Factory'
+      : null;
+  const kpiScopeSectionName =
+    location.sectionId != null
+      ? allSections.find((s) => s.id === location.sectionId)?.name ?? 'Section'
+      : null;
+
+  const kpiContextLabel =
+    location.sectionId != null
+      ? kpiScopeSectionName ?? 'Section'
+      : location.factoryId != null
+        ? kpiScopeFactoryName ?? 'Factory'
+        : 'All factories';
 
   const handleSearchChange = (value: string) => {
     commitMachineFilters({ ...activeFilters, search: value });
@@ -546,6 +508,7 @@ const MachinesPage: React.FC = () => {
     commitMachineFilters({
       ...activeFilters,
       running_status: activeFilters.running_status === 'running' ? 'all' : 'running',
+      maintenance_window: 'all',
     });
   };
 
@@ -553,22 +516,24 @@ const MachinesPage: React.FC = () => {
     commitMachineFilters({
       ...activeFilters,
       running_status: activeFilters.running_status === 'not_running' ? 'all' : 'not_running',
+      maintenance_window: 'all',
     });
   };
 
   const toggleUpcomingWorkKpiFilter = () => {
+    const enabling = activeFilters.maintenance_window !== 'next_7_days';
     commitMachineFilters({
       ...activeFilters,
-      maintenance_window:
-        activeFilters.maintenance_window === 'next_7_days' ? 'all' : 'next_7_days',
+      maintenance_window: enabling ? 'next_7_days' : 'all',
+      running_status: enabling ? 'all' : activeFilters.running_status,
     });
   };
 
   const firstGroupedSectionKey = React.useMemo(() => {
-    if (factory && !sectionIdNum && machinesGroupedBySection.length > 0) {
+    if (factory && location.sectionId == null && machinesGroupedBySection.length > 0) {
       return String(machinesGroupedBySection[0].key);
     }
-    if (!factory && !sectionIdNum) {
+    if (!factory && location.sectionId == null) {
       for (const group of machinesGroupedByFactorySection) {
         const first = group.sections[0];
         if (first) return `${group.factory!.id}-${String(first.key)}`;
@@ -577,7 +542,7 @@ const MachinesPage: React.FC = () => {
     return null;
   }, [
     factory,
-    sectionIdNum,
+    location.sectionId,
     machinesGroupedBySection,
     machinesGroupedByFactorySection,
   ]);
@@ -645,7 +610,7 @@ const MachinesPage: React.FC = () => {
         />
 
         {/* Content */}
-        {isLoadingSection ? (
+        {isLoadingFactories ? (
           <div className="flex-1 flex flex-col items-center justify-center py-16">
             <Loader2 className="h-12 w-12 animate-spin text-brand-primary mb-4" />
             <p className="text-muted-foreground">Loading workspace machines...</p>
@@ -655,7 +620,12 @@ const MachinesPage: React.FC = () => {
             <Card className="shrink-0 border-border bg-card shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-                  <div className="flex min-w-0 max-w-full items-center gap-3 sm:max-w-[14rem]">
+                  <div
+                    className={cn(
+                      machineKpiStripCellClass,
+                      'min-w-0 max-w-full sm:max-w-[14rem]',
+                    )}
+                  >
                     <div className={brandIconTileClass} aria-hidden>
                       <Cog className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
@@ -663,13 +633,22 @@ const MachinesPage: React.FC = () => {
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                         Scope
                       </p>
-                      <p className="truncate text-sm font-semibold text-card-foreground">
-                        {kpiContextLabel}
-                      </p>
+                      {location.sectionId != null && kpiScopeFactoryName ? (
+                        <>
+                          <p className="truncate text-xs text-muted-foreground">{kpiScopeFactoryName}</p>
+                          <p className="truncate text-base font-semibold text-card-foreground">
+                            {kpiScopeSectionName}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="truncate text-base font-semibold text-card-foreground">
+                          {kpiContextLabel}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="hidden h-9 w-px bg-border sm:block" />
-                  <div className="flex items-center gap-3">
+                  <div className="hidden h-9 w-px self-center bg-border sm:block" />
+                  <div className={machineKpiStripCellClass}>
                     <div className={brandIconTileClass} aria-hidden>
                       <Cog className={brandIconGlyphClass} strokeWidth={2} />
                     </div>
@@ -712,7 +691,7 @@ const MachinesPage: React.FC = () => {
                     aria-pressed={activeFilters.running_status === 'not_running'}
                   >
                     <div className={neutralMetricTileClass} aria-hidden>
-                      <Pause className={statusMetricIconClass.stopped} strokeWidth={2} />
+                      <Pause className={neutralMetricIconClass} strokeWidth={2} />
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -721,7 +700,7 @@ const MachinesPage: React.FC = () => {
                       <p
                         className={cn(
                           'text-base font-semibold tabular-nums',
-                          machineKpiValueClass.stopped
+                          'text-muted-foreground'
                         )}
                       >
                         {machinesLoading ? '—' : stoppedCount}
@@ -786,7 +765,7 @@ const MachinesPage: React.FC = () => {
                         </Button>
                       </div>
                     </div>
-                  ) : factory && !sectionIdNum ? (
+                  ) : factory && location.sectionId == null ? (
                     <div className="space-y-5">
                       {machinesGroupedBySection.map(({ key, label, machines: secMachines }) => (
                         <div key={key} className="space-y-3">
@@ -811,7 +790,7 @@ const MachinesPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  ) : !factory && !sectionIdNum ? (
+                  ) : !factory && location.sectionId == null ? (
                     <div className="space-y-5">
                       {machinesGroupedByFactorySection.map((group) => (
                         <div key={group.factory!.id} className="space-y-4">
@@ -896,6 +875,7 @@ const MachinesPage: React.FC = () => {
         value={activeFilters}
         factories={factories}
         sections={allSections}
+        showLocationFilters={false}
         onApply={(next) => {
           commitMachineFilters(next);
           setIsFiltersOpen(false);
@@ -909,15 +889,15 @@ const MachinesPage: React.FC = () => {
       <EditFactorySectionDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        section={section ?? null}
+        section={sectionForDialogs}
         sections={sections}
       />
 
       <AddMachineDialog
         open={isAddMachineOpen}
         onOpenChange={setIsAddMachineOpen}
-        factoryId={factoryId || undefined}
-        sectionId={sectionIdNum || undefined}
+        factoryId={location.factoryId ?? undefined}
+        sectionId={location.sectionId ?? undefined}
         onSuccess={() => {}}
       />
 

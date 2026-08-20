@@ -9,6 +9,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import CompleteWorkOrderDialog from '@/components/newcomponents/customui/orders/CompleteWorkOrderDialog';
+import StartWorkOrderDialog from '@/components/newcomponents/customui/orders/StartWorkOrderDialog';
 import {
   useApproveWorkOrderMutation,
   useCompleteWorkOrderMutation,
@@ -37,6 +38,7 @@ export interface SheetWorkOrderRowActionsProps {
 
 const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   workOrderId,
+  workOrderNumber,
   status,
   plannedDate,
   approvalMet,
@@ -46,6 +48,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   onMutated,
   className,
 }) => {
+  const [startOpen, setStartOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
 
@@ -101,6 +104,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
     try {
       await startOrder(workOrderId).unwrap();
       appToast.success('Work started');
+      setStartOpen(false);
       afterSuccess();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -141,7 +145,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
 
   return (
     <>
-      <div className={cn('flex w-full flex-col gap-1', className)} onClick={stop}>
+      <div className={cn('flex w-full flex-row flex-wrap gap-1', className)} onClick={stop}>
         {showApprove ? (
           <Button
             type="button"
@@ -174,34 +178,44 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
             size="sm"
             className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
             disabled={isBusy}
-            onClick={() => void handleStart()}
+            onClick={() => setStartOpen(true)}
           >
-            {isStarting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Start'}
+            Start
           </Button>
         ) : null}
 
         {showCompleteAsPlanned ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className={cn(
-              SHEET_ACTION_BTN,
-              'border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40',
-            )}
-            disabled={isBusy}
-            onPointerDown={stop}
-            onClick={(e) => {
-              stop(e);
-              setCompleteAsPlannedOpen(true);
-            }}
-          >
-            {isCompletingAsPlanned ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              'Direct Complete'
-            )}
-          </Button>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    SHEET_ACTION_BTN,
+                    'border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40',
+                  )}
+                  disabled={isBusy}
+                  onPointerDown={stop}
+                  onClick={(e) => {
+                    stop(e);
+                    setCompleteAsPlannedOpen(true);
+                  }}
+                >
+                  {isCompletingAsPlanned ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    'Complete'
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[240px] text-xs">
+                Complete on the planned date without starting — use when work was already done and
+                this entry is catching up.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : null}
 
         {showComplete ? (
@@ -223,7 +237,7 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
           </Button>
         ) : null}
 
-        {showStart && !startEnabled ? (
+        {showStart && !startEnabled && !showApprove ? (
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -241,11 +255,22 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         ) : null}
       </div>
 
+      <StartWorkOrderDialog
+        open={startOpen}
+        onOpenChange={setStartOpen}
+        onConfirm={handleStart}
+        isStarting={isStarting}
+        workOrderNumber={workOrderNumber}
+        hasMachineTarget={machineId != null}
+      />
+
       <CompleteWorkOrderDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
         onComplete={handleComplete}
         isCompleting={isCompleting}
+        workOrderId={workOrderId}
+        machineId={machineId}
         hasMachineTarget={machineId != null}
       />
 
@@ -254,6 +279,8 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         onOpenChange={setCompleteAsPlannedOpen}
         onComplete={handleCompleteAsPlanned}
         isCompleting={isCompletingAsPlanned}
+        workOrderId={workOrderId}
+        machineId={machineId}
         hasMachineTarget={machineId != null}
         mode="as_planned"
         plannedDate={plannedDate}

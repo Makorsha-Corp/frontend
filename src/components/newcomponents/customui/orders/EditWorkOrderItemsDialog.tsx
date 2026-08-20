@@ -23,10 +23,14 @@ import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi
 import type { WorkOrderItem, WorkOrderItemSourceType, WorkOrderItemActionType, WorkOrderStatus } from '@/types/workOrder';
 import { WORK_ORDER_ITEM_ACTION_OPTIONS, WORK_ORDER_ITEM_ACTION_EXPLAINER, workOrderItemActionLabel } from '@/pages/newpages/orders/workOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
-import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
+import LineItemCommitCheckButton, {
+  partDraftHintText,
+} from '@/components/newcomponents/customui/orders/LineItemCommitCheckButton';
+import { useLineItemAddButtonHighlight } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 function formatItemDisplayLabel(selection: ItemSelection): string {
   const base = selection.itemUnit
@@ -82,6 +86,12 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
+  const [addHintOpen, setAddHintOpen] = useState(false);
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
 
   const { data: itemsList = [] } = useGetItemsQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
   const { data: machines = [] } = useGetMachinesQuery({ skip: 0, limit: API_LIMITS.FLEXIBLE_1000 }, { skip: !open });
@@ -109,8 +119,10 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
       setReplacedItemId('');
       setVoidConfirmItem(null);
       setEditingItem(null);
+      setAddHintOpen(false);
+      dismissAddButtonHighlight();
     }
-  }, [open]);
+  }, [open, dismissAddButtonHighlight]);
 
   const canEditLines = workOrderStatus === 'DRAFT' || workOrderStatus === 'IN_PROGRESS';
   const canRemoveLines = canEditLines;
@@ -160,6 +172,10 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     return true;
   })();
 
+  useEffect(() => {
+    if (canAdd) setAddHintOpen(false);
+  }, [canAdd]);
+
   const resetDraft = () => {
     setItemId('');
     setQty('1');
@@ -168,13 +184,18 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     setReplacedItemId('');
   };
 
+  const handleAddClick = () => {
+    if (!canAdd) {
+      setAddHintOpen(true);
+      pulseAddButtonHighlight();
+      return;
+    }
+    void handleAdd();
+  };
+
   const handleAdd = async () => {
     if (!canAdd) {
-      appToast.error(
-        actionType === 'REPLACE'
-          ? 'Pick item, quantity, and part being replaced'
-          : 'Pick an item and quantity',
-      );
+      setAddHintOpen(true);
       return;
     }
     setIsSaving(true);
@@ -194,6 +215,8 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
       appToast.success('Part added');
       resetDraft();
       setActionType('CONSUME');
+      setAddHintOpen(false);
+      dismissAddButtonHighlight();
       onSaved?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -325,8 +348,11 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
 
             {canEditLines ? (
             <div className="shrink-0 space-y-3 rounded-md border border-dashed border-border/60 bg-muted/20 p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1">
+              <p className="text-xs text-muted-foreground">
+                Pick item and quantity, then press ✓ to add to the list below.
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="grid min-w-[8rem] flex-1 gap-1">
                   <Label className="text-xs text-muted-foreground">
                     {actionType === 'REPLACE' ? 'New item' : 'Item'}
                   </Label>
@@ -339,7 +365,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                     onClick={() => openItemPicker('item')}
                   />
                 </div>
-                <div className="grid gap-1">
+                <div className="grid w-20 gap-1">
                   <Label className="text-xs text-muted-foreground">Quantity</Label>
                   <StepNumberInput
                     min={0.01}
@@ -349,6 +375,17 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                     className="h-9"
                   />
                 </div>
+                <LineItemCommitCheckButton
+                  canCommit={canAdd}
+                  highlighted={addButtonHighlighted}
+                  hintOpen={addHintOpen && !canAdd}
+                  hintText={partDraftHintText(actionType === 'REPLACE')}
+                  onCommit={handleAddClick}
+                  onDismissHint={() => setAddHintOpen(false)}
+                  onDismissHighlight={dismissAddButtonHighlight}
+                  disabled={isSaving}
+                  size="sm"
+                />
               </div>
 
               {machineId && actionType === 'REPLACE' && (
@@ -374,18 +411,6 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                   ) : null}
                 </div>
               )}
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full bg-background"
-                disabled={!canAdd || isSaving}
-                onClick={handleAdd}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Add part
-              </Button>
             </div>
             ) : null}
 
@@ -393,6 +418,10 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
               {items.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-muted-foreground">No parts on this order yet.</p>
               ) : (
+                <>
+                  <p className="border-b border-border/60 px-4 py-2 text-xs text-muted-foreground tabular-nums">
+                    {items.length} part(s) added
+                  </p>
                 <div className="divide-y divide-border/60">
                   {items.map((item) => (
                     <div key={item.id} className="flex items-start justify-between gap-3 px-4 py-3">
@@ -452,6 +481,7 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
                     </div>
                   ))}
                 </div>
+                </>
               )}
             </div>
           </div>

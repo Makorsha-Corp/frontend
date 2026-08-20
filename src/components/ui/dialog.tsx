@@ -30,14 +30,31 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   /** When true, Radix focuses the first focusable element on open (default: false). */
   autoFocusOnOpen?: boolean
+  /** When true, backdrop/outside clicks do not dismiss — X, Escape, and Cancel still work. */
+  preventOutsideDismiss?: boolean
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, autoFocusOnOpen = false, onOpenAutoFocus, ...props }, ref) => (
+>(({
+  className,
+  children,
+  autoFocusOnOpen = false,
+  preventOutsideDismiss = false,
+  onOpenAutoFocus,
+  onPointerDownOutside,
+  onInteractOutside,
+  ...props
+}, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    {preventOutsideDismiss ? (
+      <DialogOverlay />
+    ) : (
+      <DialogPrimitive.Close asChild>
+        <DialogOverlay className="cursor-default" />
+      </DialogPrimitive.Close>
+    )}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -47,6 +64,18 @@ const DialogContent = React.forwardRef<
       onOpenAutoFocus={(event) => {
         onOpenAutoFocus?.(event)
         if (!event.defaultPrevented && !autoFocusOnOpen) {
+          event.preventDefault()
+        }
+      }}
+      onPointerDownOutside={(event) => {
+        onPointerDownOutside?.(event)
+        if (preventOutsideDismiss) {
+          event.preventDefault()
+        }
+      }}
+      onInteractOutside={(event) => {
+        onInteractOutside?.(event)
+        if (preventOutsideDismiss) {
           event.preventDefault()
         }
       }}

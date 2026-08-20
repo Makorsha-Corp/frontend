@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -77,6 +78,7 @@ import WoLinkedInvoiceCard from './WoLinkedInvoiceCard';
 import EditWorkOrderItemsDialog from './EditWorkOrderItemsDialog';
 import VoidWorkOrderDialog from './VoidWorkOrderDialog';
 import CompleteWorkOrderDialog from './CompleteWorkOrderDialog';
+import StartWorkOrderDialog from './StartWorkOrderDialog';
 import WoEventLogRow from './WoEventLogRow';
 import {
   useWorkOrderRecurringProgram,
@@ -132,6 +134,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [manageApprovalsOpen, setManageApprovalsOpen] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(Boolean(autoOpenItemsSourceHint));
   const [voidOpen, setVoidOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
   const [showUpdateEvents, setShowUpdateEvents] = useState(false);
@@ -242,6 +245,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
     try {
       await startOrder(order.id).unwrap();
       appToast.success('Work started');
+      setStartOpen(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
       appToast.error(e?.data?.detail || 'Failed to start work order');
@@ -552,15 +556,11 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                     <div className="space-y-2">
                       <Label className={fieldLabelClass}>Planned start date</Label>
                       {canEditScheduleFields ? (
-                        <Input
-                          type="date"
-                          className="h-8"
-                          defaultValue={toDateInputValue(order.planned_date)}
-                          onBlur={(e) => {
-                            const v = e.target.value;
-                            const orig = toDateInputValue(order.planned_date);
-                            if (v !== orig) handleFieldUpdate({ planned_date: v || undefined });
-                          }}
+                        <DatePickerField
+                          value={toDateInputValue(order.planned_date)}
+                          onChange={(planned_date) => handleFieldUpdate({ planned_date: planned_date || undefined })}
+                          triggerClassName="h-8 w-full px-3 text-sm"
+                          aria-label="Planned start date"
                         />
                       ) : (
                         <p className="text-sm font-medium">{formatDate(order.planned_date)}</p>
@@ -569,15 +569,13 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                     <div className="space-y-2">
                       <Label className={fieldLabelClass}>End date</Label>
                       {canEditScheduleFields ? (
-                        <Input
-                          type="date"
-                          className="h-8"
-                          defaultValue={toDateInputValue(order.end_date)}
-                          onBlur={(e) => {
-                            const v = e.target.value;
-                            const orig = toDateInputValue(order.end_date);
-                            if (v !== orig) handleFieldUpdate({ end_date: v || undefined });
-                          }}
+                        <DatePickerField
+                          value={toDateInputValue(order.end_date)}
+                          onChange={(end_date) => handleFieldUpdate({ end_date: end_date || undefined })}
+                          placeholder="Optional"
+                          recurrenceStartDate={toDateInputValue(order.planned_date)}
+                          triggerClassName="h-8 w-full px-3 text-sm"
+                          aria-label="End date"
                         />
                       ) : (
                         <p className="text-sm font-medium">{formatDate(order.end_date)}</p>
@@ -793,7 +791,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
               order={order}
               approvalSummary={approvalSummary}
               onScrollToApprovals={scrollToApprovals}
-              onStart={handleStart}
+              onStart={() => setStartOpen(true)}
               isStarting={isStarting}
               onComplete={() => setCompleteOpen(true)}
               isCompleting={isCompleting}
@@ -842,11 +840,23 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
         hasDraftInvoice={linkedInvoice?.invoice_status === 'draft'}
       />
 
+      <StartWorkOrderDialog
+        open={startOpen}
+        onOpenChange={setStartOpen}
+        onConfirm={handleStart}
+        isStarting={isStarting}
+        workOrderNumber={order.work_order_number}
+        title={order.title}
+        hasMachineTarget={order.machine_id != null}
+      />
+
       <CompleteWorkOrderDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
         onComplete={handleComplete}
         isCompleting={isCompleting}
+        workOrderId={order.id}
+        machineId={order.machine_id}
         hasMachineTarget={order.machine_id != null}
       />
 
@@ -855,6 +865,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
         onOpenChange={setCompleteAsPlannedOpen}
         onComplete={handleCompleteAsPlanned}
         isCompleting={isCompletingAsPlanned}
+        workOrderId={order.id}
+        machineId={order.machine_id}
         hasMachineTarget={order.machine_id != null}
         mode="as_planned"
         plannedDate={order.planned_date}

@@ -74,7 +74,8 @@ const FactoriesFactoryAttentionPanel: React.FC<FactoriesFactoryAttentionPanelPro
         ) : (
           <div className="space-y-4">
             <AttentionSection title="Machine work due" rows={attention.maintenanceDue} />
-            <AttentionSection title="Stopped / idle" rows={attention.stoppedIdle} />
+            <AttentionSection title="Idle" rows={attention.idle} />
+            <AttentionSection title="Off" rows={attention.off} />
             <AttentionSection title="Unassigned machines" rows={attention.unassigned} />
             <AttentionSection title="Draft batches" rows={attention.draftBatches} />
           </div>

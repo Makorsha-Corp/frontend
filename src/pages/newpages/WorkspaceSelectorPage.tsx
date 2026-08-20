@@ -38,6 +38,67 @@ function toSlug(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function CreateWorkspaceListTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="Create new workspace"
+      onClick={onClick}
+      className={cn(
+        'w-full rounded-xl border-2 border-dashed px-3 py-2.5 text-left transition-all',
+        'border-border/80 bg-card/50 hover:border-brand-primary hover:bg-brand-primary/5',
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+          <Building2 className="h-4 w-4" aria-hidden />
+        </div>
+        <div className="min-w-0 leading-tight">
+          <p className="text-sm font-semibold text-card-foreground">Create workspace</p>
+          <p className="text-[11px] text-muted-foreground">Start a new organization</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function InviteTokenListTile({
+  expanded,
+  onClick,
+}: {
+  expanded: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Join workspace with invite token"
+      aria-expanded={expanded}
+      onClick={onClick}
+      className={cn(
+        'w-full rounded-xl border-2 border-dashed px-3 py-2.5 text-left transition-all',
+        'border-border/80 bg-card/50 hover:border-brand-primary hover:bg-brand-primary/5',
+        expanded && 'border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/20',
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+          <Ticket className="h-4 w-4" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="text-sm font-semibold text-card-foreground">Join with invite</p>
+          <p className="text-[11px] text-muted-foreground">Paste your token</p>
+        </div>
+        {expanded ? (
+          <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+      </div>
+    </button>
+  );
+}
+
 const WorkspaceSelectorPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -325,12 +386,14 @@ const WorkspaceSelectorPage: React.FC = () => {
               {!showCreateWorkspace ? (
                 <motion.div key="workspace-selector" className="space-y-4" {...selectorPanelMotion}>
                   {/* Workspace list */}
-                  {workspaces && workspaces.length > 0 && (
+                  {workspaces && (
                     <Card className="overflow-hidden rounded-3xl border-0 bg-card shadow-2xl ring-1 ring-border/70">
                       <CardHeader className="border-b border-border/80 pb-4">
                         <CardTitle className="text-xl text-card-foreground">Your workspaces</CardTitle>
                         <CardDescription>
-                          {workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''} available
+                          {workspaces.length > 0
+                            ? `${workspaces.length} workspace${workspaces.length !== 1 ? 's' : ''} available`
+                            : 'No workspaces yet'}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3 pt-4">
@@ -391,6 +454,109 @@ const WorkspaceSelectorPage: React.FC = () => {
                             </div>
                           </button>
                         ))}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <CreateWorkspaceListTile onClick={() => setShowCreateWorkspace(true)} />
+                          <InviteTokenListTile
+                            expanded={showJoinToken}
+                            onClick={() => {
+                              setShowJoinToken((v) => !v);
+                              if (showJoinToken) {
+                                setInvitePreview(null);
+                                setInviteToken('');
+                              }
+                            }}
+                          />
+                        </div>
+                        {showJoinToken && (
+                          <div className="space-y-3 rounded-2xl border border-border/70 bg-card/60 px-4 pb-4 pt-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="invite-token" className="text-xs text-muted-foreground">
+                                Paste your invite token
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  id="invite-token"
+                                  value={inviteToken}
+                                  onChange={(e) => {
+                                    setInviteToken(e.target.value);
+                                    setInvitePreview(null);
+                                  }}
+                                  placeholder="e.g. abc123xyz..."
+                                  className="h-9 font-mono text-xs"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-9 shrink-0"
+                                  onClick={handleValidateToken}
+                                  disabled={isValidating || !inviteToken.trim()}
+                                >
+                                  {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}
+                                </Button>
+                              </div>
+                            </div>
+
+                            {invitePreview && (
+                              <div className="space-y-2 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-3">
+                                <p className="text-sm font-medium text-foreground">
+                                  Invitation to{' '}
+                                  <span className="text-brand-primary">
+                                    {invitePreview.workspace_name ?? 'a workspace'}
+                                  </span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Role:{' '}
+                                  <span className="font-medium capitalize text-foreground/80">
+                                    {invitePreview.role.replace(/-/g, ' ')}
+                                  </span>
+                                  {invitePreview.position && (
+                                    <>
+                                      {' · '}
+                                      Position:{' '}
+                                      <span className="font-medium text-foreground/80">{invitePreview.position}</span>
+                                    </>
+                                  )}
+                                  {' · '}
+                                  Expires:{' '}
+                                  {new Date(invitePreview.expires_at).toLocaleDateString()}
+                                </p>
+                                {!invitePreview.position && (
+                                  <div className="space-y-1">
+                                    <Label htmlFor="invite-position" className="text-xs text-muted-foreground">
+                                      Your position{' '}
+                                      <span className="text-xs">(optional)</span>
+                                    </Label>
+                                    <Input
+                                      id="invite-position"
+                                      type="text"
+                                      placeholder="e.g. Site Supervisor"
+                                      value={invitePosition}
+                                      onChange={(e) => setInvitePosition(e.target.value)}
+                                      className="h-8 text-xs"
+                                    />
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  className="h-8 w-full bg-brand-primary text-xs hover:bg-brand-primary-hover"
+                                  onClick={handleAcceptInvitation}
+                                  disabled={isAccepting}
+                                >
+                                  {isAccepting ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    `Join ${invitePreview.workspace_name ?? 'workspace'}`
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {workspaces.length === 0 ? (
+                          <p className="text-center text-sm text-muted-foreground">
+                            Create a workspace or join with an invite token.
+                          </p>
+                        ) : null}
                       </CardContent>
                       <CardFooter className="border-t border-border/80 pt-4">
                         <Button
@@ -405,137 +571,6 @@ const WorkspaceSelectorPage: React.FC = () => {
                       </CardFooter>
                     </Card>
                   )}
-
-                  {(!workspaces || workspaces.length === 0) && (
-                    <Card className="overflow-hidden rounded-3xl border-0 bg-card shadow-2xl ring-1 ring-border/70">
-                      <CardContent className="py-10 text-center">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/12 text-brand-primary">
-                          <Building2 className="h-7 w-7" aria-hidden />
-                        </div>
-                        <h3 className="mb-2 text-lg font-semibold text-card-foreground">No workspaces yet</h3>
-                        <p className="mb-4 text-sm text-muted-foreground">
-                          Create a new workspace or use an invite token to join an existing one.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Join with token */}
-                  <div className="rounded-2xl border border-border/70 bg-card/60">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => {
-                        setShowJoinToken((v) => !v);
-                        setInvitePreview(null);
-                        setInviteToken('');
-                      }}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Ticket className="h-4 w-4 shrink-0" />
-                        Have an invite token?
-                      </span>
-                      {showJoinToken ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </button>
-
-                    {showJoinToken && (
-                      <div className="border-t border-border/60 px-4 pb-4 pt-3 space-y-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="invite-token" className="text-xs text-muted-foreground">
-                            Paste your invite token
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              id="invite-token"
-                              value={inviteToken}
-                              onChange={(e) => {
-                                setInviteToken(e.target.value);
-                                setInvitePreview(null);
-                              }}
-                              placeholder="e.g. abc123xyz..."
-                              className="h-9 font-mono text-xs"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-9 shrink-0"
-                              onClick={handleValidateToken}
-                              disabled={isValidating || !inviteToken.trim()}
-                            >
-                              {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {invitePreview && (
-                          <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-3 space-y-2">
-                            <p className="text-sm font-medium text-foreground">
-                              Invitation to{' '}
-                              <span className="text-brand-primary">
-                                {invitePreview.workspace_name ?? 'a workspace'}
-                              </span>
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Role:{' '}
-                              <span className="capitalize font-medium text-foreground/80">
-                                {invitePreview.role.replace(/-/g, ' ')}
-                              </span>
-                              {invitePreview.position && (
-                                <>
-                                  {' · '}
-                                  Position:{' '}
-                                  <span className="font-medium text-foreground/80">{invitePreview.position}</span>
-                                </>
-                              )}
-                              {' · '}
-                              Expires:{' '}
-                              {new Date(invitePreview.expires_at).toLocaleDateString()}
-                            </p>
-                            {!invitePreview.position && (
-                              <div className="space-y-1">
-                                <Label htmlFor="invite-position" className="text-xs text-muted-foreground">
-                                  Your position{' '}
-                                  <span className="text-xs">(optional)</span>
-                                </Label>
-                                <Input
-                                  id="invite-position"
-                                  type="text"
-                                  placeholder="e.g. Site Supervisor"
-                                  value={invitePosition}
-                                  onChange={(e) => setInvitePosition(e.target.value)}
-                                  className="h-8 text-xs"
-                                />
-                              </div>
-                            )}
-                            <Button
-                              type="button"
-                              className="h-8 w-full bg-brand-primary text-xs hover:bg-brand-primary-hover"
-                              onClick={handleAcceptInvitation}
-                              disabled={isAccepting}
-                            >
-                              {isAccepting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                `Join ${invitePreview.workspace_name ?? 'workspace'}`
-                              )}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Create workspace button */}
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      className="border-2 border-dashed border-border bg-card/80 text-muted-foreground hover:border-brand-primary hover:bg-brand-primary/5 hover:text-foreground"
-                      onClick={() => setShowCreateWorkspace(true)}
-                    >
-                      <span className="mr-2 text-lg leading-none">+</span>
-                      Create new workspace
-                    </Button>
-                  </div>
                 </motion.div>
               ) : (
                 <motion.div key="create-workspace" {...createPanelMotion}>

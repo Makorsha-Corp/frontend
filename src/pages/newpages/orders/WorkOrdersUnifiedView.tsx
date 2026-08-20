@@ -57,6 +57,7 @@ import {
 } from '@/pages/newpages/orders/workOrdersFilterUtils';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
+import { normalizeLocationSlice } from '@/lib/machinesLocationFilters';
 import type { WorkOrder } from '@/types/workOrder';
 
 export interface WorkOrdersUnifiedViewProps {
@@ -80,6 +81,11 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     highlighted: factoryPickerHighlight,
     pulseHighlight: pulseFactoryPickerHighlight,
     dismissHighlight: dismissFactoryPickerHighlight,
+  } = useScrollTargetHighlight();
+  const {
+    highlighted: footerHighlight,
+    pulseHighlight: pulseFooterHighlight,
+    dismissHighlight: dismissFooterHighlight,
   } = useScrollTargetHighlight();
   const [pickerCalendarMonth, setPickerCalendarMonth] = useState(() => startOfMonth(new Date()));
 
@@ -384,11 +390,15 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       promptFactorySelect();
       return;
     }
+    const wasOpen = footerDrawerOpen;
     setFooterDrawerOpen(true);
+    if (wasOpen) {
+      pulseFooterHighlight();
+    }
     requestAnimationFrame(() => {
       footerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-  }, [resolvedFactoryId, promptFactorySelect]);
+  }, [resolvedFactoryId, promptFactorySelect, pulseFooterHighlight, footerDrawerOpen]);
 
   const handleAddForDay = useCallback(
     (date: string) => {
@@ -429,7 +439,12 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     });
   }, [patchParams]);
 
-  const handleLocationFilterChange = setLocationFilterSlice;
+  const handleLocationFilterChange = useCallback(
+    (slice: MachinesLocationFilterSlice) => {
+      setLocationFilterSlice(normalizeLocationSlice(slice, sections));
+    },
+    [sections, setLocationFilterSlice],
+  );
 
   const headerLocationValue = useMemo(
     (): MachinesLocationFilterSlice => ({
@@ -448,6 +463,19 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get('woAdd') !== '1') return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('woAdd');
+        return next;
+      },
+      { replace: true },
+    );
+    focusFooterForAdd();
+  }, [searchParams, setSearchParams, focusFooterForAdd]);
 
   const setSelectedOrder = (orderId: number | null) => {
     setSelectedOrderId(orderId);
@@ -627,7 +655,12 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
           ref={footerRef}
           key={`footer-${sectionId ?? 'none'}-${defaultMachineId ?? 'none'}`}
           open
-          onOpenChange={setFooterDrawerOpen}
+          highlight={footerHighlight}
+          onHighlightDismiss={dismissFooterHighlight}
+          onOpenChange={(nextOpen) => {
+            setFooterDrawerOpen(nextOpen);
+            if (!nextOpen) dismissFooterHighlight();
+          }}
           sheetDate={logEntryDate}
           factoryId={resolvedFactoryId}
           factoryLabel={factoryLabel}

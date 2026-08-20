@@ -186,7 +186,7 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
         <Repeat2 className="mb-2 h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">No recurring templates yet</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Create one with Templates in the header and turn on recurrence.
+          Use Create recurring template above, then Add work on the sheet with that template to start a program.
         </p>
       </div>
     );
@@ -198,7 +198,7 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
         <Repeat2 className="mb-2 h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">No recurring programs in this view</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Save recurrence from the sheet to generate drafts for a machine.
+          Use Add work on the sheet, pick a recurring template, set start and end dates, and save the entry.
         </p>
       </div>
     );

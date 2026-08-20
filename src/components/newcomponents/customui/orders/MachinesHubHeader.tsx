@@ -13,6 +13,7 @@ import MachinesHubScopeFiltersDialog, {
   isMachinesHubLocationScopeFiltered,
 } from '@/components/newcomponents/customui/orders/MachinesHubScopeFiltersDialog';
 import MachinesWorkOrdersTabs from '@/components/newcomponents/customui/orders/MachinesWorkOrdersTabs';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { cn } from '@/lib/utils';
 
@@ -52,11 +53,14 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
   workOrdersActions,
 }) => {
   const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
+  const isLgScreen = useIsLgScreen();
   const scopeFiltered = isMachinesHubLocationScopeFiltered(locationValue);
 
+  // Mobile only — desktop uses inline factory/section dropdowns in the header row.
   useEffect(() => {
-    if (factoryPickerOpen) setScopeDialogOpen(true);
-  }, [factoryPickerOpen]);
+    if (!factoryPickerOpen || isLgScreen) return;
+    setScopeDialogOpen(true);
+  }, [factoryPickerOpen, isLgScreen]);
 
   const handleScopeDialogOpenChange = useCallback(
     (open: boolean) => {

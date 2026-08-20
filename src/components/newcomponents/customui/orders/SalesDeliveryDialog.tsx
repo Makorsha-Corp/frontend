@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -256,11 +257,13 @@ const SalesDeliveryDialog: React.FC<Props> = ({ open, onOpenChange, orderId, ite
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="so-scheduled-date">Scheduled date <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input
+                <DatePickerField
                   id="so-scheduled-date"
-                  type="date"
                   value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
+                  onChange={setScheduledDate}
+                  placeholder="Optional"
+                  triggerClassName="h-10 w-full px-3 text-sm"
+                  aria-label="Scheduled date"
                 />
               </div>
               <div className="space-y-1.5">
@@ -565,11 +568,13 @@ const ManageDeliveryDialog: React.FC<{
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="so-edit-scheduled-date">Scheduled date</Label>
-                  <Input
+                  <DatePickerField
                     id="so-edit-scheduled-date"
-                    type="date"
                     value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    onChange={setScheduledDate}
+                    placeholder="Optional"
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Scheduled date"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -664,11 +669,12 @@ const ManageDeliveryDialog: React.FC<{
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="so-actual-delivery-date">Actual delivery date</Label>
-                <Input
+                <DatePickerField
                   id="so-actual-delivery-date"
-                  type="date"
                   value={actualDeliveryDate}
-                  onChange={(e) => setActualDeliveryDate(e.target.value)}
+                  onChange={setActualDeliveryDate}
+                  triggerClassName="h-10 w-full px-3 text-sm"
+                  aria-label="Actual delivery date"
                 />
               </div>
               <div className="space-y-1.5">

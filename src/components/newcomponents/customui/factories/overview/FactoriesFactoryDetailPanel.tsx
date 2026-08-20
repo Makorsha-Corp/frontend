@@ -38,7 +38,8 @@ import { appToast } from '@/lib/appToast';
 
 const emptyAttention: FactoryAttentionGroups = {
   maintenanceDue: [],
-  stoppedIdle: [],
+  idle: [],
+  off: [],
   unassigned: [],
   draftBatches: [],
 };
@@ -51,8 +52,12 @@ function filterAttentionBySection(
     maintenanceDue: attention.maintenanceDue.filter((row) =>
       row.machineId != null ? scopedMachineIds.has(row.machineId) : false
     ),
-    stoppedIdle: attention.stoppedIdle.filter((row) => {
-      const match = String(row.id).match(/^stopped-(\d+)$/);
+    idle: attention.idle.filter((row) => {
+      const match = String(row.id).match(/^idle-(\d+)$/);
+      return match != null && scopedMachineIds.has(Number(match[1]));
+    }),
+    off: attention.off.filter((row) => {
+      const match = String(row.id).match(/^off-(\d+)$/);
       return match != null && scopedMachineIds.has(Number(match[1]));
     }),
     unassigned: [],

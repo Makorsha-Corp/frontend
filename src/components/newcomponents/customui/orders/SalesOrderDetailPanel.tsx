@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -52,6 +53,10 @@ import {
   type SoLinkedInvoiceStatus,
   type SoSectionConfirmKey,
 } from './salesOrderMilestones';
+import {
+  isSoPlanningDateLocked,
+  isSoStructuralOrderInfoLocked,
+} from './orderDateEditPolicy';
 import AccountInvoiceDialog from '@/components/newcomponents/customui/accounts/AccountInvoiceDialog';
 import AccountInvoiceOverviewPanel from '@/components/newcomponents/customui/accounts/AccountInvoiceOverviewPanel';
 import AccountViewDialog from '@/components/newcomponents/customui/accounts/AccountViewDialog';
@@ -205,7 +210,8 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
   const isSoCompleted = isSalesOrderMarkedComplete(order);
   const orderInfoConfirmed = order.order_info_confirmed;
   const itemsConfirmed = order.items_confirmed;
-  const orderInfoDisabled = invoiceLocked || orderInfoConfirmed;
+  const structuralOrderInfoDisabled = isSoStructuralOrderInfoLocked(invoiceLocked, orderInfoConfirmed);
+  const planningDatesDisabled = isSoPlanningDateLocked(invoiceLocked);
   const itemsSectionConfirmed = itemsConfirmed || invoiceLocked;
 
   const confirmationsStatus = getSalesOrderConfirmationsStatus(order);
@@ -238,9 +244,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
 
   const changedFields = useMemo<UpdateSalesOrderDTO>(() => {
     const payload: UpdateSalesOrderDTO = {};
-    if (!orderInfoDisabled) {
-      const expDate = draft.expected_delivery_date || undefined;
-      if ((expDate ?? null) !== (order.expected_delivery_date ?? null)) payload.expected_delivery_date = expDate;
+    if (!structuralOrderInfoDisabled) {
       const contactName = draft.contact_name.trim() ? draft.contact_name : undefined;
       if ((contactName ?? null) !== (order.contact_name ?? null)) payload.contact_name = contactName;
       const contactPhone = draft.contact_phone.trim() ? draft.contact_phone : undefined;
@@ -248,8 +252,12 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
       const desc = draft.description.trim() ? draft.description : undefined;
       if ((desc ?? null) !== (order.description ?? null)) payload.description = desc;
     }
+    if (!planningDatesDisabled) {
+      const expDate = draft.expected_delivery_date || undefined;
+      if ((expDate ?? null) !== (order.expected_delivery_date ?? null)) payload.expected_delivery_date = expDate;
+    }
     return payload;
-  }, [draft, order, orderInfoDisabled]);
+  }, [draft, order, structuralOrderInfoDisabled, planningDatesDisabled]);
 
   const isDirty = Object.keys(changedFields).length > 0;
 
@@ -541,7 +549,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
             {/* Order Details — factory, customer, contact, dates, description; one confirm for the whole card */}
             <Card
               id="so-section-order_info"
-              className={cn('lg:col-span-2 flex flex-col scroll-mt-6', orderInfoDisabled && confirmedSectionCardClass)}
+              className={cn('lg:col-span-2 flex flex-col scroll-mt-6', structuralOrderInfoDisabled && confirmedSectionCardClass)}
             >
               <CardHeader className="p-4 pb-2 shrink-0">
                 <div className="flex items-center justify-between gap-2">
@@ -566,7 +574,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                 </div>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
-                <div className={cn('space-y-3', orderInfoDisabled && confirmedSectionContentClass)}>
+                <div className={cn('space-y-3', structuralOrderInfoDisabled && confirmedSectionContentClass)}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground uppercase tracking-wide">Factory</Label>
@@ -597,7 +605,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                         placeholder="Point of contact"
                         value={draft.contact_name}
                         onChange={(e) => patch({ contact_name: e.target.value })}
-                        disabled={orderInfoDisabled}
+                        disabled={structuralOrderInfoDisabled}
                       />
                     </div>
                     <div className="space-y-2">
@@ -606,25 +614,14 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                         placeholder="Contact phone number"
                         value={draft.contact_phone}
                         onChange={(e) => patch({ contact_phone: e.target.value })}
-                        disabled={orderInfoDisabled}
+                        disabled={structuralOrderInfoDisabled}
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
-                      <div className="flex items-center h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
-                        <span className="text-card-foreground">{formatDate(order.order_date)}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">Expected Delivery</Label>
-                      <Input
-                        type="date"
-                        value={draft.expected_delivery_date}
-                        onChange={(e) => patch({ expected_delivery_date: e.target.value })}
-                        disabled={orderInfoDisabled}
-                      />
+                  <div className="space-y-2 sm:max-w-xs">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
+                    <div className="flex items-center h-9 px-3 rounded-md border border-dashed border-border bg-muted/30 text-sm">
+                      <span className="text-card-foreground">{formatDate(order.order_date)}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -634,9 +631,21 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                       value={draft.description}
                       onChange={(e) => patch({ description: e.target.value })}
                       className="min-h-[56px] resize-none"
-                      disabled={orderInfoDisabled}
+                      disabled={structuralOrderInfoDisabled}
                     />
                   </div>
+                </div>
+                <div className="space-y-2 sm:max-w-xs">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Expected Delivery</Label>
+                  <DatePickerField
+                    value={draft.expected_delivery_date}
+                    onChange={(expected_delivery_date) => patch({ expected_delivery_date })}
+                    disabled={planningDatesDisabled}
+                    placeholder="Optional"
+                    recurrenceStartDate={order.order_date?.slice(0, 10)}
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Expected delivery date"
+                  />
                 </div>
               </CardContent>
             </Card>

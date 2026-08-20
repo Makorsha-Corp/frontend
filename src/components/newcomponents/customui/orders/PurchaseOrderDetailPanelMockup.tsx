@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,10 @@ import {
 import PurchaseOrderMilestoneTracker from './PurchaseOrderMilestoneTracker';
 import PoSectionLockButton from './PoSectionLockButton';
 import { canCreatePurchaseOrderInvoice } from './purchaseOrderMilestones';
+import {
+  isPoPlanningDateLocked,
+  isPoStructuralDetailsLocked,
+} from './orderDateEditPolicy';
 import AccountInvoiceDialog from '@/components/newcomponents/customui/accounts/AccountInvoiceDialog';
 import type { PurchaseOrder, UpdatePurchaseOrder } from '@/types/purchaseOrder';
 import {
@@ -282,7 +287,8 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
   const detailsLocked = order.details_locked ?? false;
   const notesLocked = order.notes_locked ?? false;
   const itemsLocked = order.items_locked ?? false;
-  const coreDetailsDisabled = invoiceLocked || detailsLocked;
+  const structuralDetailsDisabled = isPoStructuralDetailsLocked(invoiceLocked, detailsLocked, false);
+  const planningDatesDisabled = isPoPlanningDateLocked(invoiceLocked, false);
   const itemsSectionLocked = itemsLocked || invoiceLocked;
 
   const invoiceReadiness = canCreatePurchaseOrderInvoice(
@@ -293,7 +299,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
 
   const changedFields = useMemo<UpdatePurchaseOrder>(() => {
     const payload: UpdatePurchaseOrder = {};
-    if (!invoiceLocked && !detailsLocked) {
+    if (!structuralDetailsDisabled) {
       if (draft.account_id != null && draft.account_id !== order.account_id) {
         payload.account_id = draft.account_id;
       }
@@ -305,9 +311,8 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
       }
       const orderDate = draft.order_date || null;
       if (orderDate !== (order.order_date ?? null)) payload.order_date = orderDate;
-      const expDate = draft.expected_delivery_date || null;
-      if (expDate !== (order.expected_delivery_date ?? null)) payload.expected_delivery_date = expDate;
-    } else {
+    }
+    if (!planningDatesDisabled) {
       const expDate = draft.expected_delivery_date || null;
       if (expDate !== (order.expected_delivery_date ?? null)) payload.expected_delivery_date = expDate;
     }
@@ -318,7 +323,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
       if (desc !== (order.description ?? null)) payload.description = desc;
     }
     return payload;
-  }, [draft, order, detailsLocked, notesLocked, invoiceLocked]);
+  }, [draft, order, detailsLocked, notesLocked, invoiceLocked, structuralDetailsDisabled, planningDatesDisabled]);
 
   const handleCreateInvoice = async () => {
     if (!invoiceReadiness.ok) return;
@@ -686,7 +691,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
         {/* Row 1: Order Details + Order Notes (WIRED) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Order Details */}
-          <Card className={coreDetailsDisabled ? lockedSectionCardClass : undefined}>
+          <Card className={structuralDetailsDisabled ? lockedSectionCardClass : undefined}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -716,13 +721,13 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className={`space-y-4 ${coreDetailsDisabled ? lockedSectionContentClass : ''}`}>
+              <div className={`space-y-4 ${structuralDetailsDisabled ? lockedSectionContentClass : ''}`}>
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Supplier</Label>
                 <Select
                   value={draft.account_id != null ? String(draft.account_id) : undefined}
                   onValueChange={(v) => patch({ account_id: Number(v) })}
-                  disabled={coreDetailsDisabled}
+                  disabled={structuralDetailsDisabled}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select supplier" />
@@ -742,7 +747,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
                   <Select
                     value={draft.destination_type}
                     onValueChange={(v) => patch({ destination_type: v, destination_id: null })}
-                    disabled={coreDetailsDisabled}
+                    disabled={structuralDetailsDisabled}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -759,7 +764,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
                   <Select
                     value={draft.destination_id != null ? String(draft.destination_id) : undefined}
                     onValueChange={(v) => patch({ destination_id: Number(v) })}
-                    disabled={coreDetailsDisabled}
+                    disabled={structuralDetailsDisabled}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select location" />
@@ -776,31 +781,26 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
               </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className={`space-y-2 ${coreDetailsDisabled ? lockedSectionContentClass : ''}`}>
+                <div className={`space-y-2 ${structuralDetailsDisabled ? lockedSectionContentClass : ''}`}>
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Order Date</Label>
-                  <Input
-                    type="date"
+                  <DatePickerField
                     value={draft.order_date}
-                    onChange={(e) => patch({ order_date: e.target.value })}
-                    disabled={coreDetailsDisabled}
+                    onChange={(order_date) => patch({ order_date })}
+                    disabled={structuralDetailsDisabled}
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Order date"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label
-                    className={cn(
-                      'text-xs uppercase tracking-wide',
-                      coreDetailsDisabled
-                        ? 'font-medium text-card-foreground dark:text-foreground'
-                        : 'text-muted-foreground'
-                    )}
-                  >
-                    Expected Delivery
-                  </Label>
-                  <Input
-                    type="date"
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Expected Delivery</Label>
+                  <DatePickerField
                     value={draft.expected_delivery_date}
-                    onChange={(e) => patch({ expected_delivery_date: e.target.value })}
-                    className={coreDetailsDisabled ? 'bg-background' : undefined}
+                    onChange={(expected_delivery_date) => patch({ expected_delivery_date })}
+                    disabled={planningDatesDisabled}
+                    placeholder="Optional"
+                    recurrenceStartDate={draft.order_date}
+                    triggerClassName="h-10 w-full px-3 text-sm"
+                    aria-label="Expected delivery date"
                   />
                 </div>
               </div>

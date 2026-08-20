@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import CreateEditWorkOrderTemplateDialog from './CreateEditWorkOrderTemplateDialog';
+import WorkOrderTemplatePreviewPanel from './WorkOrderTemplatePreviewPanel';
 
 export type TemplatePickerMode = 'pick' | 'manage';
 
@@ -401,8 +402,17 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
                     autoComplete="off"
                   />
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-                  {renderListBody()}
+                <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(14rem,22rem)] md:gap-3">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border md:min-h-[12rem]">
+                    {renderListBody()}
+                  </div>
+                  <WorkOrderTemplatePreviewPanel
+                    template={highlighted}
+                    context="manage"
+                    machines={machines}
+                    sections={sections}
+                    className="max-h-[min(40vh,16rem)] shrink-0 md:max-h-none md:min-h-[12rem]"
+                  />
                 </div>
               </div>
 
@@ -493,8 +503,18 @@ const WorkOrderTemplateSelectorDialog: React.FC<WorkOrderTemplateSelectorDialogP
                   />
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
-                  {renderListBody()}
+                <div className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(14rem,22rem)] md:gap-3">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border md:min-h-[12rem]">
+                    {renderListBody()}
+                  </div>
+                  <WorkOrderTemplatePreviewPanel
+                    template={highlightNone ? null : highlighted}
+                    highlightNone={highlightNone}
+                    context="pick"
+                    machines={machines}
+                    sections={sections}
+                    className="max-h-[min(40vh,16rem)] shrink-0 md:max-h-none md:min-h-[12rem]"
+                  />
                 </div>
               </div>
 

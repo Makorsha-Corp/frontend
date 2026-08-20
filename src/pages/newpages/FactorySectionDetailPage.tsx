@@ -228,12 +228,12 @@ const FactorySectionDetailPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={statusMetricTileClass.stopped} aria-hidden>
-                      <Pause className={statusMetricIconClass.stopped} strokeWidth={2} />
+                    <div className={neutralMetricTileClass} aria-hidden>
+                      <Pause className={neutralMetricIconClass} strokeWidth={2} />
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Not running</p>
-                      <p className="text-base font-semibold tabular-nums text-red-700 dark:text-red-400">
+                      <p className="text-base font-semibold tabular-nums text-muted-foreground">
                         {machines ? machines.length - machines.filter((m) => m.is_running).length : 0}
                       </p>
                     </div>

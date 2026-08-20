@@ -91,10 +91,10 @@ const AccountInvoiceFiltersBar: React.FC<AccountInvoiceFiltersBarProps> = ({
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search invoice number…"
+          placeholder="Order #, vendor #, or invoice #"
           className="h-9 pl-9"
           data-testid="account-invoice-search"
-          aria-label="Search invoices"
+          aria-label="Search invoices by invoice number, vendor number, or order number"
         />
       </div>
 

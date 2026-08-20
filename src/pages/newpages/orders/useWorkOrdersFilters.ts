@@ -115,7 +115,8 @@ export function useWorkOrdersFilters() {
   const sheetRowFlow = parseSheetRowFlow(searchParams.get('sheetRowFlow'));
   const sheetDate = searchParams.get('woDate') ?? '';
   const hasDateFilter = sheetDate.length > 0;
-  const sectionFilter = searchParams.get('woSection') ?? 'all';
+  const sectionFilter =
+    searchParams.get('sectionId') ?? searchParams.get('woSection') ?? 'all';
   const machineFilter = searchParams.get('woMachine') ?? 'all';
   const statusFilter = (searchParams.get('woStatus') ?? 'all') as WorkOrderStatusFilter;
   const workTypeFilter = searchParams.get('woType') === 'all' || !searchParams.get('woType')
@@ -206,14 +207,19 @@ export function useWorkOrdersFilters() {
         slice.section_ids.length === 0 ? 'all' : String(slice.section_ids[0]);
       setPageFactory(nextFactory);
       patchParams({
-        woSection: nextSection === 'all' ? null : nextSection,
+        sectionId: nextSection === 'all' ? null : nextSection,
+        woSection: null,
         woMachine: null,
       });
     },
     [setPageFactory, patchParams],
   );
   const setSectionFilter = (value: string) =>
-    patchParams({ woSection: value === 'all' ? null : value, woMachine: null });
+    patchParams({
+      sectionId: value === 'all' ? null : value,
+      woSection: null,
+      woMachine: null,
+    });
   const setMachineFilter = (value: string) => patchParams({ woMachine: value === 'all' ? null : value });
   const setStatusFilter = (value: WorkOrderStatusFilter) =>
     patchParams({ woStatus: value === 'all' ? null : value });

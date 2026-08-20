@@ -174,7 +174,7 @@ export interface WorkOrderVoidRequest {
 export interface WorkOrderCompleteRequest {
   completion_notes?: string;
   /** When the order targets a machine, choose what state to leave it in. */
-  machine_status?: 'IDLE' | 'RUNNING';
+  machine_status?: 'IDLE' | 'OFF';
 }
 
 export type WorkOrderCompleteAsPlannedRequest = WorkOrderCompleteRequest;

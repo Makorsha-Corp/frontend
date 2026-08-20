@@ -7,31 +7,32 @@ import type { Machine } from '@/types/machine';
 import type { ProductionBatch, ProductionLine } from '@/types/production';
 import type { MachineUpcomingWorkRow } from '@/types/machineUpcomingWork';
 import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
+import { getMachineVisualKind } from '@/lib/machineVisualStatus';
 import { factoryHubLink } from '@/pages/newpages/factories/factoriesOverviewConstants';
 
 export interface MachineStatusCounts {
   total: number;
   running: number;
-  stopped: number;
+  idle: number;
+  off: number;
   maintenance: number;
 }
 
 export function countMachineStatus(machines: Machine[]): MachineStatusCounts {
   let running = 0;
   let maintenance = 0;
-  let stopped = 0;
+  let idle = 0;
+  let off = 0;
 
   for (const m of machines) {
-    if (m.latest_status_type === 'MAINTENANCE') {
-      maintenance += 1;
-    } else if (m.is_running || m.latest_status_type === 'RUNNING') {
-      running += 1;
-    } else {
-      stopped += 1;
-    }
+    const kind = getMachineVisualKind(m);
+    if (kind === 'running') running += 1;
+    else if (kind === 'maintenance') maintenance += 1;
+    else if (kind === 'idle') idle += 1;
+    else off += 1;
   }
 
-  return { total: machines.length, running, stopped, maintenance };
+  return { total: machines.length, running, idle, off, maintenance };
 }
 
 export interface StorageTopItemRow {
@@ -189,7 +190,8 @@ export interface FactoryAttentionLinkRow {
 
 export interface FactoryAttentionGroups {
   maintenanceDue: DueStatusRow[];
-  stoppedIdle: FactoryAttentionLinkRow[];
+  idle: FactoryAttentionLinkRow[];
+  off: FactoryAttentionLinkRow[];
   unassigned: FactoryAttentionLinkRow[];
   draftBatches: FactoryAttentionLinkRow[];
 }
@@ -213,12 +215,6 @@ function machineHref(machine: Machine, factoryId: number): string {
   return factoryHubLink('/machines', String(factoryId));
 }
 
-function isStoppedOrIdle(machine: Machine): boolean {
-  if (machine.is_running || machine.latest_status_type === 'RUNNING') return false;
-  if (machine.latest_status_type === 'MAINTENANCE') return false;
-  return true;
-}
-
 export function buildFactoryAttentionItems(
   factoryId: number,
   machines: Machine[],
@@ -229,10 +225,19 @@ export function buildFactoryAttentionItems(
 ): FactoryAttentionGroups {
   const lineById = new Map(lines.map((line) => [line.id, line]));
 
-  const stoppedIdle = machines
-    .filter(isStoppedOrIdle)
+  const idle = machines
+    .filter((machine) => getMachineVisualKind(machine) === 'idle')
     .map((machine) => ({
-      id: `stopped-${machine.id}`,
+      id: `idle-${machine.id}`,
+      name: machine.name,
+      contextLabel: machineSectionLabel(machine, sectionById),
+      href: machineHref(machine, factoryId),
+    }));
+
+  const off = machines
+    .filter((machine) => getMachineVisualKind(machine) === 'off')
+    .map((machine) => ({
+      id: `off-${machine.id}`,
       name: machine.name,
       contextLabel: machineSectionLabel(machine, sectionById),
       href: machineHref(machine, factoryId),
@@ -258,7 +263,8 @@ export function buildFactoryAttentionItems(
 
   return {
     maintenanceDue: maintenanceDueRows,
-    stoppedIdle,
+    idle,
+    off,
     unassigned,
     draftBatches,
   };
@@ -267,7 +273,8 @@ export function buildFactoryAttentionItems(
 export function factoryAttentionHasItems(groups: FactoryAttentionGroups): boolean {
   return (
     groups.maintenanceDue.length > 0 ||
-    groups.stoppedIdle.length > 0 ||
+    groups.idle.length > 0 ||
+    groups.off.length > 0 ||
     groups.unassigned.length > 0 ||
     groups.draftBatches.length > 0
   );

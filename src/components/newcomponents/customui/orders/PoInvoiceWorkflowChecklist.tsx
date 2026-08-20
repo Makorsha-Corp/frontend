@@ -1,9 +1,12 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
+import { Check, ChevronRight, Loader2 } from 'lucide-react';
+import { OrderWorkflowChecklistHeader } from './OrderWorkflowChecklistHeader';
+import { OrderWorkflowChecklistIntroBanner } from './OrderWorkflowChecklistIntroBanner';
+import { ORDER_CHECKLIST_COPY } from './orderChecklistCopy';
 import { SectionConfirmIcon } from './PoSectionConfirmButton';
 import type { ApprovalSummary, PurchaseOrderItem } from '@/types/purchaseOrder';
 import type { PoConfirmationsStatus, PoLinkedInvoiceStatus } from './purchaseOrderMilestones';
@@ -307,16 +310,14 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
         ? 'Payment is overdue — record the full invoice balance to mark this order as paid'
         : 'Payment not finished — record the full invoice balance to mark this order as paid';
 
+  const isComplete = phase === 'done';
+
   return (
     <Card className={cn('flex flex-col', className)}>
-      <CardHeader className="pb-4 shrink-0">
-        <CardTitle className="text-base flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          Order Checklist
-        </CardTitle>
-      </CardHeader>
+      <OrderWorkflowChecklistHeader title={ORDER_CHECKLIST_COPY.title.order} showSubtitle={!isComplete} />
       <CardContent className="flex-1 pt-0">
         <div className="space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
+          <OrderWorkflowChecklistIntroBanner visible={!isComplete} />
           {renderCompletedSections && (
             <CompletedStepRow
               title="Confirm sections"

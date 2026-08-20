@@ -189,3 +189,60 @@ export function compactFactoryDropdownLabel(
   }
   return String(slice.factory_ids.length);
 }
+
+export interface MachinesPageLocation {
+  factoryId: number | null;
+  sectionId: number | null;
+}
+
+/** Single-select header rules: section implies factory; All factories clears section. */
+export function normalizeLocationSlice(
+  slice: MachinesLocationFilterSlice,
+  sections: Array<{ id: number; factory_id: number }>,
+): MachinesLocationFilterSlice {
+  if (slice.factory_ids.length === 0) {
+    return { factory_ids: [], section_ids: [] };
+  }
+
+  if (slice.section_ids.length === 1) {
+    const section = sections.find((s) => s.id === slice.section_ids[0]);
+    if (section) {
+      return {
+        factory_ids: [section.factory_id],
+        section_ids: [section.id],
+      };
+    }
+  }
+
+  if (slice.factory_ids.length === 1 && slice.section_ids.length === 1) {
+    const section = sections.find((s) => s.id === slice.section_ids[0]);
+    if (section && section.factory_id !== slice.factory_ids[0]) {
+      return { factory_ids: slice.factory_ids, section_ids: [] };
+    }
+  }
+
+  return slice;
+}
+
+export function resolveMachinesPageLocation(
+  pageFactoryId: number | null,
+  sectionIdFromUrl: number | null,
+  sections: Array<{ id: number; factory_id: number }>,
+): MachinesPageLocation {
+  if (sectionIdFromUrl != null && Number.isFinite(sectionIdFromUrl)) {
+    const section = sections.find((s) => s.id === sectionIdFromUrl);
+    if (section) {
+      return { factoryId: section.factory_id, sectionId: section.id };
+    }
+  }
+  return { factoryId: pageFactoryId, sectionId: null };
+}
+
+export function machinesPageLocationToSlice(
+  location: MachinesPageLocation,
+): MachinesLocationFilterSlice {
+  return {
+    factory_ids: location.factoryId != null ? [location.factoryId] : [],
+    section_ids: location.sectionId != null ? [location.sectionId] : [],
+  };
+}

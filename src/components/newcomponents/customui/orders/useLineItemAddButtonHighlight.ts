@@ -42,3 +42,17 @@ export function handleUnaddedItemDraftOnSubmit(args: {
   setUnaddedHintOpen(false);
   return 'continued';
 }
+
+/** True when a part draft row has any field filled but not yet committed. */
+export function hasUncommittedPartDraft(fields: {
+  itemId?: string;
+  quantity?: string;
+  replacedItemId?: string;
+}): boolean {
+  const qty = fields.quantity?.trim() ?? '';
+  return Boolean(
+    fields.itemId?.trim() ||
+      fields.replacedItemId?.trim() ||
+      (qty && qty !== '1'),
+  );
+}

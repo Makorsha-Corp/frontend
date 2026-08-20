@@ -91,12 +91,12 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
     ? cn('inline-flex items-stretch overflow-hidden rounded-lg border shadow-sm', appShellHeaderBoxedControlClass)
     : 'inline-flex h-10 items-stretch overflow-hidden rounded-lg border border-border bg-card shadow-sm';
   const navButtonClass = cn(
-    'shrink-0 rounded-none',
+    'shrink-0 rounded-none text-foreground',
     isHeader ? cn(appShellHeaderControlClass, 'w-9') : 'h-10 w-10',
   );
   const selectTrigger = cn(
     selectTriggerClass,
-    isHeader && '!h-9',
+    isHeader && '!h-9 text-foreground [&_svg]:text-foreground/70',
   );
 
   const navigationControls = (
@@ -170,16 +170,22 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
 
       <Button
         type="button"
-        variant={isCurrentPeriod ? 'secondary' : 'outline'}
+        variant="outline"
         size="sm"
         className={cn(
           'shrink-0 px-3',
           controlHeight,
-          isHeader && 'border-border bg-background',
-          isCurrentPeriod && 'pointer-events-none opacity-70',
+          isCurrentPeriod
+            ? 'pointer-events-none border-muted/70 bg-muted/40 font-normal text-muted-foreground shadow-none disabled:opacity-100 dark:border-muted dark:bg-muted/25'
+            : cn(
+                'border-border bg-background font-medium text-foreground hover:bg-muted/60',
+                isHeader && 'shadow-sm',
+              ),
         )}
         onClick={() => onAnchorDateChange(todayIso())}
         disabled={isCurrentPeriod}
+        aria-current={isCurrentPeriod ? 'date' : undefined}
+        aria-label={isCurrentPeriod ? 'Currently viewing today' : 'Go to today'}
       >
         Today
       </Button>

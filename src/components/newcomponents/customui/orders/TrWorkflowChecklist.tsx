@@ -1,9 +1,12 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Check, ClipboardList, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import { OrderWorkflowChecklistHeader } from './OrderWorkflowChecklistHeader';
+import { OrderWorkflowChecklistIntroBanner } from './OrderWorkflowChecklistIntroBanner';
+import { ORDER_CHECKLIST_COPY } from './orderChecklistCopy';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderItem } from '@/types/transferOrder';
 import type { TransferApprovalSummary } from '@/types/transferOrder';
@@ -177,17 +180,18 @@ const TrWorkflowChecklist: React.FC<TrWorkflowChecklistProps> = ({
   const completeStepDescription =
     'Record transfers manually on with Manage Transfers, or mark the order complete to record all remaining transfers.';
 
+  const isComplete = phase === 'done';
+
   return (
     <Card className={cn('flex flex-col lg:h-full', className)}>
-      <CardHeader className="pb-3 shrink-0">
-        <CardTitle className="text-base flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          Order Checklist
-        </CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">Approve · Complete</p>
-      </CardHeader>
+      <OrderWorkflowChecklistHeader
+        className="pb-3"
+        title={ORDER_CHECKLIST_COPY.title.order}
+        showSubtitle={!isComplete}
+      />
       <CardContent className="flex flex-1 flex-col pt-0 min-h-0">
         <div className="flex flex-1 flex-col space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
+          <OrderWorkflowChecklistIntroBanner visible={!isComplete} />
           {renderCompletedApproval && (
             <CompletedStepRow
               title="Order approval"

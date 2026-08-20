@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -512,21 +513,25 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                         {formatDate(order.completed_at)}
                       </div>
                     ) : (
-                      <Input
-                        type="date"
+                      <DatePickerField
                         value={draft.expense_date}
-                        onChange={(e) => setDraft((d) => ({ ...d, expense_date: e.target.value }))}
+                        onChange={(expense_date) => setDraft((d) => ({ ...d, expense_date }))}
                         disabled={orderComplete}
+                        triggerClassName="h-10 w-full px-3 text-sm"
+                        aria-label="Expense date"
                       />
                     )}
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Due date</Label>
-                    <Input
-                      type="date"
+                    <DatePickerField
                       value={draft.due_date}
-                      onChange={(e) => setDraft((d) => ({ ...d, due_date: e.target.value }))}
+                      onChange={(due_date) => setDraft((d) => ({ ...d, due_date }))}
                       disabled={orderComplete}
+                      placeholder="Optional"
+                      recurrenceStartDate={draft.expense_date}
+                      triggerClassName="h-10 w-full px-3 text-sm"
+                      aria-label="Due date"
                     />
                   </div>
                 </div>

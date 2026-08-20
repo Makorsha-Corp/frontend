@@ -47,7 +47,8 @@ const previewChipOverdueClass = 'border-red-300/30 bg-red-950/35 text-white';
 
 const statusAccentClass: Record<MachineVisualKind, string> = {
   running: 'text-emerald-200',
-  stopped: 'text-red-200',
+  idle: 'text-purple-100',
+  off: 'text-red-200',
   maintenance: 'text-amber-200',
 };
 
@@ -256,7 +257,7 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
       compactHeader
       className={className}
     >
-      <div className="grid grid-cols-3 gap-1.5 text-sm">
+      <div className="grid grid-cols-4 gap-1 text-sm">
         <MachineStatusCell
           count={machineStatus.running}
           label="Running"
@@ -265,10 +266,17 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
           labelClassName={body.bodyMuted}
         />
         <MachineStatusCell
-          count={machineStatus.stopped}
-          label="Stopped"
-          segmentKind="stopped"
-          icon={<CirclePause className={cn('h-3.5 w-3.5', statusAccentClass.stopped)} aria-hidden />}
+          count={machineStatus.idle}
+          label="Idle"
+          segmentKind="idle"
+          icon={<CirclePause className={cn('h-3.5 w-3.5', statusAccentClass.idle)} aria-hidden />}
+          labelClassName={body.bodyMuted}
+        />
+        <MachineStatusCell
+          count={machineStatus.off}
+          label="Off"
+          segmentKind="off"
+          icon={<CirclePause className={cn('h-3.5 w-3.5', statusAccentClass.off)} aria-hidden />}
           labelClassName={body.bodyMuted}
         />
         <MachineStatusCell

@@ -359,8 +359,7 @@ function SheetPartsCell({
           <button
             type="button"
             className={cn(
-              SHEET_CELL_PAD,
-              'block min-h-[2.75rem] w-full min-w-0 cursor-pointer text-left text-card-foreground',
+              'block w-full min-w-0 cursor-pointer px-3 py-2 text-left text-card-foreground',
               'transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
             )}
             aria-label={`View ${validDetailRows.length} part${validDetailRows.length === 1 ? '' : 's'}`}
@@ -702,6 +701,7 @@ export function WorkOrderSheetDayRows({
           workRow.groupRowSpan >= SHEET_PARTS_SCROLL_MIN ? orderPartRows : [workRow];
         const effectiveRowSpan =
           workRow.groupRowSpan >= SHEET_PARTS_SCROLL_MIN ? 1 : workRow.groupRowSpan;
+        const groupedCellPad = effectiveRowSpan > 1 ? 'px-3 py-2' : SHEET_CELL_PAD;
 
         return (
         <tr
@@ -739,7 +739,7 @@ export function WorkOrderSheetDayRows({
                 className={cn(
                   cols.machine,
                   'border-r border-border/40 align-top text-card-foreground',
-                  SHEET_CELL_PAD,
+                  groupedCellPad,
                 )}
               >
                 <SheetMachineCell row={workRow} showStatusBadge={!showStartDateColumn} />
@@ -763,19 +763,27 @@ export function WorkOrderSheetDayRows({
             <>
               <td
                 rowSpan={effectiveRowSpan}
-                className={cn(cols.workers, 'border-l border-border/40 align-middle', SHEET_CELL_PAD)}
+                className={cn(
+                  cols.workers,
+                  'border-l border-border/40',
+                  effectiveRowSpan > 1 ? 'align-top' : 'align-middle',
+                  groupedCellPad,
+                )}
               >
                 <SheetWorkersCell workers={workRow.workers} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
-                className={cn(cols.approvers, 'align-middle', SHEET_CELL_PAD)}
+                className={cn(cols.approvers, 'align-middle px-3 py-2')}
               >
                 <SheetApproverChips approvers={workRow.approvers} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
-                className={cn(cols.actions, 'align-middle', SHEET_CELL_PAD)}
+                className={cn(
+                  cols.actions,
+                  effectiveRowSpan > 1 ? 'align-top px-3 py-2' : cn('align-middle', SHEET_CELL_PAD),
+                )}
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
               >

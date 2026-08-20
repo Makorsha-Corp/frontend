@@ -18,7 +18,6 @@ export interface WorkOrderTemplateSelectorProps {
   loading?: boolean;
   compact?: boolean;
   label?: string;
-  showHint?: boolean;
   labelHint?: string;
   helperText?: string;
   className?: string;
@@ -42,7 +41,6 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
   loading = false,
   compact = false,
   label = 'Template',
-  showHint = false,
   labelHint,
   helperText,
   className,
@@ -124,11 +122,6 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
         disabled={disabled}
         loading={loading}
       />
-      {showHint && selectedTemplate && (
-        <p className="text-xs text-muted-foreground">
-          From template — choose No template to edit fields manually.
-        </p>
-      )}
       {showProgramSummary && selectedTemplate?.is_recurring ? (
         <WorkProgramSummaryStrip
           template={selectedTemplate}

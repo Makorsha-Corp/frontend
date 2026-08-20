@@ -1,9 +1,12 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, ClipboardList, Loader2, XCircle } from 'lucide-react';
+import { Check, ChevronRight, Loader2, XCircle } from 'lucide-react';
+import { OrderWorkflowChecklistHeader } from './OrderWorkflowChecklistHeader';
+import { OrderWorkflowChecklistIntroBanner } from './OrderWorkflowChecklistIntroBanner';
+import { ORDER_CHECKLIST_COPY } from './orderChecklistCopy';
 import type { WorkOrder, WorkOrderApprovalSummary } from '@/types/workOrder';
 import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
 
@@ -132,17 +135,18 @@ const WoWorkflowChecklist: React.FC<WoWorkflowChecklistProps> = ({
     approvalSummary.required === 0 ? 'Not required' : `${approvalSummary.approved_count}/${approvalSummary.required}`;
 
   const renderCompletedApprovals = ['start', 'in_progress', 'invoice_blocked', 'done'].includes(phase);
+  const isComplete = phase === 'done';
+  const isVoided = phase === 'voided';
 
   return (
     <Card className={cn('flex flex-col h-fit', className)}>
-      <CardHeader className="pb-4 shrink-0">
-        <CardTitle className="text-base flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          Work Order Checklist
-        </CardTitle>
-      </CardHeader>
+      <OrderWorkflowChecklistHeader
+        title={ORDER_CHECKLIST_COPY.title.workOrder}
+        showSubtitle={!isComplete && !isVoided}
+      />
       <CardContent className="flex-1 pt-0">
         <div className="space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
+          <OrderWorkflowChecklistIntroBanner visible={!isComplete && !isVoided} />
           {phase === 'voided' && (
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">

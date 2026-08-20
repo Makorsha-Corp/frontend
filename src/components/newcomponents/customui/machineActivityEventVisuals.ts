@@ -56,7 +56,7 @@ export const MACHINE_ACTIVITY_EVENT_VISUALS: Record<string, MachineActivityEvent
 /** Status-specific icons when event_type is status_updated */
 export const STATUS_EVENT_VISUALS: Record<string, MachineActivityEventVisual> = {
   RUNNING: { icon: Play, wrap: 'bg-emerald-100 dark:bg-emerald-900/30', color: 'text-emerald-600 dark:text-emerald-400' },
-  IDLE: { icon: Pause, wrap: 'bg-muted', color: 'text-muted-foreground' },
+  IDLE: { icon: Pause, wrap: 'bg-brand-primary/10', color: 'text-brand-primary' },
   OFF: { icon: Power, wrap: 'bg-red-100 dark:bg-red-900/30', color: 'text-red-600 dark:text-red-400' },
   MAINTENANCE: { icon: Wrench, wrap: 'bg-amber-100 dark:bg-amber-900/30', color: 'text-amber-600 dark:text-amber-400' },
 };

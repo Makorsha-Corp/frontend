@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -608,11 +609,23 @@ const CreateEditExpenseTemplateDialog: React.FC<CreateEditExpenseTemplateDialogP
                   </div>
                   <div>
                     <Label>Start date</Label>
-                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1" />
+                    <DatePickerField
+                      value={startDate}
+                      onChange={setStartDate}
+                      triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+                      aria-label="Start date"
+                    />
                   </div>
                   <div>
                     <Label>End date</Label>
-                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1" placeholder="Optional" />
+                    <DatePickerField
+                      value={endDate}
+                      onChange={setEndDate}
+                      placeholder="Optional"
+                      recurrenceStartDate={startDate}
+                      triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+                      aria-label="End date"
+                    />
                   </div>
                 </div>
               </div>

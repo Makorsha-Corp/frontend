@@ -54,6 +54,8 @@ interface MachinesFiltersDialogProps {
   sections: Array<{ id: number; name: string; factory_id: number }>;
   onApply: (next: MachinesFiltersValue) => void;
   onClear: () => void;
+  /** When false, factory/section pickers are hidden (location lives in page header). */
+  showLocationFilters?: boolean;
 }
 
 const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
@@ -64,6 +66,7 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
   sections,
   onApply,
   onClear,
+  showLocationFilters = true,
 }) => {
   const [draft, setDraft] = React.useState<MachinesFiltersValue>(value);
 
@@ -117,6 +120,8 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
               />
             </div>
 
+            {showLocationFilters ? (
+              <>
             <div className="grid gap-2">
               <Label>Factories</Label>
               <DropdownMenu>
@@ -214,6 +219,8 @@ const MachinesFiltersDialog: React.FC<MachinesFiltersDialogProps> = ({
                 Choose All sections, or check one or more to narrow.
               </p>
             </div>
+              </>
+            ) : null}
           </div>
 
           <div className="min-h-0 space-y-4 pr-1">

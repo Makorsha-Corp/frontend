@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { Label } from '@/components/ui/label';
 import {
@@ -425,11 +426,23 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Expense date *</Label>
-          <Input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="mt-1" />
+          <DatePickerField
+            value={expenseDate}
+            onChange={setExpenseDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Expense date"
+          />
         </div>
         <div>
           <Label>Due date</Label>
-          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1" placeholder="Optional" />
+          <DatePickerField
+            value={dueDate}
+            onChange={setDueDate}
+            placeholder="Optional"
+            recurrenceStartDate={expenseDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Due date"
+          />
         </div>
       </div>
 
@@ -490,11 +503,23 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Expense date</Label>
-          <Input type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="mt-1" />
+          <DatePickerField
+            value={expenseDate}
+            onChange={setExpenseDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Expense date"
+          />
         </div>
         <div>
           <Label>Due date</Label>
-          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1" placeholder="Optional" />
+          <DatePickerField
+            value={dueDate}
+            onChange={setDueDate}
+            placeholder="Optional"
+            recurrenceStartDate={expenseDate}
+            triggerClassName="mt-1 h-10 w-full px-3 text-sm"
+            aria-label="Due date"
+          />
         </div>
       </div>
 

@@ -16,6 +16,7 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
@@ -51,11 +52,11 @@ import AddMachineItemDialog from './AddMachineItemDialog';
 import MachineActivityEventLogRow from './MachineActivityEventLogRow';
 import MachineActivityWorkOrderGroupRow from './MachineActivityWorkOrderGroupRow';
 import { groupMachineActivityEvents } from './machineActivityGrouping';
-import ActiveOrdersPanel from './RunningOrdersPlaceholder';
-import MachineWorkOrderQuickActions from './orders/MachineWorkOrderQuickActions';
+import MachineWorkOrdersPanel from './orders/MachineWorkOrdersPanel';
 import { useDeleteMachineMaintenanceLogMutation } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
 import { cn } from '@/lib/utils';
 import { getHighlightedEventType, activeEventButtonClass } from '@/lib/machineVisualStatus';
+import { MACHINE_EVENT_STATUS_TOOLTIPS } from '@/lib/machineStatusTooltips';
 import { apiErrorDetail } from '@/utils/apiError';
 
 export interface MachineDetailBodyProps {
@@ -237,28 +238,36 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       <div className="space-y-4 min-w-0">
         <div>
           <p className={cn(sectionLabel, 'mb-2')}>Status</p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
-            {STATUS_CONTROLS.map(({ type, shortLabel, icon }) => {
-              const active = highlightedType === type;
-              return (
-                <Button
-                  key={type}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusChange(type)}
-                  disabled={isCreatingEvent}
-                  className={cn(
-                    'h-9 justify-center gap-1.5 px-2 text-xs font-medium',
-                    active && activeEventButtonClass(type)
-                  )}
-                >
-                  {icon}
-                  <span className="truncate">{shortLabel}</span>
-                </Button>
-              );
-            })}
-          </div>
+          <TooltipProvider delayDuration={300}>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
+              {STATUS_CONTROLS.map(({ type, shortLabel, icon }) => {
+                const active = highlightedType === type;
+                return (
+                  <Tooltip key={type}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(type)}
+                        disabled={isCreatingEvent}
+                        className={cn(
+                          'h-9 justify-center gap-1.5 px-2 text-xs font-medium',
+                          active && activeEventButtonClass(type),
+                        )}
+                      >
+                        {icon}
+                        <span className="truncate">{shortLabel}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="z-[60] max-w-[240px] text-xs leading-snug">
+                      {MACHINE_EVENT_STATUS_TOOLTIPS[type]}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </TooltipProvider>
         </div>
 
         <Separator className="bg-border" />
@@ -553,19 +562,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
 
         <Separator className="bg-border" />
 
-        <Card className="border-border shadow-none">
-          <CardHeader className="space-y-0 p-4 pb-2">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold leading-none">
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-              Work Orders
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 p-4 pt-2">
-            <MachineWorkOrderQuickActions machine={machine} />
-          </CardContent>
-        </Card>
-
-        <ActiveOrdersPanel scope={{ machineId: machine.id }} compact />
+        <MachineWorkOrdersPanel machine={machine} />
 
         <Card className="flex max-h-[min(32rem,50vh)] flex-col overflow-hidden border-border shadow-none">
           <CardHeader className="shrink-0 space-y-0 p-4 pb-2">

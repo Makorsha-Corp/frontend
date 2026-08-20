@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, UserPlus, Wrench } from 'lucide-react';
+import { AlertTriangle, Wrench } from 'lucide-react';
 import {
   OrderApprovalsBarShell,
   OrderApprovalsSummary,
@@ -41,91 +41,6 @@ export interface WoApprovalsTopBarProps {
   onHighlightDismiss?: () => void;
 }
 
-function WoInlineStrip({
-  approvers,
-  isVoided,
-  isLocked,
-  onManage,
-  stripProps,
-  showSelfChip,
-  emptyInlineMessage,
-}: {
-  approvers: WorkOrderApprover[];
-  isVoided: boolean;
-  isLocked: boolean;
-  onManage: () => void;
-  stripProps: {
-    approvers: WorkOrderApprover[];
-    currentUserId: number | null;
-    myApproval?: WorkOrderApprover;
-    onToggleMyApproval: () => void;
-    selfChipProps: {
-      blocked: boolean;
-      blockedStatus: typeof UNBLOCKED_STATUS;
-      isBusy: boolean;
-      popoverSide: 'bottom';
-      interactionMode: 'desktop';
-    };
-  };
-  showSelfChip: boolean;
-  emptyInlineMessage: string;
-}) {
-  if (approvers.length === 0) {
-    if (isVoided || isLocked) {
-      return <span className="text-xs text-muted-foreground truncate">{emptyInlineMessage}</span>;
-    }
-    return (
-      <Button type="button" size="sm" variant="outline" className="h-7 shrink-0 text-xs" onClick={onManage}>
-        <UserPlus className="mr-1 h-3.5 w-3.5" />
-        Assign approvers
-      </Button>
-    );
-  }
-  return <OrderApproversStrip {...stripProps} showSelfChip={showSelfChip} />;
-}
-
-function WoTrailingActions({
-  approvers,
-  isVoided,
-  isLocked,
-  onManage,
-  onVoidOrder,
-}: {
-  approvers: WorkOrderApprover[];
-  isVoided: boolean;
-  isLocked: boolean;
-  onManage: () => void;
-  onVoidOrder?: () => void;
-}) {
-  return (
-    <div className="ml-auto flex shrink-0 items-center gap-2">
-      {isVoided ? (
-        <OrderApprovalsVoidedBadge />
-      ) : (
-        onVoidOrder &&
-        !isLocked && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
-            onClick={onVoidOrder}
-          >
-            <AlertTriangle className="mr-1 h-3.5 w-3.5" />
-            Void Order
-          </Button>
-        )
-      )}
-      {!isVoided && !isLocked && approvers.length > 0 ? (
-        <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={onManage}>
-          <Wrench className="mr-1 h-4 w-4" />
-          Edit approvers
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
 const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
   orderId,
   approvers,
@@ -142,7 +57,7 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
   onHighlightDismiss,
   className,
 }) => {
-  const showSelfChip = myApproval != null && !isVoided && !isLocked;
+  const canManage = !isVoided && !isLocked;
 
   const selfChipProps = {
     blocked: false,
@@ -152,16 +67,8 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
     interactionMode: 'desktop' as const,
   };
 
-  const stripProps = {
-    approvers,
-    currentUserId,
-    myApproval,
-    onToggleMyApproval,
-    selfChipProps,
-  };
-
   const collapsedSelfChip =
-    showSelfChip && myApproval != null && currentUserId != null ? (
+    canManage && myApproval != null && currentUserId != null ? (
       <OrderSelfApproverChip
         approver={myApproval}
         currentUserId={currentUserId}
@@ -171,7 +78,15 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
       />
     ) : null;
 
-  const manageWrench = !isVoided && !isLocked ? (
+  const stripProps = {
+    approvers,
+    currentUserId,
+    myApproval,
+    onToggleMyApproval,
+    selfChipProps,
+  };
+
+  const manageWrench = canManage ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -189,32 +104,21 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
     </Tooltip>
   ) : null;
 
-  const summaryBlock = <OrderApprovalsSummary approvalSummary={approvalSummary} />;
-
   const expandedContent = (
     <>
-      {approvers.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No approvers assigned — this order does not require approval
-        </p>
-      ) : (
-        <OrderApproversStrip {...stripProps} showSelfChip={false} />
-      )}
+      <OrderApproversStrip
+        {...stripProps}
+        emptyMessage="No approvers assigned"
+        showSelfChip={false}
+      />
       <div className="flex flex-wrap items-center gap-2">
-        {!isVoided && !isLocked ? (
-          approvers.length === 0 ? (
-            <Button type="button" size="sm" variant="outline" className="h-8" onClick={onManage}>
-              <UserPlus className="mr-1 h-3.5 w-3.5" />
-              Assign approvers
-            </Button>
-          ) : (
-            <Button type="button" size="sm" variant="outline" className="h-8" onClick={onManage}>
-              <Wrench className="mr-1 h-4 w-4" />
-              Edit approvers
-            </Button>
-          )
+        {canManage ? (
+          <Button type="button" size="sm" variant="outline" className="h-8" onClick={onManage}>
+            <Wrench className="mr-1 h-4 w-4" />
+            Manage approvers
+          </Button>
         ) : null}
-        {onVoidOrder && !isVoided && !isLocked ? (
+        {onVoidOrder && canManage ? (
           <Button
             type="button"
             size="sm"
@@ -234,60 +138,50 @@ const WoApprovalsTopBar: React.FC<WoApprovalsTopBarProps> = ({
     <>
       <div className="flex shrink-0 items-center gap-2">
         {manageWrench}
-        {summaryBlock}
+        <OrderApprovalsSummary approvalSummary={approvalSummary} />
       </div>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-        <WoInlineStrip
-          approvers={approvers}
-          isVoided={isVoided}
-          isLocked={isLocked}
-          onManage={onManage}
-          stripProps={stripProps}
-          showSelfChip={showSelfChip}
-          emptyInlineMessage="No approvers assigned — this order does not require approval"
+        <OrderApproversStrip
+          {...stripProps}
+          emptyMessage="No approvers assigned"
+          showSelfChip={canManage && myApproval != null}
         />
       </div>
-      <WoTrailingActions
-        approvers={approvers}
-        isVoided={isVoided}
-        isLocked={isLocked}
-        onManage={onManage}
-        onVoidOrder={onVoidOrder}
-      />
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        {isVoided ? (
+          <OrderApprovalsVoidedBadge />
+        ) : (
+          onVoidOrder &&
+          canManage && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
+              onClick={onVoidOrder}
+            >
+              <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+              Void Order
+            </Button>
+          )
+        )}
+      </div>
     </>
   );
 
   if (layout === 'header-inline') {
     return (
-      <div
-        className={cn(
-          'hidden lg:flex min-w-0 flex-1 flex-nowrap items-center gap-x-3 scroll-mt-6',
-          className
-        )}
-      >
-        <div className="hidden lg:block h-8 w-px shrink-0 bg-border" aria-hidden />
-        <div className="flex shrink-0 items-center gap-2">{summaryBlock}</div>
-        <TooltipProvider delayDuration={150}>
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-            <WoInlineStrip
-              approvers={approvers}
-              isVoided={isVoided}
-              isLocked={isLocked}
-              onManage={onManage}
-              stripProps={stripProps}
-              showSelfChip={showSelfChip}
-              emptyInlineMessage="No approvers"
-            />
-          </div>
-        </TooltipProvider>
-        <WoTrailingActions
-          approvers={approvers}
-          isVoided={isVoided}
-          isLocked={isLocked}
-          onManage={onManage}
-          onVoidOrder={onVoidOrder}
-        />
-      </div>
+      <TooltipProvider delayDuration={150}>
+        <div
+          className={cn(
+            'hidden lg:flex min-w-0 flex-1 flex-nowrap items-center gap-x-3 scroll-mt-6',
+            className,
+          )}
+        >
+          <div className="hidden lg:block h-8 w-px shrink-0 bg-border" aria-hidden />
+          {desktopRow}
+        </div>
+      </TooltipProvider>
     );
   }
 

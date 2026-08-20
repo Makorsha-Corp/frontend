@@ -51,7 +51,16 @@ import {
   priorityLabel,
   workOrderItemActionLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Package, Plus, Receipt, Trash2 } from 'lucide-react';
+import { OptionalPanelSummaryButton } from './OptionalPanelSummaryButton';
+import LineItemCommitCheckButton, {
+  partDraftHintText,
+} from '@/components/newcomponents/customui/orders/LineItemCommitCheckButton';
+import {
+  handleUnaddedItemDraftOnSubmit,
+  hasUncommittedPartDraft,
+  useLineItemAddButtonHighlight,
+} from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 import { appToast } from '@/lib/appToast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
@@ -114,6 +123,8 @@ export interface CreateEditWorkOrderTemplateDialogProps {
   defaultSectionId?: number | null;
   defaultMachineId?: number | null;
   defaultFactoryId?: number | null;
+  /** When creating (not editing), turn on recurrence by default. */
+  defaultRecurring?: boolean;
   machines?: Machine[];
   sections?: FactorySection[];
 }
@@ -142,6 +153,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   defaultSectionId,
   defaultMachineId,
   defaultFactoryId,
+  defaultRecurring = false,
   machines = [],
   sections = [],
 }) => {
@@ -178,6 +190,13 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
   const [highlightTarget, setHighlightTarget] = useState<TemplateSaveBlockReason | null>(null);
   const [saveHintOpen, setSaveHintOpen] = useState(false);
+  const [addHintOpen, setAddHintOpen] = useState(false);
+  const [unaddedHintOpen, setUnaddedHintOpen] = useState(false);
+  const {
+    addButtonHighlighted,
+    pulseAddButtonHighlight,
+    dismissAddButtonHighlight,
+  } = useLineItemAddButtonHighlight();
   const optionalPanelsRef = useRef<HTMLDivElement>(null);
   const highlightGenerationRef = useRef(0);
 
@@ -280,7 +299,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setCost('');
       setApproverIds([]);
       setDescription('');
-      setIsRecurring(false);
+      setIsRecurring(defaultRecurring);
       setRecurrenceType('weekly');
     }
     setDraftLine(emptyLine());
@@ -289,7 +308,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     setPartsOverlayOpen(false);
     setMoreOverlayOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, template?.id, defaultSectionId, defaultMachineId]);
+  }, [open, template?.id, defaultSectionId, defaultMachineId, defaultRecurring]);
 
   useEffect(() => {
     if (!open || isEdit || workOrderTypes.length === 0) return;
@@ -374,13 +393,32 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     Number(draftLine.quantity) > 0 &&
     (draftLine.actionType !== 'REPLACE' || Boolean(draftLine.replacedItemId));
 
-  const handleAddLine = () => {
+  const hasUnaddedPartDraft = useMemo(
+    () => hasUncommittedPartDraft(draftLine),
+    [draftLine],
+  );
+
+  useEffect(() => {
+    if (draftLineValid) setAddHintOpen(false);
+  }, [draftLineValid]);
+
+  useEffect(() => {
+    if (!hasUnaddedPartDraft) {
+      setUnaddedHintOpen(false);
+      dismissAddButtonHighlight();
+    }
+  }, [hasUnaddedPartDraft, dismissAddButtonHighlight]);
+
+  const handleAddLineClick = () => {
     if (!draftLineValid) {
-      appToast.error('Pick an item and quantity for this part line');
+      setAddHintOpen(true);
       return;
     }
     setLines((prev) => [...prev, draftLine]);
     setDraftLine(emptyLine());
+    setAddHintOpen(false);
+    setUnaddedHintOpen(false);
+    dismissAddButtonHighlight();
   };
 
   const handleRemoveLine = (key: string) => {
@@ -455,6 +493,23 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     cn('rounded-md transition-shadow', highlightTarget === target && 'po-scroll-target-highlight');
 
   const handleSave = async () => {
+    if (hasUnaddedPartDraft) {
+      if (!partsOverlayOpen) {
+        setMoreOverlayOpen(false);
+        setPartsOverlayOpen(true);
+      }
+      if (
+        handleUnaddedItemDraftOnSubmit({
+          hasUnaddedItemDraft: true,
+          unaddedHintOpen,
+          setUnaddedHintOpen,
+          pulseAddButtonHighlight,
+          clearDraft: () => setDraftLine(emptyLine()),
+        }) === 'blocked'
+      ) {
+        return;
+      }
+    }
     if (saveBlockReason) {
       pulseSaveHighlight(saveBlockReason);
       appToast.error(templateSaveBlockMessage(saveBlockReason));
@@ -673,7 +728,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   );
 
   const partsSummary = useMemo(() => {
-    if (lines.length === 0) return 'No parts';
+    if (lines.length === 0) return '';
     const names = lines.map((l) => itemName(l.itemId));
     const preview = names.slice(0, 2).join(', ');
     const list = names.length > 2 ? `${preview} +${names.length - 2}` : preview;
@@ -681,7 +736,9 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     return `${action} · ${list}`;
   }, [lines, itemName]);
 
-  const moreSummary = useMemo(() => {
+  const partsIsEmpty = lines.length === 0;
+
+  const moreSummaryBits = useMemo(() => {
     const bits: string[] = [];
     if (priority !== 'MEDIUM') bits.push(priorityLabel(priority));
     if (billTo === 'external') {
@@ -689,14 +746,15 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       bits.push(acct ? acct.name : 'External vendor');
     } else if (hasMiscCost === 'yes' && Number(cost) > 0) {
       bits.push(`Misc ${cost}`);
-    } else {
-      bits.push('Internal');
     }
     if (approverIds.length > 0) {
       bits.push(`${approverIds.length} approver${approverIds.length === 1 ? '' : 's'}`);
     }
-    return bits.join(' · ');
+    return bits;
   }, [priority, billTo, accountId, accounts, hasMiscCost, cost, approverIds.length]);
+
+  const isBillingDefault = moreSummaryBits.length === 0;
+  const moreSummary = moreSummaryBits.join(' · ');
 
   const closeOptionalOverlays = () => {
     setPartsOverlayOpen(false);
@@ -724,6 +782,8 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const templatePartsEditorContent = (
     <div className="space-y-3">
       {lines.length > 0 && (
+        <>
+          <p className="text-xs text-muted-foreground tabular-nums">{lines.length} part(s) added</p>
         <div className="space-y-1.5 rounded-md border border-border">
           {lines.map((line) => (
             <div
@@ -746,9 +806,13 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
             </div>
           ))}
         </div>
+        </>
       )}
 
       <div className="space-y-3 rounded-md border border-dashed border-border bg-muted/20 p-3">
+        <p className="text-xs text-muted-foreground">
+          Pick item and quantity, then press ✓ to add to the list above.
+        </p>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">What will happen with this part?</Label>
           <TooltipProvider delayDuration={200}>
@@ -775,8 +839,8 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
           </TooltipProvider>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="grid gap-1">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="grid min-w-[8rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">{draftLine.actionType === 'REPLACE' ? 'New item' : 'Item'}</Label>
             <ItemSelectSummaryButton
               ariaLabel={draftLine.actionType === 'REPLACE' ? 'Select new item' : 'Select item'}
@@ -786,7 +850,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
               onClick={() => openItemPicker('item')}
             />
           </div>
-          <div className="grid gap-1">
+          <div className="grid w-20 gap-1">
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <StepNumberInput
               min={0.01}
@@ -795,6 +859,18 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
               onChange={(e) => setDraftLine((d) => ({ ...d, quantity: e.target.value }))}
             />
           </div>
+          <LineItemCommitCheckButton
+            canCommit={draftLineValid}
+            highlighted={addButtonHighlighted}
+            hintOpen={(addHintOpen || unaddedHintOpen) && !draftLineValid}
+            hintText={partDraftHintText(draftLine.actionType === 'REPLACE')}
+            onCommit={handleAddLineClick}
+            onDismissHint={() => {
+              setAddHintOpen(false);
+              setUnaddedHintOpen(false);
+            }}
+            onDismissHighlight={dismissAddButtonHighlight}
+          />
         </div>
 
         {draftLine.actionType === 'REPLACE' && (
@@ -810,18 +886,6 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         )}
 
         <p className="text-xs text-muted-foreground">Parts pull from the machine this template is applied to.</p>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full bg-background"
-          disabled={!draftLineValid}
-          onClick={handleAddLine}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Add part line
-        </Button>
       </div>
     </div>
   );
@@ -926,7 +990,14 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
             </span>
             <span className="text-muted-foreground">
               {' '}
-              · {variant === 'parts' ? partsSummary : moreSummary}
+              ·{' '}
+              {variant === 'parts'
+                ? partsIsEmpty
+                  ? 'None added'
+                  : partsSummary
+                : isBillingDefault
+                  ? 'Defaults'
+                  : moreSummary}
             </span>
           </p>
         </div>
@@ -945,31 +1016,37 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       <div className="flex items-stretch gap-2">
         <div className="relative min-w-0 flex-1">
           {partsOverlayOpen && optionalPanelOverlay('parts')}
-          <button
-            type="button"
-            className={cn(
-              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
-              partsOverlayOpen ? 'border-brand-primary/40 bg-brand-primary/5' : 'border-border/60',
-            )}
+          <OptionalPanelSummaryButton
+            title="Parts / consumables (optional)"
+            summary={partsSummary}
+            emptyLabel="Optional — click to add"
+            isEmpty={partsIsEmpty}
+            open={partsOverlayOpen}
             onClick={togglePartsOverlay}
-          >
-            <span className="shrink-0 text-sm font-medium text-foreground">Parts / consumables</span>
-            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">{partsSummary}</span>
-          </button>
+            icon={Package}
+            ariaLabel={
+              partsIsEmpty
+                ? 'Add or edit parts and consumables. Currently optional, none added.'
+                : `Add or edit parts and consumables. Currently: ${partsSummary}.`
+            }
+          />
         </div>
         <div className="relative min-w-0 flex-1">
           {moreOverlayOpen && optionalPanelOverlay('billing')}
-          <button
-            type="button"
-            className={cn(
-              'flex h-full min-h-[3.5rem] w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left hover:bg-muted/40',
-              moreOverlayOpen ? 'border-brand-primary/40 bg-brand-primary/5' : 'border-border/60',
-            )}
+          <OptionalPanelSummaryButton
+            title="Billing & approvals"
+            summary={moreSummary}
+            emptyLabel="Click to set billing & approvals"
+            isEmpty={isBillingDefault}
+            open={moreOverlayOpen}
             onClick={toggleMoreOverlay}
-          >
-            <span className="shrink-0 text-sm font-medium text-foreground">Billing & approvals</span>
-            <span className="min-w-0 truncate text-right text-xs text-muted-foreground">{moreSummary}</span>
-          </button>
+            icon={Receipt}
+            ariaLabel={
+              isBillingDefault
+                ? 'Set billing and approvals. Currently using defaults.'
+                : `Edit billing and approvals. Currently: ${moreSummary}.`
+            }
+          />
         </div>
       </div>
     </div>
