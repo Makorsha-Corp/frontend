@@ -1,24 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { LifeBuoy, Plus } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { LifeBuoy } from 'lucide-react';
 
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import AppShellHeader, {
-  appShellHeaderLeftGroupClass,
   appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import AttachmentPanel from '@/components/newcomponents/customui/AttachmentPanel';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -26,39 +20,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  useCreateHelpTicketMutation,
-  useListHelpTicketsQuery,
+  useListPlatformHelpTicketsQuery,
   useUpdateHelpTicketMutation,
 } from '@/features/helpTickets/helpTicketsApi';
+import { setWorkspace, setWorkspaceHeaderOnly } from '@/features/auth/authSlice';
 import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
-import type { HelpTicket, HelpTicketStatus } from '@/types/helpTicket';
+import type { HelpTicketStatus, PlatformHelpTicket } from '@/types/helpTicket';
+import type { Workspace } from '@/types/workspace';
+import { apiErrorDetail } from '@/utils/apiError';
 
 const STATUS_FILTER_ALL = 'all';
 
-const HelpPage: React.FC = () => {
+const PlatformSupportPage: React.FC = () => {
   const formatDateTime = useFormatDateTimeFromApi();
+  const dispatch = useAppDispatch();
+  const workspace = useAppSelector((state) => state.auth.workspace);
+  const restoreWorkspaceRef = useRef<Workspace | null>(null);
+  if (restoreWorkspaceRef.current === null && workspace) {
+    restoreWorkspaceRef.current = workspace;
+  }
+
   const [statusFilter, setStatusFilter] = useState<HelpTicketStatus | typeof STATUS_FILTER_ALL>(
     STATUS_FILTER_ALL,
   );
+  const [search, setSearch] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchDebounced(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const listArgs = useMemo(
-    () => (statusFilter === STATUS_FILTER_ALL ? undefined : { status: statusFilter }),
-    [statusFilter],
+    () => ({
+      ...(statusFilter === STATUS_FILTER_ALL ? {} : { status: statusFilter }),
+      ...(searchDebounced ? { search: searchDebounced } : {}),
+    }),
+    [statusFilter, searchDebounced],
   );
-  const { data: tickets = [], isLoading, isError } = useListHelpTicketsQuery(listArgs);
-  const [createTicket, { isLoading: isCreating }] = useCreateHelpTicketMutation();
+
+  const { data: tickets = [], isLoading, isError, error } = useListPlatformHelpTicketsQuery(listArgs);
   const [updateTicket, { isLoading: isUpdating }] = useUpdateHelpTicketMutation();
 
-  const selectedTicket: HelpTicket | null = useMemo(
+  const listErrorMessage = useMemo(() => {
+    if (!isError || !error) return null;
+    const err = error as FetchBaseQueryError;
+    const status = err.status;
+    const detail = apiErrorDetail(error, '');
+    if (status === 403) {
+      return detail || 'Platform admin access required. Log out and back in after admin is granted.';
+    }
+    if (status === 503) {
+      return detail || 'Database schema out of date — run alembic upgrade head on the backend.';
+    }
+    if (status === 500) {
+      return detail || 'Server error loading tickets — check the backend terminal.';
+    }
+    if (typeof status === 'number') {
+      return detail || `Could not load tickets (HTTP ${status}).`;
+    }
+    return detail || 'Could not load tickets — is the backend running on localhost:8000?';
+  }, [isError, error]);
+
+  const selectedTicket: PlatformHelpTicket | null = useMemo(
     () => tickets.find((t) => t.id === selectedId) ?? null,
     [tickets, selectedId],
   );
@@ -68,38 +96,43 @@ const HelpPage: React.FC = () => {
       setSelectedId(null);
       return;
     }
-    if (selectedId == null || !tickets.some((t) => t.id === selectedId)) {
-      setSelectedId(tickets[0].id);
-    }
-  }, [tickets, selectedId]);
+    setSelectedId((current) => {
+      if (current != null && tickets.some((t) => t.id === current)) {
+        return current;
+      }
+      return tickets[0]?.id ?? null;
+    });
+  }, [tickets]);
 
-  const resetCreateForm = () => {
-    setTitle('');
-    setDescription('');
-    setCategory('');
-  };
-
-  const handleCreate = async () => {
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-    if (!trimmedTitle || !trimmedDescription) {
-      appToast.error('Title and description are required.');
+  useEffect(() => {
+    if (!selectedTicket) {
       return;
     }
-    try {
-      const created = await createTicket({
-        title: trimmedTitle,
-        description: trimmedDescription,
-        category: category.trim() || null,
-      }).unwrap();
-      appToast.success('Support ticket created.');
-      setCreateOpen(false);
-      resetCreateForm();
-      setSelectedId(created.id);
-    } catch {
-      appToast.error('Could not create ticket.');
-    }
-  };
+
+    const home = restoreWorkspaceRef.current;
+    dispatch(
+      setWorkspaceHeaderOnly({
+        id: selectedTicket.workspace_id,
+        name: selectedTicket.workspace_name,
+        role: home?.role ?? workspace?.role ?? '',
+        status: 'active',
+      }),
+    );
+  }, [
+    selectedTicket?.id,
+    selectedTicket?.workspace_id,
+    selectedTicket?.workspace_name,
+    dispatch,
+    workspace?.role,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (restoreWorkspaceRef.current) {
+        dispatch(setWorkspace(restoreWorkspaceRef.current));
+      }
+    };
+  }, [dispatch]);
 
   const handleToggleStatus = async () => {
     if (!selectedTicket) return;
@@ -125,13 +158,17 @@ const HelpPage: React.FC = () => {
               <LifeBuoy className="h-5 w-5 text-brand-primary" />
             </div>
             <div>
-              <h1 className={appShellHeaderTitleClass}>Help</h1>
-              <p className="text-xs text-muted-foreground">
-                Workspace support — bugs, how-to, billing, and more
-              </p>
+              <h1 className={appShellHeaderTitleClass}>Support inbox</h1>
+              <p className="text-xs text-muted-foreground">All mill workspaces</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tickets…"
+              className="w-[200px]"
+            />
             <Select
               value={statusFilter}
               onValueChange={(value) =>
@@ -147,16 +184,12 @@ const HelpPage: React.FC = () => {
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New ticket
-            </Button>
           </div>
         </div>
       </AppShellHeader>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="flex w-full shrink-0 flex-col border-r border-border md:w-80 lg:w-96">
+        <aside className="flex w-full shrink-0 flex-col border-r border-border md:w-96 lg:w-[28rem]">
           <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Tickets
           </div>
@@ -164,11 +197,9 @@ const HelpPage: React.FC = () => {
             {isLoading ? (
               <p className="p-4 text-sm text-muted-foreground">Loading…</p>
             ) : isError ? (
-              <p className="p-4 text-sm text-destructive">Could not load tickets.</p>
+              <p className="p-4 text-sm text-destructive">{listErrorMessage}</p>
             ) : tickets.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">
-                No tickets yet. Create one to get support.
-              </p>
+              <p className="p-4 text-sm text-muted-foreground">No tickets match.</p>
             ) : (
               <ul>
                 {tickets.map((ticket) => {
@@ -192,10 +223,10 @@ const HelpPage: React.FC = () => {
                             {ticket.status}
                           </Badge>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{ticket.ticket_number}</p>
-                        {ticket.category ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">{ticket.category}</p>
-                        ) : null}
+                        <p className="mt-1 text-xs font-medium text-brand-primary">
+                          {ticket.workspace_name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{ticket.ticket_number}</p>
                         {ticket.creator_name ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             By {ticket.creator_name}
@@ -220,7 +251,7 @@ const HelpPage: React.FC = () => {
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {selectedTicket.ticket_number}
+                      {selectedTicket.workspace_name} · {selectedTicket.ticket_number}
                     </p>
                     <h2 className="mt-1 text-xl font-semibold">{selectedTicket.title}</h2>
                   </div>
@@ -281,67 +312,13 @@ const HelpPage: React.FC = () => {
             </div>
           ) : (
             <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-              Select a ticket or create a new one.
+              Select a ticket from the inbox.
             </div>
           )}
         </main>
       </div>
-
-      <Dialog
-        open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) resetCreateForm();
-        }}
-      >
-        <DialogContent className="flex max-h-[66vh] w-[min(36rem,94vw)] max-w-none flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>New support ticket</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 space-y-4 overflow-y-auto py-1">
-            <div className="space-y-2">
-              <Label htmlFor="help-title">Title</Label>
-              <Input
-                id="help-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={200}
-                placeholder="Brief summary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="help-category">Category (optional)</Label>
-              <Input
-                id="help-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                maxLength={80}
-                placeholder="e.g. Billing, Bug, How-to"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="help-description">Description</Label>
-              <Textarea
-                id="help-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={6}
-                placeholder="Describe the issue or question…"
-              />
-            </div>
-          </div>
-          <DialogFooter className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" disabled={isCreating} onClick={handleCreate}>
-              Create ticket
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
 
-export default HelpPage;
+export default PlatformSupportPage;

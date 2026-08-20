@@ -6,28 +6,47 @@ import { cn } from '@/lib/utils';
 import { useGetAttachmentPdfPageQuery } from '@/features/attachments/attachmentsApi';
 import type { Attachment } from '@/types/attachment';
 
+export interface PdfPageImageContext {
+  url: string;
+  page: number;
+  onImageDimensions: (width: number, height: number) => void;
+}
+
 export interface AttachmentPdfPageViewerProps {
   attachment: Attachment;
   className?: string;
   imageClassName?: string;
+  page?: number;
+  onPageChange?: (page: number) => void;
+  imageOverlay?: React.ReactNode;
+  renderPageImage?: (ctx: PdfPageImageContext) => React.ReactNode;
 }
 
 export default function AttachmentPdfPageViewer({
   attachment,
   className,
   imageClassName,
+  page: controlledPage,
+  onPageChange,
+  imageOverlay,
+  renderPageImage,
 }: AttachmentPdfPageViewerProps) {
-  const [page, setPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
+  const page = controlledPage ?? internalPage;
+  const setPage = onPageChange ?? setInternalPage;
+
   const [knownPageCount, setKnownPageCount] = useState<number | null>(
     attachment.page_count,
   );
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    setPage(1);
+    if (controlledPage === undefined) {
+      setInternalPage(1);
+    }
     setKnownPageCount(attachment.page_count);
     setImageError(false);
-  }, [attachment.id, attachment.page_count]);
+  }, [attachment.id, attachment.page_count, controlledPage]);
 
   const { data, isFetching, isError, error } = useGetAttachmentPdfPageQuery(
     { attachmentId: attachment.id, page },
@@ -50,12 +69,12 @@ export default function AttachmentPdfPageViewer({
 
   const goPrev = () => {
     if (!canGoPrev) return;
-    setPage((current) => Math.max(1, current - 1));
+    setPage(Math.max(1, page - 1));
   };
 
   const goNext = () => {
     if (!canGoNext) return;
-    setPage((current) => current + 1);
+    setPage(page + 1);
   };
 
   const pageLabel =
@@ -79,17 +98,26 @@ export default function AttachmentPdfPageViewer({
         ) : null}
 
         {data?.url && !imageError ? (
-          <img
-            key={`${attachment.id}-${page}-${data.url}`}
-            src={data.url}
-            alt={`${attachment.file_name} — page ${page}`}
-            className={cn(
-              'mx-auto max-h-[70vh] w-auto max-w-full rounded-md object-contain',
-              isFetching && 'opacity-60',
-              imageClassName,
-            )}
-            onError={() => setImageError(true)}
-          />
+          renderPageImage ? (
+            <div className="w-full">{renderPageImage({ url: data.url, page, onImageDimensions: () => undefined })}</div>
+          ) : (
+            <div className="relative mx-auto flex max-h-[70vh] w-fit max-w-full items-center justify-center">
+              <img
+                key={`${attachment.id}-${page}-${data.url}`}
+                src={data.url}
+                alt={`${attachment.file_name} — page ${page}`}
+                className={cn(
+                  'max-h-[70vh] w-auto max-w-full rounded-md object-contain',
+                  isFetching && 'opacity-60',
+                  imageClassName,
+                )}
+                onError={() => setImageError(true)}
+              />
+              {imageOverlay ? (
+                <div className="absolute inset-0">{imageOverlay}</div>
+              ) : null}
+            </div>
+          )
         ) : null}
 
         {(isError || imageError) && !isFetching ? (

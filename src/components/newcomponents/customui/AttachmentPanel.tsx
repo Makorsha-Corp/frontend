@@ -36,6 +36,9 @@ import { cn } from '@/lib/utils';
 import { uploadToCloudinary } from '@/lib/cloudinaryUpload';
 import PendingAttachmentUploadDialog from '@/components/newcomponents/customui/scan/PendingAttachmentUploadDialog';
 import AttachmentPdfPageViewer from '@/components/newcomponents/customui/AttachmentPdfPageViewer';
+import AttachmentMarkupStage, {
+  isMarkupableAttachment,
+} from '@/components/newcomponents/customui/attachmentMarkup/AttachmentMarkupStage';
 import MobileUploadQrDialog from '@/components/newcomponents/customui/MobileUploadQrDialog';
 import {
   useConfirmAttachmentUploadMutation,
@@ -165,6 +168,8 @@ export default function AttachmentPanel({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [previewPortalEl, setPreviewPortalEl] = useState<HTMLElement | null>(null);
+  const [markMode, setMarkMode] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<number | null>(null);
   const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
@@ -998,8 +1003,19 @@ export default function AttachmentPanel({
   );
 
   const previewDialog = (
-    <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
-      <DialogContent className="flex max-h-[90vh] w-[min(56rem,94vw)] max-w-none flex-col overflow-hidden">
+    <Dialog
+      open={!!previewAttachment}
+      onOpenChange={(open) => {
+        if (!open) {
+          setPreviewAttachment(null);
+          setMarkMode(false);
+        }
+      }}
+    >
+      <DialogContent
+        ref={setPreviewPortalEl}
+        className="flex max-h-[90vh] w-[min(56rem,94vw)] max-w-none flex-col overflow-hidden"
+      >
         <DialogHeader className="shrink-0 space-y-0">
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="min-w-0 flex-1 space-y-1.5 text-left">
@@ -1025,7 +1041,16 @@ export default function AttachmentPanel({
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {previewAttachment ? (
-            isPdf(previewAttachment) ? (
+            isMarkupableAttachment(previewAttachment) ? (
+              <AttachmentMarkupStage
+                attachment={previewAttachment}
+                isPdf={isPdf(previewAttachment)}
+                previewUrl={previewUrl}
+                markMode={markMode}
+                onMarkModeChange={setMarkMode}
+                portalContainer={previewPortalEl}
+              />
+            ) : isPdf(previewAttachment) ? (
               <AttachmentPdfPageViewer attachment={previewAttachment} />
             ) : isPreviewableAttachment(previewAttachment) && previewUrl ? (
               <img

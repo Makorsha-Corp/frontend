@@ -45,6 +45,7 @@ import { calendarApi } from '@/features/calendar/calendarApi';
 import { attachmentsApi } from '@/features/attachments/attachmentsApi';
 import { mobileUploadApi } from '@/features/mobileUpload/mobileUploadApi';
 import { helpTicketsApi } from '@/features/helpTickets/helpTicketsApi';
+import { waitlistApi } from '@/features/waitlist/waitlistApi';
 import { factoryScopeListenerMiddleware } from '@/app/factoryScopeListenerMiddleware';
 
 export const store = configureStore({
@@ -94,6 +95,7 @@ export const store = configureStore({
     [attachmentsApi.reducerPath]: attachmentsApi.reducer,
     [mobileUploadApi.reducerPath]: mobileUploadApi.reducer,
     [helpTicketsApi.reducerPath]: helpTicketsApi.reducer,
+    [waitlistApi.reducerPath]: waitlistApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -143,6 +145,7 @@ export const store = configureStore({
       attachmentsApi.middleware,
       mobileUploadApi.middleware,
       helpTicketsApi.middleware,
+      waitlistApi.middleware,
     ),
 });
 

@@ -27,6 +27,8 @@ export interface UseImageViewportOptions {
   imageWidth: number;
   imageHeight: number;
   disabled?: boolean;
+  /** Mouse button for pan at any zoom (e.g. 2 = right-click). */
+  secondaryPanButton?: number;
 }
 
 export interface UseImageViewportResult {
@@ -39,6 +41,9 @@ export interface UseImageViewportResult {
   onViewportPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onViewportPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   onViewportPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onSecondaryPanPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onSecondaryPanPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onSecondaryPanPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
   onViewportWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
 }
 
@@ -46,6 +51,7 @@ export function useImageViewport({
   imageWidth,
   imageHeight,
   disabled = false,
+  secondaryPanButton,
 }: UseImageViewportOptions): UseImageViewportResult {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -55,6 +61,10 @@ export function useImageViewport({
 
   const activePointersRef = useRef<Map<number, PointerRecord>>(new Map());
   const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const secondaryPanStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(
+    null,
+  );
+  const secondaryPanPointerIdRef = useRef<number | null>(null);
   const pinchStartRef = useRef<{
     distance: number;
     scale: number;
@@ -89,6 +99,8 @@ export function useImageViewport({
     setViewport({ scale: 1, panX: 0, panY: 0 });
     activePointersRef.current.clear();
     panStartRef.current = null;
+    secondaryPanStartRef.current = null;
+    secondaryPanPointerIdRef.current = null;
     pinchStartRef.current = null;
     setIsPanning(false);
     setIsPinching(false);
@@ -247,6 +259,53 @@ export function useImageViewport({
     [endPointer],
   );
 
+  const onSecondaryPanPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (disabled || secondaryPanButton === undefined || event.button !== secondaryPanButton) {
+        return;
+      }
+      const point = localPoint(event);
+      secondaryPanPointerIdRef.current = event.pointerId;
+      secondaryPanStartRef.current = {
+        x: point.x,
+        y: point.y,
+        panX: viewport.panX,
+        panY: viewport.panY,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsPanning(true);
+    },
+    [disabled, localPoint, secondaryPanButton, viewport.panX, viewport.panY],
+  );
+
+  const onSecondaryPanPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (disabled || secondaryPanPointerIdRef.current !== event.pointerId) return;
+      const panStart = secondaryPanStartRef.current;
+      if (!panStart) return;
+      const point = localPoint(event);
+      applyViewport({
+        scale: viewport.scale,
+        panX: panStart.panX + (point.x - panStart.x),
+        panY: panStart.panY + (point.y - panStart.y),
+      });
+    },
+    [applyViewport, disabled, localPoint, viewport.scale],
+  );
+
+  const onSecondaryPanPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (secondaryPanPointerIdRef.current !== event.pointerId) return;
+      secondaryPanPointerIdRef.current = null;
+      secondaryPanStartRef.current = null;
+      setIsPanning(false);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
+
   const onViewportWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
       if (disabled) return;
@@ -285,6 +344,9 @@ export function useImageViewport({
     onViewportPointerDown,
     onViewportPointerMove,
     onViewportPointerUp,
+    onSecondaryPanPointerDown,
+    onSecondaryPanPointerMove,
+    onSecondaryPanPointerUp,
     onViewportWheel,
   };
 }

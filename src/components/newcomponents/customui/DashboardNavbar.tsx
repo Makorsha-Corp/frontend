@@ -23,6 +23,7 @@ import {
   CreditCard,
   Paperclip,
   LifeBuoy,
+  Shield,
   Receipt,
   ClipboardList,
   Layers3,
@@ -197,6 +198,9 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
         ]
       : []),
   ];
+
+  const isPlatformActive =
+    location.pathname === '/platform' || location.pathname.startsWith('/platform/');
 
   const isOrdersActive = ORDERS_SUB_PATHS.some(
     (p) => location.pathname === p || location.pathname.startsWith(p + '/')
@@ -782,6 +786,19 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 </Link>
               </li>
             ))}
+
+            {user?.is_platform_admin ? (
+              <li>
+                <Link
+                  to="/platform/support"
+                  className={topNavLinkClass(isPlatformActive)}
+                  title={!isExpanded ? 'Platform' : ''}
+                >
+                  <Shield {...navIconProps} />
+                  {isExpanded && <span className="font-medium">Platform</span>}
+                </Link>
+              </li>
+            ) : null}
           </ul>
         </nav>
 

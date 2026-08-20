@@ -37,6 +37,10 @@ import ManagementPage from "./pages/newpages/ManagementPage";
 import BillingTrialPage from "./pages/newpages/BillingTrialPage";
 import UploadsPage from "./pages/newpages/UploadsPage";
 import HelpPage from "./pages/newpages/HelpPage";
+import PlatformLayout from "./layouts/PlatformLayout";
+import PlatformSupportPage from "./pages/newpages/platform/PlatformSupportPage";
+import PlatformWaitlistPage from "./pages/newpages/platform/PlatformWaitlistPage";
+import RequirePlatformAdmin from "./components/newcomponents/customui/RequirePlatformAdmin";
 import MobileUploadPage from "./pages/newpages/MobileUploadPage";
 import RequireAuth from "./components/newcomponents/customui/RequireAuth";
 import RequireWorkspace from "./components/newcomponents/customui/RequireWorkspace";
@@ -62,6 +66,13 @@ const App: React.FC = () => {
             {/* Requires auth, no workspace needed */}
             <Route element={<RequireAuth />}>
               <Route path="/workspace-selector" element={<WorkspaceSelectorPage />} />
+              <Route element={<RequirePlatformAdmin />}>
+                <Route element={<PlatformLayout />}>
+                  <Route path="/platform" element={<Navigate to="/platform/support" replace />} />
+                  <Route path="/platform/support" element={<PlatformSupportPage />} />
+                  <Route path="/platform/waitlist" element={<PlatformWaitlistPage />} />
+                </Route>
+              </Route>
             </Route>
 
             {/* Requires auth + workspace */}

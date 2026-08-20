@@ -106,6 +106,51 @@ export interface AttachmentPdfPageResponse {
   page_count: number | null;
 }
 
+export interface MarkupPoint {
+  x: number;
+  y: number;
+}
+
+export interface MarkupStroke {
+  color: string;
+  width: number;
+  points: MarkupPoint[];
+}
+
+export interface MarkupText {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  size: number;
+}
+
+export interface PageMarks {
+  strokes: MarkupStroke[];
+  texts: MarkupText[];
+  scribbles: MarkupStroke[];
+}
+
+export interface MarkupPayload {
+  pages: Record<string, PageMarks>;
+}
+
+export interface AttachmentMarkupLayer {
+  user_id: number;
+  user_name: string;
+  is_mine: boolean;
+  updated_at: string;
+  payload: MarkupPayload;
+}
+
+export interface AttachmentMarkupListResponse {
+  items: AttachmentMarkupLayer[];
+}
+
+export interface AttachmentMarkupPutRequest {
+  payload: MarkupPayload;
+}
+
 export {
   ALLOWED_ATTACHMENT_ACCEPT,
   ALLOWED_ATTACHMENT_MIME_TYPES,

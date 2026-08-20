@@ -122,6 +122,10 @@ export const authSlice = createSlice({
       state.factory = null;
       localStorage.removeItem(SELECTED_FACTORY_KEY);
     },
+    /** Ephemeral workspace for API header only (platform admin cross-mill views). */
+    setWorkspaceHeaderOnly: (state, action: PayloadAction<Workspace>) => {
+      state.workspace = action.payload;
+    },
     setFactory: (state, action: PayloadAction<Factory>) => {
       state.factory = action.payload;
       localStorage.setItem(SELECTED_FACTORY_KEY, JSON.stringify(action.payload));
@@ -156,6 +160,7 @@ export const {
   setCredentials,
   setTokens,
   setWorkspace,
+  setWorkspaceHeaderOnly,
   setFactory,
   clearFactory,
   updateUser,

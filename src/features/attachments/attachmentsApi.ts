@@ -8,6 +8,9 @@ import type {
   Attachment,
   AttachmentEntityType,
   AttachmentListResponse,
+  AttachmentMarkupLayer,
+  AttachmentMarkupListResponse,
+  AttachmentMarkupPutRequest,
   AttachmentPdfPageResponse,
   AttachmentSignRequest,
   AttachmentSignResponse,
@@ -23,7 +26,7 @@ export interface ListAttachmentsArgs {
 export const attachmentsApi = createApi({
   reducerPath: 'attachmentsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Attachment'],
+  tagTypes: ['Attachment', 'AttachmentMarkup'],
   endpoints: (builder) => ({
     signAttachmentUpload: builder.mutation<AttachmentSignResponse, AttachmentSignRequest>({
       query: (body) => ({
@@ -74,6 +77,34 @@ export const attachmentsApi = createApi({
       query: ({ attachmentId, page }) =>
         `attachments/${attachmentId}/pdf-page?page=${page}`,
     }),
+    getAttachmentMarkups: builder.query<AttachmentMarkupListResponse, number>({
+      query: (attachmentId) => `attachments/${attachmentId}/markups`,
+      providesTags: (_result, _error, attachmentId) => [
+        { type: 'AttachmentMarkup', id: attachmentId },
+      ],
+    }),
+    putMyAttachmentMarkup: builder.mutation<
+      AttachmentMarkupLayer | null,
+      { attachmentId: number; body: AttachmentMarkupPutRequest }
+    >({
+      query: ({ attachmentId, body }) => ({
+        url: `attachments/${attachmentId}/markups/me`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (_result, error, { attachmentId }) =>
+        error
+          ? []
+          : [{ type: 'AttachmentMarkup', id: attachmentId }],
+    }),
+    deleteMyAttachmentMarkup: builder.mutation<void, number>({
+      query: (attachmentId) => ({
+        url: `attachments/${attachmentId}/markups/me`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, error, attachmentId) =>
+        error ? [] : [{ type: 'AttachmentMarkup', id: attachmentId }],
+    }),
     deleteAttachment: builder.mutation<Attachment, number>({
       query: (id) => ({
         url: `attachments/${id}`,
@@ -102,5 +133,8 @@ export const {
   useListAttachmentsQuery,
   useGetAttachmentQuery,
   useGetAttachmentPdfPageQuery,
+  useGetAttachmentMarkupsQuery,
+  usePutMyAttachmentMarkupMutation,
+  useDeleteMyAttachmentMarkupMutation,
   useDeleteAttachmentMutation,
 } = attachmentsApi;

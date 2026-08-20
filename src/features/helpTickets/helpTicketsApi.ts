@@ -5,12 +5,13 @@ import type {
   HelpTicketCreate,
   HelpTicketStatus,
   HelpTicketUpdate,
+  PlatformHelpTicket,
 } from '@/types/helpTicket';
 
 export const helpTicketsApi = createApi({
   reducerPath: 'helpTicketsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['HelpTicket', 'HelpTicketList'],
+  tagTypes: ['HelpTicket', 'HelpTicketList', 'PlatformHelpTicket', 'PlatformHelpTicketList'],
   endpoints: (builder) => ({
     listHelpTickets: builder.query<
       HelpTicket[],
@@ -56,7 +57,34 @@ export const helpTicketsApi = createApi({
       invalidatesTags: (_result, _error, { ticketId }) => [
         { type: 'HelpTicket', id: ticketId },
         { type: 'HelpTicketList', id: 'LIST' },
+        { type: 'PlatformHelpTicketList', id: 'LIST' },
+        { type: 'PlatformHelpTicket', id: ticketId },
       ],
+    }),
+    listPlatformHelpTickets: builder.query<
+      PlatformHelpTicket[],
+      { status?: HelpTicketStatus; search?: string; skip?: number; limit?: number } | void
+    >({
+      query: (params) => {
+        const search = new URLSearchParams();
+        if (params?.status) search.set('status', params.status);
+        if (params?.search) search.set('search', params.search);
+        if (params?.skip != null) search.set('skip', String(params.skip));
+        if (params?.limit != null) search.set('limit', String(params.limit));
+        const qs = search.toString();
+        return qs ? `platform/help/tickets?${qs}` : 'platform/help/tickets';
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'PlatformHelpTicket' as const, id })),
+              { type: 'PlatformHelpTicketList', id: 'LIST' },
+            ]
+          : [{ type: 'PlatformHelpTicketList', id: 'LIST' }],
+    }),
+    getPlatformHelpTicket: builder.query<PlatformHelpTicket, number>({
+      query: (ticketId) => `platform/help/tickets/${ticketId}`,
+      providesTags: (_result, _error, ticketId) => [{ type: 'PlatformHelpTicket', id: ticketId }],
     }),
   }),
 });
@@ -66,4 +94,6 @@ export const {
   useGetHelpTicketQuery,
   useCreateHelpTicketMutation,
   useUpdateHelpTicketMutation,
+  useListPlatformHelpTicketsQuery,
+  useGetPlatformHelpTicketQuery,
 } = helpTicketsApi;

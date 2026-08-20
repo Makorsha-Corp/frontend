@@ -8,7 +8,8 @@ export type DiscussionEntityType =
   | 'project_component'
   | 'machine'
   | 'inventory'
-  | 'item';
+  | 'item'
+  | 'support_ticket';
 
 export interface DiscussionAuthor {
   id: number;
