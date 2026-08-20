@@ -190,7 +190,14 @@
   }
 }
 
-/* Themed scrollbar - brand purple; WebKit full styling, Firefox via @supports (see below) */
+/* Themed scrollbar — Blink/WebKit: pseudo-elements (radius, hover, no arrow buttons). Firefox: scrollbar-color/width only (-moz-appearance gate avoids Chrome arrow regression from scrollbar-width on *). */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary)) hsl(var(--primary) / 0.12);
+  }
+}
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -209,7 +216,7 @@
   background: hsl(var(--primary-hover));
 }
 
-/* No end-arrow buttons — must stay on WebKit-only path (not scrollbar-width on *) */
+/* No end-arrow buttons — WebKit-only; keep scrollbar-width off * in Blink (see above) */
 *::-webkit-scrollbar-button,
 *::-webkit-scrollbar-button:vertical:start:decrement,
 *::-webkit-scrollbar-button:vertical:end:increment,
@@ -225,14 +232,6 @@
 
 *::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-/* Firefox — scrollbar-width/color here only; on * they break WebKit arrow removal in Chrome/Edge */
-@supports not selector(::-webkit-scrollbar) {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--primary)) hsl(var(--primary) / 0.12);
-  }
 }
 
 .po-scroll-target-highlight {
