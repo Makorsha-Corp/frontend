@@ -8,7 +8,7 @@ import WorkspaceSelectorPage from "./pages/newpages/WorkspaceSelectorPage";
 import DashboardPage from "./pages/newpages/DashboardPage";
 import FactoriesPage from "./pages/newpages/FactoriesPage";
 import FactoryDetailPage from "./pages/newpages/FactoryDetailPage";
-import FactorySectionDetailPage from "./pages/newpages/FactorySectionDetailPage";
+import FactorySectionRedirectPage from "./pages/newpages/FactorySectionRedirectPage";
 import MachinesPage from "./pages/newpages/MachinesPage";
 import ItemsPage from "./pages/newpages/ItemsPage";
 import AccountsLandingPage from "./pages/newpages/AccountsLandingPage";
@@ -82,7 +82,7 @@ const App: React.FC = () => {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/factories" element={<FactoriesPage />} />
               <Route path="/factories/:id" element={<FactoryDetailPage />} />
-              <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionDetailPage />} />
+              <Route path="/factories/:id/sections/:sectionId" element={<FactorySectionRedirectPage />} />
               <Route path="/machines" element={<MachinesPage />} />
               <Route path="/items" element={<ItemsPage />} />
               <Route path="/accounts" element={<Navigate to="/accounts/overview" replace />} />

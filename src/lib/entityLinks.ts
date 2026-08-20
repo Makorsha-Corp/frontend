@@ -55,12 +55,23 @@ export function buildMachineHref(machineId: number): string {
   return `/machines?machineId=${machineId}&details=1`;
 }
 
+export function buildMachinesSectionHref(sectionId: number, machineId?: number): string {
+  const params = new URLSearchParams();
+  params.set('sectionId', String(sectionId));
+  if (machineId != null) {
+    params.set('machineId', String(machineId));
+    params.set('details', '1');
+  }
+  return `/machines?${params.toString()}`;
+}
+
 export function buildFactoryHref(factoryId: number): string {
   return `/factories/${factoryId}`;
 }
 
-export function buildFactorySectionHref(factoryId: number, sectionId: number): string {
-  return `/factories/${factoryId}/sections/${sectionId}`;
+/** Section scope on Machines page (factoryId kept for call-site compatibility). */
+export function buildFactorySectionHref(_factoryId: number, sectionId: number): string {
+  return buildMachinesSectionHref(sectionId);
 }
 
 export function buildItemHref(itemId: number): string {

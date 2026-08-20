@@ -1,5 +1,5 @@
 import type { DueStatusRow } from '@/components/newcomponents/customui/DueStatusCard';
-import { buildWorkOrderHref } from '@/lib/entityLinks';
+import { buildFactoryHref, buildMachineHref, buildWorkOrderHref } from '@/lib/entityLinks';
 import type { FactorySection } from '@/types/factorySection';
 import type { MachineUpcomingWorkRow } from '@/types/machineUpcomingWork';
 
@@ -150,8 +150,8 @@ export function mapUpcomingWorkToAttentionRows(
         ? earliestDate.getTime() - 1_000_000_000_000
         : new Date(`${dateLabel}T00:00:00`).getTime(),
       href: section
-        ? `/factories/${section.factory_id}/sections/${section.id}?machineId=${row.machine_id}`
-        : `/factories/${row.factory_id}`,
+        ? buildMachineHref(row.machine_id)
+        : buildFactoryHref(row.factory_id),
     };
   });
 }

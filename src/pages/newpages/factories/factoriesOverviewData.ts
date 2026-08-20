@@ -7,6 +7,7 @@ import type { Machine } from '@/types/machine';
 import type { ProductionBatch, ProductionLine } from '@/types/production';
 import type { MachineUpcomingWorkRow } from '@/types/machineUpcomingWork';
 import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
+import { buildMachineHref } from '@/lib/entityLinks';
 import { getMachineVisualKind } from '@/lib/machineVisualStatus';
 import { factoryHubLink } from '@/pages/newpages/factories/factoriesOverviewConstants';
 
@@ -208,11 +209,8 @@ function machineSectionLabel(
   );
 }
 
-function machineHref(machine: Machine, factoryId: number): string {
-  if (machine.factory_section_id != null) {
-    return `/factories/${factoryId}/sections/${machine.factory_section_id}`;
-  }
-  return factoryHubLink('/machines', String(factoryId));
+function machineHref(machine: Machine, _factoryId: number): string {
+  return buildMachineHref(machine.id);
 }
 
 export function buildFactoryAttentionItems(
