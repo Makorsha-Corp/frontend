@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { appToast } from '@/lib/appToast';
+import { showActionMessages } from '@/lib/actionResponseToasts';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -481,9 +482,7 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
     setFulfillingItemId(itemId);
     try {
       const result = await fulfillItem({ orderId: order.id, itemId, completion_code: completionCode }).unwrap();
-      for (const msg of result.messages ?? []) {
-        appToast.success(msg.message);
-      }
+      showActionMessages(result.messages);
       setFulfillDialogItem(null);
       setFulfillCompletionCode('');
       onUpdated?.();

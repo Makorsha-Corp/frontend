@@ -28,6 +28,7 @@ describe('pageMarks', () => {
           ],
           texts: [],
           scribbles: [],
+          stamps: [],
         },
       },
     };
@@ -40,7 +41,7 @@ describe('pageMarks', () => {
     expect(
       isPayloadEmpty({
         pages: {
-          '1': { strokes: [], texts: [], scribbles: [] },
+          '1': { strokes: [], texts: [], scribbles: [], stamps: [] },
         },
       }),
     ).toBe(true);
@@ -51,6 +52,7 @@ describe('pageMarks', () => {
             strokes: [{ color: '#000', width: 0.01, points: [{ x: 0, y: 0 }] }],
             texts: [],
             scribbles: [],
+            stamps: [],
           },
         },
       }),
@@ -63,6 +65,7 @@ describe('pageMarks', () => {
       strokes: [{ color: '#000', width: 0.01, points: [{ x: 0.5, y: 0.5 }] }],
       texts: [],
       scribbles: [],
+      stamps: [],
     });
     expect(withMarks.pages['1']).toBeDefined();
     const cleared = setPageMarks(withMarks, 1, emptyPageMarks());

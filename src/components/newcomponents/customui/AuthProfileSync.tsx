@@ -18,6 +18,7 @@ export default function AuthProfileSync() {
         name: data.user.name,
         timezone: data.user.timezone ?? null,
         is_platform_admin: data.user.is_platform_admin ?? false,
+        saved_stamp: data.user.saved_stamp ?? null,
       }),
     );
   }, [data, dispatch]);

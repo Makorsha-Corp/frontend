@@ -1,9 +1,11 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Eraser, Hand, Pencil, Search, Type } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Eraser, Hand, Pencil, Search, Stamp, Type } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { MarkupPoint, MarkupStroke, PageMarks } from '@/types/attachment';
+import type { MarkupPoint, MarkupStroke, MarkupStamp, PageMarks } from '@/types/attachment';
+import type { SavedStamp } from '@/types/savedStamp';
+import { stampPlacementFromPoint } from '@/types/savedStamp';
 
 import { markupCopy } from './markupCopy';
 import {
@@ -13,8 +15,16 @@ import {
   type PenWidthPresetId,
 } from './markupDefaults';
 import MarkupOverlay from './MarkupOverlay';
+import MarkupStampSelection from './MarkupStampSelection';
+import { hitTestStamps } from './markupStampHitTest';
+import { findStampById } from './stampIds';
+import {
+  applyMoveDrag,
+  applyRotateDrag,
+  applyUniformResize,
+} from './markupStampTransform';
 
-export type MarkupTool = 'pen' | 'text' | 'pan';
+export type MarkupTool = 'pen' | 'text' | 'pan' | 'stamp';
 
 export interface MarkupEditorToolbarProps {
   tool: MarkupTool;
@@ -29,9 +39,18 @@ export interface MarkupEditorToolbarProps {
   onResetView?: () => void;
   loupeEnabled?: boolean;
   onLoupeEnabledChange?: (enabled: boolean) => void;
+  stampAvailable?: boolean;
+  toolVisibility?: Partial<Record<MarkupTool, boolean>>;
   orientation?: 'horizontal' | 'vertical';
   className?: string;
 }
+
+const DEFAULT_TOOL_VISIBILITY: Record<MarkupTool, boolean> = {
+  pen: true,
+  text: true,
+  pan: true,
+  stamp: true,
+};
 
 function ToolButton({
   active,
@@ -90,10 +109,14 @@ export function MarkupEditorToolbar({
   onResetView,
   loupeEnabled = false,
   onLoupeEnabledChange,
+  stampAvailable = false,
+  toolVisibility,
   orientation = 'vertical',
   className,
 }: MarkupEditorToolbarProps) {
   const vertical = orientation === 'vertical';
+  const visibility = { ...DEFAULT_TOOL_VISIBILITY, ...toolVisibility };
+  const showPenPresets = tool === 'pen' && visibility.pen;
 
   return (
     <div
@@ -107,28 +130,43 @@ export function MarkupEditorToolbar({
       aria-orientation={vertical ? 'vertical' : 'horizontal'}
     >
       <div className={cn('flex gap-1', vertical ? 'flex-col items-center' : 'items-center')}>
-        <ToolButton
-          vertical={vertical}
-          active={tool === 'pen'}
-          label={markupCopy.penLabel}
-          icon={<Pencil className="h-4 w-4" />}
-          onClick={() => onToolChange('pen')}
-        />
-        <ToolButton
-          vertical={vertical}
-          active={tool === 'text'}
-          label={markupCopy.textLabel}
-          icon={<Type className="h-4 w-4" />}
-          onClick={() => onToolChange('text')}
-        />
-        <ToolButton
-          vertical={vertical}
-          active={tool === 'pan'}
-          label={markupCopy.panLabel}
-          icon={<Hand className="h-4 w-4" />}
-          onClick={() => onToolChange('pan')}
-        />
-        {onLoupeEnabledChange ? (
+        {visibility.pen ? (
+          <ToolButton
+            vertical={vertical}
+            active={tool === 'pen'}
+            label={markupCopy.penLabel}
+            icon={<Pencil className="h-4 w-4" />}
+            onClick={() => onToolChange('pen')}
+          />
+        ) : null}
+        {visibility.text ? (
+          <ToolButton
+            vertical={vertical}
+            active={tool === 'text'}
+            label={markupCopy.textLabel}
+            icon={<Type className="h-4 w-4" />}
+            onClick={() => onToolChange('text')}
+          />
+        ) : null}
+        {visibility.pan ? (
+          <ToolButton
+            vertical={vertical}
+            active={tool === 'pan'}
+            label={markupCopy.panLabel}
+            icon={<Hand className="h-4 w-4" />}
+            onClick={() => onToolChange('pan')}
+          />
+        ) : null}
+        {visibility.stamp && stampAvailable ? (
+          <ToolButton
+            vertical={vertical}
+            active={tool === 'stamp'}
+            label={markupCopy.stampLabel}
+            icon={<Stamp className="h-4 w-4" />}
+            onClick={() => onToolChange('stamp')}
+          />
+        ) : null}
+        {onLoupeEnabledChange && visibility.pen ? (
           vertical ? (
             <Button
               type="button"
@@ -160,7 +198,7 @@ export function MarkupEditorToolbar({
         ) : null}
       </div>
 
-      {tool === 'pen' ? (
+      {showPenPresets ? (
         <div
           className={cn(
             'flex gap-0.5 rounded-md border border-border/60 p-0.5',
@@ -288,6 +326,12 @@ export interface MarkupEditorCanvasProps {
   mapClientPoint: MapClientToMarkupPoint;
   onChange: (marks: PageMarks) => void;
   onBeforeChange?: () => void;
+  onStampPlace?: (point: MarkupPoint) => void;
+  savedStamp?: SavedStamp | null;
+  selectedStampId?: string | null;
+  onSelectStamp?: (id: string | null) => void;
+  onStampUpdate?: (id: string, stamp: MarkupStamp) => void;
+  validateMarks?: (marks: PageMarks) => boolean;
   className?: string;
 }
 
@@ -318,12 +362,42 @@ export function MarkupEditorCanvas({
   mapClientPoint,
   onChange,
   onBeforeChange,
+  onStampPlace,
+  savedStamp = null,
+  selectedStampId = null,
+  onSelectStamp,
+  onStampUpdate,
+  validateMarks,
   className,
   imageWidth,
   imageHeight,
 }: MarkupEditorCanvasProps & { imageWidth: number; imageHeight: number }) {
   const layerRef = useRef<HTMLDivElement>(null);
+  const suppressClickRef = useRef(false);
+  const stampHistoryPushedRef = useRef(false);
   const [draftStroke, setDraftStroke] = useState<MarkupStroke | null>(null);
+  const [stampHoverPoint, setStampHoverPoint] = useState<MarkupPoint | null>(null);
+  const [stampGesture, setStampGesture] = useState<
+    | {
+        kind: 'move';
+        id: string;
+        startStamp: MarkupStamp;
+        startPoint: MarkupPoint;
+      }
+    | {
+        kind: 'resize';
+        id: string;
+        corner: 0 | 1 | 2 | 3;
+        startStamp: MarkupStamp;
+      }
+    | {
+        kind: 'rotate';
+        id: string;
+        startStamp: MarkupStamp;
+        startPoint: MarkupPoint;
+      }
+    | null
+  >(null);
   const [textDraft, setTextDraft] = useState<{
     x: number;
     y: number;
@@ -336,12 +410,31 @@ export function MarkupEditorCanvas({
     [imageHeight, imageWidth, mapClientPoint],
   );
 
+  useEffect(() => {
+    if (tool !== 'stamp') {
+      setStampHoverPoint(null);
+      setStampGesture(null);
+    }
+  }, [tool]);
+
+  const finishStampGesture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (layerRef.current?.hasPointerCapture(event.pointerId)) {
+      layerRef.current.releasePointerCapture(event.pointerId);
+    }
+    if (stampHistoryPushedRef.current) {
+      suppressClickRef.current = true;
+    }
+    stampHistoryPushedRef.current = false;
+    setStampGesture(null);
+  }, []);
+
   const applyMarks = useCallback(
     (next: PageMarks) => {
+      if (validateMarks && !validateMarks(next)) return;
       onBeforeChange?.();
       onChange(next);
     },
-    [onBeforeChange, onChange],
+    [onBeforeChange, onChange, validateMarks],
   );
 
   const finishStroke = useCallback(
@@ -360,6 +453,58 @@ export function MarkupEditorCanvas({
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (tool === 'stamp' && savedStamp && event.button === 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      const hit = hitTestStamps(point, marks.stamps, selectedStampId);
+      if (hit) {
+        const startStamp = findStampById(marks.stamps, hit.id);
+        if (!startStamp) return;
+
+        onSelectStamp?.(hit.id);
+        layerRef.current?.setPointerCapture(event.pointerId);
+        setStampHoverPoint(null);
+
+        if (hit.kind === 'rotate') {
+          onBeforeChange?.();
+          stampHistoryPushedRef.current = true;
+          setStampGesture({
+            kind: 'rotate',
+            id: hit.id,
+            startStamp,
+            startPoint: point,
+          });
+          return;
+        }
+
+        if (hit.kind === 'resize') {
+          onBeforeChange?.();
+          stampHistoryPushedRef.current = true;
+          setStampGesture({
+            kind: 'resize',
+            id: hit.id,
+            corner: hit.corner,
+            startStamp,
+          });
+          return;
+        }
+
+        stampHistoryPushedRef.current = false;
+        setStampGesture({
+          kind: 'move',
+          id: hit.id,
+          startStamp,
+          startPoint: point,
+        });
+        return;
+      }
+
+      return;
+    }
+
     if (tool !== 'pen' || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -374,6 +519,37 @@ export function MarkupEditorCanvas({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (stampGesture && tool === 'stamp') {
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      let nextStamp: MarkupStamp;
+      if (stampGesture.kind === 'move') {
+        const movedEnough =
+          Math.hypot(point.x - stampGesture.startPoint.x, point.y - stampGesture.startPoint.y) >
+          0.002;
+        if (!stampHistoryPushedRef.current && !movedEnough) {
+          return;
+        }
+        if (!stampHistoryPushedRef.current) {
+          onBeforeChange?.();
+          stampHistoryPushedRef.current = true;
+        }
+        nextStamp = applyMoveDrag(stampGesture.startStamp, stampGesture.startPoint, point);
+      } else if (stampGesture.kind === 'resize') {
+        nextStamp = applyUniformResize(stampGesture.startStamp, stampGesture.corner, point);
+      } else {
+        nextStamp = applyRotateDrag(stampGesture.startStamp, stampGesture.startPoint, point);
+      }
+
+      onStampUpdate?.(stampGesture.id, nextStamp);
+      return;
+    }
+
+    if (tool === 'stamp' && savedStamp && !stampGesture) {
+      const point = mapNormalized(event.clientX, event.clientY);
+      setStampHoverPoint(point);
+    }
     if (!draftStroke || tool !== 'pen') return;
     const point = mapNormalized(event.clientX, event.clientY);
     if (!point) return;
@@ -383,6 +559,10 @@ export function MarkupEditorCanvas({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (stampGesture) {
+      finishStampGesture(event);
+      return;
+    }
     if (!draftStroke) return;
     if (layerRef.current?.hasPointerCapture(event.pointerId)) {
       layerRef.current.releasePointerCapture(event.pointerId);
@@ -390,7 +570,37 @@ export function MarkupEditorCanvas({
     finishStroke(draftStroke);
   };
 
+  const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (stampGesture) {
+      finishStampGesture(event);
+      return;
+    }
+    if (tool === 'stamp') {
+      setStampHoverPoint(null);
+      return;
+    }
+    handlePointerUp(event);
+  };
+
   const handleLayerClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (tool === 'stamp') {
+      event.stopPropagation();
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        return;
+      }
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      const hit = hitTestStamps(point, marks.stamps, selectedStampId);
+      if (hit) {
+        onSelectStamp?.(hit.id);
+        return;
+      }
+
+      onStampPlace?.(point);
+      return;
+    }
     if (tool !== 'text') return;
     event.stopPropagation();
     const point = mapNormalized(event.clientX, event.clientY);
@@ -423,6 +633,29 @@ export function MarkupEditorCanvas({
     ? { ...marks, strokes: [...marks.strokes, draftStroke] }
     : marks;
 
+  const hoverHit =
+    stampHoverPoint && tool === 'stamp'
+      ? hitTestStamps(stampHoverPoint, marks.stamps, selectedStampId)
+      : null;
+
+  const stampPreview =
+    tool === 'stamp' && savedStamp && stampHoverPoint && !stampGesture && !hoverHit
+      ? stampPlacementFromPoint(stampHoverPoint, savedStamp)
+      : null;
+
+  const selectedStamp = findStampById(marks.stamps, selectedStampId ?? null) ?? null;
+
+  const stampCursor =
+    stampGesture?.kind === 'move'
+      ? 'cursor-grabbing'
+      : stampGesture
+        ? 'cursor-grabbing'
+        : hoverHit?.kind === 'body'
+          ? 'cursor-grab'
+          : hoverHit
+            ? 'cursor-pointer'
+            : 'cursor-crosshair';
+
   if (tool === 'pan') {
     return null;
   }
@@ -430,14 +663,35 @@ export function MarkupEditorCanvas({
   return (
     <div
       ref={layerRef}
-      className={cn('absolute inset-0 z-20 touch-none', className)}
+      className={cn(
+        'absolute inset-0 z-20 touch-none',
+        tool === 'stamp' && savedStamp && stampCursor,
+        className,
+      )}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
       onClick={handleLayerClick}
     >
-      <MarkupOverlay marks={previewMarks} interactive className="pointer-events-none" />
+      <MarkupOverlay
+        marks={previewMarks}
+        savedStamp={savedStamp}
+        stampPreview={stampPreview}
+        interactive
+        className="pointer-events-none"
+      />
+
+      {selectedStamp && tool === 'stamp' ? (
+        <svg
+          className="pointer-events-none absolute inset-0 z-[21] h-full w-full"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <MarkupStampSelection stamp={selectedStamp} />
+        </svg>
+      ) : null}
 
       {textDraft ? (
         <input

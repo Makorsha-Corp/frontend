@@ -50,6 +50,7 @@ import { ChevronDown, ChevronRight, Loader2, Package, Plus, Receipt, Trash2, Wre
 import { OptionalPanelSummaryButton } from './OptionalPanelSummaryButton';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { appToast } from '@/lib/appToast';
+import WorkerNamesInput from '@/components/newcomponents/customui/orders/WorkerNamesInput';
 import MachineSelectorDialog from '@/components/newcomponents/customui/MachineSelectorDialog';
 import { MachineSelectSummaryButton } from '@/components/newcomponents/customui/MachineSelectSummaryButton';
 import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
@@ -1724,11 +1725,15 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         </div>
         <div className="grid gap-1">
           <Label className="text-xs text-muted-foreground">Name of Workers</Label>
-          <Input
+          <WorkerNamesInput
+            hideLabel
             value={workers}
-            onChange={(e) => setWorkers(e.target.value)}
-            placeholder="Ali, Rahim"
-            className="h-9"
+            onChange={(text) => setWorkers(text)}
+            members={members}
+            placeholder="Name of workers"
+            suggestionsPlacement="top"
+            chipDisplay="avatars"
+            inputClassName="h-9 text-sm"
           />
         </div>
         <div className="grid gap-1 md:col-span-1 col-span-2">
@@ -1885,7 +1890,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         <>
           <div
             className={cn(
-              'max-h-[22rem] min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-2',
+              'px-4 pt-3 pb-2',
               disabled && 'pointer-events-none opacity-60',
             )}
           >

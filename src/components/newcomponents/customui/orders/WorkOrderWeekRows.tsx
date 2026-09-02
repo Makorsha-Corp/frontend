@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import type { WeekDayCell } from '@/pages/newpages/orders/workOrderSheetData';
 import type { RecurrenceProgramSummary } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import type { WorkspaceMember } from '@/types/workspace';
 import {
   weekDayBandHeaderClass,
   weekDayBandHeaderSelectClass,
@@ -20,6 +21,7 @@ export interface WorkOrderWeekRowsProps {
   onAddForDay: (date: string) => void;
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
+  members?: WorkspaceMember[];
   onSheetMutated?: () => void;
   programSummariesByWorkOrderId?: Map<number, RecurrenceProgramSummary>;
 }
@@ -30,6 +32,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
   onAddForDay,
   onRowClick,
   currentUserId = null,
+  members = [],
   onSheetMutated,
   programSummariesByWorkOrderId,
 }) => (
@@ -80,6 +83,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
                 rows={day.rows}
                 onRowClick={onRowClick}
                 currentUserId={currentUserId}
+                members={members}
                 onSheetMutated={onSheetMutated}
                 programSummariesByWorkOrderId={programSummariesByWorkOrderId}
               />

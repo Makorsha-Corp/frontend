@@ -609,6 +609,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
                   onAddForDay={handleAddForDay}
                   onRowClick={(id) => setSelectedOrder(id)}
                   currentUserId={user?.id ?? null}
+                  members={members}
                   onSheetMutated={refetch}
                   programSummariesByWorkOrderId={programSummariesByWorkOrderId}
                 />
@@ -629,6 +630,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
                 isLoading={isLoading || isFetching}
                 showStartDateColumn
                 currentUserId={user?.id ?? null}
+                members={members}
                 onSheetMutated={refetch}
                 onRowClick={(id) => setSelectedOrder(id)}
                 programSummariesByWorkOrderId={programSummariesByWorkOrderId}

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, PencilLine } from 'lucide-react';
 
+import { useAppSelector } from '@/app/hooks';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { appToast } from '@/lib/appToast';
+import { usePdfPageTargetWidth } from '@/hooks/usePdfPageTargetWidth';
 import { cn } from '@/lib/utils';
 import { isPreviewableAttachment } from '@/lib/attachmentAllowlist';
 import AttachmentPdfPageViewer from '@/components/newcomponents/customui/AttachmentPdfPageViewer';
-import {
-  useGetAttachmentMarkupsQuery,
-  useGetAttachmentPdfPageQuery,
-} from '@/features/attachments/attachmentsApi';
-import type { Attachment, MarkupPayload, MarkupStroke, PageMarks } from '@/types/attachment';
-import { formatRelativeFromApi } from '@/utils/datetime';
+import { useGetAttachmentMarkupsQuery } from '@/features/attachments/attachmentsApi';
+import type { Attachment, MarkupPayload, MarkupPoint, MarkupStroke, MarkupStamp, PageMarks } from '@/types/attachment';
+import { stampPlacementFromPoint } from '@/types/savedStamp';
 
 import {
   MarkupEditorCanvas,
@@ -21,6 +20,7 @@ import {
   type MarkupTool,
 } from './MarkupEditor';
 import MarkupDrawLoupe from './MarkupDrawLoupe';
+import MarkupEventLogPanel from './MarkupEventLogPanel';
 import MarkupImageViewport, { type MarkupViewportApi } from './MarkupImageViewport';
 import MarkupOverlay from './MarkupOverlay';
 import {
@@ -33,13 +33,20 @@ import {
 import { loupeStrokeWidth, type ImagePixelPoint } from './markupLoupeCoords';
 import { computeRectLoupePosition } from './markupLoupePlacement';
 import { markupCopy } from './markupCopy';
+import { wouldExceedMarkupBudget } from './markupPointBudget';
 import {
   clonePayload,
   emptyPageMarks,
   getPageMarks,
   setPageMarks,
 } from './pageMarks';
+import { ensurePageMarkStampIds, ensurePayloadStampIds, findStampById } from './stampIds';
+import { removeStampById, updateStampById } from './markupStampTransform';
 import { useAutoSaveMarkup } from './useAutoSaveMarkup';
+import {
+  buildMineOnlyVisibility,
+  buildShowAllVisibility,
+} from './layerVisibilityState';
 
 export interface AttachmentMarkupStageProps {
   attachment: Attachment;
@@ -69,7 +76,6 @@ export default function AttachmentMarkupStage({
 }: AttachmentMarkupStageProps) {
   const [page, setPage] = useState(1);
   const [visibleUsers, setVisibleUsers] = useState<Record<number, boolean>>({});
-  const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [ownPayload, setOwnPayload] = useState<MarkupPayload>({ pages: {} });
   const [pageMarks, setPageMarksState] = useState<PageMarks>(emptyPageMarks());
   const [tool, setTool] = useState<MarkupTool>('pen');
@@ -86,6 +92,9 @@ export default function AttachmentMarkupStage({
     width: attachment.width ?? FALLBACK_IMAGE_WIDTH,
     height: attachment.height ?? FALLBACK_IMAGE_HEIGHT,
   });
+  const [markSessionId, setMarkSessionId] = useState<string | null>(null);
+  const [selectedStampId, setSelectedStampId] = useState<string | null>(null);
+  const pdfPageUrlRef = useRef<string | null>(null);
   const skipAutoSaveRef = useRef(false);
   const prevMarkModeRef = useRef(markMode);
   const viewportApiRef = useRef<MarkupViewportApi | null>(null);
@@ -93,6 +102,23 @@ export default function AttachmentMarkupStage({
   const ownPayloadRef = useRef(ownPayload);
   const pageHistoryRef = useRef<Record<number, PageMarks[]>>({});
   const loadedAttachmentIdRef = useRef<number | null>(null);
+  const pdfMeasureRef = useRef<HTMLDivElement>(null);
+
+  const pageAspect =
+    imageDims.width > 0 && imageDims.height > 0
+      ? imageDims.width / imageDims.height
+      : attachment.width != null &&
+          attachment.height != null &&
+          attachment.width > 0 &&
+          attachment.height > 0
+        ? attachment.width / attachment.height
+        : undefined;
+
+  const pdfTargetWidth = usePdfPageTargetWidth(pdfMeasureRef, {
+    pageAspect,
+  });
+
+  const userSavedStamp = useAppSelector((state) => state.auth.user?.saved_stamp ?? null);
 
   ownPayloadRef.current = ownPayload;
 
@@ -100,17 +126,14 @@ export default function AttachmentMarkupStage({
   const { data, isLoading, isError } = useGetAttachmentMarkupsQuery(attachment.id, {
     skip: !markupEnabled,
   });
-  const { data: pdfPageData } = useGetAttachmentPdfPageQuery(
-    { attachmentId: attachment.id, page },
-    { skip: !markupEnabled || !isPdf },
-  );
-
-  const imageUrl = isPdf ? pdfPageData?.url : previewUrl;
 
   const { status: saveStatus, scheduleSave, flushSave, resumeSave } = useAutoSaveMarkup(
     attachment.id,
     markupEnabled && markMode,
+    markSessionId,
   );
+
+  const imageUrl = isPdf ? pdfPageUrlRef.current : (previewUrl ?? null);
 
   const ownLayer = useMemo(
     () => data?.items.find((layer) => layer.is_mine) ?? null,
@@ -118,16 +141,17 @@ export default function AttachmentMarkupStage({
   );
 
   const layerCount = data?.items.length ?? 0;
+  const layers = data?.items ?? [];
 
   useEffect(() => {
     loadedAttachmentIdRef.current = null;
     setPage(1);
-    setShowOnlyMine(false);
     setLoupeEnabled(false);
     setLoupeDrawing(false);
     setLoupePlaced(false);
     setLoupePlacement(null);
     setHistory([]);
+    pdfPageUrlRef.current = null;
     pageHistoryRef.current = {};
     setImageDims({
       width: attachment.width ?? FALLBACK_IMAGE_WIDTH,
@@ -147,6 +171,18 @@ export default function AttachmentMarkupStage({
       setLoupeEnabled(false);
     }
   }, [tool]);
+
+  useEffect(() => {
+    if (tool !== 'stamp') {
+      setSelectedStampId(null);
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (selectedStampId && !findStampById(pageMarks.stamps, selectedStampId)) {
+      setSelectedStampId(null);
+    }
+  }, [pageMarks.stamps, selectedStampId]);
 
   useEffect(() => {
     if (!loupeEnabled) {
@@ -170,9 +206,9 @@ export default function AttachmentMarkupStage({
 
     loadedAttachmentIdRef.current = attachment.id;
     skipAutoSaveRef.current = true;
-    const payload = ownLayer?.payload ?? { pages: {} };
+    const payload = ensurePayloadStampIds(ownLayer?.payload ?? { pages: {} });
     setOwnPayload(clonePayload(payload));
-    setPageMarksState(getPageMarks(payload, 1));
+    setPageMarksState(ensurePageMarkStampIds(getPageMarks(payload, 1)));
     setHistory([]);
     pageHistoryRef.current = {};
     queueMicrotask(() => {
@@ -182,9 +218,25 @@ export default function AttachmentMarkupStage({
 
   useEffect(() => {
     if (loadedAttachmentIdRef.current !== attachment.id) return;
-    setPageMarksState(getPageMarks(ownPayloadRef.current, page));
+    const raw = getPageMarks(ownPayloadRef.current, page);
+    const marks = ensurePageMarkStampIds(raw);
+    if (marks !== raw) {
+      setOwnPayload((current) => setPageMarks(current, page, marks));
+    }
+    setPageMarksState(marks);
     setHistory(pageHistoryRef.current[page] ?? []);
   }, [page, attachment.id]);
+
+  const validateMarksBudget = useCallback(
+    (marks: PageMarks) => {
+      if (!wouldExceedMarkupBudget(ownPayloadRef.current, page, marks)) {
+        return true;
+      }
+      appToast.error(markupCopy.markupPointBudgetExceeded);
+      return false;
+    },
+    [page],
+  );
 
   useEffect(() => {
     if (!data?.items) return;
@@ -205,6 +257,9 @@ export default function AttachmentMarkupStage({
   }, [ownPayload, markMode, scheduleSave]);
 
   useEffect(() => {
+    if (markMode && !prevMarkModeRef.current) {
+      setMarkSessionId(crypto.randomUUID());
+    }
     if (prevMarkModeRef.current && !markMode) {
       flushSave();
     }
@@ -294,39 +349,109 @@ export default function AttachmentMarkupStage({
 
   const handleLoupeStrokeComplete = useCallback(
     (stroke: MarkupStroke) => {
-      handlePageMarksChange({
+      const nextMarks = {
         ...pageMarks,
         strokes: [...pageMarks.strokes, stroke],
+      };
+      if (wouldExceedMarkupBudget(ownPayloadRef.current, page, nextMarks)) {
+        appToast.error(markupCopy.markupPointBudgetExceeded);
+        return;
+      }
+      handlePageMarksChange(nextMarks);
+    },
+    [handlePageMarksChange, page, pageMarks],
+  );
+
+  const handleStampPlace = useCallback(
+    (point: MarkupPoint) => {
+      if (!userSavedStamp) return;
+      const newStamp = stampPlacementFromPoint(point, userSavedStamp);
+      const nextMarks = { ...pageMarks, stamps: [...pageMarks.stamps, newStamp] };
+      if (wouldExceedMarkupBudget(ownPayloadRef.current, page, nextMarks)) {
+        appToast.error(markupCopy.markupPointBudgetExceeded);
+        return;
+      }
+      pushHistory();
+      handlePageMarksChange(nextMarks);
+      setSelectedStampId(newStamp.id);
+    },
+    [handlePageMarksChange, page, pageMarks, pushHistory, userSavedStamp],
+  );
+
+  const handleStampUpdate = useCallback(
+    (id: string, stamp: MarkupStamp) => {
+      handlePageMarksChange({
+        ...pageMarks,
+        stamps: updateStampById(pageMarks.stamps, id, stamp),
       });
     },
     [handlePageMarksChange, pageMarks],
   );
 
+  const handleStampDelete = useCallback(() => {
+    if (!selectedStampId) return;
+    pushHistory();
+    const stamps = removeStampById(pageMarks.stamps, selectedStampId);
+    handlePageMarksChange({ ...pageMarks, stamps });
+    setSelectedStampId(null);
+  }, [handlePageMarksChange, pageMarks, pushHistory, selectedStampId]);
+
+  useEffect(() => {
+    if (tool !== 'stamp' || !selectedStampId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      handleStampDelete();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [tool, selectedStampId, handleStampDelete]);
+
   const effectiveLoupeCenter = loupeDrawing ? loupeLockedCenter : loupeCenter;
 
   const otherLayers = useMemo(
-    () => (data?.items ?? []).filter((layer) => !layer.is_mine),
-    [data?.items],
+    () => layers.filter((layer) => !layer.is_mine),
+    [layers],
   );
+
+  const handleShowAllLayers = useCallback(() => {
+    setVisibleUsers(buildShowAllVisibility(layers));
+  }, [layers]);
+
+  const handleShowMineOnly = useCallback(() => {
+    setVisibleUsers(buildMineOnlyVisibility(layers));
+  }, [layers]);
 
   const renderOverlays = () => (
     <>
-      {!showOnlyMine
-        ? otherLayers.map((layer) =>
-            visibleUsers[layer.user_id] ? (
-              <MarkupOverlay
-                key={layer.user_id}
-                marks={getPageMarks(layer.payload, page)}
-                layerColor={layerColorForUser(layer.user_id)}
-              />
-            ) : null,
-          )
-        : null}
+      {otherLayers
+        .filter((layer) => visibleUsers[layer.user_id] ?? true)
+        .map((layer) => (
+          <MarkupOverlay
+            key={layer.user_id}
+            marks={getPageMarks(layer.payload, page)}
+            layerColor={layerColorForUser(layer.user_id)}
+            savedStamp={layer.saved_stamp ?? null}
+          />
+        ))}
       {!markMode && ownLayer ? (
-        <MarkupOverlay marks={getPageMarks(ownPayload, page)} />
+        <MarkupOverlay
+          marks={getPageMarks(ownPayload, page)}
+          savedStamp={userSavedStamp}
+        />
       ) : null}
       {markMode && loupeActive ? (
-        <MarkupOverlay marks={pageMarks} />
+        <MarkupOverlay marks={pageMarks} savedStamp={userSavedStamp} />
       ) : null}
     </>
   );
@@ -342,31 +467,53 @@ export default function AttachmentMarkupStage({
       imageHeight={imageDims.height}
       onChange={handlePageMarksChange}
       onBeforeChange={pushHistory}
+      onStampPlace={handleStampPlace}
+      savedStamp={userSavedStamp}
+      selectedStampId={selectedStampId}
+      onSelectStamp={setSelectedStampId}
+      onStampUpdate={handleStampUpdate}
+      validateMarks={validateMarksBudget}
     />
   ) : null;
 
-  const viewportBlock =
-    imageUrl ? (
-      <MarkupImageViewport
-        imageUrl={imageUrl}
-        imageWidth={imageDims.width}
-        imageHeight={imageDims.height}
-        activeTool={markMode ? tool : 'pan'}
-        loupeDrawMode={loupeActive}
-        onMainViewportClick={loupeActive ? handleMainViewportClick : undefined}
-        onViewportReady={handleViewportReady}
-        onImageDimensions={(width, height) => {
-          setImageDims({ width, height });
-          setLoupeCenter((current) =>
-            current.x === 0 && current.y === 0
-              ? { x: width / 2, y: height / 2 }
-              : current,
-          );
-        }}
-        overlay={renderOverlays()}
-        editorOverlay={editorOverlay}
-      />
-    ) : null;
+  const renderViewport = (url: string) => (
+    <MarkupImageViewport
+      imageUrl={url}
+      imageWidth={imageDims.width}
+      imageHeight={imageDims.height}
+      activeTool={markMode ? tool : 'pan'}
+      loupeDrawMode={loupeActive}
+      viewportMeasureRef={pdfMeasureRef}
+      onMainViewportClick={loupeActive ? handleMainViewportClick : undefined}
+      onViewportReady={handleViewportReady}
+      onImageDimensions={(width, height) => {
+        setImageDims({ width, height });
+        setLoupeCenter((current) =>
+          current.x === 0 && current.y === 0 ? { x: width / 2, y: height / 2 } : current,
+        );
+      }}
+      className="min-h-0 flex-1"
+      overlay={renderOverlays()}
+      editorOverlay={editorOverlay}
+    />
+  );
+
+  const previewContent = isPdf ? (
+    <AttachmentPdfPageViewer
+      attachment={attachment}
+      page={page}
+      onPageChange={setPage}
+      className="min-h-0 flex-1"
+      pageAspect={pageAspect}
+      targetWidth={pdfTargetWidth}
+      renderPageImage={({ url }) => {
+        pdfPageUrlRef.current = url;
+        return renderViewport(url);
+      }}
+    />
+  ) : previewUrl ? (
+    renderViewport(previewUrl)
+  ) : null;
 
   const loupePortal = portalContainer ?? null;
   const loupeElement =
@@ -391,46 +538,21 @@ export default function AttachmentMarkupStage({
       />
     ) : null;
 
-  const layerControls =
-    markupEnabled && layerCount > 0 ? (
-      <div className="flex flex-wrap items-center gap-3 rounded-md border border-border/60 bg-muted/15 px-2 py-1.5 text-xs">
-        <label className="inline-flex items-center gap-1.5 font-medium">
-          <Checkbox
-            checked={showOnlyMine}
-            onCheckedChange={(checked) => setShowOnlyMine(checked === true)}
-          />
-          {markupCopy.showOnlyMineLabel}
-        </label>
-        {data?.items.map((layer) => (
-          <label key={layer.user_id} className="inline-flex items-center gap-1.5">
-            <Checkbox
-              checked={showOnlyMine && layer.is_mine ? true : (visibleUsers[layer.user_id] ?? true)}
-              disabled={(layer.is_mine && markMode) || showOnlyMine}
-              onCheckedChange={(checked) =>
-                setVisibleUsers((current) => ({
-                  ...current,
-                  [layer.user_id]: checked === true,
-                }))
-              }
-            />
-            <span
-              className="inline-block h-2 w-2 shrink-0 rounded-full"
-              style={{
-                backgroundColor: layer.is_mine
-                  ? color
-                  : layerColorForUser(layer.user_id),
-              }}
-            />
-            <span className={cn(layer.is_mine && 'font-medium text-foreground')}>
-              {layer.is_mine ? 'You' : layer.user_name}
-            </span>
-            <span className="text-muted-foreground">
-              {formatRelativeFromApi(layer.updated_at)}
-            </span>
-          </label>
-        ))}
-      </div>
-    ) : null;
+  const eventLogPanel = (
+    <MarkupEventLogPanel
+      attachmentId={attachment.id}
+      markupEnabled={markupEnabled}
+      layers={layers}
+      visibleUsers={visibleUsers}
+      onVisibleUsersChange={(userId, visible) =>
+        setVisibleUsers((current) => ({ ...current, [userId]: visible }))
+      }
+      onShowAllLayers={handleShowAllLayers}
+      onShowMineOnly={handleShowMineOnly}
+      markMode={markMode}
+      ownLayerColor={color}
+    />
+  );
 
   const saveStatusLabel =
     saveStatus === 'saving'
@@ -494,57 +616,47 @@ export default function AttachmentMarkupStage({
       ) : null}
 
       {markMode ? (
-        <div className="flex min-h-[min(70vh,32rem)] min-w-0 flex-1 gap-3">
-          <MarkupEditorToolbar
-            orientation="vertical"
-            tool={tool}
-            onToolChange={setTool}
-            penPreset={penPreset}
-            onPenPresetChange={setPenPreset}
-            color={color}
-            onColorChange={setColor}
-            onUndo={undo}
-            canUndo={history.length > 0}
-            onClearPage={handleClearPage}
-            onResetView={handleResetView}
-            loupeEnabled={loupeEnabled}
-            onLoupeEnabledChange={setLoupeEnabled}
-            className="self-stretch"
-          />
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            {loupeActive && !loupePlaced ? (
-              <p className="rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
-                {markupCopy.loupePlaceHint}
-              </p>
-            ) : null}
-            {layerControls}
-            {isPdf ? (
-              <AttachmentPdfPageViewer
-                attachment={attachment}
-                page={page}
-                onPageChange={setPage}
-                renderPageImage={() => viewportBlock}
-              />
-            ) : (
-              viewportBlock
-            )}
+        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+            <MarkupEditorToolbar
+              orientation="vertical"
+              tool={tool}
+              onToolChange={setTool}
+              penPreset={penPreset}
+              onPenPresetChange={setPenPreset}
+              color={color}
+              onColorChange={setColor}
+              onUndo={undo}
+              canUndo={history.length > 0}
+              onClearPage={handleClearPage}
+              onResetView={handleResetView}
+              loupeEnabled={loupeEnabled}
+              onLoupeEnabledChange={setLoupeEnabled}
+              stampAvailable={!!userSavedStamp}
+              className="self-stretch shrink-0"
+            />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+              {loupeActive && !loupePlaced ? (
+                <p className="shrink-0 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
+                  {markupCopy.loupePlaceHint}
+                </p>
+              ) : null}
+              {tool === 'stamp' && userSavedStamp ? (
+                <p className="shrink-0 rounded-md border border-border/60 bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
+                  {markupCopy.stampPlaceHint}
+                </p>
+              ) : null}
+              {previewContent}
+            </div>
           </div>
+          {eventLogPanel}
           {loupeElement}
         </div>
       ) : (
-        <>
-          {layerControls}
-          {isPdf ? (
-            <AttachmentPdfPageViewer
-              attachment={attachment}
-              page={page}
-              onPageChange={setPage}
-              renderPageImage={() => viewportBlock}
-            />
-          ) : (
-            viewportBlock
-          )}
-        </>
+        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">{previewContent}</div>
+          {eventLogPanel}
+        </div>
       )}
     </div>
   );

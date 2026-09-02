@@ -63,6 +63,7 @@ export interface WorkOrderSheetRow {
   quantity: number | null;
   unit: string;
   workers: string;
+  assigneeUserIds: number[];
   managerStatus: '—' | 'PENDING' | 'APPROVED';
   agmStatus: '—' | 'PENDING' | 'APPROVED';
   approvers: WorkOrderApprover[];
@@ -216,6 +217,7 @@ export function flattenSheetBundles(
     const approverList = approvers.approvers;
     const approvalMet = approvers.summary.met;
     const workers = order.assigned_to?.trim() || '—';
+    const assigneeUserIds = order.assignee_user_ids ?? [];
     const remarks = order.description?.trim() || order.completion_notes?.trim() || '—';
     const works = order.work_order_type_name ?? order.title;
     const machineLabel = machineName(order.machine_id);
@@ -246,6 +248,7 @@ export function flattenSheetBundles(
         quantity: null,
         unit: '—',
         workers,
+        assigneeUserIds,
         managerStatus: mgr,
         agmStatus: agm,
         approvers: approverList,
@@ -280,6 +283,7 @@ export function flattenSheetBundles(
         quantity: Number(item.quantity),
         unit: item.item_unit ?? '—',
         workers,
+        assigneeUserIds,
         managerStatus: mgr,
         agmStatus: agm,
         approvers: approverList,

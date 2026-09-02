@@ -111,7 +111,11 @@ describe('buildWorkOrderEventLogEntries', () => {
           event_type: 'completed',
           description: 'Marked complete',
           created_at: '2026-07-23T12:00:00Z',
-          metadata: { completion_mode: 'complete_as_planned', variance_label: 'On plan' },
+          metadata: {
+            completion_mode: 'complete_as_planned',
+            variance_label: 'On plan',
+            completed_by_names: 'Jane Worker, Bob',
+          },
         }),
       ],
       { showUpdateEvents: false },
@@ -120,6 +124,111 @@ describe('buildWorkOrderEventLogEntries', () => {
     const completed = entries.find((e) => e.event_type === 'completed');
     expect(started?.scheduleDetails).toEqual(['Logged retrospectively on planned date']);
     expect(completed?.scheduleDetails).toEqual(['Logged retrospectively on planned date']);
+    expect(completed?.workerDetails).toEqual([
+      {
+        label: 'Completed by',
+        names: 'Jane Worker, Bob',
+        userIds: undefined,
+      },
+    ]);
+  });
+
+  it('adds completed-by line from completion event metadata', () => {
+    const entries = buildWorkOrderEventLogEntries(
+      order(),
+      [
+        event({
+          id: 3,
+          event_type: 'completed',
+          description: 'Marked complete',
+          created_at: '2026-07-25T17:00:00Z',
+          metadata: {
+            completed_at: '2026-07-25T17:00:00Z',
+            variance_label: '2 days late',
+            completed_by_names: 'Jane Worker, Bob',
+          },
+        }),
+      ],
+      { showUpdateEvents: false },
+    );
+    const completed = entries.find((e) => e.event_type === 'completed');
+    expect(completed?.workerDetails).toEqual([
+      {
+        label: 'Completed by',
+        names: 'Jane Worker, Bob',
+        userIds: undefined,
+      },
+    ]);
+    expect(completed?.scheduleDetails.some((line) => line.startsWith('Completed by:'))).toBe(false);
+  });
+
+  it('adds worker details on started event with assignee metadata', () => {
+    const entries = buildWorkOrderEventLogEntries(
+      order({ assigned_to: 'Jane Worker, Bob' }),
+      [
+        event({
+          id: 2,
+          event_type: 'started',
+          description: 'Work started — no inventory',
+          metadata: {
+            assigned_to: 'Jane Worker, Bob',
+            assignee_user_ids: [42, 43],
+            started_by_user_id: 7,
+          },
+        }),
+      ],
+      { showUpdateEvents: false },
+    );
+    const started = entries.find((e) => e.event_type === 'started');
+    expect(started?.workerDetails).toEqual([
+      {
+        label: 'Workers',
+        names: 'Jane Worker, Bob',
+        userIds: [42, 43],
+      },
+      {
+        label: 'Started by',
+        names: '',
+        userIds: [7],
+      },
+    ]);
+  });
+
+  it('promotes assigned_to changes from hidden updated events', () => {
+    const entries = buildWorkOrderEventLogEntries(
+      order(),
+      [
+        event({
+          id: 11,
+          event_type: 'updated',
+          description: 'Order details updated',
+          created_at: '2026-07-22T13:00:00Z',
+          metadata: {
+            changes: [
+              {
+                field: 'assigned_to',
+                label: 'Assigned to',
+                from_value: 'Jane Worker',
+                to_value: 'Bob Contractor',
+              },
+            ],
+            assignee_user_ids: [99],
+          },
+        }),
+      ],
+      { showUpdateEvents: false },
+    );
+    const workersUpdated = entries.find((e) => e.event_type === 'workers_updated');
+    expect(workersUpdated).toBeDefined();
+    expect(entries.some((e) => e.event_type === 'updated')).toBe(false);
+    expect(workersUpdated?.scheduleDetails[0]).toContain('Jane Worker');
+    expect(workersUpdated?.workerDetails).toEqual([
+      {
+        label: 'Workers',
+        names: 'Bob Contractor',
+        userIds: [99],
+      },
+    ]);
   });
 
   it('promotes planned date changes from hidden updated events', () => {

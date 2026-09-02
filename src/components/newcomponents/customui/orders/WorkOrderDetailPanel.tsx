@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,6 +78,7 @@ import WoLinkedInvoiceCard from './WoLinkedInvoiceCard';
 import EditWorkOrderItemsDialog from './EditWorkOrderItemsDialog';
 import VoidWorkOrderDialog from './VoidWorkOrderDialog';
 import CompleteWorkOrderDialog from './CompleteWorkOrderDialog';
+import WorkerNamesInput from './WorkerNamesInput';
 import StartWorkOrderDialog from './StartWorkOrderDialog';
 import WoEventLogRow from './WoEventLogRow';
 import {
@@ -139,6 +140,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [completeAsPlannedOpen, setCompleteAsPlannedOpen] = useState(false);
   const [showUpdateEvents, setShowUpdateEvents] = useState(false);
   const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
+  const [assignedToEdit, setAssignedToEdit] = useState(orderProp.assigned_to ?? '');
   const formatDate = useFormatDateFromApi();
 
   const { workspace, user } = useAppSelector((s) => s.auth);
@@ -146,6 +148,10 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
 
   const { data: orderFresh } = useGetWorkOrderByIdQuery(orderProp.id);
   const order = orderFresh ?? orderProp;
+
+  useEffect(() => {
+    setAssignedToEdit(order.assigned_to ?? '');
+  }, [order.id, order.assigned_to]);
 
   const { data: items = [], isLoading: itemsLoading } = useGetWorkOrderItemsQuery(order.id);
   const { data: approversData } = useGetWorkOrderApproversQuery(order.id);
@@ -538,16 +544,20 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                     <div className="space-y-2">
                       <Label className={fieldLabelClass}>Assigned to</Label>
                       {canEditScheduleFields ? (
-                        <Input
-                          className="h-8"
-                          defaultValue={order.assigned_to ?? ''}
-                          placeholder="Optional"
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
+                        <WorkerNamesInput
+                          hideLabel
+                          value={assignedToEdit}
+                          onChange={(text) => setAssignedToEdit(text)}
+                          onCommit={(text) => {
+                            const v = text.trim();
                             if (v !== (order.assigned_to ?? '')) {
                               handleFieldUpdate({ assigned_to: v || undefined });
                             }
                           }}
+                          members={members}
+                          placeholder="Optional"
+                          chipDisplay="avatars"
+                          inputClassName="h-8 text-sm"
                         />
                       ) : (
                         <p className="text-sm font-medium">{order.assigned_to ?? '—'}</p>
@@ -697,10 +707,24 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                 <CardHeader className="p-4 pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <StickyNote className="h-4 w-4 text-muted-foreground" />
-                    Completion notes
+                    Completion
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-muted-foreground">Completed by</dt>
+                      <dd className="font-medium text-foreground">
+                        {order.completed_by_names ?? order.completed_by_name ?? '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">Completed at</dt>
+                      <dd className="font-medium text-foreground">
+                        {order.completed_at ? formatDate(order.completed_at) : '—'}
+                      </dd>
+                    </div>
+                  </dl>
                   {order.completion_notes ? (
                     <p className="text-sm whitespace-pre-wrap">{order.completion_notes}</p>
                   ) : (
@@ -776,6 +800,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                         key={event.id}
                         event={event}
                         isLast={idx === filteredEvents.length - 1}
+                        members={members}
                         showAbsoluteTimes={showAbsoluteEventTimes}
                         onToggleTimestampDisplay={() => setShowAbsoluteEventTimes((v) => !v)}
                       />
@@ -858,6 +883,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
         workOrderId={order.id}
         machineId={order.machine_id}
         hasMachineTarget={order.machine_id != null}
+        members={members}
+        assignedTo={assignedToEdit}
       />
 
       <CompleteWorkOrderDialog
@@ -870,6 +897,8 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
         hasMachineTarget={order.machine_id != null}
         mode="as_planned"
         plannedDate={order.planned_date}
+        members={members}
+        assignedTo={assignedToEdit}
       />
     </div>
   );

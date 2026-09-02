@@ -22,10 +22,11 @@ import { DollarSign } from 'lucide-react';
 import {
   type RecurrenceProgramSummary,
 } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import type { WorkspaceMember } from '@/types/workspace';
 import { RecurrenceProgramPopoverSections } from './RecurrenceProgramPopoverSections';
 import SheetApproverChips from './SheetApproverChips';
 import SheetWorkOrderRowActions from './SheetWorkOrderRowActions';
-import { initialsOf } from './transferOrderApprovals';
+import SheetWorkersDisplay from './SheetWorkersDisplay';
 import {
   SHEET_BADGE,
   SHEET_CELL_PAD,
@@ -129,32 +130,14 @@ function SheetWorksCell({ works }: { works: string }) {
   );
 }
 
-function parseWorkerNames(workers: string): string[] {
-  if (!workers || workers === '—') return [];
-  return workers
-    .split(/[,;]+/)
-    .map((name) => name.trim())
-    .filter(Boolean);
-}
-
-function SheetWorkersCell({ workers }: { workers: string }) {
-  const names = parseWorkerNames(workers);
-  if (names.length === 0) {
-    return <SheetEmptyCell>No workers</SheetEmptyCell>;
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {names.map((name) => (
-        <div key={name} className="flex min-w-0 items-center gap-1.5">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
-            {initialsOf(name)}
-          </span>
-          <span className={cn('truncate leading-tight', SHEET_PRIMARY)}>{name}</span>
-        </div>
-      ))}
-    </div>
-  );
+function SheetWorkersCell({
+  workers,
+  members = [],
+}: {
+  workers: string;
+  members?: WorkspaceMember[];
+}) {
+  return <SheetWorkersDisplay workers={workers} members={members} compact />;
 }
 
 const SHEET_PARTS_SCROLL_MIN = 3;
@@ -670,6 +653,7 @@ export interface WorkOrderSheetDayRowsProps {
   rows: WorkOrderSheetRow[];
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
+  members?: WorkspaceMember[];
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
   hideStartDateLabel?: boolean;
@@ -680,6 +664,7 @@ export function WorkOrderSheetDayRows({
   rows,
   onRowClick,
   currentUserId = null,
+  members = [],
   onSheetMutated,
   showStartDateColumn = false,
   hideStartDateLabel = false,
@@ -770,7 +755,7 @@ export function WorkOrderSheetDayRows({
                   groupedCellPad,
                 )}
               >
-                <SheetWorkersCell workers={workRow.workers} />
+                <SheetWorkersCell workers={workRow.workers} members={members} />
               </td>
               <td
                 rowSpan={effectiveRowSpan}
@@ -796,6 +781,8 @@ export function WorkOrderSheetDayRows({
                   machineId={workRow.machineId}
                   approvers={workRow.approvers}
                   currentUserId={currentUserId}
+                  members={members}
+                  assignedTo={workRow.workers === '—' ? null : workRow.workers}
                   onOpenDetail={() => onRowClick?.(workRow.workOrderId)}
                   onMutated={onSheetMutated}
                 />

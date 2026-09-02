@@ -1,4 +1,5 @@
-import { useCallback, useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, type ReactNode, type RefObject } from 'react';
+import type React from 'react';
 
 import { clientToImagePoint } from '@/lib/documentScan/viewportCoords';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,8 @@ export interface MarkupImageViewportProps {
   onMainViewportClick?: (clientX: number, clientY: number) => void;
   /** When true, pen drawing on main canvas is disabled (loupe draws instead). */
   loupeDrawMode?: boolean;
+  /** Optional ref to the inner viewport box for PDF raster sizing. */
+  viewportMeasureRef?: RefObject<HTMLDivElement | null>;
 }
 
 export default function MarkupImageViewport({
@@ -40,6 +43,7 @@ export default function MarkupImageViewport({
   onImageDimensions,
   onMainViewportClick,
   loupeDrawMode = false,
+  viewportMeasureRef,
 }: MarkupImageViewportProps) {
   const panActive = activeTool === 'pan';
 
@@ -89,6 +93,16 @@ export default function MarkupImageViewport({
 
   const layoutReady = layout.displayWidth > 0 && layout.displayHeight > 0;
 
+  const assignViewportRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      (viewportRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      if (viewportMeasureRef) {
+        (viewportMeasureRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+    },
+    [viewportMeasureRef, viewportRef],
+  );
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button === 2) {
       onSecondaryPanPointerDown(event);
@@ -128,14 +142,14 @@ export default function MarkupImageViewport({
   return (
     <div
       className={cn(
-        'relative min-h-[20rem] w-full overflow-hidden rounded-md bg-muted/20',
+        'relative flex h-full min-h-0 w-full flex-1 overflow-hidden rounded-md bg-muted/20',
         className,
       )}
     >
       <div
-        ref={viewportRef}
+        ref={assignViewportRef}
         className={cn(
-          'relative h-full min-h-[20rem] w-full touch-none overflow-hidden',
+          'relative h-full min-h-0 w-full touch-none overflow-hidden',
           isPanning ? 'cursor-grabbing' : panActive ? 'cursor-grab' : 'cursor-crosshair',
         )}
         onPointerDown={handlePointerDown}
@@ -159,7 +173,7 @@ export default function MarkupImageViewport({
             <img
               src={imageUrl}
               alt=""
-              className="block h-full w-full select-none rounded-md object-fill"
+              className="block h-full w-full select-none rounded-md object-contain"
               width={imageWidth}
               height={imageHeight}
               draggable={false}

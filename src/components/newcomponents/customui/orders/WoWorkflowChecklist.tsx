@@ -3,12 +3,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Check, ChevronRight, Loader2, XCircle } from 'lucide-react';
 import { OrderWorkflowChecklistHeader } from './OrderWorkflowChecklistHeader';
 import { OrderWorkflowChecklistIntroBanner } from './OrderWorkflowChecklistIntroBanner';
 import { ORDER_CHECKLIST_COPY } from './orderChecklistCopy';
 import type { WorkOrder, WorkOrderApprovalSummary } from '@/types/workOrder';
 import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
+import {
+  getWorkOrderStartActionTooltip,
+  WORK_ORDER_DIRECT_COMPLETE_TOOLTIP,
+} from './workOrderCompleteCopy';
 
 type StepVisualState = 'complete' | 'active' | 'pending';
 type ChecklistPhase = 'approval' | 'start' | 'in_progress' | 'invoice_blocked' | 'complete' | 'done' | 'voided';
@@ -200,41 +210,57 @@ const WoWorkflowChecklist: React.FC<WoWorkflowChecklistProps> = ({
                 description="Approved and ready. Starting will consume any inventory items marked for this order."
               />
               <div className="ml-10 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-brand-primary hover:bg-brand-primary-hover"
-                  disabled={!onStart || isStarting || isCompletingAsPlanned}
-                  onClick={onStart}
-                >
-                  {isStarting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Starting…
-                    </>
-                  ) : (
-                    'Start work'
-                  )}
-                </Button>
-                {showCompleteAsPlanned ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-                    disabled={!onCompleteAsPlanned || isCompletingAsPlanned || isStarting}
-                    onClick={onCompleteAsPlanned}
-                  >
-                    {isCompletingAsPlanned ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Completing…
-                      </>
-                    ) : (
-                      'Direct Complete'
-                    )}
-                  </Button>
-                ) : null}
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-brand-primary hover:bg-brand-primary-hover"
+                        disabled={!onStart || isStarting || isCompletingAsPlanned}
+                        onClick={onStart}
+                      >
+                        {isStarting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Starting…
+                          </>
+                        ) : (
+                          'Start work'
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+                      {getWorkOrderStartActionTooltip(order.machine_id != null)}
+                    </TooltipContent>
+                  </Tooltip>
+                  {showCompleteAsPlanned ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                          disabled={!onCompleteAsPlanned || isCompletingAsPlanned || isStarting}
+                          onClick={onCompleteAsPlanned}
+                        >
+                          {isCompletingAsPlanned ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Completing…
+                            </>
+                          ) : (
+                            'Direct Complete'
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+                        {WORK_ORDER_DIRECT_COMPLETE_TOOLTIP}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </TooltipProvider>
               </div>
             </div>
           )}

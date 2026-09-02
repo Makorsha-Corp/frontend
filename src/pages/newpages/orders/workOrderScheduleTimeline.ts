@@ -13,6 +13,12 @@ const NOISY_EVENT_TYPES = new Set(['updated']);
 /** WorkOrderEvent plus synthetic/promoted entries whose ids are strings. */
 type ScheduleTimelineEvent = Omit<WorkOrderEvent, 'id'> & { id: number | string };
 
+export interface WorkOrderEventWorkerDetail {
+  label: string;
+  names: string;
+  userIds?: number[];
+}
+
 export interface WorkOrderEventLogEntry {
   id: string | number;
   event_type: string;
@@ -21,6 +27,7 @@ export interface WorkOrderEventLogEntry {
   performer_name?: string | null;
   metadata?: WorkOrderEvent['metadata'];
   scheduleDetails: string[];
+  workerDetails: WorkOrderEventWorkerDetail[];
 }
 
 function formatScheduleDate(value: string | null | undefined): string | null {
@@ -61,6 +68,56 @@ function varianceLines(
   return [actualLine];
 }
 
+function workerDetailsFromMetadata(
+  eventType: string,
+  metadata: WorkOrderEvent['metadata'],
+): WorkOrderEventWorkerDetail[] {
+  if (!metadata) return [];
+  const details: WorkOrderEventWorkerDetail[] = [];
+
+  const assigneeIds = (metadata.assignee_user_ids as number[] | undefined) ?? [];
+  const assignedTo = metadata.assigned_to as string | undefined;
+
+  if (eventType === 'created' || eventType === 'started' || eventType === 'workers_updated') {
+    const workersText = (assignedTo ?? (eventType === 'workers_updated'
+      ? metadata.to_value as string | undefined
+      : undefined))?.trim();
+    if (workersText) {
+      details.push({
+        label: 'Workers',
+        names: workersText,
+        userIds: assigneeIds.length > 0 ? assigneeIds : undefined,
+      });
+    }
+  }
+
+  if (eventType === 'started') {
+    const startedById = metadata.started_by_user_id as number | undefined;
+    if (startedById != null && !assigneeIds.includes(startedById)) {
+      details.push({
+        label: 'Started by',
+        names: '',
+        userIds: [startedById],
+      });
+    }
+  }
+
+  if (eventType === 'completed') {
+    const workerName = (metadata.completed_by_names as string | undefined
+      ?? metadata.completed_by_name as string | undefined)?.trim();
+    const completerIds = metadata.completed_by_user_ids as number[] | undefined;
+    if (workerName) {
+      details.push({
+        label: 'Completed by',
+        names: workerName,
+        userIds: completerIds?.length ? completerIds : undefined,
+      });
+    }
+  }
+
+  return details;
+}
+
 function scheduleDetailsFromMetadata(
   eventType: string,
   metadata: WorkOrderEvent['metadata'],
@@ -81,6 +138,14 @@ function scheduleDetailsFromMetadata(
     const toValue = metadata.to_value as string | undefined;
     if (fromValue != null || toValue != null) {
       lines.push(`${label}: ${fromValue ?? '—'} → ${toValue ?? '—'}`);
+    }
+    return lines;
+  }
+  if (eventType === 'workers_updated') {
+    const fromValue = metadata.from_value as string | undefined;
+    const toValue = metadata.to_value as string | undefined;
+    if (fromValue != null || toValue != null) {
+      lines.push(`Assigned to: ${fromValue ?? '—'} → ${toValue ?? '—'}`);
     }
     return lines;
   }
@@ -131,6 +196,7 @@ function enrichEventEntry(
     performer_name: event.user_name,
     metadata: event.metadata,
     scheduleDetails,
+    workerDetails: workerDetailsFromMetadata(event.event_type, event.metadata),
   };
 }
 
@@ -158,12 +224,48 @@ function extractPromotedScheduleEvents(events: WorkOrderEvent[]): ScheduleTimeli
   return promoted;
 }
 
+function extractPromotedWorkerEvents(events: WorkOrderEvent[]): ScheduleTimelineEvent[] {
+  const promoted: ScheduleTimelineEvent[] = [];
+  for (const event of events) {
+    if (event.event_type !== 'updated') continue;
+    const changes = (event.metadata?.changes as Array<Record<string, string>> | undefined) ?? [];
+    for (const change of changes) {
+      if (change.field !== 'assigned_to') continue;
+      promoted.push({
+        ...event,
+        id: `${event.id}-workers`,
+        event_type: 'workers_updated',
+        description: 'Workers updated',
+        metadata: {
+          from_value: change.from_value,
+          to_value: change.to_value,
+          assigned_to: change.to_value,
+          assignee_user_ids: event.metadata?.assignee_user_ids as number[] | undefined,
+        },
+      });
+    }
+  }
+  return promoted;
+}
+
 function dedupeScheduleEvents(events: ScheduleTimelineEvent[]): ScheduleTimelineEvent[] {
   const seen = new Set<string>();
   return events.filter((event) => {
     if (event.event_type !== 'schedule_updated') return true;
     const meta = event.metadata ?? {};
     const key = `${event.created_at}|${meta.field}|${meta.from_value}|${meta.to_value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeWorkerEvents(events: ScheduleTimelineEvent[]): ScheduleTimelineEvent[] {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    if (event.event_type !== 'workers_updated') return true;
+    const meta = event.metadata ?? {};
+    const key = `${event.created_at}|${meta.from_value}|${meta.to_value}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -193,13 +295,15 @@ export function buildWorkOrderEventLogEntries(
   options: { showUpdateEvents: boolean },
 ): WorkOrderEventLogEntry[] {
   const synthetic = syntheticScheduledEvent(order, events);
-  const promoted = options.showUpdateEvents ? [] : extractPromotedScheduleEvents(events);
+  const promotedSchedule = options.showUpdateEvents ? [] : extractPromotedScheduleEvents(events);
+  const promotedWorkers = options.showUpdateEvents ? [] : extractPromotedWorkerEvents(events);
 
-  const merged = dedupeScheduleEvents([
+  const merged = dedupeWorkerEvents(dedupeScheduleEvents([
     ...events,
-    ...promoted,
+    ...promotedSchedule,
+    ...promotedWorkers,
     ...(synthetic ? [synthetic] : []),
-  ]);
+  ]));
 
   const filtered = options.showUpdateEvents
     ? merged

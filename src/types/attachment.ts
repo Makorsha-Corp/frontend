@@ -125,10 +125,20 @@ export interface MarkupText {
   size: number;
 }
 
+export interface MarkupStamp {
+  id?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+}
+
 export interface PageMarks {
   strokes: MarkupStroke[];
   texts: MarkupText[];
   scribbles: MarkupStroke[];
+  stamps: MarkupStamp[];
 }
 
 export interface MarkupPayload {
@@ -141,6 +151,7 @@ export interface AttachmentMarkupLayer {
   is_mine: boolean;
   updated_at: string;
   payload: MarkupPayload;
+  saved_stamp?: import('@/types/savedStamp').SavedStamp | null;
 }
 
 export interface AttachmentMarkupListResponse {
@@ -149,6 +160,27 @@ export interface AttachmentMarkupListResponse {
 
 export interface AttachmentMarkupPutRequest {
   payload: MarkupPayload;
+  session_id?: string | null;
+}
+
+export interface AttachmentMarkupEventMetadata {
+  pages: Array<number | string>;
+}
+
+export interface AttachmentMarkupEvent {
+  id: number;
+  user_id: number;
+  user_name: string;
+  is_mine: boolean;
+  session_id: string | null;
+  event_type: 'markup_saved' | 'markup_updated' | 'markup_cleared' | string;
+  description: string;
+  metadata_json: AttachmentMarkupEventMetadata | null;
+  created_at: string;
+}
+
+export interface AttachmentMarkupEventListResponse {
+  items: AttachmentMarkupEvent[];
 }
 
 export {

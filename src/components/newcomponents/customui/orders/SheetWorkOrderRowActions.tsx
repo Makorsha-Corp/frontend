@@ -18,7 +18,12 @@ import {
   useUnapproveWorkOrderMutation,
 } from '@/features/workOrders/workOrdersApi';
 import type { WorkOrderApprover, WorkOrderCompleteRequest, WorkOrderStatus } from '@/types/workOrder';
+import type { WorkspaceMember } from '@/types/workspace';
 import { cn } from '@/lib/utils';
+import {
+  getWorkOrderStartActionTooltip,
+  WORK_ORDER_DIRECT_COMPLETE_TOOLTIP,
+} from '@/components/newcomponents/customui/orders/workOrderCompleteCopy';
 import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
 import { SHEET_ACTION_BTN } from './workOrderSheetTypography';
 
@@ -31,6 +36,8 @@ export interface SheetWorkOrderRowActionsProps {
   machineId: number | null;
   approvers: WorkOrderApprover[];
   currentUserId: number | null;
+  members: WorkspaceMember[];
+  assignedTo?: string | null;
   onOpenDetail: () => void;
   onMutated?: () => void;
   className?: string;
@@ -45,6 +52,8 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
   machineId,
   approvers,
   currentUserId,
+  members,
+  assignedTo,
   onMutated,
   className,
 }) => {
@@ -173,15 +182,24 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         ) : null}
 
         {showStart && startEnabled ? (
-          <Button
-            type="button"
-            size="sm"
-            className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
-            disabled={isBusy}
-            onClick={() => setStartOpen(true)}
-          >
-            Start
-          </Button>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  className={cn(SHEET_ACTION_BTN, 'bg-brand-primary hover:bg-brand-primary-hover')}
+                  disabled={isBusy}
+                  onClick={() => setStartOpen(true)}
+                >
+                  Start
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+                {getWorkOrderStartActionTooltip(machineId != null)}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : null}
 
         {showCompleteAsPlanned ? (
@@ -210,9 +228,8 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[240px] text-xs">
-                Complete on the planned date without starting — use when work was already done and
-                this entry is catching up.
+              <TooltipContent side="top" className="max-w-[240px] text-xs leading-snug">
+                {WORK_ORDER_DIRECT_COMPLETE_TOOLTIP}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -272,6 +289,8 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         workOrderId={workOrderId}
         machineId={machineId}
         hasMachineTarget={machineId != null}
+        members={members}
+        assignedTo={assignedTo}
       />
 
       <CompleteWorkOrderDialog
@@ -284,6 +303,8 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
         hasMachineTarget={machineId != null}
         mode="as_planned"
         plannedDate={plannedDate}
+        members={members}
+        assignedTo={assignedTo}
       />
     </>
   );

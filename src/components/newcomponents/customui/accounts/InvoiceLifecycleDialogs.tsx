@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import {
   Dialog,
   DialogContent,
@@ -253,13 +253,14 @@ export const InvoiceDueDateEditDialog: React.FC<InvoiceDueDateEditDialogProps> =
 
           <div className="space-y-1.5">
             <Label htmlFor="confirmed-invoice-due-date">New due date</Label>
-            <Input
+            <DatePickerField
               id="confirmed-invoice-due-date"
-              type="date"
               value={draftDueDate}
+              onChange={onDraftDueDateChange}
               disabled={isSaving}
-              onChange={(e) => onDraftDueDateChange(e.target.value)}
-              className="h-9 max-w-[11rem] bg-background"
+              placeholder="Optional"
+              triggerClassName="h-10 w-full max-w-[11rem] px-3 text-sm"
+              aria-label="New due date"
             />
           </div>
 

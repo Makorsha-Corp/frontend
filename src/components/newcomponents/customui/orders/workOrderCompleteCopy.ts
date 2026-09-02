@@ -1,5 +1,15 @@
 const MAX_LISTED_SIBLING_JOBS = 3;
 
+export const WORK_ORDER_DIRECT_COMPLETE_TOOLTIP =
+  'Complete on the planned date without starting — use when work was already done and this entry is catching up.';
+
+export function getWorkOrderStartActionTooltip(hasMachineTarget: boolean): string {
+  if (hasMachineTarget) {
+    return 'Move to In Progress — consumes pending inventory and sets the target machine to Maintenance.';
+  }
+  return 'Move to In Progress — consumes pending inventory marked for this order.';
+}
+
 export function formatOtherActiveJobsWarning(siblingWorkOrderNumbers: string[]): {
   title: string;
   body: string;

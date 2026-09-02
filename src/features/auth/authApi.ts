@@ -20,6 +20,7 @@ import type {
   RefreshTokenRequest,
   LogoutRequest,
 } from '@/types/auth';
+import type { StampImageSignResponse } from '@/types/savedStamp';
 import type {
   Workspace,
   WorkspaceListItem,
@@ -78,13 +79,23 @@ export const authApi = createApi({
         name: string;
         email: string;
         timezone?: string | null;
+        saved_stamp?: User['saved_stamp'];
       }) => ({
         id: response.id,
         name: response.name,
         email: response.email,
         timezone: response.timezone ?? null,
+        saved_stamp: response.saved_stamp ?? null,
       }),
       invalidatesTags: ['User'],
+    }),
+
+    signStampImageUpload: builder.mutation<StampImageSignResponse, void>({
+      query: () => ({
+        url: 'auth/me/stamp-image/sign',
+        method: 'POST',
+        body: {},
+      }),
     }),
 
     // Legacy alias
@@ -176,6 +187,7 @@ export const {
   useRefreshTokenMutation,
   useGetMeQuery,
   useUpdateMeMutation,
+  useSignStampImageUploadMutation,
   useGetCurrentUserQuery,
   useGetWorkspacesQuery,
   useCreateWorkspaceMutation,

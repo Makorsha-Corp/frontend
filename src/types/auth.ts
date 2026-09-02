@@ -1,16 +1,20 @@
 // User types
+import type { SavedStamp } from '@/types/savedStamp';
+
 export interface User {
   id: number;
   email: string;
   name: string;
   timezone?: string | null;
   is_platform_admin?: boolean;
+  saved_stamp?: SavedStamp | null;
   created_at?: string;
 }
 
 export interface ProfileMeUpdate {
   name?: string;
   timezone?: string | null;
+  saved_stamp?: SavedStamp | null;
 }
 
 export interface MeResponse {

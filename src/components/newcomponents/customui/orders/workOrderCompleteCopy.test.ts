@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatOtherActiveJobsWarning } from './workOrderCompleteCopy';
+import {
+  formatOtherActiveJobsWarning,
+  getWorkOrderStartActionTooltip,
+  WORK_ORDER_DIRECT_COMPLETE_TOOLTIP,
+} from './workOrderCompleteCopy';
 
 describe('formatOtherActiveJobsWarning', () => {
   it('formats a single sibling', () => {
@@ -16,5 +20,16 @@ describe('formatOtherActiveJobsWarning', () => {
       title: '5 other jobs still in progress on this machine',
       body: '(WO-1, WO-2, WO-3, and 2 more). Your Idle/Off choice will apply to the machine now — other open jobs may still be active.',
     });
+  });
+});
+
+describe('work order action tooltips', () => {
+  it('describes start with machine maintenance when applicable', () => {
+    expect(getWorkOrderStartActionTooltip(true)).toContain('Maintenance');
+    expect(getWorkOrderStartActionTooltip(false)).not.toContain('Maintenance');
+  });
+
+  it('keeps direct complete copy stable', () => {
+    expect(WORK_ORDER_DIRECT_COMPLETE_TOOLTIP).toContain('without starting');
   });
 });

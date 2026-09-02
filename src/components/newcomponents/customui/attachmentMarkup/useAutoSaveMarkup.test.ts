@@ -33,6 +33,7 @@ describe('createDebouncedMarkupSave', () => {
           ],
           texts: [],
           scribbles: [],
+          stamps: [],
         },
       },
     };

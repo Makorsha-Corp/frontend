@@ -10,11 +10,13 @@ import {
 import { SHEET_TABLE, SHEET_TABLE_MIN_W } from './workOrderSheetTypography';
 
 import type { RecurrenceProgramSummary } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import type { WorkspaceMember } from '@/types/workspace';
 
 export interface WorkOrderSheetTableProps {
   rows: WorkOrderSheetRow[];
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
+  members?: WorkspaceMember[];
   onSheetMutated?: () => void;
   showStartDateColumn?: boolean;
   /** Week/day bands already show the day — hide date text, keep status chip (Active, Recurring, …). */
@@ -34,6 +36,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
   rows,
   onRowClick,
   currentUserId = null,
+  members = [],
   onSheetMutated,
   showStartDateColumn = false,
   hideStartDateLabel = false,
@@ -54,6 +57,7 @@ const WorkOrderSheetTable: React.FC<WorkOrderSheetTableProps> = ({
         rows={rows}
         onRowClick={onRowClick}
         currentUserId={currentUserId}
+        members={members}
         onSheetMutated={onSheetMutated}
         showStartDateColumn={showStartDateColumn}
         hideStartDateLabel={hideStartDateLabel}

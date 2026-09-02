@@ -11,6 +11,7 @@ import type {
   AttachmentMarkupLayer,
   AttachmentMarkupListResponse,
   AttachmentMarkupPutRequest,
+  AttachmentMarkupEventListResponse,
   AttachmentPdfPageResponse,
   AttachmentSignRequest,
   AttachmentSignResponse,
@@ -26,7 +27,7 @@ export interface ListAttachmentsArgs {
 export const attachmentsApi = createApi({
   reducerPath: 'attachmentsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Attachment', 'AttachmentMarkup'],
+  tagTypes: ['Attachment', 'AttachmentMarkup', 'AttachmentMarkupEvents'],
   endpoints: (builder) => ({
     signAttachmentUpload: builder.mutation<AttachmentSignResponse, AttachmentSignRequest>({
       query: (body) => ({
@@ -72,15 +73,26 @@ export const attachmentsApi = createApi({
     }),
     getAttachmentPdfPage: builder.query<
       AttachmentPdfPageResponse,
-      { attachmentId: number; page: number }
+      { attachmentId: number; page: number; width?: number }
     >({
-      query: ({ attachmentId, page }) =>
-        `attachments/${attachmentId}/pdf-page?page=${page}`,
+      query: ({ attachmentId, page, width }) => {
+        const params = new URLSearchParams({ page: String(page) });
+        if (width != null) {
+          params.set('width', String(width));
+        }
+        return `attachments/${attachmentId}/pdf-page?${params.toString()}`;
+      },
     }),
     getAttachmentMarkups: builder.query<AttachmentMarkupListResponse, number>({
       query: (attachmentId) => `attachments/${attachmentId}/markups`,
       providesTags: (_result, _error, attachmentId) => [
         { type: 'AttachmentMarkup', id: attachmentId },
+      ],
+    }),
+    getAttachmentMarkupEvents: builder.query<AttachmentMarkupEventListResponse, number>({
+      query: (attachmentId) => `attachments/${attachmentId}/markups/events`,
+      providesTags: (_result, _error, attachmentId) => [
+        { type: 'AttachmentMarkupEvents', id: attachmentId },
       ],
     }),
     putMyAttachmentMarkup: builder.mutation<
@@ -95,15 +107,30 @@ export const attachmentsApi = createApi({
       invalidatesTags: (_result, error, { attachmentId }) =>
         error
           ? []
-          : [{ type: 'AttachmentMarkup', id: attachmentId }],
+          : [
+              { type: 'AttachmentMarkup', id: attachmentId },
+              { type: 'AttachmentMarkupEvents', id: attachmentId },
+            ],
     }),
-    deleteMyAttachmentMarkup: builder.mutation<void, number>({
-      query: (attachmentId) => ({
-        url: `attachments/${attachmentId}/markups/me`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: (_result, error, attachmentId) =>
-        error ? [] : [{ type: 'AttachmentMarkup', id: attachmentId }],
+    deleteMyAttachmentMarkup: builder.mutation<void, { attachmentId: number; sessionId?: string | null }>({
+      query: ({ attachmentId, sessionId }) => {
+        const params = new URLSearchParams();
+        if (sessionId) {
+          params.set('session_id', sessionId);
+        }
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return {
+          url: `attachments/${attachmentId}/markups/me${suffix}`,
+          method: 'DELETE',
+        };
+      },
+      invalidatesTags: (_result, error, { attachmentId }) =>
+        error
+          ? []
+          : [
+              { type: 'AttachmentMarkup', id: attachmentId },
+              { type: 'AttachmentMarkupEvents', id: attachmentId },
+            ],
     }),
     deleteAttachment: builder.mutation<Attachment, number>({
       query: (id) => ({
@@ -134,6 +161,7 @@ export const {
   useGetAttachmentQuery,
   useGetAttachmentPdfPageQuery,
   useGetAttachmentMarkupsQuery,
+  useGetAttachmentMarkupEventsQuery,
   usePutMyAttachmentMarkupMutation,
   useDeleteMyAttachmentMarkupMutation,
   useDeleteAttachmentMutation,

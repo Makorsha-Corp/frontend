@@ -53,6 +53,7 @@ import {
 } from '@/pages/newpages/orders/workOrderConstants';
 import { Loader2, Package, Plus, Receipt, Trash2 } from 'lucide-react';
 import { OptionalPanelSummaryButton } from './OptionalPanelSummaryButton';
+import WorkerNamesInput from './WorkerNamesInput';
 import LineItemCommitCheckButton, {
   partDraftHintText,
 } from '@/components/newcomponents/customui/orders/LineItemCommitCheckButton';
@@ -649,7 +650,14 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         </div>
         <div className="grid gap-1">
           <Label className="text-xs text-muted-foreground">Default assignee (optional)</Label>
-          <Input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Name" />
+          <WorkerNamesInput
+            hideLabel
+            value={assignedTo}
+            onChange={(text) => setAssignedTo(text)}
+            members={members}
+            placeholder="Name"
+            inputClassName="h-9 text-sm"
+          />
         </div>
       </div>
 

@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { appToast } from '@/lib/appToast';
+import { showActionMessages } from '@/lib/actionResponseToasts';
 import type { SalesOrderItem } from '@/types/salesOrderItem';
 import type { SalesDelivery } from '@/types/salesDelivery';
 import type { DeliveryMethod } from '@/types/deliveryMethod';
@@ -527,9 +528,7 @@ const ManageDeliveryDialog: React.FC<{
           completion_code: completionCode.trim() || undefined,
         },
       }).unwrap();
-      for (const msg of result.messages ?? []) {
-        appToast.success(msg.message);
-      }
+      showActionMessages(result.messages);
       onOpenChange(false);
       onChanged();
     } catch (err: unknown) {

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserMinus,
   UserPlus,
+  Users,
   X,
   XCircle,
   Paperclip,
@@ -35,6 +36,11 @@ export const WO_EVENT_VISUALS: Record<string, WoEventVisual> = {
     icon: CalendarClock,
     wrap: 'bg-amber-100 dark:bg-amber-900/30',
     color: 'text-amber-600 dark:text-amber-400',
+  },
+  workers_updated: {
+    icon: Users,
+    wrap: 'bg-violet-100 dark:bg-violet-900/30',
+    color: 'text-violet-600 dark:text-violet-400',
   },
   updated: { icon: History, wrap: 'bg-muted', color: 'text-muted-foreground' },
   started: {

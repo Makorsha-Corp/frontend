@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Loader2, Pencil } from 'lucide-react';
 import { useUpdateAccountInvoiceMutation } from '@/features/accountInvoices/accountInvoicesApi';
 import type { AccountInvoice } from '@/types/accountInvoice';
@@ -115,13 +115,16 @@ const InvoiceDueDateField: React.FC<InvoiceDueDateFieldProps> = ({
 
   return (
     <div className={cn('relative max-w-[11rem]', valueMargin)}>
-      <Input
-        type="date"
+      <DatePickerField
         value={draft}
+        onChange={(next) => {
+          setDraft(next);
+          void handleSave(next);
+        }}
         disabled={isLoading}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => void handleSave(draft)}
-        className={cn('h-9 bg-background pr-8', compact && 'text-base')}
+        placeholder="Optional"
+        recurrenceStartDate={toDateInputValue(invoice.invoice_date) || undefined}
+        triggerClassName={cn('h-10 w-full px-3 text-sm', compact && 'text-base')}
         aria-label="Due date"
       />
       {isLoading ? (

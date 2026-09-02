@@ -1,3 +1,4 @@
+import type { CloudinaryDirectUploadSign } from '@/types/savedStamp';
 import type { AttachmentSignResponse, CloudinaryUploadResult } from '@/types/attachment';
 
 export interface CloudinaryUploadProgress {
@@ -6,13 +7,15 @@ export interface CloudinaryUploadProgress {
   percent: number;
 }
 
+type CloudinaryUploadSign = AttachmentSignResponse | CloudinaryDirectUploadSign;
+
 /**
  * POST file directly to Cloudinary (cross-origin). Intentionally outside RTK
  * so the Bearer token is never sent to api.cloudinary.com.
  */
 export function uploadToCloudinary(
   file: File,
-  sign: AttachmentSignResponse,
+  sign: CloudinaryUploadSign,
   onProgress?: (progress: CloudinaryUploadProgress) => void,
 ): Promise<CloudinaryUploadResult> {
   return new Promise((resolve, reject) => {

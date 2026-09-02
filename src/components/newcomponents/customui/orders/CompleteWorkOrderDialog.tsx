@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { WorkOrderCompleteRequest } from '@/types/workOrder';
+import type { WorkspaceMember } from '@/types/workspace';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
 import { API_LIMITS } from '@/constants/apiLimits';
@@ -25,6 +26,9 @@ import { activeEventButtonClass } from '@/lib/machineVisualStatus';
 import { MACHINE_EVENT_STATUS_TOOLTIPS } from '@/lib/machineStatusTooltips';
 import { cn } from '@/lib/utils';
 import { formatOtherActiveJobsWarning } from './workOrderCompleteCopy';
+import { buildWorkOrderCompletePayload } from './workOrderCompletePayload';
+import WorkerNamesInput from './WorkerNamesInput';
+import { resolveWorkerTextToMembers } from '@/lib/workOrderWorkers';
 
 export interface CompleteWorkOrderDialogProps {
   open: boolean;
@@ -33,10 +37,11 @@ export interface CompleteWorkOrderDialogProps {
   isCompleting?: boolean;
   workOrderId: number;
   machineId?: number | null;
-  /** Whether this order targets a machine — if so, the Idle/Off choice is required. */
   hasMachineTarget: boolean;
   mode?: 'standard' | 'as_planned';
   plannedDate?: string | null;
+  assignedTo?: string | null;
+  members: WorkspaceMember[];
 }
 
 function formatPlannedDateLabel(plannedDate: string | null | undefined): string {
@@ -59,9 +64,13 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
   hasMachineTarget,
   mode = 'standard',
   plannedDate,
+  assignedTo,
+  members,
 }) => {
   const [notes, setNotes] = useState('');
   const [machineStatus, setMachineStatus] = useState<'IDLE' | 'OFF' | ''>('');
+  const [completedByNames, setCompletedByNames] = useState('');
+  const [completedByUserIds, setCompletedByUserIds] = useState<number[]>([]);
 
   const shouldFetchSiblings = open && machineId != null;
   const { data: inProgressOnMachine = [] } = useGetWorkOrdersQuery(
@@ -83,11 +92,27 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
       ? formatOtherActiveJobsWarning(otherActiveJobs.map((wo) => wo.work_order_number))
       : null;
 
-  const canSubmit = !hasMachineTarget || Boolean(machineStatus);
+  const canSubmit =
+    Boolean(completedByNames.trim()) && (!hasMachineTarget || Boolean(machineStatus));
+
+  useEffect(() => {
+    if (!open) return;
+    const text = assignedTo?.trim() ?? '';
+    if (!text) {
+      setCompletedByNames('');
+      setCompletedByUserIds([]);
+      return;
+    }
+    const resolution = resolveWorkerTextToMembers(text, members);
+    setCompletedByNames(resolution.displayText || text);
+    setCompletedByUserIds(resolution.matchedUserIds);
+  }, [open, assignedTo, members]);
 
   const resetForm = () => {
     setNotes('');
     setMachineStatus('');
+    setCompletedByNames('');
+    setCompletedByUserIds([]);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -97,10 +122,15 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    await onComplete({
-      completion_notes: notes.trim() || undefined,
-      machine_status: hasMachineTarget ? (machineStatus as 'IDLE' | 'OFF') : undefined,
-    });
+    await onComplete(
+      buildWorkOrderCompletePayload({
+        notes,
+        machineStatus,
+        hasMachineTarget,
+        completedByNames,
+        completedByUserIds,
+      }),
+    );
     resetForm();
   };
 
@@ -125,21 +155,6 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {siblingWarning ? (
-            <div
-              role="alert"
-              className="flex gap-2.5 rounded-md border border-amber-600/30 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div className="min-w-0 space-y-0.5">
-                <p className="font-medium leading-snug">{siblingWarning.title}</p>
-                <p className="text-xs leading-snug text-amber-900/90 dark:text-amber-100/90">
-                  {siblingWarning.body}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
           <div className="grid gap-1.5">
             <Label htmlFor="wo-complete-notes">Completion notes (optional)</Label>
             <Textarea
@@ -155,49 +170,80 @@ const CompleteWorkOrderDialog: React.FC<CompleteWorkOrderDialogProps> = ({
             </p>
           </div>
 
-          {hasMachineTarget && (
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <Label className="shrink-0">
-                Leave the machine in <span className="text-destructive">*</span>
-              </Label>
-              <TooltipProvider delayDuration={200}>
-                <div className="flex shrink-0 gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={statusButtonClass('IDLE', machineStatus === 'IDLE')}
-                        onClick={() => setMachineStatus('IDLE')}
-                      >
-                        Idle
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="z-[60] max-w-[240px] text-xs leading-snug">
-                      {MACHINE_EVENT_STATUS_TOOLTIPS.IDLE}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={statusButtonClass('OFF', machineStatus === 'OFF')}
-                        onClick={() => setMachineStatus('OFF')}
-                      >
-                        Off
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="z-[60] max-w-[240px] text-xs leading-snug">
-                      {MACHINE_EVENT_STATUS_TOOLTIPS.OFF}
-                    </TooltipContent>
-                  </Tooltip>
+          <WorkerNamesInput
+            id="wo-complete-worker"
+            label="Completed by (worker)"
+            value={completedByNames}
+            onChange={(text, ids) => {
+              setCompletedByNames(text);
+              setCompletedByUserIds(ids);
+            }}
+            members={members}
+            placeholder={assignedTo?.trim() || 'Name of workers'}
+            hint="Who performed the work — prefilled from planned workers; can differ from who records completion here."
+            required
+          />
+
+          {hasMachineTarget ? (
+            <div className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
+              {siblingWarning ? (
+                <div
+                  role="alert"
+                  className="flex gap-2.5 rounded-md border border-amber-600/30 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="font-medium leading-snug">{siblingWarning.title}</p>
+                    <p className="text-xs leading-snug text-amber-900/90 dark:text-amber-100/90">
+                      {siblingWarning.body}
+                    </p>
+                  </div>
                 </div>
-              </TooltipProvider>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <Label className="shrink-0">
+                  Leave the machine in <span className="text-destructive">*</span>
+                </Label>
+                <TooltipProvider delayDuration={200}>
+                  <div className="flex shrink-0 gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={statusButtonClass('IDLE', machineStatus === 'IDLE')}
+                          onClick={() => setMachineStatus('IDLE')}
+                        >
+                          Idle
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="z-[60] max-w-[240px] text-xs leading-snug">
+                        {MACHINE_EVENT_STATUS_TOOLTIPS.IDLE}
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={statusButtonClass('OFF', machineStatus === 'OFF')}
+                          onClick={() => setMachineStatus('OFF')}
+                        >
+                          Off
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="z-[60] max-w-[240px] text-xs leading-snug">
+                        {MACHINE_EVENT_STATUS_TOOLTIPS.OFF}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         <DialogFooter>

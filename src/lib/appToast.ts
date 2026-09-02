@@ -6,6 +6,7 @@ export const APP_TOAST_DEFAULTS = {
   position: 'bottom-right' as const,
   duration: 4000,
   containerBottomOffsetPx: 16,
+  visibleToasts: 3,
 } as const;
 
 export const APP_TOAST_DURATIONS = {

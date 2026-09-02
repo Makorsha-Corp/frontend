@@ -32,6 +32,8 @@ export interface WorkOrder {
   account_id: number | null;
   invoice_id: number | null;
   assigned_to: string | null;
+  assignee_user_ids?: number[];
+  completer_user_ids?: number[];
 
   required_approvals: number | null;
   approved_by: number | null;
@@ -39,8 +41,11 @@ export interface WorkOrder {
 
   started_by: number | null;
   started_at: string | null;
+  started_by_name?: string | null;
   completed_by: number | null;
   completed_at: string | null;
+  completed_by_name?: string | null;
+  completed_by_names?: string | null;
 
   void_note: string | null;
   voided_at: string | null;
@@ -173,8 +178,11 @@ export interface WorkOrderVoidRequest {
 
 export interface WorkOrderCompleteRequest {
   completion_notes?: string;
-  /** When the order targets a machine, choose what state to leave it in. */
   machine_status?: 'IDLE' | 'OFF';
+  completed_by_names?: string;
+  completed_by_user_ids?: number[];
+  /** Legacy single worker id */
+  completed_by?: number;
 }
 
 export type WorkOrderCompleteAsPlannedRequest = WorkOrderCompleteRequest;

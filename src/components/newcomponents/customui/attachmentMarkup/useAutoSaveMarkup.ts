@@ -10,16 +10,22 @@ import { markupCopy } from './markupCopy';
 
 export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-export function useAutoSaveMarkup(attachmentId: number, enabled: boolean) {
+export function useAutoSaveMarkup(
+  attachmentId: number,
+  enabled: boolean,
+  sessionId: string | null = null,
+) {
   const [putMarkup] = usePutMyAttachmentMarkupMutation();
   const [status, setStatus] = useState<AutoSaveStatus>('idle');
   const enabledRef = useRef(enabled);
   const attachmentIdRef = useRef(attachmentId);
+  const sessionIdRef = useRef(sessionId);
   const savePausedRef = useRef(false);
   const toastShownRef = useRef(false);
 
   enabledRef.current = enabled;
   attachmentIdRef.current = attachmentId;
+  sessionIdRef.current = sessionId;
 
   const saveNow = useCallback(async (payload: MarkupPayload, force = false) => {
     if (!force && !enabledRef.current) return;
@@ -29,7 +35,10 @@ export function useAutoSaveMarkup(attachmentId: number, enabled: boolean) {
     try {
       await putMarkup({
         attachmentId: attachmentIdRef.current,
-        body: { payload },
+        body: {
+          payload,
+          session_id: sessionIdRef.current,
+        },
       }).unwrap();
       savePausedRef.current = false;
       toastShownRef.current = false;

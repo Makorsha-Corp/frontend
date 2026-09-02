@@ -11,6 +11,8 @@ import {
   Download,
   FileText,
   Loader2,
+  Maximize2,
+  Minimize2,
   MoreVertical,
   Smartphone,
   Trash2,
@@ -170,6 +172,7 @@ export default function AttachmentPanel({
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [previewPortalEl, setPreviewPortalEl] = useState<HTMLElement | null>(null);
   const [markMode, setMarkMode] = useState(false);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<number | null>(null);
   const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
@@ -1009,12 +1012,18 @@ export default function AttachmentPanel({
         if (!open) {
           setPreviewAttachment(null);
           setMarkMode(false);
+          setPreviewExpanded(false);
         }
       }}
     >
       <DialogContent
         ref={setPreviewPortalEl}
-        className="flex max-h-[90vh] w-[min(56rem,94vw)] max-w-none flex-col overflow-hidden"
+        className={cn(
+          '!flex max-w-none flex-col overflow-hidden p-6',
+          previewExpanded
+            ? 'h-[100dvh] w-[100vw] max-h-[100dvh] rounded-none'
+            : 'h-[min(96vh,100dvh)] w-[min(96vw,80rem)]',
+        )}
       >
         <DialogHeader className="shrink-0 space-y-0">
           <div className="flex items-start justify-between gap-3 pr-8">
@@ -1026,20 +1035,37 @@ export default function AttachmentPanel({
                 </DialogDescription>
               ) : null}
             </div>
-            {previewAttachment?.urls.download_url ? (
-              <Button variant="outline" size="sm" className="shrink-0" asChild>
-                <a
-                  href={previewAttachment.urls.download_url}
-                  download={previewAttachment.file_name}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </a>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={previewExpanded ? 'Exit fullscreen preview' : 'Expand preview'}
+                title={previewExpanded ? 'Exit fullscreen' : 'Expand preview'}
+                onClick={() => setPreviewExpanded((current) => !current)}
+              >
+                {previewExpanded ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
               </Button>
-            ) : null}
+              {previewAttachment?.urls.download_url ? (
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={previewAttachment.urls.download_url}
+                    download={previewAttachment.file_name}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </a>
+                </Button>
+              ) : null}
+            </div>
           </div>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col">
           {previewAttachment ? (
             isMarkupableAttachment(previewAttachment) ? (
               <AttachmentMarkupStage
@@ -1053,11 +1079,13 @@ export default function AttachmentPanel({
             ) : isPdf(previewAttachment) ? (
               <AttachmentPdfPageViewer attachment={previewAttachment} />
             ) : isPreviewableAttachment(previewAttachment) && previewUrl ? (
-              <img
-                src={previewUrl}
-                alt={previewAttachment.file_name}
-                className="mx-auto max-h-[70vh] w-auto max-w-full rounded-md object-contain"
-              />
+              <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                <img
+                  src={previewUrl}
+                  alt={previewAttachment.file_name}
+                  className="h-full w-full rounded-md object-contain"
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center gap-4 py-12 text-muted-foreground">
                 <FileText className="h-14 w-14" />

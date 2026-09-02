@@ -19,6 +19,9 @@ import type { Item } from '@/types/item';
 import type { WorkOrder } from '@/types/workOrder';
 import { Loader2 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
+import { useAppSelector } from '@/app/hooks';
+import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
+import WorkerNamesInput from '@/components/newcomponents/customui/orders/WorkerNamesInput';
 
 export interface SheetInlineRowEditorProps {
   sheetDate: string;
@@ -47,6 +50,11 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
   const [quantity, setQuantity] = useState('1');
   const [workers, setWorkers] = useState('');
   const [remarks, setRemarks] = useState('');
+
+  const { workspace } = useAppSelector((s) => s.auth);
+  const { data: members = [] } = useGetWorkspaceMembersQuery(workspace?.id ?? 0, {
+    skip: !workspace?.id,
+  });
 
   const [submitEntry, { isLoading }] = useCreateWorkOrderSheetEntryMutation();
 
@@ -185,7 +193,15 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
       </td>
       <td className="px-2 py-1.5 text-xs text-muted-foreground">—</td>
       <td className="px-2 py-1.5">
-        <Input value={workers} onChange={(e) => setWorkers(e.target.value)} placeholder="Workers" className="h-8 text-xs" />
+        <WorkerNamesInput
+          hideLabel
+          value={workers}
+          onChange={(text) => setWorkers(text)}
+          members={members}
+          placeholder="Workers"
+          inputClassName="h-8 text-xs"
+          className="min-w-[10rem]"
+        />
       </td>
       <td colSpan={3} className="px-2 py-1.5">
         <div className="flex items-center justify-end gap-2">

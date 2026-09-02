@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { usePdfPageTargetWidth } from '@/hooks/usePdfPageTargetWidth';
 import { cn } from '@/lib/utils';
 import { useGetAttachmentPdfPageQuery } from '@/features/attachments/attachmentsApi';
 import type { Attachment } from '@/types/attachment';
@@ -20,6 +21,10 @@ export interface AttachmentPdfPageViewerProps {
   onPageChange?: (page: number) => void;
   imageOverlay?: React.ReactNode;
   renderPageImage?: (ctx: PdfPageImageContext) => React.ReactNode;
+  /** Page width/height ratio for sharper raster when height-limited. */
+  pageAspect?: number;
+  /** When set, overrides internal ResizeObserver width bucket. */
+  targetWidth?: number;
 }
 
 export default function AttachmentPdfPageViewer({
@@ -30,10 +35,16 @@ export default function AttachmentPdfPageViewer({
   onPageChange,
   imageOverlay,
   renderPageImage,
+  pageAspect,
+  targetWidth: targetWidthProp,
 }: AttachmentPdfPageViewerProps) {
   const [internalPage, setInternalPage] = useState(1);
   const page = controlledPage ?? internalPage;
   const setPage = onPageChange ?? setInternalPage;
+
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const internalTargetWidth = usePdfPageTargetWidth(viewportRef, { pageAspect });
+  const targetWidth = targetWidthProp ?? internalTargetWidth;
 
   const [knownPageCount, setKnownPageCount] = useState<number | null>(
     attachment.page_count,
@@ -48,8 +59,12 @@ export default function AttachmentPdfPageViewer({
     setImageError(false);
   }, [attachment.id, attachment.page_count, controlledPage]);
 
+  useEffect(() => {
+    setImageError(false);
+  }, [page]);
+
   const { data, isFetching, isError, error } = useGetAttachmentPdfPageQuery(
-    { attachmentId: attachment.id, page },
+    { attachmentId: attachment.id, page, width: targetWidth },
     { skip: !attachment.id },
   );
 
@@ -61,7 +76,7 @@ export default function AttachmentPdfPageViewer({
 
   useEffect(() => {
     setImageError(false);
-  }, [data?.url, page]);
+  }, [data?.url, page, targetWidth]);
 
   const canGoPrev = page > 1;
   const canGoNext =
@@ -89,7 +104,10 @@ export default function AttachmentPdfPageViewer({
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
-      <div className="relative flex min-h-[20rem] flex-1 items-center justify-center overflow-hidden rounded-md bg-muted/20">
+      <div
+        ref={viewportRef}
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md bg-muted/20"
+      >
         {isFetching && !data?.url ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -99,15 +117,21 @@ export default function AttachmentPdfPageViewer({
 
         {data?.url && !imageError ? (
           renderPageImage ? (
-            <div className="w-full">{renderPageImage({ url: data.url, page, onImageDimensions: () => undefined })}</div>
+            <div className="flex h-full min-h-0 w-full flex-1 flex-col [&>*]:min-h-0 [&>*]:flex-1">
+              {renderPageImage({
+                url: data.url,
+                page,
+                onImageDimensions: () => undefined,
+              })}
+            </div>
           ) : (
-            <div className="relative mx-auto flex max-h-[70vh] w-fit max-w-full items-center justify-center">
+            <div className="relative flex h-full min-h-0 w-full items-center justify-center">
               <img
-                key={`${attachment.id}-${page}-${data.url}`}
+                key={`${attachment.id}-${page}-${targetWidth}-${data.url}`}
                 src={data.url}
                 alt={`${attachment.file_name} — page ${page}`}
                 className={cn(
-                  'max-h-[70vh] w-auto max-w-full rounded-md object-contain',
+                  'h-full w-full rounded-md object-contain',
                   isFetching && 'opacity-60',
                   imageClassName,
                 )}
@@ -120,7 +144,7 @@ export default function AttachmentPdfPageViewer({
           )
         ) : null}
 
-        {(isError || imageError) && !isFetching ? (
+        {(isError || imageError) && !isFetching && !data?.url ? (
           <p className="px-4 text-center text-sm text-muted-foreground">
             {apiDetail ?? `Could not load page ${page}.`}
           </p>

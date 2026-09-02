@@ -1,7 +1,7 @@
 import type { MarkupPayload, PageMarks } from '@/types/attachment';
 
 export function emptyPageMarks(): PageMarks {
-  return { strokes: [], texts: [], scribbles: [] };
+  return { strokes: [], texts: [], scribbles: [], stamps: [] };
 }
 
 export function getPageMarks(payload: MarkupPayload, page: number): PageMarks {
@@ -16,7 +16,10 @@ export function setPageMarks(
   const key = String(page);
   const nextPages = { ...payload.pages };
   const hasContent =
-    marks.strokes.length > 0 || marks.texts.length > 0 || marks.scribbles.length > 0;
+    marks.strokes.length > 0 ||
+    marks.texts.length > 0 ||
+    marks.scribbles.length > 0 ||
+    marks.stamps.length > 0;
   if (hasContent) {
     nextPages[key] = marks;
   } else {
@@ -33,7 +36,8 @@ export function isPayloadEmpty(payload: MarkupPayload): boolean {
     (page) =>
       page.strokes.length === 0 &&
       page.texts.length === 0 &&
-      page.scribbles.length === 0,
+      page.scribbles.length === 0 &&
+      page.stamps.length === 0,
   );
 }
 

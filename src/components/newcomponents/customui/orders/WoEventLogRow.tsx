@@ -3,8 +3,11 @@ import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import type { WorkOrderEvent as ApiWorkOrderEvent } from '@/types/workOrder';
+import type { WorkOrderEventWorkerDetail } from '@/pages/newpages/orders/workOrderScheduleTimeline';
+import type { WorkspaceMember } from '@/types/workspace';
 import EventLogTimestamp from '@/components/newcomponents/customui/EventLogTimestamp';
 import { initialsOf } from './transferOrderApprovals';
+import WorkerEventAvatars from './WorkerEventAvatars';
 import { WO_EVENT_VISUALS } from './workOrderEventVisuals';
 
 export interface WorkOrderEventDisplay {
@@ -15,6 +18,7 @@ export interface WorkOrderEventDisplay {
   performer_name?: string | null;
   metadata?: ApiWorkOrderEvent['metadata'];
   scheduleDetails?: string[];
+  workerDetails?: WorkOrderEventWorkerDetail[];
 }
 
 const displayValue = (value: string | null | undefined) => value ?? '—';
@@ -22,6 +26,7 @@ const displayValue = (value: string | null | undefined) => value ?? '—';
 interface WoEventLogRowProps {
   event: WorkOrderEventDisplay;
   isLast: boolean;
+  members?: WorkspaceMember[];
   showAbsoluteTimes?: boolean;
   onToggleTimestampDisplay?: () => void;
 }
@@ -29,6 +34,7 @@ interface WoEventLogRowProps {
 const WoEventLogRow: React.FC<WoEventLogRowProps> = ({
   event,
   isLast,
+  members = [],
   showAbsoluteTimes = false,
   onToggleTimestampDisplay,
 }) => {
@@ -42,6 +48,8 @@ const WoEventLogRow: React.FC<WoEventLogRowProps> = ({
 
   const scheduleDetails = event.scheduleDetails ?? [];
   const hasScheduleDetails = scheduleDetails.length > 0;
+  const workerDetails = event.workerDetails ?? [];
+  const hasWorkerDetails = workerDetails.length > 0;
 
   return (
     <div className="flex gap-3">
@@ -110,6 +118,17 @@ const WoEventLogRow: React.FC<WoEventLogRowProps> = ({
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {hasWorkerDetails ? (
+                <div className="mt-1.5 space-y-1">
+                  {workerDetails.map((detail) => (
+                    <WorkerEventAvatars
+                      key={`${detail.label}-${detail.names}-${detail.userIds?.join(',') ?? ''}`}
+                      detail={detail}
+                      members={members}
+                    />
+                  ))}
+                </div>
               ) : null}
             </div>
             <EventLogTimestamp

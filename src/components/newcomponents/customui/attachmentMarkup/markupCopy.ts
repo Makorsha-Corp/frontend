@@ -9,7 +9,8 @@ export const markupCopy = {
   saveFailedStatus: 'Save failed',
   savingLabel: 'Saving…',
   savedLabel: 'Saved',
-  showOnlyMineLabel: 'Show only mine',
+  showAllLayersLabel: 'All',
+  showMineOnlyLabel: 'Mine',
   marksUnavailable:
     'Marks unavailable — if self-hosting, run database migrations (alembic upgrade head).',
   marksUnavailableShort: 'Marks unavailable.',
@@ -21,4 +22,9 @@ export const markupCopy = {
   loupeLabel: 'Magnifier',
   loupeTooltip: 'Click the image to place the magnifier, then draw inside it',
   loupePlaceHint: 'Click the image to place the magnifier',
+  stampLabel: 'Stamp',
+  stampMissingHint: 'Add a saved stamp in Settings → General',
+  stampPlaceHint:
+    'Click to place · drag to move · handles to resize/rotate · Delete to remove',
+  markupPointBudgetExceeded: 'Markup is too large to save (point limit reached).',
 } as const;
