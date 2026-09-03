@@ -120,7 +120,7 @@ export default function MarkupOverlay({
     >
       {marks.strokes.map((stroke, index) => (
         <polyline
-          key={`stroke-${index}`}
+          key={stroke.id ?? `stroke-${index}`}
           fill="none"
           stroke={strokeColor(stroke, layerColor)}
           strokeWidth={renderStrokeWidth(stroke.width, 'pen')}
@@ -142,7 +142,7 @@ export default function MarkupOverlay({
       ))}
       {marks.texts.map((item, index) => (
         <text
-          key={`text-${index}`}
+          key={item.id ?? `text-${index}`}
           x={item.x}
           y={item.y}
           fill={layerColor ?? item.color}

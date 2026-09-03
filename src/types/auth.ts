@@ -39,6 +39,7 @@ export interface RegisterRequest {
   password: string;
   name: string;
   position?: string;
+  timezone?: string | null;
   workspace_name?: string;
   invitation_token?: string | null;
 }

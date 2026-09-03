@@ -3,7 +3,7 @@ import { Eraser, Hand, Pencil, Search, Stamp, Type } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { MarkupPoint, MarkupStroke, MarkupStamp, PageMarks } from '@/types/attachment';
+import type { MarkupPoint, MarkupStroke, MarkupStamp, MarkupText, PageMarks } from '@/types/attachment';
 import type { SavedStamp } from '@/types/savedStamp';
 import { stampPlacementFromPoint } from '@/types/savedStamp';
 
@@ -16,8 +16,16 @@ import {
 } from './markupDefaults';
 import MarkupOverlay from './MarkupOverlay';
 import MarkupStampSelection from './MarkupStampSelection';
+import MarkupStrokeSelection from './MarkupStrokeSelection';
+import MarkupTextSelection from './MarkupTextSelection';
+import { hitTestStrokes } from './markupStrokeHitTest';
+import { applyStrokeMoveDrag } from './markupStrokeTransform';
 import { hitTestStamps } from './markupStampHitTest';
+import { hitTestTexts } from './markupTextHitTest';
+import { applyTextMoveDrag } from './markupTextTransform';
+import { createStrokeId } from './strokeIds';
 import { findStampById } from './stampIds';
+import { createTextId, findTextById } from './textIds';
 import {
   applyMoveDrag,
   applyRotateDrag,
@@ -331,6 +339,12 @@ export interface MarkupEditorCanvasProps {
   selectedStampId?: string | null;
   onSelectStamp?: (id: string | null) => void;
   onStampUpdate?: (id: string, stamp: MarkupStamp) => void;
+  selectedTextId?: string | null;
+  onSelectText?: (id: string | null) => void;
+  onTextUpdate?: (id: string, text: MarkupText) => void;
+  selectedStrokeId?: string | null;
+  onSelectStroke?: (id: string | null) => void;
+  onStrokeUpdate?: (id: string, stroke: MarkupStroke) => void;
   validateMarks?: (marks: PageMarks) => boolean;
   className?: string;
 }
@@ -367,6 +381,12 @@ export function MarkupEditorCanvas({
   selectedStampId = null,
   onSelectStamp,
   onStampUpdate,
+  selectedTextId = null,
+  onSelectText,
+  onTextUpdate,
+  selectedStrokeId = null,
+  onSelectStroke,
+  onStrokeUpdate,
   validateMarks,
   className,
   imageWidth,
@@ -375,6 +395,8 @@ export function MarkupEditorCanvas({
   const layerRef = useRef<HTMLDivElement>(null);
   const suppressClickRef = useRef(false);
   const stampHistoryPushedRef = useRef(false);
+  const textHistoryPushedRef = useRef(false);
+  const strokeHistoryPushedRef = useRef(false);
   const [draftStroke, setDraftStroke] = useState<MarkupStroke | null>(null);
   const [stampHoverPoint, setStampHoverPoint] = useState<MarkupPoint | null>(null);
   const [stampGesture, setStampGesture] = useState<
@@ -398,10 +420,24 @@ export function MarkupEditorCanvas({
       }
     | null
   >(null);
+  const [textGesture, setTextGesture] = useState<{
+    kind: 'move';
+    id: string;
+    startText: MarkupText;
+    startPoint: MarkupPoint;
+  } | null>(null);
+  const [strokeGesture, setStrokeGesture] = useState<{
+    kind: 'move';
+    id: string;
+    startStroke: MarkupStroke;
+    startPoint: MarkupPoint;
+  } | null>(null);
   const [textDraft, setTextDraft] = useState<{
     x: number;
     y: number;
     value: string;
+    editingId: string | null;
+    draftColor: string;
   } | null>(null);
 
   const mapNormalized = useCallback(
@@ -417,6 +453,18 @@ export function MarkupEditorCanvas({
     }
   }, [tool]);
 
+  useEffect(() => {
+    if (tool !== 'text') {
+      setTextGesture(null);
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (tool !== 'pen') {
+      setStrokeGesture(null);
+    }
+  }, [tool]);
+
   const finishStampGesture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (layerRef.current?.hasPointerCapture(event.pointerId)) {
       layerRef.current.releasePointerCapture(event.pointerId);
@@ -426,6 +474,28 @@ export function MarkupEditorCanvas({
     }
     stampHistoryPushedRef.current = false;
     setStampGesture(null);
+  }, []);
+
+  const finishTextGesture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (layerRef.current?.hasPointerCapture(event.pointerId)) {
+      layerRef.current.releasePointerCapture(event.pointerId);
+    }
+    if (textHistoryPushedRef.current) {
+      suppressClickRef.current = true;
+    }
+    textHistoryPushedRef.current = false;
+    setTextGesture(null);
+  }, []);
+
+  const finishStrokeGesture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (layerRef.current?.hasPointerCapture(event.pointerId)) {
+      layerRef.current.releasePointerCapture(event.pointerId);
+    }
+    if (strokeHistoryPushedRef.current) {
+      suppressClickRef.current = true;
+    }
+    strokeHistoryPushedRef.current = false;
+    setStrokeGesture(null);
   }, []);
 
   const applyMarks = useCallback(
@@ -445,7 +515,7 @@ export function MarkupEditorCanvas({
       }
       applyMarks({
         ...marks,
-        strokes: [...marks.strokes, stroke],
+        strokes: [...marks.strokes, { ...stroke, id: createStrokeId() }],
       });
       setDraftStroke(null);
     },
@@ -453,6 +523,30 @@ export function MarkupEditorCanvas({
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (tool === 'text' && event.button === 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      const hit = hitTestTexts(point, marks.texts, selectedTextId);
+      if (hit) {
+        const startText = findTextById(marks.texts, hit.id);
+        if (!startText) return;
+
+        onSelectText?.(hit.id);
+        layerRef.current?.setPointerCapture(event.pointerId);
+        textHistoryPushedRef.current = false;
+        setTextGesture({
+          kind: 'move',
+          id: hit.id,
+          startText,
+          startPoint: point,
+        });
+      }
+      return;
+    }
+
     if (tool === 'stamp' && savedStamp && event.button === 0) {
       event.preventDefault();
       event.stopPropagation();
@@ -510,6 +604,25 @@ export function MarkupEditorCanvas({
     event.stopPropagation();
     const point = mapNormalized(event.clientX, event.clientY);
     if (!point) return;
+
+    const strokeHit = hitTestStrokes(point, marks.strokes, selectedStrokeId);
+    if (strokeHit) {
+      const startStroke = marks.strokes.find((stroke) => stroke.id === strokeHit.id);
+      if (!startStroke) return;
+
+      onSelectStroke?.(strokeHit.id);
+      layerRef.current?.setPointerCapture(event.pointerId);
+      strokeHistoryPushedRef.current = false;
+      setStrokeGesture({
+        kind: 'move',
+        id: strokeHit.id,
+        startStroke,
+        startPoint: point,
+      });
+      return;
+    }
+
+    onSelectStroke?.(null);
     layerRef.current?.setPointerCapture(event.pointerId);
     setDraftStroke({
       color,
@@ -519,6 +632,47 @@ export function MarkupEditorCanvas({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (textGesture && tool === 'text') {
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      const movedEnough =
+        Math.hypot(point.x - textGesture.startPoint.x, point.y - textGesture.startPoint.y) > 0.002;
+      if (!textHistoryPushedRef.current && !movedEnough) {
+        return;
+      }
+      if (!textHistoryPushedRef.current) {
+        onBeforeChange?.();
+        textHistoryPushedRef.current = true;
+      }
+      onTextUpdate?.(
+        textGesture.id,
+        applyTextMoveDrag(textGesture.startText, textGesture.startPoint, point),
+      );
+      return;
+    }
+
+    if (strokeGesture && tool === 'pen') {
+      const point = mapNormalized(event.clientX, event.clientY);
+      if (!point) return;
+
+      const movedEnough =
+        Math.hypot(point.x - strokeGesture.startPoint.x, point.y - strokeGesture.startPoint.y) >
+        0.002;
+      if (!strokeHistoryPushedRef.current && !movedEnough) {
+        return;
+      }
+      if (!strokeHistoryPushedRef.current) {
+        onBeforeChange?.();
+        strokeHistoryPushedRef.current = true;
+      }
+      onStrokeUpdate?.(
+        strokeGesture.id,
+        applyStrokeMoveDrag(strokeGesture.startStroke, strokeGesture.startPoint, point),
+      );
+      return;
+    }
+
     if (stampGesture && tool === 'stamp') {
       const point = mapNormalized(event.clientX, event.clientY);
       if (!point) return;
@@ -559,6 +713,14 @@ export function MarkupEditorCanvas({
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (textGesture) {
+      finishTextGesture(event);
+      return;
+    }
+    if (strokeGesture) {
+      finishStrokeGesture(event);
+      return;
+    }
     if (stampGesture) {
       finishStampGesture(event);
       return;
@@ -571,6 +733,14 @@ export function MarkupEditorCanvas({
   };
 
   const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (textGesture) {
+      finishTextGesture(event);
+      return;
+    }
+    if (strokeGesture) {
+      finishStrokeGesture(event);
+      return;
+    }
     if (stampGesture) {
       finishStampGesture(event);
       return;
@@ -603,29 +773,79 @@ export function MarkupEditorCanvas({
     }
     if (tool !== 'text') return;
     event.stopPropagation();
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     const point = mapNormalized(event.clientX, event.clientY);
     if (!point) return;
-    setTextDraft({ x: point.x, y: point.y, value: '' });
+
+    const hit = hitTestTexts(point, marks.texts, selectedTextId);
+    if (hit) {
+      const existing = findTextById(marks.texts, hit.id);
+      if (!existing) return;
+      onSelectText?.(hit.id);
+      setTextDraft({
+        x: existing.x,
+        y: existing.y,
+        value: existing.text,
+        editingId: hit.id,
+        draftColor: existing.color,
+      });
+      return;
+    }
+
+    onSelectText?.(null);
+    setTextDraft({
+      x: point.x,
+      y: point.y,
+      value: '',
+      editingId: null,
+      draftColor: color,
+    });
   };
 
   const commitText = () => {
     if (!textDraft?.value.trim()) {
+      if (textDraft?.editingId) {
+        onSelectText?.(textDraft.editingId);
+      }
       setTextDraft(null);
       return;
     }
-    applyMarks({
-      ...marks,
-      texts: [
-        ...marks.texts,
-        {
-          x: textDraft.x,
-          y: textDraft.y,
-          text: textDraft.value.trim(),
-          color,
-          size: TEXT_SIZE,
-        },
-      ],
-    });
+
+    const trimmed = textDraft.value.trim();
+    if (textDraft.editingId) {
+      const existing = findTextById(marks.texts, textDraft.editingId);
+      if (existing) {
+        applyMarks({
+          ...marks,
+          texts: marks.texts.map((item) =>
+            item.id === textDraft.editingId
+              ? { ...existing, text: trimmed, color: textDraft.draftColor }
+              : item,
+          ),
+        });
+        onSelectText?.(textDraft.editingId);
+      }
+    } else {
+      const id = createTextId();
+      applyMarks({
+        ...marks,
+        texts: [
+          ...marks.texts,
+          {
+            id,
+            x: textDraft.x,
+            y: textDraft.y,
+            text: trimmed,
+            color: textDraft.draftColor,
+            size: TEXT_SIZE,
+          },
+        ],
+      });
+      onSelectText?.(id);
+    }
     setTextDraft(null);
   };
 
@@ -644,6 +864,9 @@ export function MarkupEditorCanvas({
       : null;
 
   const selectedStamp = findStampById(marks.stamps, selectedStampId ?? null) ?? null;
+  const selectedText = findTextById(marks.texts, selectedTextId ?? null) ?? null;
+  const selectedStroke =
+    marks.strokes.find((stroke) => stroke.id === selectedStrokeId) ?? null;
 
   const stampCursor =
     stampGesture?.kind === 'move'
@@ -656,6 +879,22 @@ export function MarkupEditorCanvas({
             ? 'cursor-pointer'
             : 'cursor-crosshair';
 
+  const textCursor =
+    textGesture?.kind === 'move'
+      ? 'cursor-grabbing'
+      : tool === 'text'
+        ? 'cursor-text'
+        : undefined;
+
+  const strokeCursor =
+    strokeGesture?.kind === 'move'
+      ? 'cursor-grabbing'
+      : tool === 'pen' && selectedStroke
+        ? 'cursor-grab'
+        : tool === 'pen'
+          ? 'cursor-crosshair'
+          : undefined;
+
   if (tool === 'pan') {
     return null;
   }
@@ -666,6 +905,8 @@ export function MarkupEditorCanvas({
       className={cn(
         'absolute inset-0 z-20 touch-none',
         tool === 'stamp' && savedStamp && stampCursor,
+        tool === 'text' && textCursor,
+        tool === 'pen' && strokeCursor,
         className,
       )}
       onPointerDown={handlePointerDown}
@@ -693,6 +934,28 @@ export function MarkupEditorCanvas({
         </svg>
       ) : null}
 
+      {selectedText && tool === 'text' && !textDraft ? (
+        <svg
+          className="pointer-events-none absolute inset-0 z-[21] h-full w-full"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <MarkupTextSelection text={selectedText} />
+        </svg>
+      ) : null}
+
+      {selectedStroke && tool === 'pen' && !draftStroke && !strokeGesture ? (
+        <svg
+          className="pointer-events-none absolute inset-0 z-[21] h-full w-full"
+          viewBox="0 0 1 1"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <MarkupStrokeSelection stroke={selectedStroke} />
+        </svg>
+      ) : null}
+
       {textDraft ? (
         <input
           autoFocus
@@ -700,7 +963,7 @@ export function MarkupEditorCanvas({
           style={{
             left: `${textDraft.x * 100}%`,
             top: `${textDraft.y * 100}%`,
-            color,
+            color: textDraft.draftColor,
           }}
           value={textDraft.value}
           onChange={(event) =>

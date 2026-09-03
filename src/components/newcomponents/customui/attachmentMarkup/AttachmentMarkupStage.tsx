@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { isPreviewableAttachment } from '@/lib/attachmentAllowlist';
 import AttachmentPdfPageViewer from '@/components/newcomponents/customui/AttachmentPdfPageViewer';
 import { useGetAttachmentMarkupsQuery } from '@/features/attachments/attachmentsApi';
-import type { Attachment, MarkupPayload, MarkupPoint, MarkupStroke, MarkupStamp, PageMarks } from '@/types/attachment';
+import type { Attachment, MarkupPayload, MarkupPoint, MarkupStroke, MarkupStamp, MarkupText, PageMarks } from '@/types/attachment';
 import { stampPlacementFromPoint } from '@/types/savedStamp';
 
 import {
@@ -41,12 +41,24 @@ import {
   setPageMarks,
 } from './pageMarks';
 import { ensurePageMarkStampIds, ensurePayloadStampIds, findStampById } from './stampIds';
+import { ensurePageMarkStrokeIds, ensurePayloadStrokeIds, createStrokeId } from './strokeIds';
+import { ensurePageMarkTextIds, ensurePayloadTextIds, findTextById } from './textIds';
 import { removeStampById, updateStampById } from './markupStampTransform';
+import { removeStrokeById, updateStrokeById } from './markupStrokeTransform';
+import { removeTextById, updateTextById } from './markupTextTransform';
 import { useAutoSaveMarkup } from './useAutoSaveMarkup';
 import {
   buildMineOnlyVisibility,
   buildShowAllVisibility,
 } from './layerVisibilityState';
+
+function ensurePageMarkIds(marks: PageMarks): PageMarks {
+  return ensurePageMarkStrokeIds(ensurePageMarkTextIds(ensurePageMarkStampIds(marks)));
+}
+
+function ensurePayloadIds(payload: MarkupPayload): MarkupPayload {
+  return ensurePayloadStrokeIds(ensurePayloadTextIds(ensurePayloadStampIds(payload)));
+}
 
 export interface AttachmentMarkupStageProps {
   attachment: Attachment;
@@ -94,6 +106,8 @@ export default function AttachmentMarkupStage({
   });
   const [markSessionId, setMarkSessionId] = useState<string | null>(null);
   const [selectedStampId, setSelectedStampId] = useState<string | null>(null);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const pdfPageUrlRef = useRef<string | null>(null);
   const skipAutoSaveRef = useRef(false);
   const prevMarkModeRef = useRef(markMode);
@@ -179,10 +193,34 @@ export default function AttachmentMarkupStage({
   }, [tool]);
 
   useEffect(() => {
+    if (tool !== 'text') {
+      setSelectedTextId(null);
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (tool !== 'pen') {
+      setSelectedStrokeId(null);
+    }
+  }, [tool]);
+
+  useEffect(() => {
     if (selectedStampId && !findStampById(pageMarks.stamps, selectedStampId)) {
       setSelectedStampId(null);
     }
   }, [pageMarks.stamps, selectedStampId]);
+
+  useEffect(() => {
+    if (selectedTextId && !findTextById(pageMarks.texts, selectedTextId)) {
+      setSelectedTextId(null);
+    }
+  }, [pageMarks.texts, selectedTextId]);
+
+  useEffect(() => {
+    if (selectedStrokeId && !pageMarks.strokes.some((stroke) => stroke.id === selectedStrokeId)) {
+      setSelectedStrokeId(null);
+    }
+  }, [pageMarks.strokes, selectedStrokeId]);
 
   useEffect(() => {
     if (!loupeEnabled) {
@@ -206,9 +244,9 @@ export default function AttachmentMarkupStage({
 
     loadedAttachmentIdRef.current = attachment.id;
     skipAutoSaveRef.current = true;
-    const payload = ensurePayloadStampIds(ownLayer?.payload ?? { pages: {} });
+    const payload = ensurePayloadIds(ownLayer?.payload ?? { pages: {} });
     setOwnPayload(clonePayload(payload));
-    setPageMarksState(ensurePageMarkStampIds(getPageMarks(payload, 1)));
+    setPageMarksState(ensurePageMarkIds(getPageMarks(payload, 1)));
     setHistory([]);
     pageHistoryRef.current = {};
     queueMicrotask(() => {
@@ -219,7 +257,7 @@ export default function AttachmentMarkupStage({
   useEffect(() => {
     if (loadedAttachmentIdRef.current !== attachment.id) return;
     const raw = getPageMarks(ownPayloadRef.current, page);
-    const marks = ensurePageMarkStampIds(raw);
+    const marks = ensurePageMarkIds(raw);
     if (marks !== raw) {
       setOwnPayload((current) => setPageMarks(current, page, marks));
     }
@@ -351,7 +389,7 @@ export default function AttachmentMarkupStage({
     (stroke: MarkupStroke) => {
       const nextMarks = {
         ...pageMarks,
-        strokes: [...pageMarks.strokes, stroke],
+        strokes: [...pageMarks.strokes, { ...stroke, id: createStrokeId() }],
       };
       if (wouldExceedMarkupBudget(ownPayloadRef.current, page, nextMarks)) {
         appToast.error(markupCopy.markupPointBudgetExceeded);
@@ -396,6 +434,42 @@ export default function AttachmentMarkupStage({
     setSelectedStampId(null);
   }, [handlePageMarksChange, pageMarks, pushHistory, selectedStampId]);
 
+  const handleTextUpdate = useCallback(
+    (id: string, text: MarkupText) => {
+      handlePageMarksChange({
+        ...pageMarks,
+        texts: updateTextById(pageMarks.texts, id, text),
+      });
+    },
+    [handlePageMarksChange, pageMarks],
+  );
+
+  const handleTextDelete = useCallback(() => {
+    if (!selectedTextId) return;
+    pushHistory();
+    const texts = removeTextById(pageMarks.texts, selectedTextId);
+    handlePageMarksChange({ ...pageMarks, texts });
+    setSelectedTextId(null);
+  }, [handlePageMarksChange, pageMarks, pushHistory, selectedTextId]);
+
+  const handleStrokeUpdate = useCallback(
+    (id: string, stroke: MarkupStroke) => {
+      handlePageMarksChange({
+        ...pageMarks,
+        strokes: updateStrokeById(pageMarks.strokes, id, stroke),
+      });
+    },
+    [handlePageMarksChange, pageMarks],
+  );
+
+  const handleStrokeDelete = useCallback(() => {
+    if (!selectedStrokeId) return;
+    pushHistory();
+    const strokes = removeStrokeById(pageMarks.strokes, selectedStrokeId);
+    handlePageMarksChange({ ...pageMarks, strokes });
+    setSelectedStrokeId(null);
+  }, [handlePageMarksChange, pageMarks, pushHistory, selectedStrokeId]);
+
   useEffect(() => {
     if (tool !== 'stamp' || !selectedStampId) return;
 
@@ -416,6 +490,48 @@ export default function AttachmentMarkupStage({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [tool, selectedStampId, handleStampDelete]);
+
+  useEffect(() => {
+    if (tool !== 'text' || !selectedTextId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      handleTextDelete();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [tool, selectedTextId, handleTextDelete]);
+
+  useEffect(() => {
+    if (tool !== 'pen' || !selectedStrokeId) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      handleStrokeDelete();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [tool, selectedStrokeId, handleStrokeDelete]);
 
   const effectiveLoupeCenter = loupeDrawing ? loupeLockedCenter : loupeCenter;
 
@@ -472,6 +588,12 @@ export default function AttachmentMarkupStage({
       selectedStampId={selectedStampId}
       onSelectStamp={setSelectedStampId}
       onStampUpdate={handleStampUpdate}
+      selectedTextId={selectedTextId}
+      onSelectText={setSelectedTextId}
+      onTextUpdate={handleTextUpdate}
+      selectedStrokeId={selectedStrokeId}
+      onSelectStroke={setSelectedStrokeId}
+      onStrokeUpdate={handleStrokeUpdate}
       validateMarks={validateMarksBudget}
     />
   ) : null;

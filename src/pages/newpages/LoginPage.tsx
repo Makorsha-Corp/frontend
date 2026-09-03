@@ -13,6 +13,8 @@ import { BarChart3, Loader2, Moon, Package, Sun, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { apiErrorDetail } from '@/utils/apiError';
+import { detectBrowserTimezone, formatAbsoluteFromApi } from '@/utils/datetime';
+import TimezoneSelect from '@/components/newcomponents/customui/TimezoneSelect';
 import { BRAND_NAME } from '@/constants/brand';
 import { LOGIN_LAVENDER_RADIAL } from '@/lib/loginLavenderGradient';
 import {
@@ -185,6 +187,7 @@ const Login2Page: React.FC = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPosition, setRegisterPosition] = useState('User');
+  const [registerTimezone, setRegisterTimezone] = useState(() => detectBrowserTimezone());
 
   const isLgScreen = useIsLgScreen();
   const loginTheme = theme === 'dark' ? 'dark' : 'light';
@@ -306,6 +309,7 @@ const Login2Page: React.FC = () => {
         email: registerEmail,
         password: registerPassword,
         position: registerPosition,
+        timezone: registerTimezone,
       }).unwrap();
 
       dispatch(
@@ -516,6 +520,23 @@ const Login2Page: React.FC = () => {
                         onChange={(e) => setRegisterPosition(e.target.value)}
                         className="h-11"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-timezone">Your timezone</Label>
+                      <TimezoneSelect
+                        value={registerTimezone}
+                        onChange={setRegisterTimezone}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Event logs, discussions, and notifications display in this timezone. Calendar
+                        dates stay unchanged.
+                      </p>
+                      <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        Preview:{' '}
+                        <span className="font-medium text-foreground">
+                          {formatAbsoluteFromApi(new Date().toISOString(), registerTimezone)}
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-col space-y-4 px-8 pb-6 pt-0 sm:px-10">

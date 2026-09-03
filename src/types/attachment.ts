@@ -112,12 +112,14 @@ export interface MarkupPoint {
 }
 
 export interface MarkupStroke {
+  id?: string;
   color: string;
   width: number;
   points: MarkupPoint[];
 }
 
 export interface MarkupText {
+  id?: string;
   x: number;
   y: number;
   text: string;
