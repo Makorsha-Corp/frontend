@@ -52,6 +52,17 @@
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
+
+  /* Frosted glass cards — theme toggle via .dark, blur stays on shell class */
+  --glass-bg: rgb(255 255 255 / 0.75);
+  --glass-border: rgb(255 255 255 / 0.6);
+  --glass-text: hsl(var(--foreground));
+  --glass-text-muted: hsl(var(--muted-foreground));
+  --glass-text-badge: hsl(var(--muted-foreground));
+  --glass-hero-body: hsl(var(--muted-foreground));
+  --glass-shadow: 0 0 0 1px rgb(0 0 0 / 0.05), 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --glass-pill-bg: rgb(255 255 255 / 0.75);
+  --glass-pill-border: rgb(255 255 255 / 0.6);
 }
 
 .dark {
@@ -97,4 +108,14 @@
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
+
+  --glass-bg: rgb(0 0 0 / 0.45);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --glass-text: rgb(255 255 255);
+  --glass-text-muted: rgb(255 255 255 / 0.8);
+  --glass-text-badge: rgb(255 255 255 / 0.75);
+  --glass-hero-body: rgb(255 255 255 / 0.9);
+  --glass-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.55);
+  --glass-pill-bg: rgb(0 0 0 / 0.25);
+  --glass-pill-border: rgb(255 255 255 / 0.1);
 }
