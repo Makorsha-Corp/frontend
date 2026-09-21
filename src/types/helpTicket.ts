@@ -1,4 +1,5 @@
 export type HelpTicketStatus = 'open' | 'closed';
+export type HelpTicketType = 'support' | 'feedback';
 
 export interface HelpTicket {
   id: number;
@@ -8,6 +9,7 @@ export interface HelpTicket {
   description: string;
   category: string | null;
   status: HelpTicketStatus;
+  type: HelpTicketType;
   created_by: number | null;
   creator_name?: string | null;
   created_at: string;
@@ -24,6 +26,7 @@ export interface HelpTicketCreate {
   title: string;
   description: string;
   category?: string | null;
+  type?: HelpTicketType;
 }
 
 export interface HelpTicketUpdate {

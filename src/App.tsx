@@ -38,6 +38,7 @@ import BillingTrialPage from "./pages/newpages/BillingTrialPage";
 import UploadsPage from "./pages/newpages/UploadsPage";
 import HelpPage from "./pages/newpages/HelpPage";
 import PlatformLayout from "./layouts/PlatformLayout";
+import PlatformFeedbackPage from "./pages/newpages/platform/PlatformFeedbackPage";
 import PlatformSupportPage from "./pages/newpages/platform/PlatformSupportPage";
 import PlatformWaitlistPage from "./pages/newpages/platform/PlatformWaitlistPage";
 import RequirePlatformAdmin from "./components/newcomponents/customui/RequirePlatformAdmin";
@@ -70,6 +71,7 @@ const App: React.FC = () => {
                 <Route element={<PlatformLayout />}>
                   <Route path="/platform" element={<Navigate to="/platform/support" replace />} />
                   <Route path="/platform/support" element={<PlatformSupportPage />} />
+                  <Route path="/platform/feedback" element={<PlatformFeedbackPage />} />
                   <Route path="/platform/waitlist" element={<PlatformWaitlistPage />} />
                 </Route>
               </Route>

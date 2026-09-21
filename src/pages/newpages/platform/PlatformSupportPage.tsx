@@ -57,6 +57,7 @@ const PlatformSupportPage: React.FC = () => {
 
   const listArgs = useMemo(
     () => ({
+      type: 'support' as const,
       ...(statusFilter === STATUS_FILTER_ALL ? {} : { status: statusFilter }),
       ...(searchDebounced ? { search: searchDebounced } : {}),
     }),

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { ClipboardList, LifeBuoy, Shield } from 'lucide-react';
+import { ClipboardList, LifeBuoy, MessageSquare, Shield } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { name: 'Support', path: '/platform/support', icon: LifeBuoy },
+  { name: 'Feedback', path: '/platform/feedback', icon: MessageSquare },
   { name: 'Waitlist', path: '/platform/waitlist', icon: ClipboardList },
 ] as const;
 
