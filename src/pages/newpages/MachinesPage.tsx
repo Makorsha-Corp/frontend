@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { LayoutGroup } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { sliceToFactoryFilter } from '@/lib/machinesLocationFilterAdapters';
@@ -587,6 +588,7 @@ const MachinesPage: React.FC = () => {
 
   return (
     <>
+      <LayoutGroup id="machines-hub-tabs">
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-hidden">
         {activeTab === 'workOrders' && (
           <WorkOrdersTabContent
@@ -868,6 +870,7 @@ const MachinesPage: React.FC = () => {
         </>
         )}
       </div>
+      </LayoutGroup>
 
       <MachinesFiltersDialog
         open={isFiltersOpen}

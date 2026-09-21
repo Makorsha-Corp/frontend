@@ -20,6 +20,22 @@ import { cn } from '@/lib/utils';
 const PILL_SPRING = { type: 'spring' as const, stiffness: 420, damping: 32 };
 const PANEL_TRANSITION = { duration: 0.15, ease: 'easeOut' as const };
 
+const EMPHASIS_TAB_LIST_CLASS = cn(
+  'gap-0.5 border border-border/60 bg-muted/30 p-1',
+  'dark:border-border/40 dark:bg-[hsl(var(--nav-background))]/80',
+);
+
+const EMPHASIS_TAB_TRIGGER_CLASS = cn(
+  'data-[state=inactive]:text-muted-foreground/75',
+  'data-[state=active]:text-card-foreground',
+  'hover:text-foreground',
+  '[&[data-state=inactive]_svg]:text-muted-foreground/55',
+  '[&[data-state=active]_svg]:text-brand-primary',
+);
+
+const EMPHASIS_TAB_PILL_CLASS =
+  'rounded-md bg-card shadow-sm ring-1 ring-border/50 dark:ring-border/60';
+
 interface EmphasisTabsContextValue {
   activeValue: string;
   layoutId: string;
@@ -38,16 +54,19 @@ function useEmphasisTabsContext() {
 function EmphasisTabsProvider({
   value,
   children,
+  layoutId: layoutIdProp,
 }: {
   value: string;
   children: React.ReactNode;
+  /** Stable id preserves pill motion when provider remounts (header tab bars). */
+  layoutId?: string;
 }) {
   const reactId = React.useId();
-  const layoutId = `emphasis-tabs-${reactId}`;
+  const layoutId = layoutIdProp ?? `emphasis-tabs-${reactId}`;
 
   const contextValue = React.useMemo(
     () => ({ activeValue: value, layoutId }),
-    [value, layoutId]
+    [value, layoutId],
   );
 
   return (
@@ -62,8 +81,9 @@ const EmphasisTabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'inline-flex h-10 w-full items-center gap-1 rounded-lg bg-muted/40 p-1 text-muted-foreground',
-      className
+      'inline-flex h-10 w-full items-center rounded-lg p-1 text-muted-foreground',
+      EMPHASIS_TAB_LIST_CLASS,
+      className,
     )}
     {...props}
   />
@@ -84,19 +104,18 @@ const EmphasisTabsTrigger = React.forwardRef<
       className={cn(
         'relative z-10 inline-flex h-8 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md px-4 text-center',
         'text-xs font-medium leading-none text-muted-foreground',
-        'transition-[color,font-weight] duration-200',
-        'hover:text-foreground',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'disabled:pointer-events-none disabled:opacity-50',
-        'data-[state=active]:text-sm data-[state=active]:font-semibold data-[state=active]:text-card-foreground',
-        className
+        'data-[state=active]:text-sm data-[state=active]:font-semibold',
+        EMPHASIS_TAB_TRIGGER_CLASS,
+        className,
       )}
       {...props}
     >
       {isActive ? (
         <motion.span
           layoutId={`${layoutId}-pill`}
-          className="absolute inset-0 rounded-md bg-card shadow-sm"
+          className={cn('absolute inset-0', EMPHASIS_TAB_PILL_CLASS)}
           transition={PILL_SPRING}
           aria-hidden
         />

@@ -2,9 +2,22 @@ import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
+import { suppressDialogOutsideDismissOnce } from "@/lib/radixFloatingLayer"
 import { cn } from "@/lib/utils"
 
-const Select = SelectPrimitive.Root
+const Select = ({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) => (
+  <SelectPrimitive.Root
+    onOpenChange={(open) => {
+      if (!open) suppressDialogOutsideDismissOnce()
+      onOpenChange?.(open)
+    }}
+    {...props}
+  />
+)
+Select.displayName = SelectPrimitive.Root.displayName
 
 const SelectGroup = SelectPrimitive.Group
 

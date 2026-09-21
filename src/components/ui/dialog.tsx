@@ -2,6 +2,7 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
+import { shouldBlockDialogOutsideDismiss } from "@/lib/radixFloatingLayer"
 import { cn } from "@/lib/utils"
 
 const Dialog = DialogPrimitive.Root
@@ -48,13 +49,7 @@ const DialogContent = React.forwardRef<
   ...props
 }, ref) => (
   <DialogPortal>
-    {preventOutsideDismiss ? (
-      <DialogOverlay />
-    ) : (
-      <DialogPrimitive.Close asChild>
-        <DialogOverlay className="cursor-default" />
-      </DialogPrimitive.Close>
-    )}
+    <DialogOverlay className={preventOutsideDismiss ? undefined : "cursor-default"} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -69,13 +64,23 @@ const DialogContent = React.forwardRef<
       }}
       onPointerDownOutside={(event) => {
         onPointerDownOutside?.(event)
-        if (preventOutsideDismiss) {
+        if (
+          shouldBlockDialogOutsideDismiss({
+            preventOutsideDismiss,
+            target: event.target,
+          })
+        ) {
           event.preventDefault()
         }
       }}
       onInteractOutside={(event) => {
         onInteractOutside?.(event)
-        if (preventOutsideDismiss) {
+        if (
+          shouldBlockDialogOutsideDismiss({
+            preventOutsideDismiss,
+            target: event.target,
+          })
+        ) {
           event.preventDefault()
         }
       }}

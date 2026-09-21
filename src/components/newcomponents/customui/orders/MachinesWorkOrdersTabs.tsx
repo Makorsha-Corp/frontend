@@ -1,13 +1,12 @@
 import React from 'react';
-import { Tabs } from '@/components/ui/tabs';
 import { Cog, Wrench } from 'lucide-react';
-import {
-  EmphasisTabsList,
-  EmphasisTabsProvider,
-  EmphasisTabsTrigger,
-} from '@/components/newcomponents/customui/EmphasisTabSwitcher';
-import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
-import { cn } from '@/lib/utils';
+
+import AppShellHeaderEmphasisTabs from '@/components/newcomponents/customui/AppShellHeaderEmphasisTabs';
+
+const MACHINES_HUB_TABS = [
+  { value: 'machines', label: 'Machines', icon: Cog },
+  { value: 'workOrders', label: 'Work Orders', icon: Wrench },
+] as const;
 
 export interface MachinesWorkOrdersTabsProps {
   activeTab: 'machines' | 'workOrders';
@@ -17,56 +16,21 @@ export interface MachinesWorkOrdersTabsProps {
   compact?: boolean;
 }
 
-const listClass = (compact: boolean, className?: string) =>
-  cn(
-    'w-auto shrink-0 gap-0.5 border border-border bg-muted p-1 dark:bg-muted/90',
-    compact ? cn(appShellHeaderControlClass, '!h-9') : '!h-11',
-    className,
-  );
-
-const triggerClass = (compact: boolean) =>
-  cn(
-    'inline-flex flex-none items-center justify-center rounded-md !h-9',
-    '[&>span]:inline-flex [&>span]:items-center [&>span]:justify-center [&>span]:gap-1.5 [&>span]:leading-none',
-    'transition-[color,font-weight] hover:text-muted-foreground',
-    'data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground/70',
-    'data-[state=active]:!text-brand-primary',
-    '[&>span[aria-hidden=true]]:rounded-md [&>span[aria-hidden=true]]:border',
-    '[&>span[aria-hidden=true]]:!border-brand-primary/30 [&>span[aria-hidden=true]]:!bg-brand-primary/12',
-    'dark:[&>span[aria-hidden=true]]:!border-brand-primary/40 dark:[&>span[aria-hidden=true]]:!bg-brand-primary/18',
-    '[&>span[aria-hidden=true]]:!shadow-md',
-    '[&[data-state=inactive]_svg]:text-muted-foreground/55',
-    '[&[data-state=active]_svg]:text-brand-primary [&_svg]:block [&_svg]:shrink-0',
-    compact
-      ? 'min-w-[8.5rem] px-2 text-sm font-medium leading-none data-[state=active]:text-sm data-[state=active]:font-semibold'
-      : cn(
-          'min-w-[10rem] px-4',
-          'text-base font-medium leading-none tracking-tight data-[state=active]:text-base data-[state=active]:font-semibold',
-        ),
-  );
-
-const iconClass = (compact: boolean) => cn('shrink-0', compact ? 'h-4 w-4' : 'h-5 w-5');
-
 const MachinesWorkOrdersTabs: React.FC<MachinesWorkOrdersTabsProps> = ({
   activeTab,
   onTabChange,
   className,
   compact = false,
 }) => (
-  <EmphasisTabsProvider value={activeTab}>
-    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'machines' | 'workOrders')}>
-      <EmphasisTabsList className={listClass(compact, className)}>
-        <EmphasisTabsTrigger value="machines" className={triggerClass(compact)}>
-          <Cog className={iconClass(compact)} aria-hidden />
-          Machines
-        </EmphasisTabsTrigger>
-        <EmphasisTabsTrigger value="workOrders" className={triggerClass(compact)}>
-          <Wrench className={iconClass(compact)} aria-hidden />
-          Work Orders
-        </EmphasisTabsTrigger>
-      </EmphasisTabsList>
-    </Tabs>
-  </EmphasisTabsProvider>
+  <AppShellHeaderEmphasisTabs
+    value={activeTab}
+    onValueChange={(nextValue) => onTabChange(nextValue as 'machines' | 'workOrders')}
+    tabs={[...MACHINES_HUB_TABS]}
+    layoutId="machines-hub-tabs"
+    width="machines"
+    className={className}
+    compact={compact}
+  />
 );
 
 export default MachinesWorkOrdersTabs;
