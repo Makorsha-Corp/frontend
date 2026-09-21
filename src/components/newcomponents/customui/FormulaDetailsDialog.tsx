@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -665,8 +666,8 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
       <DialogContent className="flex h-[min(66vh,720px)] max-h-[90vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-x-clip overflow-y-auto p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-1 text-left">
           <DialogTitle className="text-foreground">{formula.name}</DialogTitle>
-          <DialogDescription className="font-mono text-xs tabular-nums">
-            {metaParts.join(' · ')}
+          <DialogDescription asChild>
+            <ReferenceId>{metaParts.join(' · ')}</ReferenceId>
           </DialogDescription>
           {formula.description?.trim() && (
             <p className="text-sm text-muted-foreground">{formula.description.trim()}</p>

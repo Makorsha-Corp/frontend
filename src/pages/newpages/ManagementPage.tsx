@@ -17,6 +17,7 @@ import {
   useGetWorkspaceQuery,
   useUpdateWorkspaceMutation,
 } from '@/features/workspaces/workspaceApi';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import TimezoneSelect from '@/components/newcomponents/customui/TimezoneSelect';
 import { detectBrowserTimezone } from '@/utils/datetime';
 import { Button } from '@/components/ui/button';
@@ -475,9 +476,14 @@ const InvitationsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }) => {
               <div className="space-y-3 pt-2">
                 <Label className="text-xs text-muted-foreground">Invite token</Label>
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
-                  <code className="flex-1 truncate text-sm font-mono text-foreground select-all">
+                  <ReferenceId
+                    size="sm"
+                    tone="default"
+                    selectAll
+                    className="flex-1 truncate"
+                  >
                     {createdToken}
-                  </code>
+                  </ReferenceId>
                   <Button
                     type="button"
                     variant="ghost"

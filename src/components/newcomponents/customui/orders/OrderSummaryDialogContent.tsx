@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -189,7 +190,9 @@ const OrderSummaryDialogContent: React.FC<OrderSummaryDialogContentProps> = ({
             Purchase Order
           </p>
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
-            <p className="text-lg font-semibold text-card-foreground">{purchaseOrder.po_number}</p>
+            <ReferenceId size="base" tone="default" weight="medium">
+              {purchaseOrder.po_number}
+            </ReferenceId>
             <Badge
               variant="secondary"
               className={cn(

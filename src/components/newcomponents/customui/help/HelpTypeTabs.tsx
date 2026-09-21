@@ -1,19 +1,20 @@
 import React from 'react';
-import { Tabs } from '@/components/ui/tabs';
-import { Cog, Wrench } from 'lucide-react';
+import { LifeBuoy, MessageSquare } from 'lucide-react';
+
+import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import {
   EmphasisTabsList,
   EmphasisTabsProvider,
   EmphasisTabsTrigger,
 } from '@/components/newcomponents/customui/EmphasisTabSwitcher';
-import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
+import { Tabs } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import type { HelpTicketType } from '@/types/helpTicket';
 
-export interface MachinesWorkOrdersTabsProps {
-  activeTab: 'machines' | 'workOrders';
-  onTabChange: (tab: 'machines' | 'workOrders') => void;
+interface HelpTypeTabsProps {
+  value: HelpTicketType;
+  onValueChange: (value: HelpTicketType) => void;
   className?: string;
-  /** Slightly narrower triggers on mobile header row */
   compact?: boolean;
 }
 
@@ -38,35 +39,35 @@ const triggerClass = (compact: boolean) =>
     '[&[data-state=inactive]_svg]:text-muted-foreground/55',
     '[&[data-state=active]_svg]:text-brand-primary [&_svg]:block [&_svg]:shrink-0',
     compact
-      ? 'min-w-[8.5rem] px-2 text-sm font-medium leading-none data-[state=active]:text-sm data-[state=active]:font-semibold'
+      ? 'min-w-[7.25rem] px-2 text-sm font-medium leading-none data-[state=active]:text-sm data-[state=active]:font-semibold'
       : cn(
-          'min-w-[10rem] px-4',
+          'min-w-[9.25rem] px-4',
           'text-base font-medium leading-none tracking-tight data-[state=active]:text-base data-[state=active]:font-semibold',
         ),
   );
 
 const iconClass = (compact: boolean) => cn('shrink-0', compact ? 'h-4 w-4' : 'h-5 w-5');
 
-const MachinesWorkOrdersTabs: React.FC<MachinesWorkOrdersTabsProps> = ({
-  activeTab,
-  onTabChange,
+const HelpTypeTabs: React.FC<HelpTypeTabsProps> = ({
+  value,
+  onValueChange,
   className,
   compact = false,
 }) => (
-  <EmphasisTabsProvider value={activeTab}>
-    <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as 'machines' | 'workOrders')}>
+  <EmphasisTabsProvider value={value}>
+    <Tabs value={value} onValueChange={(nextValue) => onValueChange(nextValue as HelpTicketType)}>
       <EmphasisTabsList className={listClass(compact, className)}>
-        <EmphasisTabsTrigger value="machines" className={triggerClass(compact)}>
-          <Cog className={iconClass(compact)} aria-hidden />
-          Machines
+        <EmphasisTabsTrigger value="support" className={triggerClass(compact)}>
+          <LifeBuoy className={iconClass(compact)} aria-hidden />
+          Support
         </EmphasisTabsTrigger>
-        <EmphasisTabsTrigger value="workOrders" className={triggerClass(compact)}>
-          <Wrench className={iconClass(compact)} aria-hidden />
-          Work Orders
+        <EmphasisTabsTrigger value="feedback" className={triggerClass(compact)}>
+          <MessageSquare className={iconClass(compact)} aria-hidden />
+          Feedback
         </EmphasisTabsTrigger>
       </EmphasisTabsList>
     </Tabs>
   </EmphasisTabsProvider>
 );
 
-export default MachinesWorkOrdersTabs;
+export default HelpTypeTabs;

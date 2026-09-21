@@ -5,6 +5,7 @@ import AppShellHeader, {
   appShellHeaderIconTileClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -219,7 +220,9 @@ const AccountsListPage: React.FC<AccountsListPageProps> = ({ section }) => {
                           className="hover:bg-muted/30 cursor-pointer"
                           onClick={() => handleView(acc)}
                         >
-                          <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
+                          <TableCell>
+                            <ReferenceId size="sm">{acc.id}</ReferenceId>
+                          </TableCell>
                           <TableCell className="font-medium">{acc.name}</TableCell>
                           <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
                           <TableCell>{getContactSummary(acc)}</TableCell>

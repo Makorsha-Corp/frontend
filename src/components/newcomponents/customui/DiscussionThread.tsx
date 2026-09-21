@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquare, Send, Reply, X, AtSign } from 'lucide-react';
+import { MessageSquare, Send, Reply, X, AtSign, Paperclip } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { RootState } from '@/app/store';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
+import AttachmentPreviewDialog from '@/components/newcomponents/customui/AttachmentPreviewDialog';
+import { useListAttachmentsQuery } from '@/features/attachments/attachmentsApi';
 import { useGetDiscussionsQuery, useCreateDiscussionMutation } from '@/features/discussions/discussionsApi';
+import {
+  attachmentMentionToken,
+  buildAttachmentNameMap,
+  discussionEntitySupportsAttachments,
+  toMentionKey,
+  uniqueAttachmentMentionKey,
+} from '@/lib/discussionMentions';
+import type { Attachment, AttachmentEntityType } from '@/types/attachment';
 import type { Discussion } from '@/types/discussion';
 import type { WorkspaceMember } from '@/types/workspace';
 import type { DiscussionEntityType } from '@/types/discussion';
@@ -109,10 +119,14 @@ function DiscussionHoverTimestamp({
 function DiscussionReplyPreview({
   parent,
   members,
+  attachmentNames,
+  onOpenAttachment,
   onJumpToParent,
 }: {
   parent: Discussion;
   members: WorkspaceMember[];
+  attachmentNames: Map<number, string>;
+  onOpenAttachment?: (attachmentId: number) => void;
   onJumpToParent: () => void;
 }) {
   const authorName = parent.author?.name ?? 'Unknown';
@@ -127,28 +141,69 @@ function DiscussionReplyPreview({
       <MemberAvatar name={authorName} size="sm" />
       <span className="shrink-0 text-xs font-medium text-muted-foreground">{authorName}</span>
       <span className="min-w-0 truncate text-xs text-muted-foreground">
-        <MentionText text={truncateDiscussionPreview(parent.message)} members={members} />
+        <MentionText
+          text={truncateDiscussionPreview(parent.message)}
+          members={members}
+          attachmentNames={attachmentNames}
+          onOpenAttachment={onOpenAttachment}
+        />
       </span>
     </button>
   );
 }
 
-function MentionText({ text, members }: { text: string; members: WorkspaceMember[] }) {
+function MentionText({
+  text,
+  members,
+  attachmentNames,
+  onOpenAttachment,
+}: {
+  text: string;
+  members: WorkspaceMember[];
+  attachmentNames: Map<number, string>;
+  onOpenAttachment?: (attachmentId: number) => void;
+}) {
   const memberMap = useMemo(
     () => new Map(members.map((m) => [m.user_id, m.user_name ?? `User ${m.user_id}`])),
     [members]
   );
-  const parts = text.split(/(@\[\d+\])/g);
+  const parts = text.split(/(@\[\d+\]|@\[a:\d+\])/g);
   return (
     <>
       {parts.map((part, i) => {
-        const match = part.match(/^@\[(\d+)\]$/);
-        if (match) {
-          const name = memberMap.get(parseInt(match[1])) ?? `User ${match[1]}`;
+        const userMatch = part.match(/^@\[(\d+)\]$/);
+        if (userMatch) {
+          const userId = parseInt(userMatch[1], 10);
+          const name = memberMap.get(userId) ?? `User ${userId}`;
           return (
-            <span key={i} className="text-blue-500 font-medium">
+            <span key={i} className="font-medium text-blue-500">
               @{name}
             </span>
+          );
+        }
+        const attachmentMatch = part.match(/^@\[a:(\d+)\]$/);
+        if (attachmentMatch) {
+          const attachmentId = parseInt(attachmentMatch[1], 10);
+          const fileName = attachmentNames.get(attachmentId) ?? `attachment-${attachmentId}`;
+          if (!onOpenAttachment) {
+            return (
+              <span key={i} className="font-medium text-blue-500">
+                @{fileName}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={i}
+              type="button"
+              className="font-medium text-blue-500 hover:underline"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenAttachment(attachmentId);
+              }}
+            >
+              @{fileName}
+            </button>
           );
         }
         return <React.Fragment key={i}>{part}</React.Fragment>;
@@ -163,16 +218,16 @@ interface MessageInputProps {
   entityType: DiscussionEntityType;
   entityId: number;
   members: WorkspaceMember[];
+  attachments: Attachment[];
   parentId?: number | null;
   replyingToName?: string;
   autoFocus?: boolean;
   onCancel?: () => void;
 }
 
-// Convert "John Doe" → "John_Doe" so mentions are single tokens in the textarea
-function toMentionKey(name: string) {
-  return name.trim().replace(/\s+/g, '_');
-}
+type MentionSuggestion =
+  | { kind: 'user'; member: WorkspaceMember }
+  | { kind: 'attachment'; attachment: Attachment };
 
 const MAX_MENTION_SUGGESTIONS = 6;
 /** Match Button size="icon" (h-10) for single-line composer height */
@@ -183,6 +238,7 @@ function MessageInput({
   entityType,
   entityId,
   members,
+  attachments,
   parentId,
   replyingToName,
   autoFocus,
@@ -195,6 +251,7 @@ function MessageInput({
   const [highlightedMentionIndex, setHighlightedMentionIndex] = useState(0);
   // key → userId  (e.g. "John_Doe" → 2)
   const [mentionMap, setMentionMap] = useState<Map<string, number>>(new Map());
+  const [attachmentMentionMap, setAttachmentMentionMap] = useState<Map<string, number>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
 
@@ -225,20 +282,42 @@ function MessageInput({
     [members, mentionSearch]
   );
 
-  const visibleMembers = useMemo(
-    () => filteredMembers.slice(0, MAX_MENTION_SUGGESTIONS),
-    [filteredMembers]
+  const filteredAttachments = useMemo(
+    () =>
+      attachments.filter((attachment) =>
+        mentionSearch
+          ? attachment.file_name.toLowerCase().includes(mentionSearch.toLowerCase())
+          : true
+      ),
+    [attachments, mentionSearch]
   );
+
+  const mentionSuggestions = useMemo((): MentionSuggestion[] => {
+    const suggestions: MentionSuggestion[] = filteredMembers.map((member) => ({
+      kind: 'user',
+      member,
+    }));
+    for (const attachment of filteredAttachments) {
+      suggestions.push({ kind: 'attachment', attachment });
+    }
+    return suggestions.slice(0, MAX_MENTION_SUGGESTIONS);
+  }, [filteredAttachments, filteredMembers]);
 
   useEffect(() => {
     setHighlightedMentionIndex(0);
-  }, [mentionSearch, showMentionPicker, visibleMembers.length]);
+  }, [mentionSearch, showMentionPicker, mentionSuggestions.length]);
 
-  // Before submitting: replace @Key with @[userId] tokens the backend understands
+  const isMentionHighlighted = (key: string) =>
+    mentionMap.has(key) || attachmentMentionMap.has(key);
+
+  // Before submitting: replace @Key with @[userId] / @[a:id] tokens
   const resolveMessage = (text: string) =>
-    text.replace(/@(\S+)/g, (match, key) => {
+    text.replace(/@([^\s@]+)/g, (match, key) => {
       const uid = mentionMap.get(key);
-      return uid !== undefined ? `@[${uid}]` : match;
+      if (uid !== undefined) return `@[${uid}]`;
+      const attachmentId = attachmentMentionMap.get(key);
+      if (attachmentId !== undefined) return attachmentMentionToken(attachmentId);
+      return match;
     });
 
   // Build HTML for the mirror div — normal text is transparent so the textarea
@@ -248,8 +327,8 @@ function MessageInput({
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    const highlighted = escaped.replace(/@(\S+)/g, (_, key) =>
-      mentionMap.has(key)
+    const highlighted = escaped.replace(/@([^\s@]+)/g, (_, key) =>
+      isMentionHighlighted(key)
         ? `<mark style="background:rgba(59,130,246,0.18);border-radius:3px;padding:0 2px;color:inherit;">@${key}</mark>`
         : `@${key}`
     );
@@ -268,7 +347,7 @@ function MessageInput({
     syncScroll();
     requestAnimationFrame(syncTextareaHeight);
     const cursor = e.target.selectionStart ?? val.length;
-    const atMatch = val.slice(0, cursor).match(/@(\w*)$/);
+    const atMatch = val.slice(0, cursor).match(/@([^\s@]*)$/);
     if (atMatch) {
       setMentionSearch(atMatch[1]);
       setMentionAnchorPos(cursor - atMatch[0].length);
@@ -279,34 +358,56 @@ function MessageInput({
     }
   };
 
-  const selectMention = (member: WorkspaceMember) => {
+  const insertMention = (key: string) => {
     const cursor = textareaRef.current?.selectionStart ?? message.length;
     const before = message.slice(0, mentionAnchorPos ?? cursor);
     const after = message.slice(cursor);
-    const key = toMentionKey(member.user_name ?? `User_${member.user_id}`);
     setMessage(`${before}@${key} ${after}`);
-    setMentionMap((prev) => new Map(prev).set(key, member.user_id));
     setShowMentionPicker(false);
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
+  const selectMemberMention = (member: WorkspaceMember) => {
+    const key = toMentionKey(member.user_name ?? `User_${member.user_id}`);
+    insertMention(key);
+    setMentionMap((prev) => new Map(prev).set(key, member.user_id));
+  };
+
+  const selectAttachmentMention = (attachment: Attachment) => {
+    const key = uniqueAttachmentMentionKey(
+      attachment.file_name,
+      attachment.id,
+      attachmentMentionMap,
+    );
+    insertMention(key);
+    setAttachmentMentionMap((prev) => new Map(prev).set(key, attachment.id));
+  };
+
+  const selectMentionSuggestion = (suggestion: MentionSuggestion) => {
+    if (suggestion.kind === 'user') {
+      selectMemberMention(suggestion.member);
+      return;
+    }
+    selectAttachmentMention(suggestion.attachment);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (showMentionPicker && visibleMembers.length > 0) {
+    if (showMentionPicker && mentionSuggestions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setHighlightedMentionIndex((i) => (i + 1) % visibleMembers.length);
+        setHighlightedMentionIndex((i) => (i + 1) % mentionSuggestions.length);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setHighlightedMentionIndex(
-          (i) => (i - 1 + visibleMembers.length) % visibleMembers.length
+          (i) => (i - 1 + mentionSuggestions.length) % mentionSuggestions.length
         );
         return;
       }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        selectMention(visibleMembers[highlightedMentionIndex]);
+        selectMentionSuggestion(mentionSuggestions[highlightedMentionIndex]);
         return;
       }
     }
@@ -333,6 +434,7 @@ function MessageInput({
       }).unwrap();
       setMessage('');
       setMentionMap(new Map());
+      setAttachmentMentionMap(new Map());
       requestAnimationFrame(syncTextareaHeight);
       onCancel?.();
     } catch (err) {
@@ -342,7 +444,7 @@ function MessageInput({
 
   const placeholder = parentId
     ? 'Write a reply… (Enter to send)'
-    : 'Write a message… type @ to mention someone';
+    : 'Write a message… type @ to mention someone or an attachment';
 
   return (
     <div className="relative flex flex-col gap-1.5">
@@ -358,11 +460,15 @@ function MessageInput({
         </div>
       )}
 
-      {showMentionPicker && visibleMembers.length > 0 && (
-        <div className="absolute bottom-full mb-1 left-0 z-20 w-56 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-          {visibleMembers.map((m, index) => (
+      {showMentionPicker && mentionSuggestions.length > 0 && (
+        <div className="absolute bottom-full mb-1 left-0 z-20 w-72 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+          {mentionSuggestions.map((suggestion, index) => (
             <button
-              key={m.user_id}
+              key={
+                suggestion.kind === 'user'
+                  ? `user-${suggestion.member.user_id}`
+                  : `attachment-${suggestion.attachment.id}`
+              }
               type="button"
               className={cn(
                 'flex w-full items-center gap-2 px-3 py-2 text-sm text-left',
@@ -370,12 +476,23 @@ function MessageInput({
               )}
               onMouseDown={(e) => {
                 e.preventDefault();
-                selectMention(m);
+                selectMentionSuggestion(suggestion);
               }}
               onMouseEnter={() => setHighlightedMentionIndex(index)}
             >
-              <MemberAvatar name={m.user_name ?? 'U'} />
-              <span className="truncate">{m.user_name}</span>
+              {suggestion.kind === 'user' ? (
+                <>
+                  <MemberAvatar name={suggestion.member.user_name ?? 'U'} />
+                  <span className="truncate">{suggestion.member.user_name}</span>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="min-w-0 truncate">{suggestion.attachment.file_name}</span>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -446,6 +563,8 @@ function sameDiscussionAuthor(a: Discussion, b: Discussion) {
 function DiscussionMessageRow({
   message,
   members,
+  attachmentNames,
+  onOpenAttachment,
   createdAt,
   timeZone,
   enableReplyPopover,
@@ -456,6 +575,8 @@ function DiscussionMessageRow({
 }: {
   message: string;
   members: WorkspaceMember[];
+  attachmentNames: Map<number, string>;
+  onOpenAttachment?: (attachmentId: number) => void;
   createdAt: string;
   timeZone: string;
   enableReplyPopover: boolean;
@@ -513,7 +634,12 @@ function DiscussionMessageRow({
             enableReplyPopover && 'cursor-pointer',
           )}
         >
-          <MentionText text={message} members={members} />
+          <MentionText
+            text={message}
+            members={members}
+            attachmentNames={attachmentNames}
+            onOpenAttachment={onOpenAttachment}
+          />
         </div>
         {showTimestamp ? (
           <div className="shrink-0 self-baseline leading-none">
@@ -553,6 +679,9 @@ function DiscussionMessageRow({
 function DiscussionItem({
   discussion,
   members,
+  attachments,
+  attachmentNames,
+  onOpenAttachment,
   entityType,
   entityId,
   timeZone,
@@ -563,6 +692,9 @@ function DiscussionItem({
 }: {
   discussion: Discussion;
   members: WorkspaceMember[];
+  attachments: Attachment[];
+  attachmentNames: Map<number, string>;
+  onOpenAttachment: (attachmentId: number) => void;
   entityType: DiscussionEntityType;
   entityId: number;
   timeZone: string;
@@ -587,6 +719,8 @@ function DiscussionItem({
           <DiscussionReplyPreview
             parent={parentDiscussion}
             members={members}
+            attachmentNames={attachmentNames}
+            onOpenAttachment={onOpenAttachment}
             onJumpToParent={() => onScrollToMessage(parentDiscussion.id)}
           />
           <div className="relative z-[1] flex items-baseline gap-2.5">
@@ -597,6 +731,8 @@ function DiscussionItem({
             <DiscussionMessageRow
               message={discussion.message}
               members={members}
+              attachmentNames={attachmentNames}
+              onOpenAttachment={onOpenAttachment}
               createdAt={discussion.created_at}
               timeZone={timeZone}
               enableReplyPopover={false}
@@ -619,6 +755,8 @@ function DiscussionItem({
             <DiscussionMessageRow
               message={discussion.message}
               members={members}
+              attachmentNames={attachmentNames}
+              onOpenAttachment={onOpenAttachment}
               createdAt={discussion.created_at}
               timeZone={timeZone}
               enableReplyPopover={isRoot && !readOnly}
@@ -636,6 +774,7 @@ function DiscussionItem({
             entityType={entityType}
             entityId={entityId}
             members={members}
+            attachments={attachments}
             parentId={discussion.id}
             replyingToName={authorName}
             autoFocus
@@ -678,6 +817,7 @@ export default function DiscussionThread({
   className,
 }: DiscussionThreadProps) {
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const hasInitialScrollRef = useRef(false);
   const prevTimelineLengthRef = useRef(0);
@@ -712,7 +852,31 @@ export default function DiscussionThread({
     skip: !workspace?.id,
   });
 
+  const attachmentEntityType = discussionEntitySupportsAttachments(entityType)
+    ? (entityType as AttachmentEntityType)
+    : null;
+
+  const { data: attachmentsData } = useListAttachmentsQuery(
+    {
+      entity_type: attachmentEntityType ?? 'support_ticket',
+      entity_id: entityId,
+    },
+    { skip: !entityId || attachmentEntityType == null },
+  );
+
   const members = membersData ?? [];
+  const attachments = attachmentsData?.items ?? [];
+  const attachmentNames = useMemo(() => buildAttachmentNameMap(attachments), [attachments]);
+
+  const openAttachmentPreview = useCallback(
+    (attachmentId: number) => {
+      const attachment = attachments.find((item) => item.id === attachmentId);
+      if (attachment) {
+        setPreviewAttachment(attachment);
+      }
+    },
+    [attachments],
+  );
   const discussions = data?.items ?? [];
   const total = data?.total ?? 0;
 
@@ -763,7 +927,7 @@ export default function DiscussionThread({
           <p className="text-xs text-muted-foreground">
             {readOnly
               ? 'No discussion messages on this voided order.'
-              : 'Start the conversation — type @ to mention someone'}
+              : 'Start the conversation — type @ to mention someone or an attachment'}
           </p>
         </div>
       );
@@ -821,6 +985,9 @@ export default function DiscussionThread({
                   discussion={entry.discussion}
                   parentDiscussion={entry.parent}
                   members={members}
+                  attachments={attachments}
+                  attachmentNames={attachmentNames}
+                  onOpenAttachment={openAttachmentPreview}
                   entityType={entityType}
                   entityId={entityId}
                   timeZone={timeZone}
@@ -872,9 +1039,22 @@ export default function DiscussionThread({
 
       {!readOnly ? (
         <div className="shrink-0">
-          <MessageInput entityType={entityType} entityId={entityId} members={members} />
+          <MessageInput
+            entityType={entityType}
+            entityId={entityId}
+            members={members}
+            attachments={attachments}
+          />
         </div>
       ) : null}
+
+      <AttachmentPreviewDialog
+        attachment={previewAttachment}
+        open={previewAttachment != null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAttachment(null);
+        }}
+      />
     </>
   );
 

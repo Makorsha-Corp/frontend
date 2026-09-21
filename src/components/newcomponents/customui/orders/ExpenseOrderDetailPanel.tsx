@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -416,7 +417,10 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
                       Order details
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1 break-words">
-                      {allocationSummary} · {order.expense_number}
+                      {allocationSummary} ·{' '}
+                      <ReferenceId tone="inherit" weight="medium">
+                        {order.expense_number}
+                      </ReferenceId>
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 self-start">

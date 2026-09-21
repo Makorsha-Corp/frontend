@@ -2,6 +2,12 @@ import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ClipboardList, LifeBuoy, MessageSquare, Shield } from 'lucide-react';
 
+import {
+  appShellHeaderBarClass,
+  appShellHeaderIconTileClass,
+  appShellHeaderLeftGroupClass,
+  appShellHeaderTitleClass,
+} from '@/components/newcomponents/customui/AppShellHeader';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -14,12 +20,20 @@ const PlatformLayout: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-4">
-          <Shield className="h-5 w-5 text-brand-primary" />
-          <div>
-            <p className="text-sm font-semibold">Platform</p>
+        <div
+          className={cn(
+            appShellHeaderBarClass,
+            'px-4 py-3 lg:px-4 lg:py-5',
+            appShellHeaderLeftGroupClass,
+          )}
+        >
+          <div className={appShellHeaderIconTileClass}>
+            <Shield className="h-5 w-5 text-brand-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className={appShellHeaderTitleClass}>Platform</p>
             <p className="text-xs text-muted-foreground">Makorsha admin</p>
           </div>
         </div>

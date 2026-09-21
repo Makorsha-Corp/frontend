@@ -87,6 +87,7 @@ import {
   workOrderDetailHeaderBadgeAmberClass,
 } from './WorkOrderRecurringProgramCard';
 import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { buildWorkOrderEventLogEntries } from '@/pages/newpages/orders/workOrderScheduleTimeline';
 import {
   getWorkOrderCalendarDateString,
@@ -352,7 +353,11 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
               </Button>
             )}
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-card-foreground leading-tight">{order.work_order_number}</h1>
+              <h1 className="text-lg leading-tight">
+                <ReferenceId size="base" tone="default" weight="medium" className="text-card-foreground">
+                  {order.work_order_number}
+                </ReferenceId>
+              </h1>
               <p className="text-sm text-muted-foreground truncate">{workOrderDisplayLabel(order)}</p>
             </div>
           </div>

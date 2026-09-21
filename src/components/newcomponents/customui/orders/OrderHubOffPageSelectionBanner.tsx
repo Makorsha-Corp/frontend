@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info } from 'lucide-react';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 
 interface OrderHubOffPageSelectionBannerProps {
@@ -20,7 +21,7 @@ const OrderHubOffPageSelectionBanner: React.FC<OrderHubOffPageSelectionBannerPro
   >
     <Info className="h-4 w-4 shrink-0" aria-hidden />
     <span>
-      <span className="font-medium text-foreground">{orderLabel}</span> is not on the current
+      <ReferenceId tone="default" weight="medium">{orderLabel}</ReferenceId> is not on the current
       filtered page.
     </span>
   </div>

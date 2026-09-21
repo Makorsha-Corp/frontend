@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ExternalLink, Mail, MailOpen, X } from 'lucide-react';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { AppNotification } from './notificationTypes';
@@ -100,9 +101,13 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
                   {notification.title}
                 </p>
                 {notification.entityRef && (
-                  <span className="mt-0.5 inline-flex rounded bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                  <ReferenceId
+                    tone="muted"
+                    weight="medium"
+                    className="mt-0.5 inline-flex rounded bg-muted/60 px-1.5 py-px text-[10px]"
+                  >
                     {notification.entityRef}
-                  </span>
+                  </ReferenceId>
                 )}
               </div>
               <span className="shrink-0 text-[10px] leading-tight text-muted-foreground">{timeAgo}</span>

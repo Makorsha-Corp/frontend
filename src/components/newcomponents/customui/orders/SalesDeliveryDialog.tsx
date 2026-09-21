@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, Loader2, Package, Plus, Truck, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -401,13 +402,17 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
               </Badge>
             )}
             {delivery.tracking_number && (
-              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
-                {delivery.tracking_number}
+              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                <ReferenceId tone="inherit" size="xs">
+                  {delivery.tracking_number}
+                </ReferenceId>
               </Badge>
             )}
             {delivery.completion_code && (
-              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
-                Code: {delivery.completion_code}
+              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                <ReferenceId tone="inherit" size="xs">
+                  Code: {delivery.completion_code}
+                </ReferenceId>
               </Badge>
             )}
           </div>

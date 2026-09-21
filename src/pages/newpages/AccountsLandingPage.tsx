@@ -32,6 +32,7 @@ import {
   LayoutDashboard,
   Settings2,
 } from 'lucide-react';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import AddAccountDialog from '@/components/newcomponents/customui/AddAccountDialog';
 import EditAccountDialog from '@/components/newcomponents/customui/EditAccountDialog';
 import ManageAccountsDialog from '@/components/newcomponents/customui/ManageAccountsDialog';
@@ -420,7 +421,9 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                                       className="cursor-pointer hover:bg-muted/30"
                                       onClick={() => handleView(acc)}
                                     >
-                                      <TableCell className="font-mono text-sm text-muted-foreground">{acc.id}</TableCell>
+                                      <TableCell>
+                                        <ReferenceId size="sm">{acc.id}</ReferenceId>
+                                      </TableCell>
                                       <TableCell className="font-medium">{acc.name}</TableCell>
                                       <TableCell className="text-muted-foreground">{acc.account_code || '-'}</TableCell>
                                       <TableCell>{getContactSummary(acc)}</TableCell>

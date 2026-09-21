@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronLeft, Search, type LucideIcon } from 'lucide-react';
 
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,9 @@ export const appShellHeaderIconTileClass =
   'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 dark:bg-brand-primary/20 ring-1 ring-brand-primary/25 dark:ring-brand-primary/35';
 export const appShellHeaderTitleClass =
   'truncate text-lg font-semibold tracking-tight text-card-foreground dark:text-foreground lg:text-2xl';
+export const appShellHeaderBarClass =
+  'flex-shrink-0 border-b border-border bg-card shadow-sm dark:bg-[hsl(var(--nav-background))]';
+export const appShellHeaderBarPaddingClass = 'px-4 py-3 lg:px-8 lg:py-5';
 export const appShellHeaderRowClass =
   'flex items-center justify-between gap-2 lg:flex-wrap lg:gap-4';
 
@@ -70,8 +74,10 @@ export function AppShellHeaderMobileDetailBar({
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight text-card-foreground dark:text-foreground">
-          {label}
+        <h1 className="min-w-0 truncate text-lg tracking-tight text-card-foreground dark:text-foreground">
+          <ReferenceId size="base" tone="default" weight="medium" className="truncate">
+            {label}
+          </ReferenceId>
         </h1>
       </div>
     </AppShellHeader>
@@ -241,7 +247,9 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({ children, sticky = fals
   return (
     <div
       className={cn(
-        'z-10 flex-shrink-0 border-b border-border bg-card px-4 py-3 shadow-sm dark:bg-[hsl(var(--nav-background))] lg:px-8 lg:py-5',
+        'z-10',
+        appShellHeaderBarClass,
+        appShellHeaderBarPaddingClass,
         sticky && 'sticky top-0',
         className,
       )}

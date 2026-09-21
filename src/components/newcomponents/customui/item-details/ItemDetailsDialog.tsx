@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useGetItemSummaryQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import ItemTagBadge from '@/components/newcomponents/customui/ItemTagBadge';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import ItemDetailsTabs from './ItemDetailsTabs';
@@ -95,9 +96,9 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
                     {displayItem.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                   {displayItem.sku ? (
-                    <span className="font-mono text-xs text-muted-foreground">
+                    <ReferenceId>
                       SKU {displayItem.sku}
-                    </span>
+                    </ReferenceId>
                   ) : null}
                   {tags.map((tag) => (
                     <ItemTagBadge

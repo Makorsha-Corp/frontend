@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -771,9 +772,9 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
                                         Fulfilled
                                       </span>
                                       {it.fulfillment_completion_code && (
-                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                        <ReferenceId className="text-[11px]">
                                           Code: {it.fulfillment_completion_code}
-                                        </span>
+                                        </ReferenceId>
                                       )}
                                     </span>
                                   ) : (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import type { Account } from '@/types/account';
 
@@ -72,7 +73,7 @@ const AccountContextPanel: React.FC<AccountContextPanelProps> = ({
             </p>
             <DetailBlock label="Name">{account.name}</DetailBlock>
             <DetailBlock label="Account code">
-              <span className="font-mono">{account.account_code || '—'}</span>
+              <ReferenceId tone="inherit">{account.account_code || '—'}</ReferenceId>
             </DetailBlock>
             <DetailBlock label="Invoicing">
               {account.allow_invoices ? 'Enabled' : 'Disabled for this account'}

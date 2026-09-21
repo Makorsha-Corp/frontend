@@ -9,6 +9,7 @@ import { useAppSelector } from '@/app/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -360,7 +361,9 @@ const LedgerTable: React.FC = () => {
           <TableBody>
             {transactions.map((txn) => (
               <TableRow key={txn.id}>
-                <TableCell className="font-mono text-xs">{txn.tran_id}</TableCell>
+                <TableCell>
+                  <ReferenceId>{txn.tran_id}</ReferenceId>
+                </TableCell>
                 <TableCell>
                   {txn.amount.toFixed(2)} {txn.currency}
                 </TableCell>

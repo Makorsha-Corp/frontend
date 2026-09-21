@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { Item } from '@/types/item';
 import ItemCatalogCard from '@/components/newcomponents/customui/items/ItemCatalogCard';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import OrdersOverviewTable, {
   type OrdersOverviewTableColumn,
 } from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
@@ -42,8 +43,10 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
       {
         id: 'id',
         header: 'ID',
-        cellClassName: 'font-mono text-sm text-muted-foreground w-[72px]',
-        cell: (i) => i.id,
+        cellClassName: 'w-[72px]',
+        cell: (i) => (
+          <ReferenceId size="sm">{i.id}</ReferenceId>
+        ),
       },
       {
         id: 'name',

@@ -1,376 +1,176 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LifeBuoy, MessageSquare, Plus } from 'lucide-react';
 
-import AppShellHeader, {
-  appShellHeaderLeftGroupClass,
-  appShellHeaderIconTileClass,
-  appShellHeaderTitleClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
-import AttachmentPanel from '@/components/newcomponents/customui/AttachmentPanel';
-import DiscussionThread from '@/components/newcomponents/customui/DiscussionThread';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import HelpPageShellHeader from '@/components/newcomponents/customui/help/HelpPageShellHeader';
+import HelpTicketCreateDialog, {
+  type HelpTicketCreateFormState,
+} from '@/components/newcomponents/customui/help/HelpTicketCreateDialog';
+import HelpTicketDetailPanel from '@/components/newcomponents/customui/help/HelpTicketDetailPanel';
+import HelpTicketListPanel from '@/components/newcomponents/customui/help/HelpTicketListPanel';
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
+  filterTicketsBySearch,
+  getHelpCopy,
+  STATUS_FILTER_ALL,
+  type HelpStatusFilter,
+} from '@/components/newcomponents/customui/help/helpCopy';
 import {
   useCreateHelpTicketMutation,
   useListHelpTicketsQuery,
   useUpdateHelpTicketMutation,
 } from '@/features/helpTickets/helpTicketsApi';
 import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 import type { HelpTicket, HelpTicketStatus, HelpTicketType } from '@/types/helpTicket';
 
-const STATUS_FILTER_ALL = 'all';
-
 const HelpPage: React.FC = () => {
   const formatDateTime = useFormatDateTimeFromApi();
+  const isLgScreen = useIsLgScreen();
+
   const [activeType, setActiveType] = useState<HelpTicketType>('support');
-  const [statusFilter, setStatusFilter] = useState<HelpTicketStatus | typeof STATUS_FILTER_ALL>(
-    STATUS_FILTER_ALL,
-  );
+  const [statusFilter, setStatusFilter] = useState<HelpStatusFilter>(STATUS_FILTER_ALL);
+  const [searchInput, setSearchInput] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
 
   const listArgs = useMemo(
     () => ({
       type: activeType,
-      ...(statusFilter === STATUS_FILTER_ALL ? {} : { status: statusFilter }),
+      ...(statusFilter === STATUS_FILTER_ALL ? {} : { status: statusFilter as HelpTicketStatus }),
     }),
     [activeType, statusFilter],
   );
+
   const { data: tickets = [], isLoading, isError } = useListHelpTicketsQuery(listArgs);
   const [createTicket, { isLoading: isCreating }] = useCreateHelpTicketMutation();
   const [updateTicket, { isLoading: isUpdating }] = useUpdateHelpTicketMutation();
 
+  const filteredTickets = useMemo(
+    () => filterTicketsBySearch(tickets, searchInput),
+    [tickets, searchInput],
+  );
+
   const selectedTicket: HelpTicket | null = useMemo(
-    () => tickets.find((t) => t.id === selectedId) ?? null,
-    [tickets, selectedId],
+    () => filteredTickets.find((ticket) => ticket.id === selectedId) ?? null,
+    [filteredTickets, selectedId],
   );
 
   useEffect(() => {
-    if (tickets.length === 0) {
+    if (filteredTickets.length === 0) {
       setSelectedId(null);
       return;
     }
-    if (selectedId == null || !tickets.some((t) => t.id === selectedId)) {
-      setSelectedId(tickets[0].id);
+
+    if (isLgScreen) {
+      if (selectedId == null || !filteredTickets.some((ticket) => ticket.id === selectedId)) {
+        setSelectedId(filteredTickets[0].id);
+      }
+      return;
     }
-  }, [tickets, selectedId]);
+
+    if (selectedId != null && !filteredTickets.some((ticket) => ticket.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [filteredTickets, selectedId, isLgScreen]);
 
   useEffect(() => {
-    setSelectedId(null);
+    setSearchInput('');
   }, [activeType]);
 
-  const resetCreateForm = () => {
-    setTitle('');
-    setDescription('');
-    setCategory('');
-  };
+  const copy = getHelpCopy(activeType);
 
-  const handleCreate = async () => {
-    const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
-    if (!trimmedTitle || !trimmedDescription) {
+  const handleCreate = async (form: HelpTicketCreateFormState) => {
+    if (!form.title || !form.description) {
       appToast.error('Title and description are required.');
       return;
     }
+
     try {
       const created = await createTicket({
-        title: trimmedTitle,
-        description: trimmedDescription,
-        category: category.trim() || null,
+        title: form.title,
+        description: form.description,
+        category: form.category || null,
         type: activeType,
       }).unwrap();
-      appToast.success(activeType === 'feedback' ? 'Feedback submitted.' : 'Support ticket created.');
+      appToast.success(copy.createSuccessToast);
       setCreateOpen(false);
-      resetCreateForm();
       setSelectedId(created.id);
     } catch {
-      appToast.error(activeType === 'feedback' ? 'Could not submit feedback.' : 'Could not create ticket.');
+      appToast.error(copy.createErrorToast);
     }
   };
 
-  const isSupport = activeType === 'support';
-  const isFeedback = activeType === 'feedback';
-
   const handleToggleStatus = async () => {
     if (!selectedTicket) return;
-    const nextStatus: HelpTicketStatus =
-      selectedTicket.status === 'open' ? 'closed' : 'open';
+
+    const nextStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
     try {
       await updateTicket({
         ticketId: selectedTicket.id,
         data: { status: nextStatus },
       }).unwrap();
-      appToast.success(nextStatus === 'closed' ? 'Ticket closed.' : 'Ticket reopened.');
+      appToast.success(nextStatus === 'closed' ? copy.statusCloseSuccess : copy.statusReopenSuccess);
     } catch {
-      appToast.error('Could not update ticket status.');
+      appToast.error(copy.statusUpdateError);
     }
   };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <AppShellHeader sticky>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className={appShellHeaderLeftGroupClass}>
-            <div className={appShellHeaderIconTileClass}>
-              {isSupport ? (
-                <LifeBuoy className="h-5 w-5 text-brand-primary" />
-              ) : (
-                <MessageSquare className="h-5 w-5 text-brand-primary" />
-              )}
-            </div>
-            <div>
-              <h1 className={appShellHeaderTitleClass}>Help</h1>
-              <p className="text-xs text-muted-foreground">
-                {isSupport
-                  ? 'Workspace support — bugs, how-to, billing, and more'
-                  : 'Share ideas, suggestions, and product feedback'}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={activeType} onValueChange={(v) => setActiveType(v as HelpTicketType)}>
-              <TabsList>
-                <TabsTrigger value="support">Support</TabsTrigger>
-                <TabsTrigger value="feedback">Feedback</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Select
-              value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as HelpTicketStatus | typeof STATUS_FILTER_ALL)
-              }
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={STATUS_FILTER_ALL}>All</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              {isFeedback ? 'New feedback' : 'New ticket'}
-            </Button>
-          </div>
-        </div>
-      </AppShellHeader>
+      <HelpPageShellHeader
+        activeType={activeType}
+        onActiveTypeChange={setActiveType}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        selectedTicketLabel={selectedTicket?.ticket_number ?? null}
+        onClearSelection={() => setSelectedId(null)}
+        onCreate={() => setCreateOpen(true)}
+      />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="flex w-full shrink-0 flex-col border-r border-border md:w-80 lg:w-96">
-          <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isFeedback ? 'Feedback' : 'Tickets'}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-            ) : isError ? (
-              <p className="p-4 text-sm text-destructive">
-                {isFeedback ? 'Could not load feedback.' : 'Could not load tickets.'}
-              </p>
-            ) : tickets.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">
-                {isFeedback
-                  ? 'No feedback yet. Share your ideas and suggestions.'
-                  : 'No tickets yet. Create one to get support.'}
-              </p>
-            ) : (
-              <ul>
-                {tickets.map((ticket) => {
-                  const isSelected = ticket.id === selectedId;
-                  return (
-                    <li key={ticket.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(ticket.id)}
-                        className={cn(
-                          'w-full border-b border-border/60 px-4 py-3 text-left transition-colors hover:bg-muted/50',
-                          isSelected && 'bg-muted',
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="line-clamp-2 text-sm font-medium">{ticket.title}</span>
-                          <Badge
-                            variant={ticket.status === 'open' ? 'default' : 'secondary'}
-                            className="shrink-0 capitalize"
-                          >
-                            {ticket.status}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{ticket.ticket_number}</p>
-                        {ticket.category ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">{ticket.category}</p>
-                        ) : null}
-                        {ticket.creator_name ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            By {ticket.creator_name}
-                          </p>
-                        ) : null}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatDateTime(ticket.created_at)}
-                        </p>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+        <aside
+          className={cn(
+            'flex w-full shrink-0 flex-col border-r border-border lg:w-96',
+            selectedId != null && 'hidden lg:flex',
+          )}
+        >
+          <HelpTicketListPanel
+            type={activeType}
+            tickets={filteredTickets}
+            selectedId={selectedId}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            onSelect={setSelectedId}
+            isLoading={isLoading}
+            isError={isError}
+            onCreate={() => setCreateOpen(true)}
+          />
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
-          {selectedTicket ? (
-            <div className="mx-auto max-w-3xl space-y-6">
-              <section className="rounded-lg border border-border bg-card p-4 md:p-6">
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {selectedTicket.ticket_number}
-                    </p>
-                    <h2 className="mt-1 text-xl font-semibold">{selectedTicket.title}</h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={selectedTicket.status === 'open' ? 'default' : 'secondary'}
-                      className="capitalize"
-                    >
-                      {selectedTicket.status}
-                    </Badge>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isUpdating}
-                      onClick={handleToggleStatus}
-                    >
-                      {selectedTicket.status === 'open' ? 'Close ticket' : 'Reopen ticket'}
-                    </Button>
-                  </div>
-                </div>
-                {selectedTicket.creator_name ? (
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Filed by {selectedTicket.creator_name}
-                  </p>
-                ) : null}
-                {selectedTicket.category ? (
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Category: {selectedTicket.category}
-                  </p>
-                ) : null}
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {selectedTicket.description}
-                </p>
-                <p className="mt-4 text-xs text-muted-foreground">
-                  Created {formatDateTime(selectedTicket.created_at)}
-                  {selectedTicket.closed_at
-                    ? ` · Closed ${formatDateTime(selectedTicket.closed_at)}`
-                    : null}
-                </p>
-              </section>
-
-              <DiscussionThread
-                entityType="support_ticket"
-                entityId={selectedTicket.id}
-              />
-
-              <section className="rounded-lg border border-border bg-card p-4 md:p-6">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Attachments
-                </h3>
-                <AttachmentPanel
-                  entityType="support_ticket"
-                  entityId={selectedTicket.id}
-                  entityLabel={selectedTicket.ticket_number}
-                />
-              </section>
-            </div>
-          ) : (
-            <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-              {isFeedback
-                ? 'Select feedback or submit a new one.'
-                : 'Select a ticket or create a new one.'}
-            </div>
+        <main
+          className={cn(
+            'min-w-0 flex-1 overflow-y-auto p-4 md:p-6',
+            selectedId == null && 'hidden lg:block',
           )}
+        >
+          <HelpTicketDetailPanel
+            type={activeType}
+            ticket={selectedTicket}
+            formatDateTime={formatDateTime}
+            isUpdating={isUpdating}
+            onToggleStatus={handleToggleStatus}
+            onCreate={() => setCreateOpen(true)}
+          />
         </main>
       </div>
 
-      <Dialog
+      <HelpTicketCreateDialog
         open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) resetCreateForm();
-        }}
-      >
-        <DialogContent className="flex max-h-[66vh] w-[min(36rem,94vw)] max-w-none flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>{isFeedback ? 'Submit feedback' : 'New support ticket'}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 space-y-4 overflow-y-auto py-1">
-            <div className="space-y-2">
-              <Label htmlFor="help-title">Title</Label>
-              <Input
-                id="help-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={200}
-                placeholder={isFeedback ? 'Feedback title' : 'Brief summary'}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="help-category">Category (optional)</Label>
-              <Input
-                id="help-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                maxLength={80}
-                placeholder={isFeedback ? 'e.g. Feature request, Improvement' : 'e.g. Billing, Bug, How-to'}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="help-description">Description</Label>
-              <Textarea
-                id="help-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={6}
-                placeholder={isFeedback ? 'Describe your idea or suggestion…' : 'Describe the issue or question…'}
-              />
-            </div>
-          </div>
-          <DialogFooter className="shrink-0">
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" disabled={isCreating} onClick={handleCreate}>
-              {isFeedback ? 'Submit feedback' : 'Create ticket'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        type={activeType}
+        isSubmitting={isCreating}
+        onOpenChange={setCreateOpen}
+        onSubmit={handleCreate}
+      />
     </div>
   );
 };

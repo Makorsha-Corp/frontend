@@ -1221,7 +1221,7 @@ export default function AttachmentPanel({
                       <span className="line-clamp-2 text-xs">{attachment.file_name}</span>
                     </div>
                   )}
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity group-hover:bg-black/20 group-hover:opacity-100">
                     <ZoomIn className="h-6 w-6 text-white drop-shadow" />
                   </span>
                 </button>

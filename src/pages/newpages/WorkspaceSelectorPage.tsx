@@ -6,6 +6,7 @@ import { useCreateWorkspaceMutation, useAcceptInvitationMutation } from '@/featu
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setWorkspace, logout } from '@/features/auth/authSlice';
 import { useTheme } from '@/context/ThemeContext';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -439,7 +440,7 @@ const WorkspaceSelectorPage: React.FC = () => {
                                     </span>
                                   )}
                                 </div>
-                                <p className="mb-2 font-mono text-xs text-muted-foreground">{ws.slug}</p>
+                                <ReferenceId className="mb-2">{ws.slug}</ReferenceId>
                                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                   Role:{' '}
@@ -482,7 +483,7 @@ const WorkspaceSelectorPage: React.FC = () => {
                                     setInvitePreview(null);
                                   }}
                                   placeholder="e.g. abc123xyz..."
-                                  className="h-9 font-mono text-xs"
+                                  className="h-9 font-reference text-xs"
                                 />
                                 <Button
                                   type="button"
@@ -609,7 +610,7 @@ const WorkspaceSelectorPage: React.FC = () => {
                               setNewWorkspaceSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
                             }}
                             required
-                            className="h-11 font-mono text-sm"
+                            className="h-11 font-reference text-sm"
                           />
                           <p className="text-xs text-muted-foreground">Lowercase letters, numbers and hyphens only</p>
                         </div>

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useGetWorkOrderItemsQuery } from '@/features/workOrders/workOrdersApi';
 import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 import { workOrderDisplayLabel } from '@/pages/newpages/orders/workOrderConstants';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import type { WorkOrder } from '@/types/workOrder';
 
 interface WorkOrderListRowProps {
@@ -30,7 +31,9 @@ const WorkOrderListRow: React.FC<WorkOrderListRowProps> = ({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-card-foreground truncate">{order.work_order_number}</span>
+        <ReferenceId tone="default" weight="medium" className="truncate text-card-foreground">
+          {order.work_order_number}
+        </ReferenceId>
         <Badge variant={order.status === 'COMPLETED' ? 'default' : 'secondary'} className="text-xs shrink-0">
           {order.status}
         </Badge>

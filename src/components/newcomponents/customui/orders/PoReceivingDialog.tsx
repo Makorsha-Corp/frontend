@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { CheckCircle2, ChevronRight, Clock, Loader2, Package, RotateCcw, Truck } from 'lucide-react';
 import { format } from 'date-fns';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -439,8 +440,10 @@ const ReceiveEventRow: React.FC<{ event: PoReceiveEvent }> = ({ event }) => {
               {isReceive ? 'Receipt' : 'Correction'}
             </span>
             {event.rcc && (
-              <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">
-                RCC: {event.rcc}
+              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                <ReferenceId tone="inherit" size="xs">
+                  RCC: {event.rcc}
+                </ReferenceId>
               </Badge>
             )}
             <span className={cn(

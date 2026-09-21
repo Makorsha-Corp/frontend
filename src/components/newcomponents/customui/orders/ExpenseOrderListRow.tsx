@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import { useGetExpenseOrderItemsQuery } from '@/features/expenseOrders/expenseOrdersApi';
@@ -50,7 +51,9 @@ const ExpenseOrderListRow: React.FC<ExpenseOrderListRowProps> = ({
         className="min-w-0 flex-1 text-left px-4 py-3 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium text-card-foreground truncate">{order.expense_number}</span>
+          <ReferenceId tone="default" weight="medium" className="truncate text-card-foreground">
+            {order.expense_number}
+          </ReferenceId>
           <Badge
             variant="secondary"
             className={cn('text-[11px] shrink-0 font-medium', eoStageBadgeClassName(stageName))}

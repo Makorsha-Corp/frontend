@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Trash2 } from 'lucide-react';
 import type { SalesOrder } from '@/types/salesOrder';
@@ -42,7 +43,9 @@ const SalesOrderListRow: React.FC<SalesOrderListRowProps> = ({
       >
         <div className="flex min-w-0 items-center justify-between gap-2.5">
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-            <span className="truncate text-sm font-medium text-card-foreground">{order.sales_order_number}</span>
+            <ReferenceId size="sm" tone="default" weight="medium" className="truncate text-card-foreground">
+              {order.sales_order_number}
+            </ReferenceId>
             <div className="flex shrink-0 flex-wrap items-center gap-1.5">
               {stageBadges.map((badge) => (
                 <Badge key={badge.label} variant="secondary" className={cn('text-[11px] font-medium', badge.className)}>
