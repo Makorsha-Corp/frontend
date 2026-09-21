@@ -6,7 +6,13 @@ import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import PlatformInboxShellHeader from '@/components/newcomponents/customui/platform/PlatformInboxShellHeader';
 import HelpTicketDetailPanel from '@/components/newcomponents/customui/help/HelpTicketDetailPanel';
 import HelpTicketListPanel from '@/components/newcomponents/customui/help/HelpTicketListPanel';
-import { STATUS_FILTER_ALL, getHelpCopy, type HelpStatusFilter } from '@/components/newcomponents/customui/help/helpCopy';
+import {
+  STATUS_FILTER_ALL,
+  getHelpCopy,
+  helpTicketStatusActionSuccess,
+  nextHelpTicketStatus,
+  type HelpStatusFilter,
+} from '@/components/newcomponents/customui/help/helpCopy';
 import {
   useListPlatformHelpTicketsQuery,
   useUpdateHelpTicketMutation,
@@ -162,14 +168,14 @@ const PlatformHelpInboxPage: React.FC<PlatformHelpInboxPageProps> = ({ type }) =
   const handleToggleStatus = async () => {
     if (!selectedTicket) return;
 
-    const nextStatus: HelpTicketStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
+    const nextStatus = nextHelpTicketStatus(selectedTicket.status);
     try {
       await updateTicket({
         ticketId: selectedTicket.id,
         data: { status: nextStatus },
       }).unwrap();
       appToast.success(
-        nextStatus === 'closed' ? copy.statusCloseSuccess : copy.statusReopenSuccess,
+        helpTicketStatusActionSuccess(copy, selectedTicket.status, nextStatus),
       );
     } catch {
       appToast.error(copy.statusUpdateError);

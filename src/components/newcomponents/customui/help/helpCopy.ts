@@ -32,11 +32,38 @@ export interface HelpTypeCopy {
   descriptionPlaceholder: string;
   tipsTitle: string;
   tipsBullets: readonly string[];
+  openLabel: string;
   closeLabel: string;
   reopenLabel: string;
+  statusOpenSuccess: string;
   statusCloseSuccess: string;
   statusReopenSuccess: string;
   statusUpdateError: string;
+}
+
+export function nextHelpTicketStatus(status: HelpTicketStatus): HelpTicketStatus {
+  if (status === 'pending') return 'opened';
+  if (status === 'opened') return 'closed';
+  return 'opened';
+}
+
+export function helpTicketStatusActionLabel(
+  status: HelpTicketStatus,
+  copy: HelpTypeCopy,
+): string {
+  if (status === 'pending') return copy.openLabel;
+  if (status === 'opened') return copy.closeLabel;
+  return copy.reopenLabel;
+}
+
+export function helpTicketStatusActionSuccess(
+  copy: HelpTypeCopy,
+  previousStatus: HelpTicketStatus,
+  nextStatus: HelpTicketStatus,
+): string {
+  if (nextStatus === 'closed') return copy.statusCloseSuccess;
+  if (previousStatus === 'closed') return copy.statusReopenSuccess;
+  return copy.statusOpenSuccess;
 }
 
 const SUPPORT_COPY: HelpTypeCopy = {
@@ -70,8 +97,10 @@ const SUPPORT_COPY: HelpTypeCopy = {
     'Screenshots and attachments help us diagnose quickly',
     'We typically reply within one business day',
   ],
-  closeLabel: 'Close ticket',
-  reopenLabel: 'Reopen ticket',
+  openLabel: 'Open',
+  closeLabel: 'Close',
+  reopenLabel: 'Reopen',
+  statusOpenSuccess: 'Ticket opened.',
   statusCloseSuccess: 'Ticket closed.',
   statusReopenSuccess: 'Ticket reopened.',
   statusUpdateError: 'Could not update ticket status.',
@@ -108,8 +137,10 @@ const FEEDBACK_COPY: HelpTypeCopy = {
     'Note which module or page it relates to',
     'We use feedback to prioritize the roadmap',
   ],
-  closeLabel: 'Close feedback',
-  reopenLabel: 'Reopen feedback',
+  openLabel: 'Open',
+  closeLabel: 'Close',
+  reopenLabel: 'Reopen',
+  statusOpenSuccess: 'Feedback opened.',
   statusCloseSuccess: 'Feedback closed.',
   statusReopenSuccess: 'Feedback reopened.',
   statusUpdateError: 'Could not update feedback status.',

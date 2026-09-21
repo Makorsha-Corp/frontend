@@ -7,7 +7,8 @@ import { STATUS_FILTER_ALL, type HelpStatusFilter } from './helpCopy';
 
 const STATUS_OPTIONS: { value: HelpStatusFilter; label: string }[] = [
   { value: STATUS_FILTER_ALL, label: 'All' },
-  { value: 'open', label: 'Open' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'opened', label: 'Opened' },
   { value: 'closed', label: 'Closed' },
 ];
 

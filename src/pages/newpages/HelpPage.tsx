@@ -15,7 +15,6 @@ import {
 import {
   useCreateHelpTicketMutation,
   useListHelpTicketsQuery,
-  useUpdateHelpTicketMutation,
 } from '@/features/helpTickets/helpTicketsApi';
 import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
@@ -43,7 +42,6 @@ const HelpPage: React.FC = () => {
 
   const { data: tickets = [], isLoading, isError } = useListHelpTicketsQuery(listArgs);
   const [createTicket, { isLoading: isCreating }] = useCreateHelpTicketMutation();
-  const [updateTicket, { isLoading: isUpdating }] = useUpdateHelpTicketMutation();
 
   const filteredTickets = useMemo(
     () => filterTicketsBySearch(tickets, searchInput),
@@ -100,21 +98,6 @@ const HelpPage: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async () => {
-    if (!selectedTicket) return;
-
-    const nextStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
-    try {
-      await updateTicket({
-        ticketId: selectedTicket.id,
-        data: { status: nextStatus },
-      }).unwrap();
-      appToast.success(nextStatus === 'closed' ? copy.statusCloseSuccess : copy.statusReopenSuccess);
-    } catch {
-      appToast.error(copy.statusUpdateError);
-    }
-  };
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <HelpPageShellHeader
@@ -157,8 +140,6 @@ const HelpPage: React.FC = () => {
             type={activeType}
             ticket={selectedTicket}
             formatDateTime={formatDateTime}
-            isUpdating={isUpdating}
-            onToggleStatus={handleToggleStatus}
             onCreate={() => setCreateOpen(true)}
           />
         </main>

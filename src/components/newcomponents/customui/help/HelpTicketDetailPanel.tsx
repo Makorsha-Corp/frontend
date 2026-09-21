@@ -8,15 +8,15 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { HelpTicket, HelpTicketType } from '@/types/helpTicket';
 
-import { getHelpCopy } from './helpCopy';
+import { getHelpCopy, helpTicketStatusActionLabel } from './helpCopy';
 import HelpTicketStatusBadge from './HelpTicketStatusBadge';
 
 interface HelpTicketDetailPanelProps {
   type: HelpTicketType;
   ticket: HelpTicket | null;
   formatDateTime: (value: string) => string;
-  isUpdating: boolean;
-  onToggleStatus: () => void;
+  isUpdating?: boolean;
+  onToggleStatus?: () => void;
   onCreate: () => void;
   workspaceName?: string;
   emptyDetailMessage?: string;
@@ -52,7 +52,7 @@ const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
   type,
   ticket,
   formatDateTime,
-  isUpdating,
+  isUpdating = false,
   onToggleStatus,
   onCreate,
   workspaceName,
@@ -124,15 +124,17 @@ const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <HelpTicketStatusBadge status={ticket.status} size="toolbar" />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isUpdating}
-              onClick={onToggleStatus}
-            >
-              {ticket.status === 'open' ? copy.closeLabel : copy.reopenLabel}
-            </Button>
+            {onToggleStatus ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUpdating}
+                onClick={onToggleStatus}
+              >
+                {helpTicketStatusActionLabel(ticket.status, copy)}
+              </Button>
+            ) : null}
           </div>
         </div>
 

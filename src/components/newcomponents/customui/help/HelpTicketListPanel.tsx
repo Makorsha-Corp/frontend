@@ -109,10 +109,15 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 flex-1 items-start gap-2">
-                        {ticket.status === 'open' ? (
+                        {ticket.status === 'pending' ? (
+                          <span
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500"
+                            aria-label="Pending"
+                          />
+                        ) : ticket.status === 'opened' ? (
                           <span
                             className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500"
-                            aria-label="Open"
+                            aria-label="Opened"
                           />
                         ) : (
                           <span className="mt-1.5 h-2 w-2 shrink-0" aria-hidden />

@@ -1,4 +1,4 @@
-export type HelpTicketStatus = 'open' | 'closed';
+export type HelpTicketStatus = 'pending' | 'opened' | 'closed';
 export type HelpTicketType = 'support' | 'feedback';
 
 export interface HelpTicket {
