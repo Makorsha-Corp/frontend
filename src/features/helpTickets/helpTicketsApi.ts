@@ -4,6 +4,7 @@ import type {
   HelpTicket,
   HelpTicketCreate,
   HelpTicketStatus,
+  HelpTicketType,
   HelpTicketUpdate,
   PlatformHelpTicket,
 } from '@/types/helpTicket';
@@ -15,11 +16,12 @@ export const helpTicketsApi = createApi({
   endpoints: (builder) => ({
     listHelpTickets: builder.query<
       HelpTicket[],
-      { status?: HelpTicketStatus; skip?: number; limit?: number } | void
+      { status?: HelpTicketStatus; type?: HelpTicketType; skip?: number; limit?: number } | void
     >({
       query: (params) => {
         const search = new URLSearchParams();
         if (params?.status) search.set('status', params.status);
+        if (params?.type) search.set('type', params.type);
         if (params?.skip != null) search.set('skip', String(params.skip));
         if (params?.limit != null) search.set('limit', String(params.limit));
         const qs = search.toString();
@@ -63,11 +65,12 @@ export const helpTicketsApi = createApi({
     }),
     listPlatformHelpTickets: builder.query<
       PlatformHelpTicket[],
-      { status?: HelpTicketStatus; search?: string; skip?: number; limit?: number } | void
+      { status?: HelpTicketStatus; type?: HelpTicketType; search?: string; skip?: number; limit?: number } | void
     >({
       query: (params) => {
         const search = new URLSearchParams();
         if (params?.status) search.set('status', params.status);
+        if (params?.type) search.set('type', params.type);
         if (params?.search) search.set('search', params.search);
         if (params?.skip != null) search.set('skip', String(params.skip));
         if (params?.limit != null) search.set('limit', String(params.limit));
