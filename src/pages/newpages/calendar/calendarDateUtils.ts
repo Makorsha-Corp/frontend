@@ -88,6 +88,60 @@ export function isViewingCurrentPeriod(view: CalendarView, anchorDate: string): 
   return isSameDay(anchor, now);
 }
 
+function formatInclusiveDateRangeLabel(from: Date, to: Date): string {
+  const fromYear = getYear(from);
+  const toYear = getYear(to);
+  const fromMonth = getMonth(from);
+  const toMonth = getMonth(to);
+
+  if (fromYear === toYear && fromMonth === toMonth) {
+    return `${format(from, 'MMM d')} – ${format(to, 'd, yyyy')}`;
+  }
+  if (fromYear === toYear) {
+    return `${format(from, 'MMM d')} – ${format(to, 'MMM d, yyyy')}`;
+  }
+  return `${format(from, 'MMM d, yyyy')} – ${format(to, 'MMM d, yyyy')}`;
+}
+
+/** Header period label for the active calendar view. */
+export function formatPeriodLabel(view: CalendarView, anchorDate: string): string {
+  const anchor = parseCalendarDate(anchorDate);
+
+  if (view === 'month') {
+    return format(anchor, 'MMM yyyy');
+  }
+
+  if (view === 'day') {
+    return format(anchor, 'EEEE, MMM d, yyyy');
+  }
+
+  if (view === 'week') {
+    const from = startOfWeek(anchor, { weekStartsOn: CALENDAR_WEEK_STARTS_ON });
+    const to = endOfWeek(anchor, { weekStartsOn: CALENDAR_WEEK_STARTS_ON });
+    return formatInclusiveDateRangeLabel(from, to);
+  }
+
+  const range = getVisibleRange('agenda', anchorDate);
+  const from = parseCalendarDate(range.start);
+  const to = parseCalendarDate(range.end);
+  return formatInclusiveDateRangeLabel(from, to);
+}
+
+const PERIOD_STEP_UNIT: Record<CalendarView, string> = {
+  month: 'month',
+  week: 'week',
+  day: 'day',
+  agenda: 'week',
+};
+
+export function getPeriodStepAriaLabel(
+  view: CalendarView,
+  direction: 'previous' | 'next',
+): string {
+  const unit = PERIOD_STEP_UNIT[view];
+  return direction === 'previous' ? `Previous ${unit}` : `Next ${unit}`;
+}
+
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => ({
   value: String(index),
   label: format(new Date(2024, index, 1), 'MMMM'),

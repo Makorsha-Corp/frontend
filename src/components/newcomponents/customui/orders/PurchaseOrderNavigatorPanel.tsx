@@ -6,7 +6,8 @@ import OrderHubPagination from '@/components/newcomponents/customui/orders/Order
 import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { cn } from '@/lib/utils';
-import { ShoppingCart, Plus, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ShoppingCart, Plus, Loader2 } from 'lucide-react';
+import { TourSampleListRow } from '@/components/newcomponents/customui/helpGuides/TourSampleChrome';
 
 export interface PurchaseOrderNavigatorPanelProps {
   orders: PurchaseOrder[];
@@ -18,9 +19,6 @@ export interface PurchaseOrderNavigatorPanelProps {
   offPageSelectedLabel?: string | null;
   isLoading: boolean;
   hasActiveFilters: boolean;
-  activeFilterCount: number;
-  filtersOpen: boolean;
-  onToggleFilters: () => void;
   showCompleteOrders: boolean;
   onShowCompleteOrdersChange: (value: boolean) => void;
   emptyHintNoOpen?: boolean;
@@ -32,6 +30,11 @@ export interface PurchaseOrderNavigatorPanelProps {
   formatCurrency: (v: number | null | undefined) => string;
   formatDate: (d: string | null | undefined) => string;
   className?: string;
+  showSample?: boolean;
+  /** When true with showSample, only the sample row is listed (tour mode). */
+  hideRealOrders?: boolean;
+  sampleSelected?: boolean;
+  onSelectSample?: () => void;
 }
 
 const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = ({
@@ -43,9 +46,6 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
   selectedOrderId,
   isLoading,
   hasActiveFilters,
-  activeFilterCount,
-  filtersOpen,
-  onToggleFilters,
   showCompleteOrders,
   onShowCompleteOrdersChange,
   offPageSelectedLabel = null,
@@ -58,53 +58,46 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
   formatCurrency,
   formatDate,
   className,
+  showSample = false,
+  hideRealOrders = false,
+  sampleSelected = false,
+  onSelectSample,
 }) => {
+  const tourListOnly = showSample && hideRealOrders;
   return (
     <div
+      data-help-tour="purchase.navigator"
       className={cn(
         'flex h-full shrink-0 flex-col border-r border-border bg-card w-full min-w-0 lg:w-[360px]',
         className
       )}
     >
       {/* Header */}
-      <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
-            Orders
-            <span className="ml-2 font-normal text-muted-foreground">
-              ({ordersTotal})
-            </span>
-          </h2>
-          <ShowCompleteOrdersSwitchControl
-            checked={showCompleteOrders}
-            onCheckedChange={onShowCompleteOrdersChange}
-            context="list"
-            tooltipSide="bottom"
-            tooltipAlign="start"
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onToggleFilters}
-          aria-expanded={filtersOpen}
-          aria-controls="po-filters-bar"
-          className={cn(
-            'shrink-0 h-8 border-border bg-background',
-            filtersOpen &&
-              'bg-gray-100 text-foreground hover:bg-gray-200 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 dark:border-gray-600',
-            activeFilterCount > 0 && !filtersOpen && 'border-brand-primary/40 text-brand-primary'
-          )}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
-          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-        </Button>
+      <div className={cn(ORDER_PANEL_HEADER_CLASS, 'gap-2 px-4')}>
+        <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
+          Orders
+          <span className="ml-2 font-normal text-muted-foreground">({ordersTotal})</span>
+        </h2>
+        <ShowCompleteOrdersSwitchControl
+          checked={showCompleteOrders}
+          onCheckedChange={onShowCompleteOrdersChange}
+          context="list"
+          tooltipSide="bottom"
+          tooltipAlign="start"
+        />
       </div>
 
       {/* List */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {isLoading ? (
+        {showSample && onSelectSample ? (
+          <TourSampleListRow
+            title="Sample purchase order"
+            subtitle="Tour only — resets when the guide ends"
+            selected={sampleSelected}
+            onSelect={onSelectSample}
+          />
+        ) : null}
+        {tourListOnly ? null : isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
             <p className="text-sm text-muted-foreground">Loading orders...</p>
@@ -159,7 +152,7 @@ const PurchaseOrderNavigatorPanel: React.FC<PurchaseOrderNavigatorPanelProps> = 
         )}
       </div>
 
-      {ordersTotal > 0 ? (
+      {!tourListOnly && ordersTotal > 0 ? (
         <OrderHubPagination
           page={listPage}
           total={ordersTotal}

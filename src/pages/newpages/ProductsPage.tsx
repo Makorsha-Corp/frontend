@@ -63,14 +63,8 @@ const ProductsPage: React.FC = () => {
   const [factoryPickerOpen, setFactoryPickerOpen] = useState(false);
   const {
     highlighted: factoryPickerHighlight,
-    pulseHighlight: pulseFactoryPickerHighlight,
     dismissHighlight: dismissFactoryPickerHighlight,
   } = useScrollTargetHighlight();
-
-  const promptFactorySelect = useCallback(() => {
-    pulseFactoryPickerHighlight();
-    setFactoryPickerOpen(true);
-  }, [pulseFactoryPickerHighlight]);
 
   useEffect(() => {
     if (factoryId != null) {
@@ -265,7 +259,6 @@ const ProductsPage: React.FC = () => {
             forSaleOnly={forSaleOnly}
             onForSaleOnlyChange={setForSaleOnly}
             onAdd={handleAddProduct}
-            onRequireFactory={promptFactorySelect}
             onEdit={setEditingProduct}
             onDelete={handleDeleteProduct}
             paginationFooter={
@@ -287,7 +280,8 @@ const ProductsPage: React.FC = () => {
       <AddProductDialog
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
-        factoryId={factoryId ?? 0}
+        factoryId={factoryId}
+        factories={factories.map((factory) => ({ id: factory.id, name: factory.name }))}
         onSuccess={() => {}}
       />
       <EditProductDialog

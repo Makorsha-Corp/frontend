@@ -22,8 +22,14 @@ export function advanceNextGenerationDate(
   fromDate: Date,
   recurrenceType: string | null | undefined,
   recurrenceDay: number | null | undefined,
+  intervalDays?: number | null,
 ): Date {
   const type = recurrenceType ?? 'weekly';
+
+  if (type === 'custom') {
+    const step = intervalDays && intervalDays > 0 ? intervalDays : 1;
+    return addDays(fromDate, step);
+  }
 
   if (type === 'daily') {
     return addDays(fromDate, 1);
@@ -56,6 +62,7 @@ export function listPlannedRecurrenceDates(
   startIso: string,
   endIso: string,
   recurrenceType: string | null | undefined,
+  intervalDays?: number | null,
 ): string[] {
   if (!startIso || !endIso) return [];
   if (validateRecurrenceSpan(startIso, endIso)) return [];
@@ -69,7 +76,7 @@ export function listPlannedRecurrenceDates(
 
   let cursor = start;
   for (let guard = 0; guard < 400; guard += 1) {
-    const next = advanceNextGenerationDate(cursor, recurrenceType, recurrenceDay);
+    const next = advanceNextGenerationDate(cursor, recurrenceType, recurrenceDay, intervalDays);
     if (next > end) break;
     dates.push(format(next, 'yyyy-MM-dd'));
     cursor = next;

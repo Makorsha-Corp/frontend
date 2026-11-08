@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, Loader2, Package, Plus, Truck, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { parseCalendarDate, todayLocalDateKey } from '@/lib/heatmapDateKey';
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -419,7 +420,7 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
           <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {format(new Date(delivery.actual_delivery_date ?? delivery.scheduled_date ?? delivery.created_at), 'MMM d, yyyy')}
+              {format(parseCalendarDate(delivery.actual_delivery_date ?? delivery.scheduled_date ?? delivery.created_at), 'MMM d, yyyy')}
             </span>
           </div>
         </div>
@@ -451,7 +452,7 @@ const DeliveryRow: React.FC<{ delivery: SalesDelivery; deliveryMethods: Delivery
             deliveryItems.map((item) => (
               <div key={item.id} className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground truncate">
-                  {item.item_id != null ? `Item #${item.item_id}` : 'Misc line'}
+                  {item.item_name || (item.item_id != null ? `Item #${item.item_id}` : 'Misc line')}
                 </span>
                 <span className="tabular-nums font-medium shrink-0 ml-2">{item.quantity_delivered}</span>
               </div>
@@ -485,7 +486,7 @@ const ManageDeliveryDialog: React.FC<{
   const [deliveryMethodId, setDeliveryMethodId] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [actualDeliveryDate, setActualDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [actualDeliveryDate, setActualDeliveryDate] = useState(() => todayLocalDateKey());
   const [completionCode, setCompletionCode] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editDelivery, { isLoading: saving }] = useEditSalesDeliveryMutation();
@@ -499,7 +500,7 @@ const ManageDeliveryDialog: React.FC<{
     setDeliveryMethodId(delivery.delivery_method_id != null ? String(delivery.delivery_method_id) : '');
     setTrackingNumber(delivery.tracking_number ?? '');
     setNotes(delivery.notes ?? '');
-    setActualDeliveryDate(new Date().toISOString().slice(0, 10));
+    setActualDeliveryDate(todayLocalDateKey());
     setCompletionCode('');
     setConfirmingDelete(false);
   }, [open, delivery]);

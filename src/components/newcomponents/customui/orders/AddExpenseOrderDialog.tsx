@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/
 import { ALLOCATION_TYPES, expenseCategoryLabel, type AllocationTypeValue } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { cn } from '@/lib/utils';
+import { ProductionBatchPicker } from '@/components/newcomponents/customui/production/ProductionBatchPicker';
 
 const formatMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -55,9 +57,10 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const [accountId, setAccountId] = useState<string>('none');
   const [allocationType, setAllocationType] = useState<AllocationTypeValue>('factory');
   const [costCenterId, setCostCenterId] = useState<string>('none');
-  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [expenseDate, setExpenseDate] = useState(() => todayLocalDateKey());
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
+  const [productionBatchId, setProductionBatchId] = useState('');
   const [items, setItems] = useState<
     Array<{
       description: string;
@@ -119,9 +122,10 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     setAccountId('none');
     setAllocationType('factory');
     setCostCenterId('none');
-    setExpenseDate(new Date().toISOString().slice(0, 10));
+    setExpenseDate(todayLocalDateKey());
     setDueDate('');
     setDescription('');
+    setProductionBatchId('');
     setItems([]);
     setLineDescription('');
     setLineQty('1');
@@ -221,6 +225,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       expense_date: expenseDate || undefined,
       due_date: dueDate || undefined,
       description: description.trim(),
+      production_batch_id: productionBatchId ? Number(productionBatchId) : undefined,
       items: items.map(
         (i): CreateExpenseOrderItem => ({
           description: i.description,
@@ -455,6 +460,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           className="mt-1"
         />
       </div>
+      <ProductionBatchPicker value={productionBatchId} onChange={setProductionBatchId} />
     </div>
   );
 

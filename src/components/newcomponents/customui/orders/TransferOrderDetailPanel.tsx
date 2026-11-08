@@ -323,7 +323,7 @@ const TransferOrderDetailPanel: React.FC<TransferOrderDetailPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+    <div data-help-tour="transfer.detail" className="flex flex-col h-full min-h-0 overflow-hidden">
       <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
         <ToApprovalsTopBar
             orderId={order.id}

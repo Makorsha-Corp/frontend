@@ -2,12 +2,11 @@ import React, { useMemo } from 'react';
 import { CalendarDays, Loader2 } from 'lucide-react';
 import AppShellHeader, {
   appShellHeaderIconTileClass,
-  appShellHeaderLeftGroupClass,
   appShellHeaderScopeSeparatorClass,
   appShellHeaderTitleClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
 import CalendarToolbar from '@/components/newcomponents/customui/calendar/CalendarToolbar';
-import CategoryLegendChips from '@/components/newcomponents/customui/calendar/CategoryLegendChips';
+import CalendarTypesFilterPopover from '@/components/newcomponents/customui/calendar/CalendarTypesFilterPopover';
 import CalendarMonthGrid from '@/components/newcomponents/customui/calendar/CalendarMonthGrid';
 import CalendarWeekView from '@/components/newcomponents/customui/calendar/CalendarWeekView';
 import CalendarDayView from '@/components/newcomponents/customui/calendar/CalendarDayView';
@@ -21,6 +20,10 @@ import {
   groupEventsByDate,
 } from './calendarDateUtils';
 import { useCalendarFilters } from './useCalendarFilters';
+import {
+  calendarGridViewportClass,
+  calendarPageBodyClass,
+} from '@/components/newcomponents/customui/calendar/calendarPageStyles';
 
 const CalendarPage: React.FC = () => {
   const {
@@ -33,16 +36,24 @@ const CalendarPage: React.FC = () => {
     setAnchorDate,
     openDayView,
     toggleCategory,
-    showAllCategories,
+    toggleAllCategories,
   } = useCalendarFilters();
 
-  const { data, isLoading, isFetching, error } = useGetCalendarEventsQuery({
-    start: visibleRange.start,
-    end: visibleRange.end,
-    types: activeCategories,
-  });
+  const hasTypeFilter = activeCategories.length > 0;
 
-  const events = useMemo(() => data?.events ?? [], [data]);
+  const { data, isLoading, isFetching, error } = useGetCalendarEventsQuery(
+    {
+      start: visibleRange.start,
+      end: visibleRange.end,
+      types: hasTypeFilter ? activeCategories : undefined,
+    },
+    { skip: !hasTypeFilter },
+  );
+
+  const events = useMemo(
+    () => (hasTypeFilter ? data?.events ?? [] : []),
+    [hasTypeFilter, data],
+  );
 
   const eventsByDate = useMemo(() => groupEventsByDate(events), [events]);
 
@@ -70,7 +81,7 @@ const CalendarPage: React.FC = () => {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeader sticky>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className={appShellHeaderLeftGroupClass}>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 lg:gap-3">
               <div className={appShellHeaderIconTileClass}>
                 <CalendarDays className="h-5 w-5 text-brand-primary" />
               </div>
@@ -84,8 +95,6 @@ const CalendarPage: React.FC = () => {
                 onViewChange={setView}
                 onAnchorDateChange={setAnchorDate}
               />
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
               <CalendarToolbar
                 variant="header"
                 part="views"
@@ -94,6 +103,13 @@ const CalendarPage: React.FC = () => {
                 onViewChange={setView}
                 onAnchorDateChange={setAnchorDate}
               />
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-3">
+              <CalendarTypesFilterPopover
+                activeCategories={activeCategories}
+                onToggle={toggleCategory}
+                onToggleAll={toggleAllCategories}
+              />
               {(isLoading || isFetching) && (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading events" />
               )}
@@ -101,20 +117,14 @@ const CalendarPage: React.FC = () => {
           </div>
         </AppShellHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6">
-          <CategoryLegendChips
-            activeCategories={activeCategories}
-            onToggle={toggleCategory}
-            onShowAll={showAllCategories}
-          />
-
+        <div className={calendarPageBodyClass}>
           {error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+            <div className="shrink-0 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive">
               Failed to load calendar events. Please try again.
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className={calendarGridViewportClass}>
             {view === 'month' && (
               <CalendarMonthGrid days={monthDays} onSelectDay={openDayView} />
             )}

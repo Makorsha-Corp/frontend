@@ -1,19 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
-import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
+import ExpenseOrderHeaderFilters from '@/components/newcomponents/customui/orders/ExpenseOrderHeaderFilters';
+import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   useGetExpenseOrdersPageQuery,
   useGetExpenseOrderHubStatsQuery,
@@ -22,26 +13,27 @@ import {
 } from '@/features/expenseOrders/expenseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import type { ExpenseOrder } from '@/types/expenseOrder';
-import { Receipt, CalendarIcon, X } from 'lucide-react';
+import { Receipt, LayoutTemplate } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import AddExpenseOrderDialog from '@/components/newcomponents/customui/orders/AddExpenseOrderDialog';
 import ManageExpenseTemplatesDialog from '@/components/newcomponents/customui/orders/ManageExpenseTemplatesDialog';
 import ExpenseOrderDetailPanel from '@/components/newcomponents/customui/orders/ExpenseOrderDetailPanel';
 import ExpenseOrdersOverviewPanel from '@/components/newcomponents/customui/orders/ExpenseOrdersOverviewPanel';
 import ExpenseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/ExpenseOrderNavigatorPanel';
-import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
-import {
-  ALLOCATION_TYPES,
-} from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import { API_LIMITS } from '@/constants/apiLimits';
-import {
-  type InvoiceFilter,
-  type ExpenseOrderSummaryStats,
-} from './expenseOrdersOverviewData';
+import { type ExpenseOrderSummaryStats } from './expenseOrdersOverviewData';
 import { EO_STAGE_FILTER_OPTIONS } from '@/components/newcomponents/customui/orders/expenseOrderMilestones';
-import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
+import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
+import {
+  useCloseFiltersOnTourEvent,
+  useOpenFiltersOnTourEvent,
+  useResetSelectionWhenTourStarts,
+  useTourSampleDetail,
+} from '@/features/helpGuides/useTourPreview';
+import ExpenseOrderTourSampleDetail from '@/components/newcomponents/customui/helpGuides/ExpenseOrderTourSampleDetail';
 import {
   clearExpenseOrderFilterParams,
   hasActiveListFilters,
@@ -66,8 +58,8 @@ const ExpenseOrdersPage: React.FC = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
-  const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
-    hasActiveListFilters(new URLSearchParams(window.location.search), 'expense')
+  const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(() =>
+    hasActiveListFilters(new URLSearchParams(window.location.search), 'expense'),
   );
   const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
@@ -81,7 +73,7 @@ const ExpenseOrdersPage: React.FC = () => {
 
   const urlFilters = useMemo(
     () => parseExpenseOrderParams(searchParams, eoStatusOptions),
-    [searchParams, eoStatusOptions]
+    [searchParams, eoStatusOptions],
   );
 
   const listPage = parseOrderHubPage(searchParams.get(ORDER_HUB_PAGE_PARAMS.expense));
@@ -196,6 +188,15 @@ const ExpenseOrdersPage: React.FC = () => {
     selectedByIdError,
   });
 
+  useAutoHelpGuide({
+    tourId: HELP_GUIDE_TOUR_ID.expenseOrders,
+    when: !isLoading,
+  });
+
+  const tourSample = useTourSampleDetail([HELP_GUIDE_TOUR_ID.expenseOrders]);
+  useOpenFiltersOnTourEvent('eo-filters-bar', setFiltersPopoverOpen);
+  useCloseFiltersOnTourEvent('eo-filters-bar', setFiltersPopoverOpen);
+
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
@@ -245,6 +246,11 @@ const ExpenseOrdersPage: React.FC = () => {
     });
   };
 
+  useResetSelectionWhenTourStarts(tourSample.tourActive, () => {
+    tourSample.closeSample();
+    setSelectedOrder(null);
+  });
+
   const formatCurrency = (v: number | null | undefined) =>
     v != null
       ? new Intl.NumberFormat('en-US', {
@@ -265,29 +271,12 @@ const ExpenseOrdersPage: React.FC = () => {
     accountFilter !== 'all' ||
     categoryFilter !== 'all' ||
     invoiceFilter !== 'all' ||
+    showCompleteOrders ||
     searchQuery.trim().length > 0;
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilters.length > 0) count += 1;
-    if (accountFilter !== 'all') count += 1;
-    if (categoryFilter !== 'all') count += 1;
-    if (invoiceFilter !== 'all') count += 1;
-    if (searchQuery.trim().length > 0) count += 1;
-    return count;
-  }, [
-    dateRange.from,
-    dateRange.to,
-    statusFilters,
-    accountFilter,
-    categoryFilter,
-    invoiceFilter,
-    searchQuery,
-  ]);
 
   const clearFilters = () => {
     setSelectedOrderId(null);
+    setFiltersPopoverOpen(false);
     setSearchParams(
       (prev) => {
         const next = clearExpenseOrderFilterParams(prev);
@@ -310,6 +299,22 @@ const ExpenseOrdersPage: React.FC = () => {
     }
   };
 
+  const manageTemplatesButton = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => setManageTemplatesOpen(true)}
+      title="Templates"
+      aria-label="Templates"
+      className={cn('shrink-0 gap-1.5 border-border bg-background', appShellHeaderControlClass)}
+      data-help-tour="expense.manage-templates"
+    >
+      <LayoutTemplate className="h-4 w-4" />
+      Templates
+    </Button>
+  );
+
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -327,130 +332,40 @@ const ExpenseOrdersPage: React.FC = () => {
           onAdd={() => setIsAddOpen(true)}
           addButtonLabel="Add Expense Order"
           addAriaLabel="Add expense order"
-        />
-
-        {filtersBarOpen ? (
-          <div
-            id="eo-filters-bar"
-            className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
-          >
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange.from ? (
-                    dateRange.to ? (
-                      `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
-                    ) : (
-                      format(dateRange.from, 'MMM d')
-                    )
-                  ) : (
-                    'All dates'
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(r) =>
-                    commitExpenseFilters({ dateRange: { from: r?.from, to: r?.to } })
-                  }
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-            <span className="text-xs text-muted-foreground">Filters by expense date</span>
-
-            <OrderStatusMultiFilter
-              options={eoStatusOptions}
-              selectedIds={statusFilters}
-              onChange={(selectedIds) => commitExpenseFilters({ statusFilters: selectedIds })}
-              triggerClassName="w-[160px]"
+          helpGuideKind="expense"
+          headerToolbarLeading={manageTemplatesButton}
+          headerToolbarExtras={
+            <ExpenseOrderHeaderFilters
+              open={filtersPopoverOpen}
+              onOpenChange={setFiltersPopoverOpen}
+              dateRange={dateRange}
+              onDateRangeChange={(next) => commitExpenseFilters({ dateRange: next })}
+              statusFilters={statusFilters}
+              onStatusFiltersChange={(selectedIds) =>
+                commitExpenseFilters({ statusFilters: selectedIds })
+              }
+              eoStatusOptions={eoStatusOptions}
+              accountFilter={accountFilter}
+              onAccountFilterChange={(value) => commitExpenseFilters({ accountFilter: value })}
+              accounts={accounts}
+              categoryFilter={categoryFilter}
+              onCategoryFilterChange={(value) => commitExpenseFilters({ categoryFilter: value })}
+              invoiceFilter={invoiceFilter}
+              onInvoiceFilterChange={(value) => commitExpenseFilters({ invoiceFilter: value })}
+              showCompleteOrders={showCompleteOrders}
+              onShowCompleteOrdersChange={(value) =>
+                commitExpenseFilters({ showCompleteOrders: value })
+              }
+              onClearFilters={clearFilters}
             />
-
-            <Select
-              value={accountFilter}
-              onValueChange={(value) => commitExpenseFilters({ accountFilter: value })}
-            >
-              <SelectTrigger className="w-[160px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Account" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All accounts</SelectItem>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={categoryFilter}
-              onValueChange={(value) => commitExpenseFilters({ categoryFilter: value })}
-            >
-              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {ALLOCATION_TYPES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={invoiceFilter}
-              onValueChange={(v) => commitExpenseFilters({ invoiceFilter: v as InvoiceFilter })}
-            >
-              <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Invoice" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All invoices</SelectItem>
-                <SelectItem value="invoiced">Invoiced</SelectItem>
-                <SelectItem value="not_invoiced">Not invoiced</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="ml-auto flex items-center gap-2">
-              <ShowCompleteOrdersSwitchControl
-                checked={showCompleteOrders}
-                onCheckedChange={(value) =>
-                  commitExpenseFilters({ showCompleteOrders: value })
-                }
-                context="list"
-              />
-              {activeFilterCount > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={clearFilters}
-                  aria-label="Clear filters"
-                  title="Clear filters"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+          }
+        />
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           <ExpenseOrderNavigatorPanel
             className={cn(
-              selectedOrder && 'max-lg:hidden',
-              !isLgScreen && 'flex-1 border-r-0'
+              (selectedOrder || tourSample.sampleOpen) && 'max-lg:hidden',
+              !isLgScreen && 'flex-1 border-r-0',
             )}
             orders={orders}
             ordersTotal={ordersTotal}
@@ -463,14 +378,24 @@ const ExpenseOrdersPage: React.FC = () => {
             }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
-            activeFilterCount={activeFilterCount}
-            filtersOpen={filtersBarOpen}
-            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={(value) =>
+              commitExpenseFilters({ showCompleteOrders: value })
+            }
             emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
-            onSelectOrder={(id) => setSelectedOrder(id)}
+            onSelectOrder={(id) => {
+              tourSample.closeSample();
+              setSelectedOrder(id);
+            }}
+            showSample={tourSample.tourActive}
+            hideRealOrders={tourSample.tourActive}
+            sampleSelected={tourSample.sampleOpen}
+            onSelectSample={() => {
+              setSelectedOrder(null);
+              tourSample.openSample();
+            }}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
-            onManageTemplates={() => setManageTemplatesOpen(true)}
             accountName={accountName}
             formatCurrency={formatCurrency}
             formatDate={formatDate}
@@ -479,10 +404,12 @@ const ExpenseOrdersPage: React.FC = () => {
           <div
             className={cn(
               'flex-1 min-w-0 min-h-0 overflow-hidden',
-              !selectedOrder && 'max-lg:hidden'
+              !selectedOrder && !tourSample.sampleOpen && 'max-lg:hidden',
             )}
           >
-            {selectedOrder ? (
+            {tourSample.sampleOpen ? (
+              <ExpenseOrderTourSampleDetail />
+            ) : selectedOrder ? (
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 {isOffFilteredPage ? (
                   <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.expense_number} />
@@ -502,7 +429,11 @@ const ExpenseOrdersPage: React.FC = () => {
                 hubStats={hubStats}
                 isLoading={isLoading || statsLoading}
                 formatCurrency={formatCurrency}
-                onSelectOrder={(id) => setSelectedOrder(id)}
+                hideOrderLists={tourSample.tourActive}
+                onSelectOrder={(id) => {
+                  tourSample.closeSample();
+                  setSelectedOrder(id);
+                }}
                 onCategoryFilter={handleOverviewCategoryFilter}
               />
             ) : null}

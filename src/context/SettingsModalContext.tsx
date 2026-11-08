@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 
 import UserSettingsModal from '@/components/newcomponents/customui/UserSettingsModal';
 
-export type SettingsSectionId = 'general';
+export type SettingsSectionId = 'general' | 'shifts';
 
 interface SettingsModalContextValue {
   isOpen: boolean;
@@ -41,7 +41,12 @@ export function SettingsModalProvider({ children }: { children: React.ReactNode 
   return (
     <SettingsModalContext.Provider value={value}>
       {children}
-      <UserSettingsModal />
+      <UserSettingsModal
+        isOpen={isOpen}
+        activeSection={activeSection}
+        closeSettings={closeSettings}
+        setActiveSection={setActiveSection}
+      />
     </SettingsModalContext.Provider>
   );
 }

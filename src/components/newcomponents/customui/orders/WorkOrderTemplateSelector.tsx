@@ -8,8 +8,6 @@ import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '
 import { WorkOrderTemplateSelectSummaryButton } from './WorkOrderTemplateSelectSummaryButton';
 import WorkOrderTemplateSelectorDialog from './WorkOrderTemplateSelectorDialog';
 import WorkProgramSummaryStrip from './WorkProgramSummaryStrip';
-import { formatRecurrenceCadence } from '@/pages/newpages/orders/workOrderTemplateLabels';
-
 export interface WorkOrderTemplateSelectorProps {
   value: string;
   onValueChange: (value: string) => void;
@@ -113,10 +111,8 @@ const WorkOrderTemplateSelector: React.FC<WorkOrderTemplateSelectorProps> = ({
             ? `Change template. Current: ${selectedTemplate.template_name}`
             : 'Select template'
         }
-        selectedName={selectedTemplate?.template_name ?? 'No template'}
-        recurrenceCadence={
-          selectedTemplate?.is_recurring ? formatRecurrenceCadence(selectedTemplate) : null
-        }
+        selectedName={selectedTemplate?.template_name ?? null}
+        emptyLabel={compact ? 'None' : undefined}
         compactLabel={compact}
         className={compact ? 'h-9 text-sm' : 'min-h-10'}
         disabled={disabled}

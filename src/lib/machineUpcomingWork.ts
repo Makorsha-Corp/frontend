@@ -86,9 +86,11 @@ function mapUpcomingWorkToDueRowsWithMeta(
       const statusLabel =
         item.status === 'DRAFT'
           ? 'Draft'
-          : item.status === 'IN_PROGRESS'
-            ? 'In progress'
-            : (item.status ?? 'Draft');
+          : item.status === 'RECURRING'
+            ? 'Recurring'
+            : item.status === 'IN_PROGRESS'
+              ? 'In progress'
+              : (item.status ?? 'Draft');
       const typeLabel = item.work_order_type_name ?? 'Work order';
       const dueDateIso = item.date.slice(0, 10);
       const itemDate = parseItemDate(dueDateIso);

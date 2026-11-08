@@ -241,14 +241,14 @@ export function canConfirmPoInvoice(
   if (order.invoice_id == null) {
     return { ok: false, reason: 'Draft invoice has not synced yet — confirm all sections first' };
   }
-  if (invoiceStatus !== 'draft') {
+  if (invoiceStatus != null && invoiceStatus !== 'draft') {
     return { ok: false, reason: 'Only draft invoices can be confirmed' };
   }
   const sections = getPurchaseOrderConfirmationsStatus(order);
   if (!sections.allConfirmed) {
     return { ok: false, reason: 'Confirm supplier, order details, and items first' };
   }
-  if (!approvalMet) {
+  if (!approvalMet && !order.is_tour_sample) {
     return { ok: false, reason: 'Approvals required before confirming invoice' };
   }
   return { ok: true };

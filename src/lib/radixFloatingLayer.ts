@@ -39,6 +39,11 @@ export function isNestedRadixFloatingLayerTarget(target: EventTarget | null): bo
   );
 }
 
+/** Popover nested in another floating layer — avoids aria-hidden focus warnings. */
+export function preventRadixCloseAutoFocus(event: Event): void {
+  event.preventDefault();
+}
+
 export function shouldBlockDialogOutsideDismiss(options: {
   preventOutsideDismiss: boolean;
   target: EventTarget | null;

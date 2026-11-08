@@ -54,7 +54,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
     e.preventDefault();
     if (!product) return;
 
-    const qtyNum = parseInt(qty, 10);
+    const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
       appToast.error('Quantity must be 0 or greater');
       return;

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquare, Send, Reply, X, AtSign, Paperclip } from 'lucide-react';
+import { MessageSquare, Send, Reply, X, AtSign, Paperclip, Lock } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -86,9 +86,13 @@ function flattenDiscussionTimeline(roots: Discussion[]): TimelineEntry[] {
   );
 }
 
-function DiscussionDayDivider({ label }: { label: string }) {
+function DiscussionDayDivider({ label, className }: { label: string; className?: string }) {
   return (
-    <div className="my-4 flex items-center gap-3" role="separator" aria-label={label}>
+    <div
+      className={cn('my-4 flex items-center gap-3', className)}
+      role="separator"
+      aria-label={label}
+    >
       <div className="h-px flex-1 bg-border" />
       <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{label}</span>
       <div className="h-px flex-1 bg-border" />
@@ -552,6 +556,29 @@ function MessageInput({
   );
 }
 
+function DisabledMessageInput({ placeholder }: { placeholder: string }) {
+  return (
+    <div className="flex items-end gap-2" aria-disabled="true">
+      <div className="relative min-h-10 flex-1 overflow-hidden rounded-md border border-dashed border-border/80 bg-muted/25">
+        <div className="flex min-h-10 items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          <span>{placeholder}</span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        size="icon"
+        disabled
+        variant="secondary"
+        className="shrink-0 bg-muted text-muted-foreground"
+        tabIndex={-1}
+      >
+        <Send className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 // ── Single Message ───────────────────────────────────────────────────────────
 
 function sameDiscussionAuthor(a: Discussion, b: Discussion) {
@@ -788,10 +815,18 @@ function DiscussionItem({
 
 // ── Thread (exported) ────────────────────────────────────────────────────────
 
+const DEFAULT_READ_ONLY_NOTICE = 'This order is voided — discussion is read-only.';
+
 interface DiscussionThreadProps {
   entityType: DiscussionEntityType;
   entityId: number;
   readOnly?: boolean;
+  /** Banner + empty-state hint when readOnly (default: voided order copy). */
+  readOnlyNotice?: string;
+  /** Disabled composer placeholder when readOnly (falls back to readOnlyNotice). */
+  readOnlyComposerPlaceholder?: string;
+  /** Optional badge in card header when readOnly (e.g. Closed). */
+  readOnlyBadgeLabel?: string;
   /** Stretch card to fill parent row height with internal scroll. */
   fillHeight?: boolean;
   /** Fixed-height message area for order collaboration row. */
@@ -809,6 +844,9 @@ export default function DiscussionThread({
   entityType,
   entityId,
   readOnly = false,
+  readOnlyNotice,
+  readOnlyComposerPlaceholder,
+  readOnlyBadgeLabel,
   fillHeight = false,
   compactBody = false,
   compactBodyHeightClass = 'h-[17.0625rem]',
@@ -823,6 +861,8 @@ export default function DiscussionThread({
   const prevTimelineLengthRef = useRef(0);
   const workspace = useSelector((state: RootState) => state.auth.workspace);
   const timeZone = useDisplayTimezone();
+  const readOnlyMessage = readOnlyNotice ?? DEFAULT_READ_ONLY_NOTICE;
+  const readOnlyComposerText = readOnlyComposerPlaceholder ?? readOnlyMessage;
 
   const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const el = messagesScrollRef.current;
@@ -926,7 +966,7 @@ export default function DiscussionThread({
           <p className="text-sm font-medium text-muted-foreground">No messages yet</p>
           <p className="text-xs text-muted-foreground">
             {readOnly
-              ? 'No discussion messages on this voided order.'
+              ? readOnlyComposerText
               : 'Start the conversation — type @ to mention someone or an attachment'}
           </p>
         </div>
@@ -971,6 +1011,7 @@ export default function DiscussionThread({
               {showDayDivider ? (
                 <DiscussionDayDivider
                   label={formatDiscussionDayLabelFromApi(entry.discussion.created_at, timeZone)}
+                  className={index === 0 ? 'mt-0' : undefined}
                 />
               ) : null}
               <div
@@ -1005,12 +1046,6 @@ export default function DiscussionThread({
 
   const threadBody = (
     <>
-      {readOnly ? (
-        <p className="shrink-0 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          This order is voided — discussion is read-only.
-        </p>
-      ) : null}
-
       {compactBody ? (
         <div
           ref={messagesScrollRef}
@@ -1037,16 +1072,18 @@ export default function DiscussionThread({
         </div>
       )}
 
-      {!readOnly ? (
-        <div className="shrink-0">
+      <div className="shrink-0">
+        {readOnly ? (
+          <DisabledMessageInput placeholder={readOnlyComposerText} />
+        ) : (
           <MessageInput
             entityType={entityType}
             entityId={entityId}
             members={members}
             attachments={attachments}
           />
-        </div>
-      ) : null}
+        )}
+      </div>
 
       <AttachmentPreviewDialog
         attachment={previewAttachment}
@@ -1069,19 +1106,28 @@ export default function DiscussionThread({
   return (
     <Card className={cn((fillHeight || compactBody) && 'flex h-full min-h-0 flex-col', className)}>
       <CardHeader className="p-4 pb-3 shrink-0">
-        <CardTitle className="text-base flex items-center gap-2">
+        <CardTitle className="flex w-full items-center gap-2 text-base">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           Discussion
-          {total > 0 && (
-            <Badge variant="outline" className="ml-1 font-normal">
+          {total > 0 ? (
+            <Badge variant="outline" className="font-normal">
               {total}
             </Badge>
-          )}
+          ) : null}
+          {readOnly && readOnlyBadgeLabel ? (
+            <Badge
+              variant="outline"
+              className="ml-auto border-border/80 bg-muted/40 font-normal text-muted-foreground"
+            >
+              {readOnlyBadgeLabel}
+            </Badge>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent
         className={cn(
-          'flex flex-col gap-4 p-4 pt-0',
+          'flex flex-col p-4 pt-0',
+          readOnly ? 'gap-3' : 'gap-4',
           fillHeight && 'min-h-0 flex-1 overflow-hidden',
           compactBody && cn(compactBodyHeightClass, 'min-h-0 shrink-0 overflow-hidden'),
         )}

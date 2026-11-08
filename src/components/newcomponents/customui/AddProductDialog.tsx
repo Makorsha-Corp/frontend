@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,16 +20,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateProductMutation } from '@/features/products/productsApi';
-import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import { appToast } from '@/lib/appToast';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import AddItemDialog from './AddItemDialog';
+import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponents/customui/ItemSelectorDialog';
+import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
+import { ITEM_CATALOG_TAG_CODES } from '@/lib/productionItemCatalogTags';
 
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  factoryId: number;
+  factoryId: number | null;
+  factories: { id: number; name: string }[];
   onSuccess?: () => void;
 }
 
@@ -37,9 +40,17 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
   open,
   onOpenChange,
   factoryId,
+  factories,
   onSuccess,
 }) => {
+  const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(factoryId);
   const [itemId, setItemId] = useState<number | undefined>();
+  const [pickedItem, setPickedItem] = useState<{
+    id: number;
+    name: string;
+    unit?: string | null;
+  } | null>(null);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [qty, setQty] = useState('0');
   const [avgCost, setAvgCost] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
@@ -49,22 +60,43 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
 
   const [createProduct, { isLoading }] = useCreateProductMutation();
-  const { data: items, refetch: refetchItems } = useGetItemsQuery(
-    { skip: 0, limit: 100 },
-    { skip: !open, refetchOnMountOrArgChange: true }
-  );
 
-  const selectedItem = items?.find((i) => i.id === itemId);
+  const selectedItemLabel =
+    pickedItem == null
+      ? null
+      : pickedItem.unit
+        ? `${pickedItem.name} (${pickedItem.unit})`
+        : pickedItem.name;
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedFactoryId(factoryId);
+  }, [open, factoryId]);
+
+  const handleItemSelect = (selection: ItemSelection) => {
+    setItemId(selection.itemId);
+    setPickedItem({
+      id: selection.itemId,
+      name: selection.itemName,
+      unit: selection.itemUnit,
+    });
+    setItemPickerOpen(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedFactoryId == null) {
+      appToast.error('Pick a factory');
+      return;
+    }
 
     if (!itemId) {
       appToast.error('Please select an item');
       return;
     }
 
-    const qtyNum = parseInt(qty, 10);
+    const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
       appToast.error('Quantity must be 0 or greater');
       return;
@@ -73,7 +105,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
     try {
       await createProduct({
         item_id: itemId,
-        factory_id: factoryId,
+        factory_id: selectedFactoryId,
         qty: qtyNum,
         avg_cost: avgCost ? parseFloat(avgCost) : undefined,
         selling_price: sellingPrice ? parseFloat(sellingPrice) : undefined,
@@ -84,6 +116,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
 
       appToast.success('Product added');
       setItemId(undefined);
+      setPickedItem(null);
       setQty('0');
       setAvgCost('');
       setSellingPrice('');
@@ -99,13 +132,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
   };
 
   const handleCreateItemSuccess = (newItem: Item) => {
-    refetchItems();
     setItemId(newItem.id);
+    setPickedItem({ id: newItem.id, name: newItem.name, unit: newItem.unit });
     setIsAddItemOpen(false);
   };
 
   const handleCancel = () => {
     setItemId(undefined);
+    setPickedItem(null);
     setQty('0');
     setAvgCost('');
     setSellingPrice('');
@@ -123,38 +157,53 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
             <DialogHeader>
               <DialogTitle className="text-card-foreground">Add Product</DialogTitle>
               <DialogDescription>
-                Add a finished good. Select from catalog or create a new item.
+                Lists a catalog item for sale at one factory. On-hand stock stays in Storage until you sell it.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
+                <Label>Factory <span className="text-destructive">*</span></Label>
+                <Select
+                  value={selectedFactoryId != null ? String(selectedFactoryId) : '__none__'}
+                  onValueChange={(v) => setSelectedFactoryId(v === '__none__' ? null : parseInt(v, 10))}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Pick a factory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Pick a factory</SelectItem>
+                    {factories.map((factory) => (
+                      <SelectItem key={factory.id} value={String(factory.id)}>
+                        {factory.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
                 <Label>Item <span className="text-destructive">*</span></Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={itemId?.toString() ?? '__none__'}
-                    onValueChange={(v) => setItemId(v === '__none__' ? undefined : parseInt(v))}
-                  >
-                    <SelectTrigger className="flex-1 bg-background">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Select item</SelectItem>
-                      {(items ?? []).map((i) => (
-                        <SelectItem key={i.id} value={i.id.toString()}>
-                          {i.name} ({i.unit})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <ItemSelectSummaryButton
+                      ariaLabel="Select item"
+                      emptyLabel="Select item"
+                      selectedLabel={selectedItemLabel}
+                      staleNumericId={itemId != null ? String(itemId) : null}
+                      onClick={() => setItemPickerOpen(true)}
+                      className="h-10"
+                    />
+                  </div>
+                  <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    - or -
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
+                    className="h-10 shrink-0"
                     onClick={() => setIsAddItemOpen(true)}
-                    title="Create new item"
                   >
-                    <Plus className="h-4 w-4" />
+                    Create item +
                   </Button>
                 </div>
               </div>
@@ -171,9 +220,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                       placeholder="0"
                       className="flex-1 bg-background"
                     />
-                    {selectedItem?.unit && (
+                    {pickedItem?.unit && (
                       <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md border border-input h-10 flex items-center justify-center min-w-[3.5rem] select-none shadow-sm">
-                        {selectedItem.unit}
+                        {pickedItem.unit}
                       </span>
                     )}
                   </div>
@@ -216,9 +265,9 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                       placeholder="Optional"
                       className="flex-1 bg-background"
                     />
-                    {selectedItem?.unit && (
+                    {pickedItem?.unit && (
                       <span className="text-sm font-medium text-muted-foreground bg-muted px-3 py-2 rounded-md border border-input h-10 flex items-center justify-center min-w-[3.5rem] select-none shadow-sm">
-                        {selectedItem.unit}
+                        {pickedItem.unit}
                       </span>
                     )}
                   </div>
@@ -231,9 +280,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                   checked={isAvailableForSale}
                   onCheckedChange={(c) => setIsAvailableForSale(!!c)}
                 />
-                <Label htmlFor="available" className="font-normal cursor-pointer">
-                  Available for sale
-                </Label>
+                <div className="grid gap-0.5">
+                  <Label htmlFor="available" className="font-normal cursor-pointer">
+                    Available for sale
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Off until you want this item on sales orders. Stock in Storage is separate.
+                  </p>
+                </div>
               </div>
 
               <div className="grid gap-2">
@@ -271,6 +325,18 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
         </DialogContent>
       </Dialog>
 
+      <ItemSelectorDialog
+        open={itemPickerOpen}
+        onOpenChange={setItemPickerOpen}
+        onSelect={handleItemSelect}
+        selectedItemId={itemId}
+        defaultFactoryId={selectedFactoryId ?? undefined}
+        factoryId={selectedFactoryId ?? undefined}
+        catalogDefaultTagCodes={[ITEM_CATALOG_TAG_CODES.finishedGood]}
+        allowCreateCatalogItem
+        title="Select item"
+        description="Search catalog or pick from storage at this factory."
+      />
       <AddItemDialog
         open={isAddItemOpen}
         onOpenChange={setIsAddItemOpen}

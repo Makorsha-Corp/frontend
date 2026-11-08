@@ -21,6 +21,7 @@ import {
   Wand2,
   Paperclip,
   Trash2,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -58,6 +59,16 @@ export const PO_EVENT_VISUALS: Record<string, PoEventVisual> = {
     icon: CheckCircle2,
     wrap: 'bg-green-100 dark:bg-green-900/30',
     color: 'text-green-600 dark:text-green-400',
+  },
+  payment_recorded: {
+    icon: CreditCard,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
+  },
+  payment_status_synced: {
+    icon: CreditCard,
+    wrap: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-sky-600 dark:text-sky-400',
   },
   invoice_voided: {
     icon: XCircle,

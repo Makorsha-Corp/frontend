@@ -5,7 +5,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -17,6 +16,7 @@ import {
   isSectionRowChecked,
   locationFilterLabels,
   compactFactoryDropdownLabel,
+  toolbarFactoryDropdownLabel,
   selectAllFactories,
   selectAllSections,
   selectSingleFactory,
@@ -29,6 +29,40 @@ import { SCROLL_TARGET_HIGHLIGHT_CLASS } from '@/lib/scrollTargetHighlight';
 import {
   appShellHeaderBoxedControlClass,
 } from '@/components/newcomponents/customui/AppShellHeader';
+
+/** Shared factory/section triggers in app-shell toolbar rows. */
+const toolbarScopeTriggerClass = cn(
+  appShellHeaderBoxedControlClass,
+  'h-9 min-h-9 w-[9.5rem] max-w-[9.5rem] shrink-0 justify-between gap-1 px-2.5 text-sm font-normal focus-visible:ring-inset',
+  'data-[state=open]:border-brand-primary/40 data-[state=open]:bg-brand-primary/15 dark:data-[state=open]:bg-brand-primary/20',
+);
+
+/** Match filter popover surface (purple-tinted popover token, not slate dropdown). */
+const scopeMenuContentClass =
+  'border-border bg-popover text-popover-foreground shadow-md';
+
+const scopeMenuItemClass =
+  'focus:bg-brand-primary/10 dark:focus:bg-brand-primary/15 dark:focus:text-popover-foreground';
+
+/** Active scope row in menu — brand tint like filter panels. */
+const selectedScopeMenuItemClass = cn(
+  scopeMenuItemClass,
+  'font-medium text-foreground bg-brand-primary/10 dark:bg-brand-primary/20',
+  'focus:bg-brand-primary/15 dark:focus:bg-brand-primary/28',
+);
+
+function toolbarTriggerVariant(
+  variant: 'toolbar' | 'breadcrumb',
+  _isScoped: boolean,
+): 'ghost' | 'outline' {
+  if (variant === 'breadcrumb') return 'ghost';
+  return 'outline';
+}
+
+function toolbarScopeTriggerStateClass(isScoped: boolean): string {
+  if (!isScoped) return '';
+  return 'border-brand-primary/30 bg-brand-primary/10 dark:bg-brand-primary/15';
+}
 
 export interface MachinesInlineLocationFiltersProps {
   which: 'factories' | 'sections';
@@ -49,6 +83,8 @@ export interface MachinesInlineLocationFiltersProps {
   onHighlightDismiss?: () => void;
   /** Inline header row: short label + content-width trigger (Factories mobile header). */
   compact?: boolean;
+  /** When false, hides the “All factories” row (pages that require a concrete factory). */
+  showAllFactoriesOption?: boolean;
 }
 
 const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps> = ({
@@ -66,12 +102,14 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   highlight = false,
   onHighlightDismiss,
   compact = false,
+  showAllFactoriesOption = true,
 }) => {
+  const [sectionMenuOpen, setSectionMenuOpen] = React.useState(false);
   const allFactoryIds = React.useMemo(() => factories.map((f) => f.id), [factories]);
 
   const visibleSections = React.useMemo(
     () => visibleSectionsForSlice(value, allFactoryIds, sections),
-    [sections, value, allFactoryIds]
+    [sections, value, allFactoryIds],
   );
 
   const { factoryDropdownLabel, sectionDropdownLabel } = locationFilterLabels(
@@ -79,11 +117,18 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
     allFactoryIds,
     visibleSections,
     factories,
-    sections
+    sections,
   );
   const displayFactoryLabel = compact
     ? compactFactoryDropdownLabel(value, factories)
-    : factoryDropdownLabel;
+    : variant === 'toolbar'
+      ? toolbarFactoryDropdownLabel(value, allFactoryIds, factories)
+      : factoryDropdownLabel;
+
+  const factoryTriggerAriaLabel =
+    variant === 'toolbar' && value.factory_ids.length === 1
+      ? `Factory scope: ${factoryDropdownLabel}`
+      : undefined;
 
   const isBreadcrumb = variant === 'breadcrumb';
   const breadcrumbBaseClass =
@@ -97,24 +142,31 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
           appShellHeaderBoxedControlClass,
           'h-9 w-auto shrink-0 max-w-[min(120px,28vw)] justify-between gap-1 px-2 text-xs focus-visible:ring-inset',
         )
-      : cn(
-          appShellHeaderBoxedControlClass,
-          'max-w-[min(200px,32vw)] justify-between gap-1 px-2.5 text-xs sm:text-sm focus-visible:ring-inset',
-        );
+      : toolbarScopeTriggerClass;
   const chevronClassName = isBreadcrumb
     ? 'h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
     : 'h-4 w-4 shrink-0 opacity-70';
 
   if (which === 'factories') {
+    const factoryScoped = value.factory_ids.length > 0;
     return (
       <div className={cn(compact && 'shrink-0', className)}>
-        <DropdownMenu open={open} onOpenChange={onOpenChange}>
+        <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
           <DropdownMenuTrigger asChild>
             <Button
               type="button"
-              variant={isBreadcrumb ? 'ghost' : 'outline'}
-              className={cn(triggerClassName, highlight && SCROLL_TARGET_HIGHLIGHT_CLASS)}
-              aria-label={compact ? `Factory scope: ${factoryDropdownLabel}` : undefined}
+              size="sm"
+              variant={toolbarTriggerVariant(variant, factoryScoped)}
+              className={cn(
+                triggerClassName,
+                toolbarScopeTriggerStateClass(factoryScoped),
+                highlight && SCROLL_TARGET_HIGHLIGHT_CLASS,
+              )}
+              aria-label={
+                compact
+                  ? `Factory scope: ${factoryDropdownLabel}`
+                  : factoryTriggerAriaLabel
+              }
               onMouseEnter={() => {
                 if (highlight) onHighlightDismiss?.();
               }}
@@ -122,51 +174,80 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
                 if (highlight) onHighlightDismiss?.();
               }}
             >
-              <span className="truncate text-card-foreground dark:text-foreground">
+              <span className="min-w-0 flex-1 truncate text-left text-card-foreground dark:text-foreground">
                 {displayFactoryLabel}
               </span>
               <ChevronDown className={chevronClassName} aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+            className={cn(
+              scopeMenuContentClass,
+              'max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto py-1',
+            )}
             align="start"
           >
-            <DropdownMenuLabel>Factories</DropdownMenuLabel>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                onChange(selectAllFactories(value, allFactoryIds, sections));
-              }}
-              className={cn(value.factory_ids.length === 0 && 'bg-accent/70')}
-            >
-              All Factories
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {showAllFactoriesOption ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    onChange(selectAllFactories(value, allFactoryIds, sections));
+                    onOpenChange?.(false);
+                  }}
+                  className={cn(
+                    scopeMenuItemClass,
+                    value.factory_ids.length === 0 && selectedScopeMenuItemClass,
+                  )}
+                >
+                  All factories
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             {factories.length === 0 ? (
               <div className="px-2 py-1.5 text-xs text-muted-foreground">No factories</div>
             ) : (
-              factories.map((f) => (
-                <DropdownMenuCheckboxItem
-                  key={f.id}
-                  checked={isFactoryRowChecked(value, f.id)}
-                  onSelect={(e) => e.preventDefault()}
-                  onCheckedChange={() => {
-                    if (selectionMode === 'single') {
-                      const checked = isFactoryRowChecked(value, f.id);
-                      onChange(
-                        checked
-                          ? selectAllFactories(value, allFactoryIds, sections)
-                          : selectSingleFactory(value, f.id, allFactoryIds, sections),
-                      );
-                      return;
-                    }
-                    onChange(computeToggleFactory(value, f.id, allFactoryIds, sections));
-                  }}
-                >
-                  {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
-                </DropdownMenuCheckboxItem>
-              ))
+              factories.map((f) => {
+                const checked = isFactoryRowChecked(value, f.id);
+                const label = (
+                  <>
+                    {f.name} <span className="ml-1 text-muted-foreground">({f.abbreviation})</span>
+                  </>
+                );
+                if (selectionMode === 'single') {
+                  return (
+                    <DropdownMenuItem
+                      key={f.id}
+                      className={cn(scopeMenuItemClass, checked && selectedScopeMenuItemClass)}
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        onChange(
+                          checked && showAllFactoriesOption
+                            ? selectAllFactories(value, allFactoryIds, sections)
+                            : selectSingleFactory(value, f.id, allFactoryIds, sections),
+                        );
+                        onOpenChange?.(false);
+                      }}
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  );
+                }
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={f.id}
+                    checked={checked}
+                    className={cn(scopeMenuItemClass, checked && selectedScopeMenuItemClass)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => {
+                      onChange(computeToggleFactory(value, f.id, allFactoryIds, sections));
+                    }}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                );
+              })
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -174,26 +255,47 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
     );
   }
 
+  const sectionScoped = value.section_ids.length > 0;
+
   return (
     <div className={className}>
-      <DropdownMenu>
+      <DropdownMenu open={sectionMenuOpen} onOpenChange={setSectionMenuOpen} modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant={isBreadcrumb ? 'ghost' : 'outline'} className={triggerClassName}>
-            <span className="truncate text-card-foreground dark:text-foreground">{sectionDropdownLabel}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant={toolbarTriggerVariant(variant, sectionScoped)}
+            className={cn(triggerClassName, toolbarScopeTriggerStateClass(sectionScoped))}
+            aria-label={
+              variant === 'toolbar' ? `Section scope: ${sectionDropdownLabel}` : undefined
+            }
+          >
+            <span
+              className="min-w-0 flex-1 truncate text-left text-card-foreground dark:text-foreground"
+              title={sectionDropdownLabel}
+            >
+              {sectionDropdownLabel}
+            </span>
             <ChevronDown className={chevronClassName} aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+          className={cn(
+            scopeMenuContentClass,
+            'max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto py-1',
+          )}
           align="start"
         >
-          <DropdownMenuLabel>Sections</DropdownMenuLabel>
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
               onChange(selectAllSections(value));
+              setSectionMenuOpen(false);
             }}
-            className={cn(value.section_ids.length === 0 && 'bg-accent/70')}
+            className={cn(
+              scopeMenuItemClass,
+              value.section_ids.length === 0 && selectedScopeMenuItemClass,
+            )}
           >
             All sections
           </DropdownMenuItem>
@@ -201,25 +303,37 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
           {visibleSections.length === 0 ? (
             <div className="px-2 py-1.5 text-xs text-muted-foreground">No sections for this filter</div>
           ) : (
-            visibleSections.map((s) => (
-              <DropdownMenuCheckboxItem
-                key={s.id}
-                checked={isSectionRowChecked(value, s.id)}
-                onSelect={(e) => e.preventDefault()}
-                onCheckedChange={() => {
-                  if (selectionMode === 'single') {
-                    const checked = isSectionRowChecked(value, s.id);
-                    onChange(
-                      checked ? selectAllSections(value) : selectSingleSection(value, s.id),
-                    );
-                    return;
-                  }
-                  onChange({ ...value, ...computeToggleSection(value, s.id, allFactoryIds, sections) });
-                }}
-              >
-                {s.name}
-              </DropdownMenuCheckboxItem>
-            ))
+            visibleSections.map((s) => {
+              const checked = isSectionRowChecked(value, s.id);
+              if (selectionMode === 'single') {
+                return (
+                  <DropdownMenuItem
+                    key={s.id}
+                    className={cn(scopeMenuItemClass, checked && selectedScopeMenuItemClass)}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      onChange(checked ? selectAllSections(value) : selectSingleSection(value, s.id));
+                      setSectionMenuOpen(false);
+                    }}
+                  >
+                    {s.name}
+                  </DropdownMenuItem>
+                );
+              }
+              return (
+                <DropdownMenuCheckboxItem
+                  key={s.id}
+                  checked={checked}
+                  className={cn(scopeMenuItemClass, checked && selectedScopeMenuItemClass)}
+                  onSelect={(e) => e.preventDefault()}
+                  onCheckedChange={() => {
+                    onChange({ ...value, ...computeToggleSection(value, s.id, allFactoryIds, sections) });
+                  }}
+                >
+                  {s.name}
+                </DropdownMenuCheckboxItem>
+              );
+            })
           )}
         </DropdownMenuContent>
       </DropdownMenu>

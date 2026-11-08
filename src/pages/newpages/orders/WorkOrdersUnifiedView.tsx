@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { startOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -28,12 +28,13 @@ import WorkOrdersToolbar from '@/components/newcomponents/customui/orders/WorkOr
 import WorkOrdersFilterPanel from '@/components/newcomponents/customui/orders/WorkOrdersFilterPanel';
 import WorkOrderSheetTable from '@/components/newcomponents/customui/orders/WorkOrderSheetTable';
 import WorkOrdersSheetPagination from '@/components/newcomponents/customui/orders/WorkOrdersSheetPagination';
-import WorkOrderWeekRows from '@/components/newcomponents/customui/orders/WorkOrderWeekRows';
+import WorkOrderWeekBoard from '@/components/newcomponents/customui/orders/WorkOrderWeekBoard';
 import SheetLogEntryFooter from '@/components/newcomponents/customui/orders/SheetLogEntryFooter';
 import WorkOrderDetailPanel from '@/components/newcomponents/customui/orders/WorkOrderDetailPanel';
 import WorkOrderTemplateSelectorDialog from '@/components/newcomponents/customui/orders/WorkOrderTemplateSelectorDialog';
 import RecurringProgramsManagerDialog from '@/components/newcomponents/customui/orders/RecurringProgramsManagerDialog';
 import { useWorkOrdersFilters } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
 import {
   buildSheetDateGroups,
   buildSheetPeriodLabel,
@@ -59,6 +60,11 @@ import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { normalizeLocationSlice } from '@/lib/machinesLocationFilters';
 import type { WorkOrder } from '@/types/workOrder';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
+import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
+import { useResetSelectionWhenTourStarts, useTourSampleDetail } from '@/features/helpGuides/useTourPreview';
+import { TourSampleListRow } from '@/components/newcomponents/customui/helpGuides/TourSampleChrome';
+import WorkOrderTourSampleDetail from '@/components/newcomponents/customui/helpGuides/WorkOrderTourSampleDetail';
 
 export interface WorkOrdersUnifiedViewProps {
   defaultMachineId?: number | null;
@@ -95,7 +101,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     apiDateFrom,
     apiDateTo,
     setDateViewMode,
-    setSheetDate,
     setFactoryFilter,
     setLocationFilterSlice,
     setSectionFilter,
@@ -308,11 +313,19 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     listSheetRows,
   ]);
 
+  const weekBoardLayout = useMemo(() => {
+    if (filters.dateScope === 'day') return 'day' as const;
+    if (filters.dateScope === 'week') return 'week' as const;
+    return 'stack' as const;
+  }, [filters.dateScope]);
+
+  const millTimezone = useMillTimezone();
+
   const handleSelectDay = useCallback(
     (date: string) => {
-      setSheetDate(date);
+      pickDate(date);
     },
-    [setSheetDate],
+    [pickDate],
   );
 
   const orderById = useMemo(() => {
@@ -331,6 +344,13 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
     (selectedOrderId != null ? orderById.get(selectedOrderId) : undefined) ??
     fetchedSelectedOrder ??
     null;
+
+  useAutoHelpGuide({
+    tourId: HELP_GUIDE_TOUR_ID.workOrders,
+    when: activeTab === 'workOrders' && !isLoading,
+  });
+
+  const tourSample = useTourSampleDetail([HELP_GUIDE_TOUR_ID.workOrders]);
 
   useEffect(() => {
     if (sheetData === undefined) return;
@@ -399,14 +419,6 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       footerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }, [resolvedFactoryId, promptFactorySelect, pulseFooterHighlight, footerDrawerOpen]);
-
-  const handleAddForDay = useCallback(
-    (date: string) => {
-      setSheetDate(date);
-      focusFooterForAdd();
-    },
-    [setSheetDate, focusFooterForAdd],
-  );
 
   const chipHandlers = useMemo(
     () => ({
@@ -486,6 +498,17 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
       return next;
     });
   };
+
+  useResetSelectionWhenTourStarts(
+    tourSample.tourActive && activeTab === 'workOrders',
+    () => {
+      tourSample.closeSample();
+      setSelectedOrder(null);
+    },
+  );
+
+  const workOrdersTourListOnly =
+    tourSample.tourActive && activeTab === 'workOrders' && !tourSample.sampleOpen && !selectedOrder;
 
   const listEmptyActions = (
     <Button type="button" size="sm" onClick={focusFooterForAdd}>
@@ -576,8 +599,19 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {error ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-help-tour="work-orders.list">
+        {workOrdersTourListOnly ? (
+          <TourSampleListRow
+            title="Sample work order"
+            subtitle="Preview only — not saved"
+            selected={false}
+            onSelect={() => {
+              setSelectedOrder(null);
+              tourSample.openSample();
+            }}
+          />
+        ) : null}
+        {error && !workOrdersTourListOnly ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
             <p className="text-sm font-medium text-destructive">Failed to load work orders</p>
             <p className="text-xs">{sheetErrorDetail ?? 'Unknown error'}</p>
@@ -585,6 +619,8 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
               Retry
             </Button>
           </div>
+        ) : tourSample.sampleOpen && activeTab === 'workOrders' ? (
+          <WorkOrderTourSampleDetail />
         ) : selectedOrder ? (
           <WorkOrderDetailPanel
             order={selectedOrder}
@@ -592,7 +628,7 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
             onDelete={() => handleDelete(selectedOrder)}
             onNavigateToOrder={(id) => setSelectedOrder(id)}
           />
-        ) : applyDateFilter ? (
+        ) : workOrdersTourListOnly ? null : applyDateFilter ? (
           <div className="flex min-h-0 flex-1 overflow-hidden p-2">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
               {showBoundedPeriodCapWarning ? (
@@ -602,16 +638,13 @@ const WorkOrdersUnifiedView: React.FC<WorkOrdersUnifiedViewProps> = ({
                   All dates for paging.
                 </p>
               ) : null}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                <WorkOrderWeekRows
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-contain">
+                <WorkOrderWeekBoard
                   days={groupedDays}
+                  layout={weekBoardLayout}
+                  timeZone={millTimezone}
                   onSelectDay={handleSelectDay}
-                  onAddForDay={handleAddForDay}
-                  onRowClick={(id) => setSelectedOrder(id)}
-                  currentUserId={user?.id ?? null}
-                  members={members}
-                  onSheetMutated={refetch}
-                  programSummariesByWorkOrderId={programSummariesByWorkOrderId}
+                  onOrderClick={(id) => setSelectedOrder(id)}
                 />
               </div>
             </div>

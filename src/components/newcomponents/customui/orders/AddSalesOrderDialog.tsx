@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const [accountId, setAccountId] = useState<string>('');
   const [factoryId, setFactoryId] = useState<string>('');
   const { markFactoryEdited } = useAutoSelectGlobalFactory(open, setFactoryId);
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [orderDate, setOrderDate] = useState(() => todayLocalDateKey());
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -92,7 +93,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const reset = () => {
     setAccountId('');
     setFactoryId('');
-    setOrderDate(new Date().toISOString().slice(0, 10));
+    setOrderDate(todayLocalDateKey());
     setExpectedDeliveryDate('');
     setContactName('');
     setContactPhone('');
@@ -109,7 +110,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
 
   const switchLineMode = (mode: 'product' | 'misc') => {
     setLineMode(mode);
-    setRequiresDelivery(mode === 'product');
   };
 
   const handleSelectProduct = (value: string) => {
@@ -174,7 +174,6 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
     }
     setQty('');
     setUnitPrice('');
-    setRequiresDelivery(lineMode === 'product');
   };
 
   const handleRemoveItem = (idx: number) => {
@@ -345,7 +344,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
               className="bg-background"
             />
           </div>
-          <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={handleAddItem}>
+          <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label="Add sales item" onClick={handleAddItem}>
             <Plus className="h-4 w-4" />
           </Button>
         </div>

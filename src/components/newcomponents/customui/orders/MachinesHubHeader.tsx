@@ -16,6 +16,8 @@ import MachinesWorkOrdersTabs from '@/components/newcomponents/customui/orders/M
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { cn } from '@/lib/utils';
+import HelpGuidePageReplayButton from '@/components/newcomponents/customui/helpGuides/HelpGuidePageReplayButton';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
 
 export interface MachinesHubHeaderProps {
   activeTab: 'machines' | 'workOrders';
@@ -124,6 +126,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
             ) : null}
             {activeTab === 'workOrders' && workOrdersActions ? (
               <>
+                <HelpGuidePageReplayButton tourId={HELP_GUIDE_TOUR_ID.workOrders} compact />
                 <Button
                   type="button"
                   variant="outline"
@@ -148,6 +151,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                   icon={ClipboardPen}
                   onClick={workOrdersActions.onAddWork}
                   ariaLabel="Add work"
+                  data-help-tour="work-orders.header-add"
                 />
               </>
             ) : null}
@@ -186,6 +190,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
               ) : null}
               {activeTab === 'workOrders' && workOrdersActions ? (
                 <>
+                  <HelpGuidePageReplayButton tourId={HELP_GUIDE_TOUR_ID.workOrders} />
                   <Button
                     type="button"
                     variant="outline"
@@ -211,6 +216,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                       'bg-brand-primary hover:bg-brand-primary-hover',
                     )}
                     onClick={workOrdersActions.onAddWork}
+                    data-help-tour="work-orders.header-add"
                   >
                     <ClipboardPen className="mr-2 h-4 w-4" />
                     Add work

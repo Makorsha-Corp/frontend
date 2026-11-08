@@ -33,6 +33,8 @@ export interface PoLinkedInvoiceCardProps {
   hasUnsavedSupplier?: boolean;
   baseSectionsConfirmed?: boolean;
   isSyncingDraft?: boolean;
+  /** PO has invoice_id but RTK invoice fetch not finished — show draft UI + finalize CTA */
+  isLoadingLinkedInvoice?: boolean;
   accountName: string | null;
   accountId?: number | null;
   linkedOrderNumber: string;
@@ -58,6 +60,7 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   hasUnsavedSupplier = false,
   baseSectionsConfirmed = false,
   isSyncingDraft = false,
+  isLoadingLinkedInvoice = false,
   accountName,
   accountId: accountIdProp,
   linkedOrderNumber,
@@ -76,7 +79,10 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
 }) => {
   const [voidedDialogOpen, setVoidedDialogOpen] = useState(false);
   const voidedInvoices = useMemo(() => getVoidedInvoicesFromPoEvents(events), [events]);
-  const hasDraft = invoiceStatus === 'draft' && invoiceId != null;
+  const hasDraft =
+    invoiceId != null &&
+    (invoiceStatus === 'draft' ||
+      (invoiceStatus == null && (isLoadingLinkedInvoice || isSyncingDraft)));
   const isConfirmed = invoiceStatus === 'confirmed' && invoiceId != null;
   const isFinalized = isConfirmed;
   const hasInvoice = hasDraft || isFinalized;
@@ -115,7 +121,11 @@ const PoLinkedInvoiceCard: React.FC<PoLinkedInvoiceCardProps> = ({
   );
 
   return (
-    <Card id="po-section-invoice" className="scroll-mt-6">
+    <Card
+      id="po-section-invoice"
+      data-help-tour="purchase.finalize-invoice"
+      className="scroll-mt-6"
+    >
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2 min-w-0">

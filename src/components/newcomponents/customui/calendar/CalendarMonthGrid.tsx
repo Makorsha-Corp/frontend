@@ -7,8 +7,10 @@ import {
   type MonthCellLayoutConfig,
 } from './calendarMonthCellLayouts';
 import MonthCellMeasuredChipRows from './MonthCellMeasuredChipRows';
-import MonthEventDot from './MonthEventDot';
-import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUtils';
+import {
+  calendarGridShellClass,
+  calendarMonthDayCellClass,
+} from './calendarPageStyles';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -38,31 +40,22 @@ function MonthCellDayHeader({
   events: CalendarEvent[];
 }) {
   return (
-    <div className="mb-1 flex min-h-0 shrink-0 items-center gap-1">
+    <div className="mb-1 flex min-h-0 shrink-0 items-center gap-1.5">
       <span
         className={cn(
-          'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium',
-          isToday && 'bg-brand-primary text-primary-foreground',
-          !isToday && isSelected && 'bg-muted text-foreground',
-          !isToday && !isSelected && isCurrentMonth && 'text-muted-foreground',
-          !isToday && !isSelected && !isCurrentMonth && 'text-muted-foreground/45',
+          'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+          isToday && 'bg-brand-primary text-primary-foreground shadow-sm',
+          !isToday && isSelected && 'bg-muted text-foreground ring-1 ring-border',
+          !isToday && !isSelected && isCurrentMonth && 'text-foreground',
+          !isToday && !isSelected && !isCurrentMonth && 'text-muted-foreground/50',
         )}
       >
         {dayLabel}
       </span>
       {events.length > 0 ? (
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-1">
-          {groupEventsByCategory(events).map((group, groupIndex) => (
-            <div
-              key={group.category}
-              className={cn('flex flex-wrap items-center gap-1', groupIndex > 0 && 'ml-0.5')}
-            >
-              {group.events.map((event) => (
-                <MonthEventDot key={event.id} event={event} />
-              ))}
-            </div>
-          ))}
-        </div>
+        <span className="ml-auto shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+          {events.length}
+        </span>
       ) : null}
     </div>
   );
@@ -95,29 +88,30 @@ const CalendarMonthGrid: React.FC<CalendarMonthGridProps> = ({
   const layout = MONTH_CELL_LAYOUT;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
-      <div className="grid shrink-0 grid-cols-7 border-b border-border bg-muted/20">
+    <div className={calendarGridShellClass}>
+      <div className="grid shrink-0 grid-cols-7 border-b border-border bg-muted/35">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="px-2 py-2 text-center text-xs font-medium text-muted-foreground"
+            className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {label}
           </div>
         ))}
       </div>
-      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-7 divide-x divide-y divide-border overflow-y-auto">
+      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-7 divide-x divide-y divide-border/80 overflow-y-auto bg-background/40">
         {days.map((day) => (
           <div
             key={day.date}
             role="button"
             tabIndex={0}
             className={cn(
-              'relative flex min-h-0 cursor-pointer flex-col overflow-hidden p-1.5 text-left transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               layout.cellMinHeight,
-              !day.isCurrentMonth && 'bg-muted/30 dark:bg-muted/20',
-              day.isSelected && day.isCurrentMonth && 'bg-brand-primary/[0.06]',
-              day.isSelected && !day.isCurrentMonth && 'bg-brand-primary/[0.04]',
+              calendarMonthDayCellClass({
+                isToday: day.isToday,
+                isSelected: day.isSelected,
+                isCurrentMonth: day.isCurrentMonth,
+              }),
             )}
             onClick={() => onSelectDay(day.date)}
             onKeyDown={(e) => {

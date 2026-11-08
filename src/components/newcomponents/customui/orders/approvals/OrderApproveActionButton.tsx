@@ -200,7 +200,10 @@ const OrderApproveActionButton: React.FC<OrderApproveActionButtonProps> = ({
         initial={false}
         animate={{ width: approved ? ICON_WIDTH : APPROVE_WIDTH }}
         transition={PILL_SPRING}
-        className="inline-flex shrink-0 overflow-hidden"
+        className={cn(
+          'inline-flex shrink-0',
+          highlighted && approveBlocked ? 'overflow-visible p-0.5' : 'overflow-hidden',
+        )}
       >
         <BlockedActionButton
           id={actionButtonId}

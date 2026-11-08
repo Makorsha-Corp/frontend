@@ -1,6 +1,5 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
 import type { WeekDayCell } from '@/pages/newpages/orders/workOrderSheetData';
 import type { RecurrenceProgramSummary } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
 import type { WorkspaceMember } from '@/types/workspace';
@@ -18,7 +17,6 @@ import WorkOrderSheetTable from './WorkOrderSheetTable';
 export interface WorkOrderWeekRowsProps {
   days: WeekDayCell[];
   onSelectDay: (date: string) => void;
-  onAddForDay: (date: string) => void;
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
   members?: WorkspaceMember[];
@@ -57,19 +55,8 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
                 </Badge>
               ) : null}
             </button>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {!day.isEmpty ? (
-                <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
-              ) : null}
-              <button
-                type="button"
-                className={weekDayHeaderAddButtonClass()}
-                onClick={() => onAddForDay(day.date)}
-              >
-                <Plus className="h-3 w-3 shrink-0" />
-                Add work
-              </button>
+            {!day.isEmpty ? (
+              <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
             </div>
           </div>
 

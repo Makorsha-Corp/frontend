@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Lock,
   Maximize2,
   Minimize2,
   MoreVertical,
@@ -145,6 +146,8 @@ export interface AttachmentPanelProps {
   enabled?: boolean;
   /** Hide upload/delete; keep preview and download. */
   readOnly?: boolean;
+  /** Message shown in disabled upload shell when readOnly. */
+  readOnlyNotice?: string;
   /** Carousel + compact drop zone (order detail column). */
   compact?: boolean;
   /** Dialog manager: list + split preview. */
@@ -159,6 +162,7 @@ export default function AttachmentPanel({
   entityId,
   enabled = true,
   readOnly = false,
+  readOnlyNotice = 'Uploads disabled',
   compact = false,
   layout = 'default',
   entityLabel,
@@ -1112,41 +1116,82 @@ export default function AttachmentPanel({
     </Dialog>
   );
 
-  const fullDropZone = !uploadsDisabled ? (
+  const renderReadOnlyUploadArea = () => (
     <div
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
-      }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
-      onClick={() => !uploadBlocked && fileInputRef.current?.click()}
-      className={cn(
-        'flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center transition-colors hover:bg-muted/40',
-        uploadBlocked && 'pointer-events-none opacity-70',
-      )}
+      className="flex flex-col gap-3 sm:flex-row sm:items-stretch"
+      aria-disabled="true"
     >
-      {hiddenFileInput}
-      {isUploading ? (
-        <>
-          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-          <p className="text-sm text-muted-foreground">
-            Uploading… {uploadProgress != null ? `${uploadProgress}%` : ''}
-          </p>
-        </>
-      ) : (
-        <>
-          <Upload className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm font-medium">Drop a file here, or click to browse</p>
-          <p className="text-xs text-muted-foreground">
-            {capacityHint ??
-              `${ATTACHMENT_TYPE_HINT} — max ${formatBytes(MAX_ATTACHMENT_BYTES)}`}
-          </p>
-        </>
-      )}
+      <div className="flex min-h-[120px] min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/20 p-6 text-center opacity-80">
+        <Lock className="h-8 w-8 text-muted-foreground/80" aria-hidden />
+        <p className="text-sm font-medium text-muted-foreground">{readOnlyNotice}</p>
+      </div>
+      <div className="flex min-h-[72px] shrink-0 flex-row items-center justify-center gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 text-center opacity-80 sm:min-h-[120px] sm:w-[8.5rem] sm:flex-col sm:gap-2 sm:px-3">
+        <Smartphone className="h-6 w-6 shrink-0 text-muted-foreground/70 sm:h-7 sm:w-7" aria-hidden />
+        <div className="min-w-0 text-left sm:text-center">
+          <p className="text-sm font-medium text-muted-foreground">From phone</p>
+          <p className="text-xs text-muted-foreground">Unavailable</p>
+        </div>
+      </div>
     </div>
-  ) : null;
+  );
+
+  const renderDefaultUploadArea = () => {
+    if (readOnly) return renderReadOnlyUploadArea();
+    if (atCapacity) return null;
+
+    return (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        {hiddenFileInput}
+        <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          onClick={() => !uploadBlocked && fileInputRef.current?.click()}
+          className={cn(
+            'flex min-h-[120px] min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center transition-colors hover:bg-muted/40',
+            uploadBlocked && 'pointer-events-none opacity-70',
+          )}
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+              <p className="text-sm text-muted-foreground">
+                Uploading… {uploadProgress != null ? `${uploadProgress}%` : ''}
+              </p>
+            </>
+          ) : (
+            <>
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium">Drop a file here, or click to browse</p>
+              <p className="text-xs text-muted-foreground">
+                {capacityHint ??
+                  `${ATTACHMENT_TYPE_HINT} — max ${formatBytes(MAX_ATTACHMENT_BYTES)}`}
+              </p>
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={uploadBlocked || !canQuery}
+          onClick={() => setMobileQrOpen(true)}
+          className={cn(
+            'flex min-h-[72px] shrink-0 cursor-pointer flex-row items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/20 px-4 text-center transition-colors hover:bg-muted/40 sm:min-h-[120px] sm:w-[8.5rem] sm:flex-col sm:gap-2 sm:px-3',
+            uploadBlocked && 'pointer-events-none opacity-70',
+          )}
+        >
+          <Smartphone className="h-6 w-6 shrink-0 text-muted-foreground sm:h-7 sm:w-7" />
+          <div className="min-w-0 text-left sm:text-center">
+            <p className="text-sm font-medium">From phone</p>
+            <p className="text-xs text-muted-foreground">Scan QR to upload</p>
+          </div>
+        </button>
+      </div>
+    );
+  };
 
   if (compact) {
     return (
@@ -1175,7 +1220,7 @@ export default function AttachmentPanel({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {fullDropZone}
+      {renderDefaultUploadArea()}
 
       {!canQuery ? (
         <p className="text-sm text-muted-foreground">Enter a valid entity ID to load attachments.</p>
@@ -1184,11 +1229,9 @@ export default function AttachmentPanel({
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading attachments…
         </div>
-      ) : attachments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {readOnly ? 'No attachments for this order.' : 'No attachments yet for this entity.'}
-        </p>
-      ) : (
+      ) : attachments.length === 0 && !readOnly ? (
+        <p className="text-sm text-muted-foreground">No attachments yet for this entity.</p>
+      ) : attachments.length === 0 ? null : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {attachments.map((attachment) => {
             const thumb = attachment.urls.thumb_url ?? attachment.urls.preview_url;

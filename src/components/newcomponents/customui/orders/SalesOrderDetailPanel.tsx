@@ -713,7 +713,11 @@ const SalesOrderDetailPanel: React.FC<SalesOrderDetailPanelProps> = ({
               </div>
             </CardHeader>
             <CardContent className={cn('pt-0', itemsSectionConfirmed && confirmedSectionContentClass)}>
-              {items.length === 0 ? (
+              {itemsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : items.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
                   <Package className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
                   <p className="text-sm font-medium text-muted-foreground">No items on this order</p>

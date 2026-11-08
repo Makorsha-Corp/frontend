@@ -29,6 +29,18 @@ export const workOrderWeekSelectedModifierClassNames = {
   selectedWeekEnd: "rounded-r-md",
 } as const
 
+/** Preview band for the week under the pointer (week pickers). */
+export const workOrderWeekHoverModifierClassNames = {
+  hoverWeek:
+    "rounded-none !bg-brand-primary/15 hover:!bg-brand-primary/15 [&:not([aria-selected=true])]:text-foreground dark:!bg-brand-primary/20",
+  hoverWeekStart: "rounded-l-md",
+  hoverWeekEnd: "rounded-r-md",
+} as const
+
+/** Week picker days: band hover via modifiers, not per-cell ghost hover. */
+export const workOrderWeekPickerDayClass =
+  "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-transparent hover:text-inherit focus-visible:bg-transparent"
+
 /** Planned recurring work-order dates on sheet date pickers. */
 export const calendarPlannedRecurrenceModifierClassNames = {
   plannedRecurrence:

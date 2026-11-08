@@ -42,13 +42,13 @@ function pruneSectionsAfterFactoryChange(
   return { factory_ids: nextFactoryIds, section_ids: nextSectionIds };
 }
 
-/** Explicit “all factories” choice (empty list = no factory filter). */
+/** Explicit “all factories” choice — clears factory and section scope (workspace-wide). */
 export function selectAllFactories(
-  slice: MachinesLocationFilterSlice,
-  allFactoryIds: number[],
-  sections: Array<{ id: number; factory_id: number }>
+  _slice: MachinesLocationFilterSlice,
+  _allFactoryIds: number[],
+  _sections: Array<{ id: number; factory_id: number }>,
 ): MachinesLocationFilterSlice {
-  return pruneSectionsAfterFactoryChange(slice, [], allFactoryIds, sections);
+  return { factory_ids: [], section_ids: [] };
 }
 
 /** Explicit “all sections” choice (empty list = no section filter). */
@@ -142,12 +142,12 @@ export function locationFilterLabels(
   const factoryCount = effectiveFactorySelection.length;
   let factoryDropdownLabel: string;
   if (slice.factory_ids.length === 0) {
-    if (factoryCount === 1) {
-      const onlyFactory = factories.find((x) => x.id === effectiveFactorySelection[0]);
-      factoryDropdownLabel = onlyFactory?.name ?? '1 factory';
-    } else {
-      factoryDropdownLabel = `All factories (${factoryCount})`;
-    }
+    factoryDropdownLabel =
+      factoryCount === 0
+        ? 'All factories'
+        : factoryCount === 1
+          ? 'All factories (1)'
+          : `All factories (${factoryCount})`;
   } else if (slice.factory_ids.length === 1) {
     const f = factories.find((x) => x.id === slice.factory_ids[0]);
     factoryDropdownLabel = f?.name ?? '1 factory';
@@ -158,11 +158,12 @@ export function locationFilterLabels(
   const visibleCount = visibleSections.length;
   let sectionDropdownLabel: string;
   if (slice.section_ids.length === 0) {
-    if (visibleCount === 1) {
-      sectionDropdownLabel = visibleSections[0]?.name ?? '1 section';
-    } else {
-      sectionDropdownLabel = `All sections (${visibleCount})`;
-    }
+    sectionDropdownLabel =
+      visibleCount === 0
+        ? 'All sections'
+        : visibleCount === 1
+          ? 'All sections (1)'
+          : `All sections (${visibleCount})`;
   } else if (slice.section_ids.length === 1) {
     const sid = slice.section_ids[0];
     const s =
@@ -173,6 +174,26 @@ export function locationFilterLabels(
   }
 
   return { factoryDropdownLabel, sectionDropdownLabel };
+}
+
+/** App-shell toolbar factory trigger — fixed width; single select shows abbreviation. */
+export function toolbarFactoryDropdownLabel(
+  slice: MachinesLocationFilterSlice,
+  allFactoryIds: number[],
+  factories: Array<{ id: number; name: string; abbreviation: string }>,
+): string {
+  if (slice.factory_ids.length === 0) {
+    const factoryCount = effectiveFactoryIds(slice, allFactoryIds).length;
+    if (factoryCount === 0) return 'All factories';
+    if (factoryCount === 1) return 'All factories (1)';
+    return `All factories (${factoryCount})`;
+  }
+  if (slice.factory_ids.length === 1) {
+    const f = factories.find((x) => x.id === slice.factory_ids[0]);
+    const abbr = f?.abbreviation?.trim();
+    return abbr || f?.name || '1 factory';
+  }
+  return `${slice.factory_ids.length} factories`;
 }
 
 /** Short factory trigger label for compact mobile headers (e.g. Factories overview). */
@@ -200,10 +221,6 @@ export function normalizeLocationSlice(
   slice: MachinesLocationFilterSlice,
   sections: Array<{ id: number; factory_id: number }>,
 ): MachinesLocationFilterSlice {
-  if (slice.factory_ids.length === 0) {
-    return { factory_ids: [], section_ids: [] };
-  }
-
   if (slice.section_ids.length === 1) {
     const section = sections.find((s) => s.id === slice.section_ids[0]);
     if (section) {
@@ -212,6 +229,10 @@ export function normalizeLocationSlice(
         section_ids: [section.id],
       };
     }
+  }
+
+  if (slice.factory_ids.length === 0) {
+    return { factory_ids: [], section_ids: [] };
   }
 
   if (slice.factory_ids.length === 1 && slice.section_ids.length === 1) {

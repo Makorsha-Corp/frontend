@@ -4,9 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { HelpTicketStatus } from '@/types/helpTicket';
 
+import { getHelpTicketStatusDisplayLabel } from './helpTicketStatus';
+
 function helpTicketStatusBadgeClass(status: HelpTicketStatus): string {
-  if (status === 'open') {
+  if (status === 'opened') {
     return 'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+  }
+  if (status === 'pending') {
+    return 'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400';
   }
   return 'border-transparent bg-muted text-muted-foreground';
 }
@@ -33,7 +38,7 @@ const HelpTicketStatusBadge: React.FC<HelpTicketStatusBadgeProps> = ({
     variant="outline"
     className={cn('capitalize', SIZE_CLASS[size], helpTicketStatusBadgeClass(status), className)}
   >
-    {status}
+    {getHelpTicketStatusDisplayLabel(status)}
   </Badge>
 );
 

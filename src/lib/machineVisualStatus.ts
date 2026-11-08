@@ -45,6 +45,40 @@ export const machineListTopBarClass: Record<MachineVisualKind, string> = {
   maintenance: 'bg-amber-500',
 };
 
+/** Small status dot on line setup / overview chips. */
+export const machineStatusDotClass: Record<MachineVisualKind, string> = {
+  running: 'bg-emerald-500',
+  idle: 'bg-brand-primary',
+  off: 'bg-red-500',
+  maintenance: 'bg-amber-500',
+};
+
+export type MachineStatusBrief = Pick<Machine, 'is_running'> & {
+  latest_status_type?: Machine['latest_status_type'] | string | null;
+};
+
+function machineStubFromBrief(brief: MachineStatusBrief): Machine {
+  return {
+    id: 0,
+    workspace_id: 0,
+    name: '',
+    factory_id: 0,
+    factory_section_id: null,
+    is_active: true,
+    is_deleted: false,
+    is_running: brief.is_running,
+    latest_status_type: (brief.latest_status_type ?? null) as Machine['latest_status_type'],
+  } as Machine;
+}
+
+export function machineVisualKindFromBrief(brief: MachineStatusBrief): MachineVisualKind {
+  return getMachineVisualKind(machineStubFromBrief(brief));
+}
+
+export function getMachineStatusLabelFromBrief(brief: MachineStatusBrief): string {
+  return getMachineStatusLabel(machineStubFromBrief(brief));
+}
+
 export const machineBadgeClass: Record<MachineVisualKind, string> = {
   running:
     'border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',

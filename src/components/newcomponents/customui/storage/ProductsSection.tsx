@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import BlockedActionButton from '@/components/newcomponents/customui/BlockedActionButton';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +45,6 @@ interface ProductsSectionProps {
   forSaleOnly: boolean;
   onForSaleOnlyChange: (value: boolean) => void;
   onAdd: () => void;
-  onRequireFactory?: () => void;
   onEdit: (prod: Product) => void;
   onDelete: (prod: Product) => void;
   paginationFooter?: React.ReactNode;
@@ -66,7 +64,6 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   forSaleOnly,
   onForSaleOnlyChange,
   onAdd,
-  onRequireFactory,
   onEdit,
   onDelete,
   paginationFooter,
@@ -94,23 +91,17 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                 {formatNumber(overview.records)}
               </Badge>
               {!collapsed && (
-                <BlockedActionButton
+                <Button
+                  type="button"
                   size="icon"
                   variant="outline"
-                  className="h-7 w-7"
-                  blocked={factoryId == null}
-                  blockedHint={{
-                    title: 'Select a factory first',
-                    reason: 'To add products, select a factory from the header.',
-                  }}
-                  onBlockedClick={onRequireFactory}
-                  onAction={onAdd}
-                  popoverSide="right"
-                  popoverAlign="start"
-                  title={factoryId ? 'Add product' : undefined}
+                  className="h-9 w-9"
+                  onClick={onAdd}
+                  aria-label="Add product"
+                  title="Add product"
                 >
                   <Plus className="h-4 w-4" />
-                </BlockedActionButton>
+                </Button>
               )}
               <p className={catalogSectionSummaryClass}>
                 {formatNumber(overview.totalQty)} units · {formatCurrency(overview.totalCostValue)} cost ·{' '}
@@ -179,18 +170,25 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
         ) : products.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Package className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="mb-4 text-muted-foreground">
+            <p className="mb-1 max-w-sm text-center text-muted-foreground">
               {searchQuery
                 ? 'No products match your search.'
                 : forSaleOnly
-                  ? 'No products marked for sale.'
-                  : 'No products yet.'}
+                  ? 'No products marked for sale. Available for sale stays off until you turn it on.'
+                  : factoryId == null
+                    ? 'No products yet. Add one and pick its factory. Stock in Storage is not for sale until you list it here.'
+                    : 'No products yet. Stock in Storage is not for sale until you list it here.'}
             </p>
-            {!searchQuery && !forSaleOnly && factoryId != null && (
-              <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
+            {!searchQuery && !forSaleOnly && (
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Product
+                </Button>
+                <Link to="/storage" className="text-xs text-brand-primary underline-offset-2 hover:underline">
+                  Open Storage
+                </Link>
+              </div>
             )}
           </div>
         ) : (

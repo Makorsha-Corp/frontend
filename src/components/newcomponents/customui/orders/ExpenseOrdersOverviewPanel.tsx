@@ -12,6 +12,7 @@ interface ExpenseOrdersOverviewPanelProps {
   formatCurrency: (v: number | null | undefined) => string;
   onSelectOrder: (id: number) => void;
   onCategoryFilter: (categoryKey: string) => void;
+  hideOrderLists?: boolean;
 }
 
 const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
@@ -21,6 +22,7 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
   formatCurrency,
   onSelectOrder,
   onCategoryFilter,
+  hideOrderLists = false,
 }) => {
   const formatCompactCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', {
@@ -40,7 +42,10 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
   }
 
   return (
-    <div className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6">
+    <div
+      data-help-tour="expense.overview"
+      className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
         <OrderOverviewKpiCard
           title="Total orders"
@@ -65,7 +70,7 @@ const ExpenseOrdersOverviewPanel: React.FC<ExpenseOrdersOverviewPanelProps> = ({
       </div>
 
       <ExpenseOrderFinancialOverview
-        snapshot={hubStats?.financial_snapshot}
+        snapshot={hideOrderLists ? undefined : hubStats?.financial_snapshot}
         formatCurrency={formatCurrency}
         formatCompactCurrency={formatCompactCurrency}
         onCategoryFilter={onCategoryFilter}

@@ -7,12 +7,19 @@ import type {
   HelpTicketType,
   HelpTicketUpdate,
   PlatformHelpTicket,
+  HelpTicketEvent,
 } from '@/types/helpTicket';
 
 export const helpTicketsApi = createApi({
   reducerPath: 'helpTicketsApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['HelpTicket', 'HelpTicketList', 'PlatformHelpTicket', 'PlatformHelpTicketList'],
+  tagTypes: [
+    'HelpTicket',
+    'HelpTicketList',
+    'HelpTicketEvents',
+    'PlatformHelpTicket',
+    'PlatformHelpTicketList',
+  ],
   endpoints: (builder) => ({
     listHelpTickets: builder.query<
       HelpTicket[],
@@ -39,13 +46,23 @@ export const helpTicketsApi = createApi({
       query: (ticketId) => `help/tickets/${ticketId}`,
       providesTags: (_result, _error, ticketId) => [{ type: 'HelpTicket', id: ticketId }],
     }),
+    getHelpTicketEvents: builder.query<HelpTicketEvent[], number>({
+      query: (ticketId) => `help/tickets/${ticketId}/events`,
+      providesTags: (_result, _error, ticketId) => [{ type: 'HelpTicketEvents', id: ticketId }],
+    }),
     createHelpTicket: builder.mutation<HelpTicket, HelpTicketCreate>({
       query: (body) => ({
         url: 'help/tickets',
         method: 'POST',
         body,
       }),
-      invalidatesTags: [{ type: 'HelpTicketList', id: 'LIST' }],
+      invalidatesTags: (result) =>
+        result
+          ? [
+              { type: 'HelpTicketList', id: 'LIST' },
+              { type: 'HelpTicketEvents', id: result.id },
+            ]
+          : [{ type: 'HelpTicketList', id: 'LIST' }],
     }),
     updateHelpTicket: builder.mutation<
       HelpTicket,
@@ -58,6 +75,7 @@ export const helpTicketsApi = createApi({
       }),
       invalidatesTags: (_result, _error, { ticketId }) => [
         { type: 'HelpTicket', id: ticketId },
+        { type: 'HelpTicketEvents', id: ticketId },
         { type: 'HelpTicketList', id: 'LIST' },
         { type: 'PlatformHelpTicketList', id: 'LIST' },
         { type: 'PlatformHelpTicket', id: ticketId },
@@ -95,6 +113,7 @@ export const helpTicketsApi = createApi({
 export const {
   useListHelpTicketsQuery,
   useGetHelpTicketQuery,
+  useGetHelpTicketEventsQuery,
   useCreateHelpTicketMutation,
   useUpdateHelpTicketMutation,
   useListPlatformHelpTicketsQuery,

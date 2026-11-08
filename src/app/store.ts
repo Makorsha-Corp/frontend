@@ -23,6 +23,7 @@ import { ledgersApi } from '@/features/ledgers/ledgersApi';
 import { salesOrdersApi } from '@/features/salesOrders/salesOrdersApi';
 import { salesDeliveriesApi } from '@/features/salesDeliveries/salesDeliveriesApi';
 import { deliveryMethodsApi } from '@/features/deliveryMethods/deliveryMethodsApi';
+import { workspaceShiftsApi } from '@/features/workspaceShifts/workspaceShiftsApi';
 import { machinesApi } from '@/features/machines/machinesApi';
 import { machineItemsApi } from '@/features/machineItems/machineItemsApi';
 import { machineMaintenanceLogsApi } from '@/features/machineMaintenanceLogs/machineMaintenanceLogsApi';
@@ -73,6 +74,7 @@ export const store = configureStore({
     [salesOrdersApi.reducerPath]: salesOrdersApi.reducer,
     [salesDeliveriesApi.reducerPath]: salesDeliveriesApi.reducer,
     [deliveryMethodsApi.reducerPath]: deliveryMethodsApi.reducer,
+    [workspaceShiftsApi.reducerPath]: workspaceShiftsApi.reducer,
     [machinesApi.reducerPath]: machinesApi.reducer,
     [machineItemsApi.reducerPath]: machineItemsApi.reducer,
     [machineMaintenanceLogsApi.reducerPath]: machineMaintenanceLogsApi.reducer,
@@ -123,6 +125,7 @@ export const store = configureStore({
       salesOrdersApi.middleware,
       salesDeliveriesApi.middleware,
       deliveryMethodsApi.middleware,
+      workspaceShiftsApi.middleware,
       machinesApi.middleware,
       machineItemsApi.middleware,
       machineMaintenanceLogsApi.middleware,

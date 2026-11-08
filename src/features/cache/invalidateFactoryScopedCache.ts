@@ -23,7 +23,14 @@ export function invalidateFactoryScopedCache(dispatch: AppDispatch): void {
   dispatch(workOrdersApi.util.invalidateTags(['WorkOrder']));
   dispatch(purchaseOrdersApi.util.invalidateTags([...purchaseOrderListCacheTags, 'ActiveOrders']));
   dispatch(transferOrdersApi.util.invalidateTags(transferOrderListCacheTags));
-  dispatch(productionApi.util.invalidateTags(['ProductionLine', 'ProductionBatch']));
+  dispatch(
+    productionApi.util.invalidateTags([
+      'ProductionLine',
+      'ProductionBatch',
+      'ProductionSchedule',
+      'ProductionBatchStats',
+    ]),
+  );
   invalidateInventoryStockCache(dispatch);
   dispatch(productsApi.util.invalidateTags(['Product', 'ProductLedger']));
   dispatch(projectsApi.util.invalidateTags(['Project']));

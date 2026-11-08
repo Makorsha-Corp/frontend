@@ -3,7 +3,7 @@ import { resolvePurchaseOrderDestinationLabel } from './resolvePurchaseOrderDest
 
 describe('resolvePurchaseOrderDestinationLabel', () => {
   const lookups = {
-    factories: [{ id: 1, name: 'Mill A' }],
+    factories: [{ id: 1, name: 'Factory A' }],
     machines: [{ id: 10, name: 'Loom 1' }],
     projectComponents: [
       { id: 99, name: 'Electrical', project_id: 5, project_name: 'Expansion' },
@@ -16,7 +16,7 @@ describe('resolvePurchaseOrderDestinationLabel', () => {
         { destination_type: 'storage', destination_id: 1 },
         lookups,
       ),
-    ).toBe('Storage (Mill A)');
+    ).toBe('Storage (Factory A)');
   });
 
   it('resolves machine destination', () => {

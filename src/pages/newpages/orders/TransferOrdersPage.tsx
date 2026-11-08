@@ -5,19 +5,8 @@ import {
   parsePageFactoryFilterParam,
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
-import { format } from 'date-fns';
-import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import TransferOrderHeaderFilters from '@/components/newcomponents/customui/orders/TransferOrderHeaderFilters';
 import {
   useGetTransferOrdersPageQuery,
   useGetTransferOrderHubStatsQuery,
@@ -29,27 +18,31 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
-import { ArrowLeftRight, CalendarIcon, X } from 'lucide-react';
+import { ArrowLeftRight } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
 import TransferOrdersOverviewPanel from '@/components/newcomponents/customui/orders/TransferOrdersOverviewPanel';
 import TransferOrderNavigatorPanel from '@/components/newcomponents/customui/orders/TransferOrderNavigatorPanel';
-import { ShowCompleteOrdersSwitchControl } from '@/components/newcomponents/customui/orders/ShowCompleteOrdersSwitch';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
 import AddTransferOrderDialog from '@/components/newcomponents/customui/orders/AddTransferOrderDialog';
 import { API_LIMITS } from '@/constants/apiLimits';
-import {
-  type TransferLocationTypeFilter,
-  type TransferOrderSummaryStats,
-} from './transferOrdersOverviewData';
+import { type TransferOrderSummaryStats } from './transferOrdersOverviewData';
 import {
   type TransferLocationLabelContext,
   transferRouteLabel,
 } from './transferOrderLocationLabels';
 import { statusesForTrWorkflowFilter } from '@/components/newcomponents/customui/orders/transferOrderMilestones';
-import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
+import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
+import {
+  useCloseFiltersOnTourEvent,
+  useOpenFiltersOnTourEvent,
+  useResetSelectionWhenTourStarts,
+  useTourSampleDetail,
+} from '@/features/helpGuides/useTourPreview';
+import TransferOrderTourSampleDetail from '@/components/newcomponents/customui/helpGuides/TransferOrderTourSampleDetail';
 import {
   clearTransferOrderFilterParams,
   hasActiveListFilters,
@@ -68,14 +61,6 @@ import {
 import { useOrderHubPageClamp } from './useOrderHubPageClamp';
 import OrderHubOffPageSelectionBanner from '@/components/newcomponents/customui/orders/OrderHubOffPageSelectionBanner';
 import { isOrderSelectedOffFilteredPage } from './orderHubSelection';
-
-const LOCATION_TYPE_OPTIONS: { value: TransferLocationTypeFilter; label: string }[] = [
-  { value: 'all', label: 'All types' },
-  { value: 'storage', label: 'Storage' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'project', label: 'Project' },
-  { value: 'damaged', label: 'Damaged' },
-];
 
 const TransferOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,8 +83,8 @@ const TransferOrdersPage: React.FC = () => {
   }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
-    hasActiveListFilters(new URLSearchParams(window.location.search), 'transfer')
+  const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(() =>
+    hasActiveListFilters(new URLSearchParams(window.location.search), 'transfer'),
   );
   const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
@@ -125,7 +110,7 @@ const TransferOrdersPage: React.FC = () => {
 
   const urlFilters = useMemo(
     () => parseTransferOrderParams(searchParams, trStatusOptions),
-    [searchParams, trStatusOptions]
+    [searchParams, trStatusOptions],
   );
 
   const listPage = parseOrderHubPage(searchParams.get(ORDER_HUB_PAGE_PARAMS.transfer));
@@ -203,7 +188,7 @@ const TransferOrdersPage: React.FC = () => {
 
   const labelCtx: TransferLocationLabelContext = useMemo(
     () => ({ factories, machines, projects }),
-    [factories, machines, projects]
+    [factories, machines, projects],
   );
 
   const overviewStats = useMemo((): TransferOrderSummaryStats => {
@@ -237,6 +222,15 @@ const TransferOrdersPage: React.FC = () => {
     selectedById,
     selectedByIdError,
   });
+
+  useAutoHelpGuide({
+    tourId: HELP_GUIDE_TOUR_ID.transferOrders,
+    when: !isLoading,
+  });
+
+  const tourSample = useTourSampleDetail([HELP_GUIDE_TOUR_ID.transferOrders]);
+  useOpenFiltersOnTourEvent('tr-filters-bar', setFiltersPopoverOpen);
+  useCloseFiltersOnTourEvent('tr-filters-bar', setFiltersPopoverOpen);
 
   const selectedOrderFromUrl = searchParams.get('orderId');
 
@@ -287,6 +281,11 @@ const TransferOrdersPage: React.FC = () => {
     });
   };
 
+  useResetSelectionWhenTourStarts(tourSample.tourActive, () => {
+    tourSample.closeSample();
+    setSelectedOrder(null);
+  });
+
   const renderRouteLabel = (order: TransferOrder) => (
     <TransferRouteDisplay order={order} ctx={labelCtx} />
   );
@@ -299,30 +298,13 @@ const TransferOrdersPage: React.FC = () => {
     factoryFilter !== 'all' ||
     sourceTypeFilter !== 'all' ||
     destinationTypeFilter !== 'all' ||
+    showCompleteOrders ||
     searchQuery.trim().length > 0;
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilters.length > 0) count += 1;
-    if (factoryFilter !== 'all') count += 1;
-    if (sourceTypeFilter !== 'all') count += 1;
-    if (destinationTypeFilter !== 'all') count += 1;
-    if (searchQuery.trim().length > 0) count += 1;
-    return count;
-  }, [
-    dateRange.from,
-    dateRange.to,
-    statusFilters,
-    factoryFilter,
-    sourceTypeFilter,
-    destinationTypeFilter,
-    searchQuery,
-  ]);
 
   const clearFilters = () => {
     setPageFactory('all');
     setSelectedOrderId(null);
+    setFiltersPopoverOpen(false);
     setSearchParams(
       (prev) => {
         const next = clearTransferOrderFilterParams(prev);
@@ -362,139 +344,43 @@ const TransferOrdersPage: React.FC = () => {
           onAdd={() => setIsAddOpen(true)}
           addButtonLabel="Add Transfer Order"
           addAriaLabel="Add transfer order"
-        />
-
-        {filtersBarOpen ? (
-          <div
-            id="tr-filters-bar"
-            className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
-          >
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange.from ? (
-                    dateRange.to ? (
-                      `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
-                    ) : (
-                      format(dateRange.from, 'MMM d')
-                    )
-                  ) : (
-                    'All dates'
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(r) =>
-                    commitTransferFilters({ dateRange: { from: r?.from, to: r?.to } })
-                  }
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-            <span className="text-xs text-muted-foreground">Filters by created date</span>
-
-            <OrderStatusMultiFilter
-              options={trStatusOptions}
-              selectedIds={statusFilters}
-              onChange={(selectedIds) => commitTransferFilters({ statusFilters: selectedIds })}
-              triggerClassName="w-[160px]"
+          helpGuideKind="transfer"
+          headerToolbarExtras={
+            <TransferOrderHeaderFilters
+              open={filtersPopoverOpen}
+              onOpenChange={setFiltersPopoverOpen}
+              dateRange={dateRange}
+              onDateRangeChange={(next) => commitTransferFilters({ dateRange: next })}
+              statusFilters={statusFilters}
+              onStatusFiltersChange={(selectedIds) =>
+                commitTransferFilters({ statusFilters: selectedIds })
+              }
+              trStatusOptions={trStatusOptions}
+              factoryFilter={factoryFilter}
+              onFactoryFilterChange={(value) => commitTransferFilters({ factoryFilter: value })}
+              factories={factories}
+              sourceTypeFilter={sourceTypeFilter}
+              onSourceTypeFilterChange={(v) =>
+                commitTransferFilters({ sourceTypeFilter: v })
+              }
+              destinationTypeFilter={destinationTypeFilter}
+              onDestinationTypeFilterChange={(v) =>
+                commitTransferFilters({ destinationTypeFilter: v })
+              }
+              showCompleteOrders={showCompleteOrders}
+              onShowCompleteOrdersChange={(value) =>
+                commitTransferFilters({ showCompleteOrders: value })
+              }
+              onClearFilters={clearFilters}
             />
-
-            <Select
-              value={factoryFilter}
-              onValueChange={(value) => commitTransferFilters({ factoryFilter: value })}
-            >
-              <SelectTrigger className="w-[140px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Factory" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All factories</SelectItem>
-                {factories.map((f) => (
-                  <SelectItem key={f.id} value={String(f.id)}>
-                    {f.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={sourceTypeFilter}
-              onValueChange={(v) =>
-                commitTransferFilters({ sourceTypeFilter: v as TransferLocationTypeFilter })
-              }
-            >
-              <SelectTrigger className="w-[130px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="Source" />
-              </SelectTrigger>
-              <SelectContent>
-                {LOCATION_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={`src-${opt.value}`} value={opt.value}>
-                    {opt.value === 'all' ? 'All sources' : opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={destinationTypeFilter}
-              onValueChange={(v) =>
-                commitTransferFilters({ destinationTypeFilter: v as TransferLocationTypeFilter })
-              }
-            >
-              <SelectTrigger className="w-[150px] h-9 border-border bg-background text-sm">
-                <SelectValue placeholder="All destinations">
-                  {destinationTypeFilter === 'all'
-                    ? 'All destinations'
-                    : LOCATION_TYPE_OPTIONS.find((o) => o.value === destinationTypeFilter)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {LOCATION_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={`dst-${opt.value}`} value={opt.value}>
-                    {opt.value === 'all' ? 'All destinations' : opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="ml-auto flex items-center gap-2">
-              <ShowCompleteOrdersSwitchControl
-                checked={showCompleteOrders}
-                onCheckedChange={(value) =>
-                  commitTransferFilters({ showCompleteOrders: value })
-                }
-                context="list"
-              />
-              {activeFilterCount > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={clearFilters}
-                  aria-label="Clear filters"
-                  title="Clear filters"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+          }
+        />
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           <TransferOrderNavigatorPanel
             className={cn(
-              selectedOrder && 'max-lg:hidden',
-              !isLgScreen && 'flex-1 border-r-0'
+              (selectedOrder || tourSample.sampleOpen) && 'max-lg:hidden',
+              !isLgScreen && 'flex-1 border-r-0',
             )}
             orders={orders}
             ordersTotal={ordersTotal}
@@ -507,11 +393,22 @@ const TransferOrdersPage: React.FC = () => {
             }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
-            activeFilterCount={activeFilterCount}
-            filtersOpen={filtersBarOpen}
-            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
+            showCompleteOrders={showCompleteOrders}
+            onShowCompleteOrdersChange={(value) =>
+              commitTransferFilters({ showCompleteOrders: value })
+            }
             emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
-            onSelectOrder={(id) => setSelectedOrder(id)}
+            onSelectOrder={(id) => {
+              tourSample.closeSample();
+              setSelectedOrder(id);
+            }}
+            showSample={tourSample.tourActive}
+            hideRealOrders={tourSample.tourActive}
+            sampleSelected={tourSample.sampleOpen}
+            onSelectSample={() => {
+              setSelectedOrder(null);
+              tourSample.openSample();
+            }}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
             routeLabel={renderRouteLabel}
@@ -521,10 +418,12 @@ const TransferOrdersPage: React.FC = () => {
           <div
             className={cn(
               'flex-1 min-w-0 min-h-0 overflow-hidden',
-              !selectedOrder && 'max-lg:hidden'
+              !selectedOrder && !tourSample.sampleOpen && 'max-lg:hidden',
             )}
           >
-            {selectedOrder ? (
+            {tourSample.sampleOpen ? (
+              <TransferOrderTourSampleDetail />
+            ) : selectedOrder ? (
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 {isOffFilteredPage ? (
                   <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.transfer_number} />
@@ -545,7 +444,11 @@ const TransferOrdersPage: React.FC = () => {
                 hubStats={hubStats}
                 isLoading={isLoading || statsLoading}
                 routeSubtext={(o) => transferRouteLabel(o, labelCtx)}
-                onSelectOrder={(id) => setSelectedOrder(id)}
+                hideOrderLists={tourSample.tourActive}
+                onSelectOrder={(id) => {
+                  tourSample.closeSample();
+                  setSelectedOrder(id);
+                }}
               />
             ) : null}
           </div>

@@ -24,6 +24,7 @@ import {
   getWorkOrderStartActionTooltip,
   WORK_ORDER_DIRECT_COMPLETE_TOOLTIP,
 } from '@/components/newcomponents/customui/orders/workOrderCompleteCopy';
+import { isWorkOrderPreStart } from '@/pages/newpages/orders/workOrderConstants';
 import { canCompleteWorkOrderAsPlanned } from '@/pages/newpages/orders/workOrderPlannedClose';
 import { SHEET_ACTION_BTN } from './workOrderSheetTypography';
 
@@ -72,9 +73,10 @@ const SheetWorkOrderRowActions: React.FC<SheetWorkOrderRowActionsProps> = ({
     currentUserId != null ? approvers.find((a) => a.user_id === currentUserId) : undefined;
 
   const isTerminal = status === 'COMPLETED' || status === 'VOIDED';
-  const showApprove = status === 'DRAFT' && myApproval != null && !myApproval.approved;
-  const showWithdraw = status === 'DRAFT' && myApproval?.approved === true;
-  const showStart = status === 'DRAFT';
+  const preStart = isWorkOrderPreStart(status);
+  const showApprove = preStart && myApproval != null && !myApproval.approved;
+  const showWithdraw = preStart && myApproval?.approved === true;
+  const showStart = preStart;
   const showComplete = status === 'IN_PROGRESS';
   const showCompleteAsPlanned = canCompleteWorkOrderAsPlanned(status, plannedDate, approvalMet);
   const startEnabled = approvalMet;

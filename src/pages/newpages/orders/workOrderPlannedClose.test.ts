@@ -26,4 +26,8 @@ describe('workOrderPlannedClose', () => {
   it('blocks complete as planned when approvals not met', () => {
     expect(canCompleteWorkOrderAsPlanned('DRAFT', '2026-07-20', false, TODAY)).toBe(false);
   });
+
+  it('allows complete-as-planned from RECURRING when date and approvals ok', () => {
+    expect(canCompleteWorkOrderAsPlanned('RECURRING', '2026-07-20', true, TODAY)).toBe(true);
+  });
 });

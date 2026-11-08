@@ -19,7 +19,7 @@ import {
 } from '@/features/workspaces/workspaceApi';
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import TimezoneSelect from '@/components/newcomponents/customui/TimezoneSelect';
-import { detectBrowserTimezone } from '@/utils/datetime';
+import { DEFAULT_MILL_TIMEZONE } from '@/lib/millCalendarDate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -133,14 +133,16 @@ const WorkspaceSettingsTab: React.FC<{ workspaceId: number }> = ({ workspaceId }
   const authWorkspace = useAppSelector((state) => state.auth.workspace);
   const { data: workspaceDetails, isLoading } = useGetWorkspaceQuery(workspaceId);
   const [updateWorkspace, { isLoading: isSaving }] = useUpdateWorkspaceMutation();
-  const [timezone, setTimezone] = useState(detectBrowserTimezone());
+  const [timezone, setTimezone] = useState(DEFAULT_MILL_TIMEZONE);
 
   React.useEffect(() => {
     const wsTz = workspaceDetails?.settings?.timezone;
     if (typeof wsTz === 'string' && wsTz) {
       setTimezone(wsTz);
+      return;
     }
-  }, [workspaceDetails?.settings]);
+    if (workspaceDetails) setTimezone(DEFAULT_MILL_TIMEZONE);
+  }, [workspaceDetails]);
 
   const handleSave = async () => {
     try {

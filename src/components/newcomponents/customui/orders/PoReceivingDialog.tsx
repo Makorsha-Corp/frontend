@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { CheckCircle2, ChevronRight, Clock, Loader2, Package, RotateCcw, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
@@ -21,6 +21,19 @@ import {
   useGetPoReceiveEventsQuery,
   useCreatePoReceiveEventMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
+import { appToast } from '@/lib/appToast';
+import {
+  HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT,
+  HELP_GUIDE_PO_TOUR_ACTION_EVENT,
+  HELP_GUIDE_PO_TOUR_RECEIVING_MODE_EVENT,
+  type HelpGuidePoReceivingTourMode,
+  type HelpGuidePoTourAction,
+} from '@/features/helpGuides/helpGuideSession';
+
+function emitPoTourActionDoneForSample(isTourSample: boolean, action: HelpGuidePoTourAction): void {
+  if (!isTourSample) return;
+  window.dispatchEvent(new CustomEvent(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, { detail: action }));
+}
 
 type Mode = 'overview' | 'add' | 'correction';
 
@@ -30,9 +43,17 @@ interface Props {
   poId: number;
   items: PurchaseOrderItem[];
   onSaved?: () => void;
+  isTourSample?: boolean;
 }
 
-const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, onSaved }) => {
+const PoReceivingDialog: React.FC<Props> = ({
+  open,
+  onOpenChange,
+  poId,
+  items,
+  onSaved,
+  isTourSample = false,
+}) => {
   const [mode, setMode] = useState<Mode>('overview');
 
   // Add receipt form state
@@ -81,7 +102,7 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
 
   const canSubmitAdd = addLines.length > 0;
 
-  const handleSubmitAdd = async () => {
+  const handleSubmitAdd = useCallback(async () => {
     if (!canSubmitAdd) return;
     try {
       await createEvent({
@@ -96,11 +117,118 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
       onSaved?.();
       setMode('overview');
       resetForms();
+      emitPoTourActionDoneForSample(isTourSample, 'confirm_receipt');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      alert(e?.data?.detail || 'Failed to record receipt');
+      appToast.error(e?.data?.detail || 'Failed to record receipt');
     }
-  };
+  }, [addLines, canSubmitAdd, createEvent, isTourSample, onSaved, poId, rcc, receivedBy]);
+
+  const tourLine0QtyDone = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      tourLine0QtyDone.current = false;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!isTourSample || mode !== 'add' || items.length === 0 || tourLine0QtyDone.current) return;
+    const item = items[0];
+    const target = Math.max(
+      0,
+      Math.floor(Number(item.quantity_ordered) - Number(item.quantity_received ?? 0)),
+    );
+    if (target <= 0) return;
+    const raw = addQtys[item.id] ?? '';
+    const qty = raw === '' ? 0 : Math.floor(Number(raw));
+    if (qty >= target) {
+      tourLine0QtyDone.current = true;
+      emitPoTourActionDoneForSample(isTourSample, 'receive_qty_line_0');
+    }
+  }, [addQtys, isTourSample, mode, items]);
+
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
+  useEffect(() => {
+    if (!isTourSample) return;
+
+    const onReceivingTourMode = (event: Event) => {
+      const mode = (event as CustomEvent<HelpGuidePoReceivingTourMode>).detail;
+      if (mode === 'overview') {
+        setMode('overview');
+        resetForms();
+        tourLine0QtyDone.current = false;
+      } else if (mode === 'add') {
+        setMode('add');
+      }
+    };
+
+    window.addEventListener(HELP_GUIDE_PO_TOUR_RECEIVING_MODE_EVENT, onReceivingTourMode);
+    return () =>
+      window.removeEventListener(HELP_GUIDE_PO_TOUR_RECEIVING_MODE_EVENT, onReceivingTourMode);
+  }, [isTourSample]);
+
+  useEffect(() => {
+    if (!isTourSample) return;
+
+    const onPoTourAction = (event: Event) => {
+      const action = (event as CustomEvent<HelpGuidePoTourAction>).detail;
+
+      if (action === 'receive_items') {
+        if (!open) return;
+        if (modeRef.current === 'add') {
+          emitPoTourActionDoneForSample(true, 'receive_items');
+          return;
+        }
+        setMode('add');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            emitPoTourActionDoneForSample(true, 'receive_items');
+          });
+        });
+        return;
+      }
+      if (action === 'receive_qty_line_0') {
+        const item = items[0];
+        if (!item) return;
+        const remaining = Math.max(
+          0,
+          Math.floor(Number(item.quantity_ordered) - Number(item.quantity_received ?? 0)),
+        );
+        if (remaining <= 0) {
+          emitPoTourActionDoneForSample(true, 'receive_qty_line_0');
+          return;
+        }
+        setAddQtys((p) => ({ ...p, [item.id]: String(remaining) }));
+        tourLine0QtyDone.current = true;
+        emitPoTourActionDoneForSample(true, 'receive_qty_line_0');
+        return;
+      }
+      if (action === 'receive_all_line_1') {
+        const item = items[1];
+        if (!item) return;
+        const remaining = Math.max(
+          0,
+          Math.floor(Number(item.quantity_ordered) - Number(item.quantity_received ?? 0)),
+        );
+        if (remaining <= 0) {
+          emitPoTourActionDoneForSample(true, 'receive_all_line_1');
+          return;
+        }
+        setAddQtys((p) => ({ ...p, [item.id]: String(remaining) }));
+        emitPoTourActionDoneForSample(true, 'receive_all_line_1');
+        return;
+      }
+      if (action === 'confirm_receipt') {
+        void handleSubmitAdd();
+      }
+    };
+
+    window.addEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onPoTourAction);
+    return () => window.removeEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onPoTourAction);
+  }, [handleSubmitAdd, isTourSample, items, open]);
 
   // ── Correction ──────────────────────────────────────────────
 
@@ -201,10 +329,14 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
             {/* Action buttons */}
             <div className="grid grid-cols-2 gap-3">
               <Button
+                id="po-receive-items-btn"
                 type="button"
                 variant="outline"
                 className="h-auto py-3 flex-col gap-1"
-                onClick={() => setMode('add')}
+                onClick={() => {
+                  setMode('add');
+                  emitPoTourActionDoneForSample(isTourSample, 'receive_items');
+                }}
               >
                 <Truck className="h-5 w-5 text-brand-primary" />
                 <span className="text-sm font-medium">Receive Items</span>
@@ -235,7 +367,10 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
             ) : receiveEvents.length === 0 ? (
               <p className="text-xs text-muted-foreground py-1">No receive events recorded yet.</p>
             ) : (
-              <div className="space-y-2 max-h-[28vh] overflow-y-auto pr-1">
+              <div
+                id="po-receive-history"
+                className="space-y-2 max-h-[28vh] overflow-y-auto pr-1"
+              >
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Receive history</p>
                 {receiveEvents.map((ev) => (
                   <ReceiveEventRow key={ev.id} event={ev} />
@@ -275,7 +410,7 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
 
             <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantities received this shipment</p>
-              {items.map((item) => {
+              {items.map((item, lineIndex) => {
                 const ordered = Number(item.quantity_ordered);
                 const alreadyReceived = Number(item.quantity_received ?? 0);
                 const remaining = Math.max(0, ordered - alreadyReceived);
@@ -289,22 +424,50 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
                       <p className="text-xs text-muted-foreground">{alreadyReceived} / {ordered} {item.item_unit ?? ''} already received · {remaining} remaining</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <StepNumberInput
-                        min={0}
-                        max={remaining}
-                        step={1}
-                        placeholder="0"
-                        value={addQtys[item.id] ?? ''}
-                        onChange={(e) => setAddQtys((p) => ({ ...p, [item.id]: e.target.value }))}
-                        disabled={remaining <= 0}
-                        className={cn('h-8 w-24 text-sm text-right bg-background', willExceed && 'border-destructive')}
-                      />
+                      {lineIndex === 0 ? (
+                        <div id="po-receive-qty-line-0-stepper" className="shrink-0">
+                          <StepNumberInput
+                            id="po-receive-qty-line-0"
+                            min={0}
+                            max={remaining}
+                            step={1}
+                            placeholder="0"
+                            value={addQtys[item.id] ?? ''}
+                            onChange={(e) => setAddQtys((p) => ({ ...p, [item.id]: e.target.value }))}
+                            disabled={remaining <= 0}
+                            className={cn(
+                              'h-8 w-24 text-sm text-right bg-background',
+                              willExceed && 'border-destructive',
+                            )}
+                          />
+                        </div>
+                      ) : (
+                        <StepNumberInput
+                          min={0}
+                          max={remaining}
+                          step={1}
+                          placeholder="0"
+                          value={addQtys[item.id] ?? ''}
+                          onChange={(e) => setAddQtys((p) => ({ ...p, [item.id]: e.target.value }))}
+                          disabled={remaining <= 0}
+                          className={cn(
+                            'h-8 w-24 text-sm text-right bg-background',
+                            willExceed && 'border-destructive',
+                          )}
+                        />
+                      )}
                       <Button
+                        id={lineIndex === 1 ? 'po-receive-all-btn-1' : undefined}
                         type="button"
                         variant="outline"
                         size="sm"
                         className="h-8 px-2 text-xs shrink-0"
-                        onClick={() => setAddQtys((p) => ({ ...p, [item.id]: String(remaining) }))}
+                        onClick={() => {
+                          setAddQtys((p) => ({ ...p, [item.id]: String(remaining) }));
+                          if (lineIndex === 1) {
+                            emitPoTourActionDoneForSample(isTourSample, 'receive_all_line_1');
+                          }
+                        }}
                         disabled={remaining <= 0}
                       >
                         All
@@ -324,7 +487,8 @@ const PoReceivingDialog: React.FC<Props> = ({ open, onOpenChange, poId, items, o
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={handleBack} disabled={saving}>Back</Button>
               <Button
-                onClick={handleSubmitAdd}
+                id="po-confirm-receipt-btn"
+                onClick={() => void handleSubmitAdd()}
                 disabled={saving || !canSubmitAdd}
                 className="bg-brand-primary hover:bg-brand-primary-hover"
               >

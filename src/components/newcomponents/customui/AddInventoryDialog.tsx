@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCreateInventoryMutation } from '@/features/inventory/inventoryApi';
+import { useCreateInventoryMutation, useUpdateInventoryMutation } from '@/features/inventory/inventoryApi';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
 import type { Item } from '@/types/item';
 import type { InventoryType } from '@/types/inventory';
@@ -39,6 +39,12 @@ interface AddInventoryDialogProps {
   factoryId: number;
   defaultType?: InventoryType;
   onSuccess?: () => void;
+  /** Prefill when opened from a short production step. */
+  initialItemId?: number;
+  initialItemName?: string;
+  initialQty?: number;
+  /** When set, Quantity is added onto this storage row instead of creating a new one. */
+  existingQty?: { id: number; qty: number } | null;
 }
 
 const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
@@ -47,6 +53,10 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   factoryId,
   defaultType = 'STORAGE',
   onSuccess,
+  initialItemId,
+  initialItemName,
+  initialQty,
+  existingQty = null,
 }) => {
   const [itemId, setItemId] = useState<number | undefined>();
   const [inventoryType, setInventoryType] = useState<InventoryType>(defaultType);
@@ -55,7 +65,18 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   const [note, setNote] = useState('');
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
 
-  const [createInventory, { isLoading }] = useCreateInventoryMutation();
+  const [createInventory, { isLoading: isCreating }] = useCreateInventoryMutation();
+  const [updateInventory, { isLoading: isUpdating }] = useUpdateInventoryMutation();
+  const isLoading = isCreating || isUpdating;
+
+  useEffect(() => {
+    if (!open) return;
+    setInventoryType(defaultType);
+    setItemId(initialItemId);
+    setQty(initialQty != null && initialQty > 0 ? String(initialQty) : '0');
+    setAvgPrice('');
+    setNote('');
+  }, [open, defaultType, initialItemId, initialQty]);
   const { data: items, isLoading: loadingItems, error: itemsError, refetch: refetchItems } = useGetItemsQuery(
     { skip: 0, limit: 100 },
     { skip: !open, refetchOnMountOrArgChange: true }
@@ -69,7 +90,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       return;
     }
 
-    const qtyNum = parseInt(qty, 10);
+    const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
       appToast.error('Quantity must be 0 or greater');
       return;
@@ -82,16 +103,27 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     }
 
     try {
-      await createInventory({
-        item_id: itemId,
-        inventory_type: inventoryType,
-        factory_id: factoryId,
-        qty: qtyNum,
-        avg_price: priceNum,
-        note: note.trim() || undefined,
-      }).unwrap();
+      if (existingQty) {
+        await updateInventory({
+          id: existingQty.id,
+          data: {
+            qty: Math.round((Number(existingQty.qty) + qtyNum) * 100) / 100,
+            ...(priceNum != null ? { avg_price: priceNum } : {}),
+            ...(note.trim() ? { note: note.trim() } : {}),
+          },
+        }).unwrap();
+      } else {
+        await createInventory({
+          item_id: itemId,
+          inventory_type: inventoryType,
+          factory_id: factoryId,
+          qty: qtyNum,
+          avg_price: priceNum,
+          note: note.trim() || undefined,
+        }).unwrap();
+      }
 
-      appToast.success('Inventory record added');
+      appToast.success('Stock added');
       setItemId(undefined);
       setQty('0');
       setAvgPrice('');
@@ -126,7 +158,9 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
             <DialogHeader>
               <DialogTitle className="text-card-foreground">Add to Inventory</DialogTitle>
               <DialogDescription>
-                Add an item to storage. Select from catalog or create a new item.
+                {existingQty
+                  ? `Adds onto the ${existingQty.qty} already in storage. Quantity is the amount to add.`
+                  : 'Add an item to storage. Select from catalog or create a new item.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -169,14 +203,21 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                         <SelectItem value="__loading__" disabled>Loading items...</SelectItem>
                       ) : itemsError ? (
                         <SelectItem value="__error__" disabled>Failed to load items</SelectItem>
-                      ) : (items ?? []).length === 0 ? (
+                      ) : (items ?? []).length === 0 && itemId == null ? (
                         <SelectItem value="__empty__" disabled>No items in catalog</SelectItem>
                       ) : (
-                        (items ?? []).map((i) => (
+                        <>
+                        {itemId != null &&
+                        initialItemName &&
+                        !(items ?? []).some((i) => i.id === itemId) ? (
+                          <SelectItem value={itemId.toString()}>{initialItemName}</SelectItem>
+                        ) : null}
+                        {(items ?? []).map((i) => (
                           <SelectItem key={i.id} value={i.id.toString()}>
                             {i.name} ({i.unit})
                           </SelectItem>
-                        ))
+                        ))}
+                        </>
                       )}
                     </SelectContent>
                   </Select>

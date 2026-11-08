@@ -6,6 +6,7 @@ import { projectsApi } from '@/features/projects/projectsApi';
 import { purchaseOrdersApi } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { salesOrdersApi } from '@/features/salesOrders/salesOrdersApi';
 import { transferOrdersApi } from '@/features/transferOrders/transferOrdersApi';
+import { helpTicketsApi } from '@/features/helpTickets/helpTicketsApi';
 import { workOrdersApi } from '@/features/workOrders/workOrdersApi';
 import type { AttachmentEntityType } from '@/types/attachment';
 
@@ -55,10 +56,14 @@ export function invalidateAttachmentEntityEvents(
         machinesApi.util.invalidateTags([{ type: 'MachineActivity', id: entityId }]),
       );
       break;
+    case 'support_ticket':
+      dispatch(
+        helpTicketsApi.util.invalidateTags([{ type: 'HelpTicketEvents', id: entityId }]),
+      );
+      break;
     case 'project_component':
     case 'item':
     case 'scratch':
-    case 'support_ticket':
       break;
     default:
       break;

@@ -3,9 +3,9 @@
  */
 
 export type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-/** Approval (if any approvers are assigned) gates the DRAFT -> IN_PROGRESS transition
+/** Approval (if any approvers are assigned) gates pre-start -> IN_PROGRESS transition
  * rather than being its own visible status — see WorkOrderApprovalSummary.met. */
-export type WorkOrderStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'VOIDED';
+export type WorkOrderStatus = 'DRAFT' | 'RECURRING' | 'IN_PROGRESS' | 'COMPLETED' | 'VOIDED';
 export type WorkOrderItemSourceType = 'storage' | 'machine';
 export type WorkOrderItemActionType = 'CONSUME' | 'INSTALL' | 'REPLACE' | 'BORROW';
 
@@ -25,6 +25,9 @@ export interface WorkOrder {
   work_order_template_id: number | null;
   planned_date: string | null;
   end_date: string | null;
+  shift_id?: number | null;
+  planned_start_at?: string | null;
+  planned_end_at?: string | null;
   /** Planned planned_date, or created_at day when unscheduled — from API. */
   calendar_date?: string | null;
   uses_inventory: boolean;
@@ -74,6 +77,9 @@ export interface CreateWorkOrderRequest {
   project_component_id?: number;
   planned_date?: string;
   end_date?: string;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
   uses_inventory?: boolean;
   cost?: number;
   account_id?: number;
@@ -91,6 +97,9 @@ export interface UpdateWorkOrderRequest {
   project_component_id?: number | null;
   planned_date?: string;
   end_date?: string;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
   cost?: number;
   /** Clearing to null reverts to internal/free work (no external billing). */
   account_id?: number | null;

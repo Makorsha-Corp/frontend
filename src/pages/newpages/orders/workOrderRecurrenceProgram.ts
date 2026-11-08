@@ -2,6 +2,7 @@ import { format, isAfter, parseISO, startOfDay } from 'date-fns';
 
 import type { WorkOrder, WorkOrderStatus } from '@/types/workOrder';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
+import { isWorkOrderPreStart } from '@/pages/newpages/orders/workOrderConstants';
 import { formatRecurrenceCadence, formatRecurrenceRange } from '@/pages/newpages/orders/workOrderTemplateLabels';
 
 export const RECURRENCE_PROGRAM_POPOVER_MAX_DATES = 5;
@@ -90,7 +91,7 @@ export function buildRecurrenceProgramSummary(params: {
     .filter(
       (order) =>
         !order.is_deleted &&
-        order.status === 'DRAFT' &&
+        isWorkOrderPreStart(order.status) &&
         order.work_order_template_id === templateId &&
         order.machine_id === machineId,
     )
@@ -245,7 +246,7 @@ export function findDraftsOutsideRecurrenceRange(
   const rangeEnd = rangeEndIso.slice(0, 10);
   return orders
     .filter((order) => {
-      if (order.is_deleted || order.status !== 'DRAFT') return false;
+      if (order.is_deleted || !isWorkOrderPreStart(order.status)) return false;
       if (order.work_order_template_id !== templateId || order.machine_id !== machineId) return false;
       const planned = plannedDateIsoFromOrder(order);
       if (!planned) return false;

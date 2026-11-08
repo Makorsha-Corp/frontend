@@ -43,6 +43,66 @@ describe('findOpenWorkOrderSlotConflict', () => {
     expect(result).toBeNull();
   });
 
+  it('allows a later window on the same day', () => {
+    const result = findOpenWorkOrderSlotConflict({
+      orders: [{
+        ...baseOrder,
+        status: 'DRAFT',
+        planned_start_at: '2026-07-26T00:00:00Z',
+        planned_end_at: '2026-07-26T02:00:00Z',
+      }],
+      machineId: 5,
+      workOrderTypeId: 10,
+      plannedDate: '2026-07-26',
+      candidateStart: '2026-07-26T08:00:00Z',
+      candidateEnd: '2026-07-26T10:00:00Z',
+      timeZone: 'Asia/Dhaka',
+    });
+    expect(result).toBeNull();
+  });
+
+  it('warns when windows overlap', () => {
+    const result = findOpenWorkOrderSlotConflict({
+      orders: [{
+        ...baseOrder,
+        status: 'DRAFT',
+        planned_start_at: '2026-07-26T00:00:00Z',
+        planned_end_at: '2026-07-26T04:00:00Z',
+      }],
+      machineId: 5,
+      workOrderTypeId: 10,
+      plannedDate: '2026-07-26',
+      candidateStart: '2026-07-26T01:00:00Z',
+      candidateEnd: '2026-07-26T03:00:00Z',
+      timeZone: 'Asia/Dhaka',
+    });
+    expect(result?.workOrderNumber).toBe('WO-2026-001');
+  });
+
+  it('warns when an untimed order meets a timed one', () => {
+    const result = findOpenWorkOrderSlotConflict({
+      orders: [{ ...baseOrder, status: 'DRAFT' }],
+      machineId: 5,
+      workOrderTypeId: 10,
+      plannedDate: '2026-07-26',
+      candidateStart: '2026-07-26T00:00:00Z',
+      candidateEnd: '2026-07-26T02:00:00Z',
+      timeZone: 'Asia/Dhaka',
+    });
+    expect(result?.workOrderId).toBe(1);
+  });
+
+  it('ignores a different work type', () => {
+    const result = findOpenWorkOrderSlotConflict({
+      orders: [{ ...baseOrder, status: 'DRAFT', work_order_type_id: 99 }],
+      machineId: 5,
+      workOrderTypeId: 10,
+      plannedDate: '2026-07-26',
+      timeZone: 'Asia/Dhaka',
+    });
+    expect(result).toBeNull();
+  });
+
   it('excludes self in edit mode', () => {
     const result = findOpenWorkOrderSlotConflict({
       orders: [{ ...baseOrder, status: 'DRAFT' }],

@@ -108,6 +108,23 @@ export const purchaseOrdersApi = createApi({
       query: (id) => `purchase-orders/${id}/`,
       providesTags: (_r, _e, id) => [{ type: 'PurchaseOrder', id }],
     }),
+    getPurchaseTourSample: builder.query<PurchaseOrder, void>({
+      query: () => 'purchase-orders/tour-sample/',
+      providesTags: (result) =>
+        result ? [{ type: 'PurchaseOrder', id: result.id }] : [{ type: 'PurchaseOrder', id: 'TOUR_SAMPLE' }],
+    }),
+    resetPurchaseTourSample: builder.mutation<PurchaseOrder, void>({
+      query: () => ({ url: 'purchase-orders/tour-sample/reset/', method: 'POST' }),
+      invalidatesTags: (result) =>
+        result
+          ? [
+              { type: 'PurchaseOrder', id: result.id },
+              { type: 'PurchaseOrderItem', id: result.id },
+              { type: 'PurchaseOrderApprovers', id: result.id },
+              { type: 'PurchaseOrderEvents', id: result.id },
+            ]
+          : [],
+    }),
     createPurchaseOrder: builder.mutation<PurchaseOrder, CreatePurchaseOrder>({
       query: (body) => ({ url: 'purchase-orders/', method: 'POST', body }),
       invalidatesTags: [...purchaseOrderListCacheTags, 'ActiveOrders', 'PurchaseOrderItem'],
@@ -447,6 +464,8 @@ export const {
   useGetPurchaseOrdersPageQuery,
   useGetPurchaseOrderHubStatsQuery,
   useGetPurchaseOrderByIdQuery,
+  useGetPurchaseTourSampleQuery,
+  useResetPurchaseTourSampleMutation,
   useCreatePurchaseOrderMutation,
   useUpdatePurchaseOrderMutation,
   useSetPurchaseOrderSectionConfirmMutation,

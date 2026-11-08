@@ -124,7 +124,10 @@ const EditWorkOrderItemsDialog: React.FC<EditWorkOrderItemsDialogProps> = ({
     }
   }, [open, dismissAddButtonHighlight]);
 
-  const canEditLines = workOrderStatus === 'DRAFT' || workOrderStatus === 'IN_PROGRESS';
+  const canEditLines =
+    workOrderStatus === 'DRAFT' ||
+    workOrderStatus === 'RECURRING' ||
+    workOrderStatus === 'IN_PROGRESS';
   const canRemoveLines = canEditLines;
   const needsVoidConfirm = workOrderStatus === 'IN_PROGRESS';
   const actionOptions = machineId

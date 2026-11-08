@@ -6,6 +6,7 @@ export interface SalesDeliveryItem {
   item_id: number | null;
   quantity_delivered: number;
   notes: string | null;
+  item_name?: string | null;
 }
 
 export interface CreateSalesDeliveryItemDTO {

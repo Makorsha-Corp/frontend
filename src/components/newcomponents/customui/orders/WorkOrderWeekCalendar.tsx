@@ -6,16 +6,15 @@ import {
   type SheetWeekSection,
 } from '@/pages/newpages/orders/workOrderSheetData';
 import type { WorkOrdersWeekView } from '@/pages/newpages/orders/useWorkOrdersFilters';
-import WorkOrderWeekRows from './WorkOrderWeekRows';
-import WorkOrderWeekColumns from './WorkOrderWeekColumns';
+import WorkOrderWeekBoard from './WorkOrderWeekBoard';
 
 export interface WorkOrderWeekCalendarProps {
   weekSection: SheetWeekSection | null;
   selectedDate: string;
   weekView: WorkOrdersWeekView;
   isLoading?: boolean;
+  timeZone: string;
   onSelectDay: (date: string) => void;
-  onAddForDay: (date: string) => void;
   onRowClick?: (workOrderId: number) => void;
   currentUserId?: number | null;
   onSheetMutated?: () => void;
@@ -25,13 +24,11 @@ export interface WorkOrderWeekCalendarProps {
 const WorkOrderWeekCalendar: React.FC<WorkOrderWeekCalendarProps> = ({
   weekSection,
   selectedDate,
-  weekView,
+  weekView: _weekView,
   isLoading = false,
+  timeZone,
   onSelectDay,
-  onAddForDay,
   onRowClick,
-  currentUserId = null,
-  onSheetMutated,
   className,
 }) => {
   const days = useMemo(
@@ -67,28 +64,14 @@ const WorkOrderWeekCalendar: React.FC<WorkOrderWeekCalendarProps> = ({
     );
   }
 
-  if (weekView === 'columns') {
-    return (
-      <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
-        <WorkOrderWeekColumns
-          days={days}
-          onSelectDay={onSelectDay}
-          onAddForDay={onAddForDay}
-          onRowClick={onRowClick}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
-      <WorkOrderWeekRows
+      <WorkOrderWeekBoard
         days={days}
+        layout="week"
+        timeZone={timeZone}
         onSelectDay={onSelectDay}
-        onAddForDay={onAddForDay}
-        onRowClick={onRowClick}
-        currentUserId={currentUserId}
-        onSheetMutated={onSheetMutated}
+        onOrderClick={onRowClick}
       />
     </div>
   );

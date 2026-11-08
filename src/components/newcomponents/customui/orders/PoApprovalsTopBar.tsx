@@ -106,6 +106,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
     <TooltipProvider delayDuration={150}>
       <OrderApprovalsBarShell
         id="po-section-approvals"
+        data-help-tour="purchase.approvals"
         collapseResetKey={orderId}
         highlighted={highlighted}
         onHighlightDismiss={onHighlightDismiss}

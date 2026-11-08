@@ -1,6 +1,7 @@
 import { parseISO, startOfDay } from 'date-fns';
 
 import type { WorkOrderStatus } from '@/types/workOrder';
+import { isWorkOrderPreStart } from '@/pages/newpages/orders/workOrderConstants';
 
 /** True when planned_date is today or in the past (calendar day). */
 export function isPlannedDateOnOrBeforeToday(
@@ -24,7 +25,7 @@ export function canCompleteWorkOrderAsPlanned(
   referenceDate: Date = startOfDay(new Date()),
 ): boolean {
   return (
-    status === 'DRAFT' &&
+    isWorkOrderPreStart(status) &&
     approvalMet &&
     isPlannedDateOnOrBeforeToday(plannedDate, referenceDate)
   );

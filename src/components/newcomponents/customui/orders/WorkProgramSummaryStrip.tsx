@@ -12,10 +12,14 @@ import {
   formatProgramSummaryStrip,
   formatRecurrenceCadence,
 } from '@/pages/newpages/orders/workOrderTemplateLabels';
+import { formatRecurrenceCadenceShortLabel } from '@/pages/newpages/orders/workOrderRecurrenceCadence';
 import { cn } from '@/lib/utils';
 
 export interface WorkProgramSummaryStripProps {
-  template: WorkOrderTemplate;
+  template?: WorkOrderTemplate | null;
+  /** Sheet row cadence when recurring is toggled without a template. */
+  recurrenceType?: string | null;
+  recurrenceIntervalDays?: number | null;
   machines?: Machine[];
   sections?: FactorySection[];
   className?: string;
@@ -27,7 +31,9 @@ export interface WorkProgramSummaryStripProps {
 }
 
 const WorkProgramSummaryStrip: React.FC<WorkProgramSummaryStripProps> = ({
-  template,
+  template = null,
+  recurrenceType = null,
+  recurrenceIntervalDays = null,
   machines = [],
   sections = [],
   className,
@@ -35,16 +41,22 @@ const WorkProgramSummaryStrip: React.FC<WorkProgramSummaryStripProps> = ({
   recurrenceStartIso,
   recurrenceEndIso,
 }) => {
-  if (!template.is_recurring) return null;
+  const effectiveType = recurrenceType ?? template?.recurrence_type;
+  if (!recurrenceType && !template?.is_recurring) return null;
 
-  const summary = formatProgramSummaryStrip(template, machines, sections);
-  const cadence = formatRecurrenceCadence(template) ?? 'Recurring';
+  const summary = template
+    ? formatProgramSummaryStrip(template, machines, sections)
+    : 'Recurring work';
+  const cadence = effectiveType
+    ? formatRecurrenceCadenceShortLabel(effectiveType, recurrenceIntervalDays)
+    : (template ? formatRecurrenceCadence(template) : null) ?? 'Recurring';
   const plannedDates =
-    recurrenceStartIso && recurrenceEndIso
+    recurrenceStartIso && recurrenceEndIso && effectiveType
       ? listPlannedRecurrenceDates(
           recurrenceStartIso,
           recurrenceEndIso,
-          template.recurrence_type,
+          effectiveType,
+          effectiveType === 'custom' ? recurrenceIntervalDays : undefined,
         )
       : [];
 
@@ -52,7 +64,7 @@ const WorkProgramSummaryStrip: React.FC<WorkProgramSummaryStripProps> = ({
     <div
       className={cn(
         'flex min-w-0 gap-2 rounded-md border border-border/70 bg-muted/25 text-xs text-muted-foreground',
-        compact ? 'h-9 items-center px-2' : 'items-start px-3 py-2',
+        compact ? 'min-h-9 items-center px-2 py-1' : 'items-start px-3 py-2',
         className,
       )}
       title={
@@ -69,7 +81,7 @@ const WorkProgramSummaryStrip: React.FC<WorkProgramSummaryStripProps> = ({
         aria-hidden
       />
       {plannedDates.length > 0 ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
           <span className="shrink-0 font-medium text-foreground">{cadence}</span>
           <span className="shrink-0 text-muted-foreground">·</span>
           <span className="shrink-0 text-muted-foreground">
@@ -87,7 +99,13 @@ const WorkProgramSummaryStrip: React.FC<WorkProgramSummaryStripProps> = ({
           ))}
         </div>
       ) : compact ? (
-        <p className="min-w-0 truncate leading-4">{summary}</p>
+        <p className="min-w-0 truncate leading-4">
+          {recurrenceStartIso && !recurrenceEndIso
+            ? 'Pick end date to preview planned dates'
+            : recurrenceStartIso && recurrenceEndIso && effectiveType
+              ? `${cadence} · set a valid date range`
+              : summary}
+        </p>
       ) : (
         <p>
           <span className="font-medium text-foreground">Recurring work — </span>

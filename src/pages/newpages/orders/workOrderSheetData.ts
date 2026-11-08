@@ -58,6 +58,8 @@ export interface WorkOrderSheetRow {
   partName: string;
   actionType: WorkOrderItemActionType | null;
   startedAt: string | null;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
   completedAt: string | null;
   updatedAt: string | null;
   quantity: number | null;
@@ -147,6 +149,8 @@ export function sheetDateStatusSublabelClass(status: WorkOrderStatus): string {
   switch (status) {
     case 'DRAFT':
       return 'text-slate-600 dark:text-slate-400';
+    case 'RECURRING':
+      return 'text-violet-700 dark:text-violet-400';
     case 'IN_PROGRESS':
       return 'text-amber-700 dark:text-amber-400';
     case 'VOIDED':
@@ -156,7 +160,7 @@ export function sheetDateStatusSublabelClass(status: WorkOrderStatus): string {
   }
 }
 
-/** Date cell lifecycle sublabel — when + status (Recurring for draft rows from recurring templates). */
+/** Date cell lifecycle sublabel — when + stored status label. */
 export function getSheetDateStatusSublabel(
   row: Pick<WorkOrderSheetRow, 'status' | 'isRecurringFromTemplate'>,
 ): { label: string; className: string } | null {
@@ -164,12 +168,6 @@ export function getSheetDateStatusSublabel(
     return {
       label: workOrderStatusShortLabel(row.status),
       className: 'text-emerald-700 dark:text-emerald-400',
-    };
-  }
-  if (row.status === 'DRAFT' && row.isRecurringFromTemplate) {
-    return {
-      label: 'Recurring',
-      className: 'text-violet-700 dark:text-violet-400',
     };
   }
   return {
@@ -243,6 +241,8 @@ export function flattenSheetBundles(
         partName: '—',
         actionType: null,
         startedAt: order.started_at,
+        plannedStartAt: order.planned_start_at ?? null,
+        plannedEndAt: order.planned_end_at ?? null,
         completedAt: order.completed_at,
         updatedAt: order.updated_at,
         quantity: null,
@@ -278,6 +278,8 @@ export function flattenSheetBundles(
         partName: item.item_name ?? `Item #${item.item_id}`,
         actionType: item.action_type,
         startedAt: order.started_at,
+        plannedStartAt: order.planned_start_at ?? null,
+        plannedEndAt: order.planned_end_at ?? null,
         completedAt: order.completed_at,
         updatedAt: order.updated_at,
         quantity: Number(item.quantity),
@@ -622,6 +624,53 @@ export interface WeekDayCell {
   isToday: boolean;
   isSelected: boolean;
   isEmpty: boolean;
+}
+
+/** One card per work order for week/day column boards (first row wins). */
+export interface WorkOrderDayCardModel {
+  workOrderId: number;
+  status: WorkOrderStatus;
+  title: string;
+  secondaryLine: string;
+  lineCount: number;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
+}
+
+export function collapseSheetRowsToDayCards(rows: WorkOrderSheetRow[]): WorkOrderDayCardModel[] {
+  const lineCountByOrder = new Map<number, number>();
+  for (const row of rows) {
+    lineCountByOrder.set(row.workOrderId, (lineCountByOrder.get(row.workOrderId) ?? 0) + 1);
+  }
+
+  const seen = new Set<number>();
+  const cards: WorkOrderDayCardModel[] = [];
+  for (const row of rows) {
+    if (seen.has(row.workOrderId)) continue;
+    seen.add(row.workOrderId);
+    const lineCount = lineCountByOrder.get(row.workOrderId) ?? 1;
+    const title = row.rowTitle?.trim() ? row.rowTitle.trim() : row.works;
+    const secondaryLine =
+      lineCount > 1
+        ? `${lineCount} lines`
+        : [row.machineName, row.workOrderNumber].filter(Boolean).join(' · ');
+    cards.push({
+      workOrderId: row.workOrderId,
+      status: row.status,
+      title,
+      secondaryLine,
+      lineCount,
+      plannedStartAt: row.plannedStartAt ?? null,
+      plannedEndAt: row.plannedEndAt ?? null,
+    });
+  }
+  cards.sort((a, b) => {
+    const aStart = a.plannedStartAt ? new Date(a.plannedStartAt).getTime() : Number.POSITIVE_INFINITY;
+    const bStart = b.plannedStartAt ? new Date(b.plannedStartAt).getTime() : Number.POSITIVE_INFINITY;
+    if (aStart !== bStart) return aStart - bStart;
+    return a.workOrderId - b.workOrderId;
+  });
+  return cards;
 }
 
 export interface WeekSnapshotOrderLine {

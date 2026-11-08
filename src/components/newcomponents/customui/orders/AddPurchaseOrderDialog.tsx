@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import {
   Dialog,
   DialogContent,
@@ -33,10 +34,17 @@ import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponen
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { cn } from '@/lib/utils';
+import { ProductionBatchPicker } from '@/components/newcomponents/customui/production/ProductionBatchPicker';
 import {
   handleUnaddedItemDraftOnSubmit,
   useLineItemAddButtonHighlight,
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
+
+export interface PurchaseOrderShortageSeed {
+  factoryId: number;
+  itemId: number;
+  quantity: number;
+}
 
 interface AddPurchaseOrderDialogProps {
   open: boolean;
@@ -44,6 +52,8 @@ interface AddPurchaseOrderDialogProps {
   accounts: Account[];
   factories: Factory[];
   onSuccess: (order: { id: number }) => void;
+  /** Prefill one storage line. Saving does not put stock on the shelf. */
+  shortageSeed?: PurchaseOrderShortageSeed | null;
 }
 
 const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
@@ -52,11 +62,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   accounts,
   factories,
   onSuccess,
+  shortageSeed = null,
 }) => {
   const [accountId, setAccountId] = useState<string>('');
   const [destinationType, setDestinationType] = useState<'storage' | 'machine' | 'project'>('storage');
   const [destinationId, setDestinationId] = useState<string>('');
   const [description, setDescription] = useState('');
+  const [productionBatchId, setProductionBatchId] = useState('');
   const [items, setItems] = useState<
     Array<{ item_id: number; quantity_ordered: number; unit_price: number | null; notes?: string }>
   >([]);
@@ -84,9 +96,26 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const { markFactoryEdited: markDestinationFactoryEdited } = useAutoSelectGlobalFactory(
     open,
     setDestinationId,
-    undefined,
+    shortageSeed?.factoryId,
     open && destinationType === 'storage'
   );
+
+  const shortageSeedAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      shortageSeedAppliedRef.current = false;
+      return;
+    }
+    if (!shortageSeed || shortageSeedAppliedRef.current) return;
+    shortageSeedAppliedRef.current = true;
+    setDestinationType('storage');
+    setDestinationId(String(shortageSeed.factoryId));
+    setAccountId('');
+    setItems([]);
+    setItemId(String(shortageSeed.itemId));
+    setQty(String(shortageSeed.quantity));
+    setUnitPrice('');
+  }, [open, shortageSeed]);
   const { data: itemsList = [], refetch: refetchItems } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: !open });
 
   const usedItemIds = useMemo(() => new Set(items.map((line) => line.item_id)), [items]);
@@ -105,6 +134,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setDestinationType('storage');
     setDestinationId('');
     setDescription('');
+    setProductionBatchId('');
     setItems([]);
     setItemId('');
     setQty('');
@@ -272,8 +302,9 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       ...(aid != null ? { account_id: aid } : {}),
       destination_type: destinationType,
       destination_id: did,
-      order_date: new Date().toISOString().slice(0, 10),
+      order_date: todayLocalDateKey(),
       description: description || undefined,
+      production_batch_id: productionBatchId ? Number(productionBatchId) : undefined,
       items: items.map((i) => ({
         item_id: i.item_id,
         quantity_ordered: i.quantity_ordered,
@@ -284,7 +315,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
     try {
       const result = await createOrder(orderData).unwrap();
-      appToast.success('Purchase order created');
+      appToast.success(
+        shortageSeed
+          ? 'Purchase order created. This step stays short until the purchase is received.'
+          : 'Purchase order created',
+      );
       reset();
       onSuccess(result);
       onOpenChange(false);
@@ -586,6 +621,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
+      <ProductionBatchPicker value={productionBatchId} onChange={setProductionBatchId} />
     </div>
   );
 

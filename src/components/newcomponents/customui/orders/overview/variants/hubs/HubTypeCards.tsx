@@ -26,7 +26,10 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
   const countMap = new Map(countsByType.map((r) => [r.type, r]));
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div
+      className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+      data-help-tour="orders-overview.hub-cards"
+    >
       {ORDER_TYPE_HUB.map((hub) => {
         const row = countMap.get(hub.label) ?? emptyRow(hub.label);
         const Icon = hub.icon;

@@ -17,6 +17,7 @@ export default function AuthProfileSync() {
       updateUser({
         name: data.user.name,
         timezone: data.user.timezone ?? null,
+        use_24_hour_time: data.user.use_24_hour_time !== false,
         is_platform_admin: data.user.is_platform_admin ?? false,
         saved_stamp: data.user.saved_stamp ?? null,
       }),

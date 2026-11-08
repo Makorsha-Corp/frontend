@@ -29,6 +29,7 @@ export interface ExpenseOrder {
   invoice_id: number | null;
   required_approvals: number | null;
   description: string | null;
+  production_batch_id?: number | null;
   created_by: number;
   created_at: string;
   updated_by: number | null;
@@ -60,6 +61,7 @@ export interface CreateExpenseOrder {
   expense_date?: string | null;
   due_date?: string | null;
   description?: string | null;
+  production_batch_id?: number | null;
   items?: CreateExpenseOrderItem[];
 }
 
@@ -78,6 +80,7 @@ export interface UpdateExpenseOrder {
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
+  production_batch_id?: number | null;
 }
 
 export interface UpdateExpenseOrderItem {

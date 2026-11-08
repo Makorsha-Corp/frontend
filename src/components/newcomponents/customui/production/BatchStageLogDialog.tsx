@@ -30,6 +30,10 @@ import type {
 } from '@/types/production';
 import { Loader2 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
+import { ProductionLineSelectOptions } from '@/components/newcomponents/customui/production/ProductionLineSelectOptions';
+import { productionLineHasMachines } from '@/lib/productionLineMachines';
+import { parseProductionQuantity } from '@/lib/productionQuantity';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const STAGE_STATUSES: BatchStageLogStatus[] = ['pending', 'in_progress', 'completed', 'skipped'];
 
@@ -140,9 +144,9 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
       status,
       started_at: toIsoOrUndefined(startedAt),
       completed_at: toIsoOrUndefined(completedAt),
-      input_quantity: inputQty.trim() ? parseInt(inputQty, 10) : undefined,
-      output_quantity: outputQty.trim() ? parseInt(outputQty, 10) : undefined,
-      waste_quantity: wasteQty.trim() ? parseInt(wasteQty, 10) : undefined,
+      input_quantity: inputQty.trim() ? parseProductionQuantity(inputQty) ?? undefined : undefined,
+      output_quantity: outputQty.trim() ? parseProductionQuantity(outputQty) ?? undefined : undefined,
+      waste_quantity: wasteQty.trim() ? parseProductionQuantity(wasteQty) ?? undefined : undefined,
       notes: notes.trim() || undefined,
     };
 
@@ -156,9 +160,9 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
             production_line_id: lineId !== 'none' ? parseInt(lineId, 10) : null,
             started_at: toIsoOrUndefined(startedAt) ?? null,
             completed_at: toIsoOrUndefined(completedAt) ?? null,
-            input_quantity: inputQty.trim() ? parseInt(inputQty, 10) : null,
-            output_quantity: outputQty.trim() ? parseInt(outputQty, 10) : null,
-            waste_quantity: wasteQty.trim() ? parseInt(wasteQty, 10) : null,
+            input_quantity: inputQty.trim() ? parseProductionQuantity(inputQty) : null,
+            output_quantity: outputQty.trim() ? parseProductionQuantity(outputQty) : null,
+            waste_quantity: wasteQty.trim() ? parseProductionQuantity(wasteQty) : null,
             notes: notes.trim() || null,
           },
         }).unwrap();
@@ -229,19 +233,38 @@ const BatchStageLogDialog: React.FC<BatchStageLogDialogProps> = ({
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="stage-line">Production line</Label>
-                <Select value={lineId} onValueChange={setLineId}>
-                  <SelectTrigger id="stage-line">
-                    <SelectValue placeholder="Optional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Not specified</SelectItem>
-                    {lines.map((l) => (
-                      <SelectItem key={l.id} value={l.id.toString()}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <TooltipProvider delayDuration={200}>
+                  <Select
+                    value={lineId}
+                    onValueChange={(value) => {
+                      if (value === 'none') {
+                        setLineId('none');
+                        return;
+                      }
+                      const line = lines.find((row) => row.id === Number(value));
+                      const currentId = log?.production_line_id ?? null;
+                      if (
+                        line &&
+                        !productionLineHasMachines(line) &&
+                        line.id !== currentId
+                      ) {
+                        return;
+                      }
+                      setLineId(value);
+                    }}
+                  >
+                    <SelectTrigger id="stage-line">
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not specified</SelectItem>
+                      <ProductionLineSelectOptions
+                        lines={lines}
+                        selectedLineId={lineId !== 'none' ? lineId : null}
+                      />
+                    </SelectContent>
+                  </Select>
+                </TooltipProvider>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="stage-status">Status</Label>

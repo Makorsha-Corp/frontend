@@ -19,7 +19,7 @@ const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
   const pathByKind = Object.fromEntries(ORDER_TYPE_HUB.map((h) => [h.id, h.path]));
 
   return (
-    <>
+    <div data-help-tour="orders-overview.recent-activity">
       {isLoading ? (
         <div className="flex py-16 items-center justify-center text-muted-foreground border border-border rounded-lg">
           <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
@@ -72,7 +72,7 @@ const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
         ]}
         />
       )}
-    </>
+    </div>
   );
 };
 

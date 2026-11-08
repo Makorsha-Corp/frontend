@@ -27,6 +27,9 @@ import {
   sliceToFactoryFilter,
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
+import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
+import HelpGuidePageReplayButton from '@/components/newcomponents/customui/helpGuides/HelpGuidePageReplayButton';
 
 const OrdersOverviewPage: React.FC = () => {
   const {
@@ -48,6 +51,11 @@ const OrdersOverviewPage: React.FC = () => {
     filteredRecentOrders,
     apiStats,
   } = useOrdersOverviewPage();
+
+  useAutoHelpGuide({
+    tourId: HELP_GUIDE_TOUR_ID.ordersOverview,
+    when: !isLoading && !loadError,
+  });
 
   const showFactoryPanel = factoryFilter === 'all';
 
@@ -72,20 +80,24 @@ const OrdersOverviewPage: React.FC = () => {
               </div>
               <h1 className={appShellHeaderTitleClass}>Orders Overview</h1>
               <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
-              <MachinesInlineLocationFilters
-                which="factories"
-                variant="toolbar"
-                compact
-                value={factoryLocationValue}
-                onChange={handleFactoryLocationChange}
-                factories={factories}
-                sections={[]}
-              />
+              <div data-help-tour="orders-overview.factory-scope">
+                <MachinesInlineLocationFilters
+                  which="factories"
+                  variant="toolbar"
+                  compact
+                  value={factoryLocationValue}
+                  onChange={handleFactoryLocationChange}
+                  factories={factories}
+                  sections={[]}
+                />
+              </div>
             </div>
             <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto lg:shrink-0 lg:gap-3">
+              <HelpGuidePageReplayButton tourId={HELP_GUIDE_TOUR_ID.ordersOverview} />
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    data-help-tour="orders-overview.date-range"
                     variant="outline"
                     size="sm"
                     className={`min-w-0 flex-1 justify-start truncate border-border bg-background px-2.5 sm:px-3 lg:min-w-[200px] lg:flex-none ${appShellHeaderControlClass}`}
@@ -115,6 +127,7 @@ const OrdersOverviewPage: React.FC = () => {
               </Popover>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger
+                  data-help-tour="orders-overview.status"
                   className={`min-w-0 flex-1 border-border bg-background px-2.5 sm:px-3 lg:w-[160px] lg:flex-none ${appShellHeaderControlClass}`}
                 >
                   <SelectValue placeholder="Status" />

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
   kindMatchesFilter,
   NOTIFICATION_FILTERS,
@@ -91,17 +90,12 @@ export function useNotificationCenter(): NotificationCenterState {
     [backendData, dismissedIds]
   );
 
-  const mockNotifications = useMemo(
-    () => MOCK_NOTIFICATIONS.filter((n) => !dismissedIds.has(n.id)),
-    [dismissedIds]
-  );
-
   const notifications = useMemo(
     () =>
-      [...backendNotifications, ...mockNotifications].sort(
+      [...backendNotifications].sort(
         (a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()
       ),
-    [backendNotifications, mockNotifications]
+    [backendNotifications]
   );
 
   const isRead = useCallback(

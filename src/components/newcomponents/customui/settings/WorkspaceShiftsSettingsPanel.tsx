@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import { Loader2, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import TimePickerField from '@/components/newcomponents/customui/TimePickerField';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  useCreateWorkspaceShiftMutation,
+  useDeleteWorkspaceShiftMutation,
+  useGetWorkspaceShiftsQuery,
+  useUpdateWorkspaceShiftMutation,
+} from '@/features/workspaceShifts/workspaceShiftsApi';
+import { useUserTimeFormat } from '@/hooks/useUserTimeFormat';
+import { appToast } from '@/lib/appToast';
+import { formatWallTimeHm } from '@/lib/wallTimeFormat';
+import { formatShiftChipLabel } from '@/lib/workspaceShiftChipUtils';
+
+const WorkspaceShiftsSettingsPanel: React.FC = () => {
+  const { use24Hour } = useUserTimeFormat();
+  const { data: shifts = [], isLoading } = useGetWorkspaceShiftsQuery({});
+  const [createShift, { isLoading: isCreating }] = useCreateWorkspaceShiftMutation();
+  const [updateShift] = useUpdateWorkspaceShiftMutation();
+  const [deleteShift] = useDeleteWorkspaceShiftMutation();
+
+  const [name, setName] = useState('');
+  const [startTime, setStartTime] = useState('06:00');
+  const [endTime, setEndTime] = useState('14:00');
+
+  const handleAdd = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      appToast.error('Name is required');
+      return;
+    }
+    try {
+      await createShift({
+        name: trimmed,
+        start_time: `${startTime}:00`,
+        end_time: `${endTime}:00`,
+        sort_order: shifts.length,
+      }).unwrap();
+      setName('');
+      appToast.success('Shift added');
+    } catch (e: unknown) {
+      const detail = (e as { data?: { detail?: string } })?.data?.detail;
+      appToast.error(typeof detail === 'string' ? detail : 'Failed to add shift');
+    }
+  };
+
+  const toggleActive = async (id: number, is_active: boolean) => {
+    try {
+      await updateShift({ id, data: { is_active: !is_active } }).unwrap();
+    } catch (e: unknown) {
+      const detail = (e as { data?: { detail?: string } })?.data?.detail;
+      appToast.error(typeof detail === 'string' ? detail : 'Failed to update shift');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteShift(id).unwrap();
+      appToast.success('Shift removed');
+    } catch {
+      appToast.error('Failed to remove shift');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold text-card-foreground">Production shifts</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Wall-clock windows for batch planning. End before start means overnight (e.g. 22:00–06:00).
+          Windows cannot overlap.
+        </p>
+      </div>
+
+      {shifts.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Shift</TableHead>
+              <TableHead className="w-24">Start</TableHead>
+              <TableHead className="w-24">End</TableHead>
+              <TableHead className="w-24">Active</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shifts.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell className="font-medium">{formatShiftChipLabel(row, use24Hour)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {formatWallTimeHm(row.start_time.slice(0, 5), use24Hour)}
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {formatWallTimeHm(row.end_time.slice(0, 5), use24Hour)}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={row.is_active ? 'default' : 'outline'}
+                    className={row.is_active ? 'bg-brand-primary hover:bg-brand-primary-hover' : undefined}
+                    onClick={() => void toggleActive(row.id, row.is_active)}
+                  >
+                    {row.is_active ? 'On' : 'Off'}
+                  </Button>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => void handleDelete(row.id)}
+                    aria-label="Delete shift"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+          No shifts yet. Add one below for batch chips on Production.
+        </p>
+      )}
+
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <p className="mb-3 text-sm font-medium">Add shift</p>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="shift-name">Name</Label>
+            <Input
+              id="shift-name"
+              className="h-9"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Morning"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="shift-start">Start</Label>
+            <TimePickerField
+              id="shift-start"
+              value={startTime}
+              onChange={setStartTime}
+              aria-label="Shift start time"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="shift-end">End</Label>
+            <TimePickerField
+              id="shift-end"
+              value={endTime}
+              onChange={setEndTime}
+              aria-label="Shift end time"
+            />
+          </div>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="mt-3 bg-brand-primary hover:bg-brand-primary-hover"
+          disabled={isCreating}
+          onClick={() => void handleAdd()}
+        >
+          {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Add shift
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default WorkspaceShiftsSettingsPanel;

@@ -1,29 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
 import {
   parsePageFactoryFilterParam,
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
-import { format } from 'date-fns';
-import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import PurchaseOrdersPageHeader from '@/components/newcomponents/customui/orders/PurchaseOrdersPageHeader';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import PurchaseOrderHeaderFilters from '@/components/newcomponents/customui/orders/PurchaseOrderHeaderFilters';
 import {
   useGetPurchaseOrdersPageQuery,
   useGetPurchaseOrderHubStatsQuery,
   useGetPurchaseOrderByIdQuery,
+  useGetPurchaseTourSampleQuery,
+  useResetPurchaseTourSampleMutation,
   useDeletePurchaseOrderMutation,
 } from '@/features/purchaseOrders/purchaseOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
@@ -33,7 +22,6 @@ import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetProjectComponentsQuery } from '@/features/projectComponents/projectComponentsApi';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
-import { CalendarIcon, X } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import AddPurchaseOrderDialog from '@/components/newcomponents/customui/orders/AddPurchaseOrderDialog';
 import PurchaseOrderDetailPanel from '@/components/newcomponents/customui/orders/PurchaseOrderDetailPanel';
@@ -41,16 +29,18 @@ import PurchaseOrdersOverviewPanel from '@/components/newcomponents/customui/ord
 import PurchaseOrderNavigatorPanel from '@/components/newcomponents/customui/orders/PurchaseOrderNavigatorPanel';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { cn } from '@/lib/utils';
-import {
-  type DestinationTypeFilter,
-  type InvoiceFilter,
-  type PurchaseOrderSummaryStats,
-} from './purchaseOrdersOverviewData';
+import { type PurchaseOrderSummaryStats } from './purchaseOrdersOverviewData';
 import { statusesForPoWorkflowFilter } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
-import OrderStatusMultiFilter from '@/components/newcomponents/customui/orders/OrderStatusMultiFilter';
+import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
+import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
+import { setPostTourSampleExplore } from '@/features/helpGuides/helpGuideSession';
+import {
+  useCloseFiltersOnTourEvent,
+  useOpenFiltersOnTourEvent,
+  useTourSampleDetail,
+} from '@/features/helpGuides/useTourPreview';
 import {
   clearPurchaseOrderFilterParams,
-  hasActiveListFilters,
   parsePurchaseOrderParams,
   writePurchaseOrderParams,
   type PurchaseOrderUrlFilters,
@@ -71,13 +61,6 @@ import {
   resolvePurchaseOrderDestinationLabel,
   type PurchaseOrderDestinationLookups,
 } from './resolvePurchaseOrderDestinationLabel';
-
-const DESTINATION_FILTER_LABELS: Record<DestinationTypeFilter, string> = {
-  all: 'All destinations',
-  storage: 'Storage',
-  machine: 'Machine',
-  project: 'Project',
-};
 
 const PurchaseOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -100,9 +83,7 @@ const PurchaseOrdersPage: React.FC = () => {
   }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [filtersBarOpen, setFiltersBarOpen] = useState(() =>
-    hasActiveListFilters(new URLSearchParams(window.location.search), 'purchase')
-  );
+  const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const isLgScreen = useIsLgScreen();
   const { data: accounts = [] } = useGetAccountsQuery({
@@ -241,13 +222,38 @@ const PurchaseOrdersPage: React.FC = () => {
   const { data: selectedById, isError: selectedByIdError } = useGetPurchaseOrderByIdQuery(selectedOrderId!, {
     skip: selectedOrderId == null || selectedFromList != null,
   });
-  const selectedOrder = selectedFromList ?? selectedById ?? null;
+  const selectedOrder =
+    selectedOrderId == null ? null : (selectedFromList ?? selectedById ?? null);
   const isOffFilteredPage = isOrderSelectedOffFilteredPage({
     selectedOrderId,
     selectedFromList,
     selectedById,
     selectedByIdError,
   });
+
+  useAutoHelpGuide({
+    tourId: HELP_GUIDE_TOUR_ID.purchaseOrders,
+    when: !isLoading,
+  });
+
+  const tourSample = useTourSampleDetail([HELP_GUIDE_TOUR_ID.purchaseOrders]);
+  const needTourSampleMeta =
+    tourSample.tourActive || tourSample.postTourExplore || tourSample.sampleOpen;
+  const { data: purchaseTourSample } = useGetPurchaseTourSampleQuery(undefined, {
+    skip: !needTourSampleMeta,
+  });
+  const [resetPurchaseTourSample] = useResetPurchaseTourSampleMutation();
+  const tourWasActiveRef = useRef(false);
+  const sampleOpenWasRef = useRef(false);
+  const purchaseTourSampleIdRef = useRef<number | null>(null);
+  if (purchaseTourSample?.id != null) {
+    purchaseTourSampleIdRef.current = purchaseTourSample.id;
+  }
+  useOpenFiltersOnTourEvent('po-filters-bar', setFiltersPopoverOpen);
+  useCloseFiltersOnTourEvent('po-filters-bar', setFiltersPopoverOpen);
+  useEffect(() => {
+    if (!tourSample.tourActive) setFiltersPopoverOpen(false);
+  }, [tourSample.tourActive]);
 
   const destinationLookups = useMemo((): PurchaseOrderDestinationLookups => {
     const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
@@ -266,6 +272,10 @@ const PurchaseOrdersPage: React.FC = () => {
   const selectedOrderFromUrl = searchParams.get('orderId');
 
   useEffect(() => {
+    // Tour owns selection: start clears URL/state; sample step sets via setSelectedOrder only.
+    // Skip hydrating from URL while tour runs so a lingering orderId cannot re-select before the tour effect runs.
+    if (tourSample.tourActive) return;
+
     if (!selectedOrderFromUrl) return;
     const parsed = Number(selectedOrderFromUrl);
     if (Number.isNaN(parsed)) {
@@ -279,8 +289,24 @@ const PurchaseOrdersPage: React.FC = () => {
       );
       return;
     }
+    if (
+      !tourSample.tourActive &&
+      !tourSample.postTourExplore &&
+      purchaseTourSampleIdRef.current != null &&
+      parsed === purchaseTourSampleIdRef.current
+    ) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     setSelectedOrderId(parsed);
-  }, [selectedOrderFromUrl, setSearchParams]);
+  }, [selectedOrderFromUrl, setSearchParams, tourSample.tourActive, tourSample.postTourExplore]);
 
   useEffect(() => {
     if (selectedOrderId == null || selectedFromList != null || !selectedByIdError) return;
@@ -298,11 +324,14 @@ const PurchaseOrdersPage: React.FC = () => {
   const setSelectedOrder = (orderId: number | null) => {
     setSelectedOrderId(orderId);
     if (orderId == null) {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('orderId');
-        return next;
-      });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
       return;
     }
     setSearchParams((prev) => {
@@ -311,6 +340,152 @@ const PurchaseOrdersPage: React.FC = () => {
       return next;
     });
   };
+
+  const exitPostTourSampleExplore = useCallback(() => {
+    setPostTourSampleExplore(false);
+    tourSample.closeSample();
+    const sampleId = purchaseTourSampleIdRef.current;
+    if (sampleId != null && selectedOrderId === sampleId) {
+      setSelectedOrderId(null);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    void resetPurchaseTourSample()
+      .unwrap()
+      .catch(() => {
+        appToast.error('Could not restore the sample order');
+      });
+  }, [
+    resetPurchaseTourSample,
+    selectedOrderId,
+    setSearchParams,
+    tourSample.closeSample,
+  ]);
+
+  const postTourExploreToastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!tourSample.postTourExplore) {
+      postTourExploreToastShownRef.current = false;
+      return;
+    }
+    if (postTourExploreToastShownRef.current) return;
+    postTourExploreToastShownRef.current = true;
+    appToast.success('Tour complete — explore the sample PO. Use Back when you are done.');
+  }, [tourSample.postTourExplore]);
+
+  useEffect(() => {
+    const active = tourSample.tourActive;
+    if (active === tourWasActiveRef.current) return;
+    tourWasActiveRef.current = active;
+
+    if (active) {
+      setPostTourSampleExplore(false);
+      tourSample.closeSample();
+      sampleOpenWasRef.current = false;
+      setSelectedOrderId(null);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+      void resetPurchaseTourSample()
+        .unwrap()
+        .catch(() => {
+          appToast.error('Could not restore the sample order');
+        });
+      return;
+    }
+
+    if (tourSample.postTourExplore) {
+      if (typeof document !== 'undefined') {
+        requestAnimationFrame(() => {
+          const el = document.activeElement;
+          if (el instanceof HTMLElement) el.blur();
+        });
+      }
+      return;
+    }
+
+    tourSample.closeSample();
+    sampleOpenWasRef.current = false;
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
+    void resetPurchaseTourSample()
+      .unwrap()
+      .catch(() => {
+        appToast.error('Could not restore the sample order');
+      });
+    if (typeof document !== 'undefined') {
+      requestAnimationFrame(() => {
+        const el = document.activeElement;
+        if (el instanceof HTMLElement) el.blur();
+      });
+    }
+  }, [
+    tourSample.tourActive,
+    tourSample.postTourExplore,
+    tourSample.closeSample,
+    resetPurchaseTourSample,
+    setSearchParams,
+  ]);
+
+  /** Sample off overview while guide off — unless post-tour explore. */
+  useEffect(() => {
+    if (tourSample.tourActive || tourSample.postTourExplore) return;
+    const sampleId = purchaseTourSampleIdRef.current;
+    if (sampleId == null || selectedOrderId !== sampleId) return;
+    setSelectedOrderId(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('orderId');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [tourSample.tourActive, tourSample.postTourExplore, selectedOrderId, setSearchParams]);
+
+  /** Back to overview or pick another PO — end explore and reset sample. */
+  useEffect(() => {
+    if (!tourSample.postTourExplore) return;
+    const sampleId = purchaseTourSampleIdRef.current;
+    if (sampleId == null) return;
+    if (selectedOrderId === sampleId) return;
+    exitPostTourSampleExplore();
+  }, [tourSample.postTourExplore, selectedOrderId, exitPostTourSampleExplore]);
+
+  useEffect(() => {
+    const open = tourSample.sampleOpen;
+    if (!open) {
+      sampleOpenWasRef.current = false;
+      return;
+    }
+    // Wait for sample id — do not mark "was open" until then or Next on sample step never selects (RTK race).
+    if (purchaseTourSample == null) return;
+
+    const wasOpen = sampleOpenWasRef.current;
+    sampleOpenWasRef.current = true;
+    if (wasOpen) return;
+    if (selectedOrderId === purchaseTourSample.id) return;
+    setSelectedOrder(purchaseTourSample.id);
+  }, [tourSample.sampleOpen, purchaseTourSample, selectedOrderId]);
 
   const formatCurrency = (v: number | null | undefined) =>
     v != null
@@ -337,29 +512,6 @@ const PurchaseOrdersPage: React.FC = () => {
     destinationFilter !== 'all' ||
     invoiceFilter !== 'all' ||
     searchQuery.trim().length > 0;
-
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (dateRange.from != null || dateRange.to != null) count += 1;
-    if (statusFilters.length > 0) count += 1;
-    if (accountFilter !== 'all') count += 1;
-    if (factoryFilter !== 'all') count += 1;
-    if (destinationFilter !== 'all') count += 1;
-    if (invoiceFilter !== 'all') count += 1;
-    if (searchQuery.trim().length > 0) count += 1;
-    if (showVoidedOrders) count += 1;
-    return count;
-  }, [
-    dateRange.from,
-    dateRange.to,
-    statusFilters,
-    accountFilter,
-    factoryFilter,
-    destinationFilter,
-    invoiceFilter,
-    searchQuery,
-    showVoidedOrders,
-  ]);
 
   const clearFilters = () => {
     setPageFactory('all');
@@ -395,160 +547,44 @@ const PurchaseOrdersPage: React.FC = () => {
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
           onAdd={() => setIsAddOpen(true)}
+          headerToolbarExtras={
+            <PurchaseOrderHeaderFilters
+              open={filtersPopoverOpen}
+              onOpenChange={setFiltersPopoverOpen}
+              dateRange={dateRange}
+              onDateRangeChange={(next) => commitPurchaseFilters({ dateRange: next })}
+              statusFilters={statusFilters}
+              onStatusFiltersChange={(selectedIds) =>
+                commitPurchaseFilters({ statusFilters: selectedIds })
+              }
+              poStatusOptions={poStatusOptions}
+              accountFilter={accountFilter}
+              onAccountFilterChange={(value) => commitPurchaseFilters({ accountFilter: value })}
+              accounts={accounts}
+              factoryFilter={factoryFilter}
+              onFactoryFilterChange={(value) => commitPurchaseFilters({ factoryFilter: value })}
+              factories={factories}
+              destinationFilter={destinationFilter}
+              onDestinationFilterChange={(value) =>
+                commitPurchaseFilters({ destinationFilter: value })
+              }
+              invoiceFilter={invoiceFilter}
+              onInvoiceFilterChange={(value) => commitPurchaseFilters({ invoiceFilter: value })}
+              showVoidedOrders={showVoidedOrders}
+              onShowVoidedOrdersChange={(value) =>
+                commitPurchaseFilters({ showVoidedOrders: value })
+              }
+              onClearFilters={clearFilters}
+            />
+          }
         />
-
-        {/* Synced filters — affect navigator list + overview/detail */}
-        {filtersBarOpen ? (
-        <div
-          id="po-filters-bar"
-          className="shrink-0 border-b border-border bg-card/50 px-4 py-3 flex flex-wrap items-center gap-2"
-        >
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`min-w-[200px] justify-start border-border bg-background ${appShellHeaderControlClass}`}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d')}`
-                  ) : (
-                    format(dateRange.from, 'MMM d')
-                  )
-                ) : (
-                  'All dates'
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(r) =>
-                  commitPurchaseFilters({ dateRange: { from: r?.from, to: r?.to } })
-                }
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-          <span className="text-xs text-muted-foreground">Filters by created date</span>
-
-          <OrderStatusMultiFilter
-            options={poStatusOptions}
-            selectedIds={statusFilters}
-            onChange={(selectedIds) => commitPurchaseFilters({ statusFilters: selectedIds })}
-            triggerClassName="w-[160px]"
-          />
-
-          <Select
-            value={accountFilter}
-            onValueChange={(value) => commitPurchaseFilters({ accountFilter: value })}
-          >
-            <SelectTrigger className={`w-[160px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Supplier" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All suppliers</SelectItem>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={factoryFilter}
-            onValueChange={(value) => commitPurchaseFilters({ factoryFilter: value })}
-          >
-            <SelectTrigger className={`w-[140px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Factory" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All factories</SelectItem>
-              {factories.map((f) => (
-                <SelectItem key={f.id} value={String(f.id)}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={destinationFilter}
-            onValueChange={(v) =>
-              commitPurchaseFilters({ destinationFilter: v as DestinationTypeFilter })
-            }
-          >
-            <SelectTrigger className={`w-[150px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="All destinations">
-                {DESTINATION_FILTER_LABELS[destinationFilter]}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All destinations</SelectItem>
-              <SelectItem value="storage">Storage</SelectItem>
-              <SelectItem value="machine">Machine</SelectItem>
-              <SelectItem value="project">Project</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={invoiceFilter}
-            onValueChange={(v) => commitPurchaseFilters({ invoiceFilter: v as InvoiceFilter })}
-          >
-            <SelectTrigger className={`w-[130px] h-9 border-border bg-background text-sm`}>
-              <SelectValue placeholder="Invoice" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All invoices</SelectItem>
-              <SelectItem value="invoiced">Invoiced</SelectItem>
-              <SelectItem value="not_invoiced">Not invoiced</SelectItem>
-              <SelectItem value="outstanding_payment">Outstanding payment</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="po-show-voided-filters"
-                checked={showVoidedOrders}
-                onCheckedChange={(value) => commitPurchaseFilters({ showVoidedOrders: value })}
-                aria-label="Show voided orders"
-              />
-              <Label
-                htmlFor="po-show-voided-filters"
-                className="cursor-pointer text-sm font-normal text-muted-foreground whitespace-nowrap"
-              >
-                Show voided
-              </Label>
-            </div>
-            {activeFilterCount > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={clearFilters}
-                aria-label="Clear filters"
-                title="Clear filters"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            ) : null}
-          </div>
-
-        </div>
-        ) : null}
 
         {/* Main content area: navigator (left) + content (right) */}
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
           {/* Navigator panel */}
           <PurchaseOrderNavigatorPanel
             className={cn(
-              selectedOrder && 'max-lg:hidden',
+              (selectedOrder || tourSample.sampleOpen) && 'max-lg:hidden',
               !isLgScreen && 'flex-1 border-r-0'
             )}
             orders={orders}
@@ -558,19 +594,31 @@ const PurchaseOrdersPage: React.FC = () => {
             onPageChange={(page) => commitPurchaseFilters({ page })}
             selectedOrderId={selectedOrderId}
             offPageSelectedLabel={
-              isOffFilteredPage && selectedOrder ? selectedOrder.po_number : null
+              isOffFilteredPage && selectedOrder && !selectedOrder.is_tour_sample
+                ? selectedOrder.po_number
+                : null
             }
             isLoading={isLoading}
             hasActiveFilters={hasActiveFilters}
-            activeFilterCount={activeFilterCount}
-            filtersOpen={filtersBarOpen}
-            onToggleFilters={() => setFiltersBarOpen((open) => !open)}
             showCompleteOrders={showCompleteOrders}
             onShowCompleteOrdersChange={(value) =>
               commitPurchaseFilters({ showCompleteOrders: value })
             }
             emptyHintNoOpen={!showCompleteOrders && !hasActiveFilters}
-            onSelectOrder={(id) => setSelectedOrder(id)}
+            onSelectOrder={(id) => {
+              if (tourSample.postTourExplore) exitPostTourSampleExplore();
+              tourSample.closeSample();
+              setSelectedOrder(id);
+            }}
+            showSample={tourSample.tourActive || tourSample.postTourExplore}
+            hideRealOrders={tourSample.tourActive}
+            sampleSelected={
+              tourSample.sampleOpen || selectedOrderId === purchaseTourSample?.id
+            }
+            onSelectSample={() => {
+              tourSample.openSample();
+              if (purchaseTourSample) setSelectedOrder(purchaseTourSample.id);
+            }}
             onDeleteOrder={handleDelete}
             onAddOrder={() => setIsAddOpen(true)}
             accountName={accountName}
@@ -583,12 +631,12 @@ const PurchaseOrdersPage: React.FC = () => {
           <div
             className={cn(
               'flex-1 min-w-0 min-h-0 overflow-hidden',
-              !selectedOrder && 'max-lg:hidden'
+              !selectedOrder && !tourSample.sampleOpen && 'max-lg:hidden'
             )}
           >
             {selectedOrder ? (
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                {isOffFilteredPage ? (
+                {isOffFilteredPage && !selectedOrder.is_tour_sample ? (
                   <OrderHubOffPageSelectionBanner orderLabel={selectedOrder.po_number} />
                 ) : null}
                 <div className="min-h-0 flex-1 overflow-hidden">
@@ -608,7 +656,12 @@ const PurchaseOrdersPage: React.FC = () => {
                 isLoading={isLoading || statsLoading}
                 accountName={accountName}
                 statusLabel={statusLabel}
-                onSelectOrder={(id) => setSelectedOrder(id)}
+                hideOrderLists={tourSample.tourActive}
+                onSelectOrder={(id) => {
+                  if (tourSample.postTourExplore) exitPostTourSampleExplore();
+                  tourSample.closeSample();
+                  setSelectedOrder(id);
+                }}
               />
             ) : null}
           </div>

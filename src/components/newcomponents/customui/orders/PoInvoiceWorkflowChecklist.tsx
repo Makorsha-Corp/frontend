@@ -313,7 +313,11 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
   const isComplete = phase === 'done';
 
   return (
-    <Card className={cn('flex flex-col', className)}>
+    <Card
+      id="po-workflow-checklist"
+      data-help-tour="purchase.workflow-checklist"
+      className={cn('flex flex-col scroll-mt-6', className)}
+    >
       <OrderWorkflowChecklistHeader title={ORDER_CHECKLIST_COPY.title.order} showSubtitle={!isComplete} />
       <CardContent className="flex-1 pt-0">
         <div className="space-y-0 rounded-lg border border-border bg-muted/20 overflow-hidden">
@@ -417,7 +421,7 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
             >
               <ChecklistStepHeader
                 state="active"
-                title="Finalize invoice"
+                title="Ready to finalize"
                 description={finalizeDescription}
                 badge={ratioBadge('Ready', 'amber')}
               />
@@ -471,9 +475,10 @@ const PoInvoiceWorkflowChecklist: React.FC<PoInvoiceWorkflowChecklistProps> = ({
               />
               <div className="ml-10 space-y-2">
                 <Button
+                  id="po-mark-order-complete-btn"
                   type="button"
                   size="sm"
-                  className="bg-brand-primary hover:bg-brand-primary-hover"
+                  className="bg-brand-primary hover:bg-brand-primary-hover scroll-mt-24"
                   disabled={
                     !onMarkOrderComplete || isMarkingOrderComplete || !markCompleteReadiness.ok
                   }

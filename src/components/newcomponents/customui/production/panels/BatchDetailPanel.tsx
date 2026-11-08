@@ -1,83 +1,142 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 import {
   useGetProductionBatchByIdQuery,
   useGetBatchItemsQuery,
   useGetBatchStageLogsQuery,
+  useGetBatchStageParametersQuery,
+  useGetBatchStageItemsQuery,
+  useUpdateBatchStageItemMutation,
+  useUpdateBatchStageParameterMutation,
+  useSetBatchStageParameterBySourceMutation,
   useGetFormulaStagesQuery,
-  useAddBatchItemMutation,
+  useGetAllFormulaStageItemsQuery,
+  useGetAllFormulaStageParametersQuery,
   useUpdateBatchItemMutation,
-  useRemoveBatchItemMutation,
   useUpdateProductionBatchMutation,
   useDeleteProductionBatchMutation,
+  useRevertBatchToDraftMutation,
+  useStartBatchStageLogMutation,
+  useFinishBatchStageLogMutation,
+  useUpdateBatchStageLogMutation,
+  useGetLinkedProductionOrdersQuery,
 } from '@/features/production/productionApi';
-import BatchStageLogDialog from '@/components/newcomponents/customui/production/BatchStageLogDialog';
+import { plannedStartLocalFromIso } from '@/lib/plannedStartLocal';
+import { useAppSelector } from '@/app/hooks';
+import {
+  evaluateMachinePick,
+  hasLiveStepConflictOnMachine,
+  machinePickWarningLabel,
+  parseProductionMachinePickPolicy,
+  warningsForStartStepConfirm,
+  type MachinePickWarningReason,
+} from '@/lib/productionMachinePickPolicy';
+import { plannedWindowIncludesNow } from '@/lib/machinePickerAvailability';
+import { useGetMachineByIdQuery } from '@/features/machines/machinesApi';
+import { findShiftForDate } from '@/lib/workspaceShiftChipUtils';
+import {
+  findProductionScheduleConflicts,
+  sequentialStepWindows,
+  type ProductionScheduleConflict,
+} from '@/components/newcomponents/customui/production/productionScheduleConflict';
+import {
+  mergeScheduleBatchesForLiveWork,
+  scheduleBatchFromOpenRun,
+  buildMachineLiveWorkMap,
+  buildMachineOccupancyForWindow,
+  findLiveWorkOnMachine,
+} from '@/components/newcomponents/customui/production/productionMachineOccupancy';
+import { ProductionScheduleConflictDialog } from '@/components/newcomponents/customui/production/ProductionScheduleConflictDialog';
+import { ProductionMachinePickWarningDialog } from '@/components/newcomponents/customui/production/ProductionMachinePickWarningDialog';
+import { ProductionStartLiveMachineDialog } from '@/components/newcomponents/customui/production/ProductionStartLiveMachineDialog';
+import type { MachineLiveWork } from '@/components/newcomponents/customui/production/productionMachineOccupancy';
+import ProductionLineMachineSelect, {
+  machinesForLine,
+  soleMachineIdOnLine,
+  type ProductionPlannedWindow,
+} from '@/components/newcomponents/customui/production/ProductionLineMachineSelect';
 import type {
   ProductionLine,
   ProductionFormula,
   ProductionBatch,
   ProductionBatchItem,
+  ProductionBatchStageParameter,
   ProductionBatchStageLog,
-  BatchStageLogStatus,
+  ProductionBatchStageItem,
   ItemRole,
+  ProductionScheduleBatch,
 } from '@/types/production';
 import {
   Loader2,
   Trash2,
-  Pencil,
   Play,
   Check,
   X,
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  ClipboardList,
 } from 'lucide-react';
-import { appToast } from '@/lib/appToast';
 import {
-  ITEM_ROLES,
-  BATCH_ROLE_BADGE,
-  BATCH_ROLE_SECTION_TITLE,
-  BATCH_ROLE_BADGE_LABEL,
-  formatOptionalPercent,
-} from '../productionPageUtils';
+  prepareBatchConditionSave,
+  type SaveBatchConditionInput,
+} from '@/lib/batchStageConditionSave';
+import {
+  getStepFinishReadiness,
+  type StepFinishReadiness,
+} from '@/lib/batchStepFinishReadiness';
+import { batchStartStepDescription } from '@/lib/batchStartStepHeadline';
+import { appToast } from '@/lib/appToast';
+import { parseProductionQuantity } from '@/lib/productionQuantity';
+import { formatOptionalPercent } from '../productionPageUtils';
+import { resolveLineMachineIdForSchedule } from '../StationMachinesField';
+import BatchRunVerticalStepper from './BatchRunVerticalStepper';
+import BatchRunContextStrip from './BatchRunContextStrip';
+import BatchRunSelectedStepPanel from './BatchRunSelectedStepPanel';
+import BatchRunStepMaterials, {
+  type BatchRunStepMaterialsHandle,
+} from './BatchRunStepMaterials';
+import { useGetWorkspaceShiftsQuery } from '@/features/workspaceShifts/workspaceShiftsApi';
+import { millBatchDate } from '@/lib/millCalendarDate';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
+import ProductionStartEarlierDialogButton from '@/components/newcomponents/customui/production/ProductionStartEarlierDialogButton';
+import {
+  defaultLocalDatetimeNow,
+  startedAtForApi,
+  validateStartedEarlier,
+} from '@/lib/productionStartEarlier';
+import {
+  isLastOpenStep,
+  earlierStepsBlockStart,
+} from '@/lib/productionStepWorkflow';
+import BatchStartStepDialogBody from '@/components/newcomponents/customui/production/BatchStartStepDialogBody';
+import { useBatchInputStoragePreview } from '@/hooks/useBatchInputStoragePreview';
+import { storageGapQty } from '@/lib/batchInputStorageCheck';
+import BatchShortStockDialogs, {
+  existingStorageForShort,
+  type ShortStockSeed,
+} from '@/components/newcomponents/customui/production/BatchShortStockDialogs';
 
-const STAGE_LOG_STATUS_BADGE: Record<BatchStageLogStatus, string> = {
-  pending: 'bg-muted text-muted-foreground',
-  in_progress: 'bg-blue-500/15 text-blue-800 dark:text-blue-200',
-  completed: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
-  skipped: 'bg-amber-500/10 text-amber-900/80 line-through dark:text-amber-100',
-};
+function apiDetail(error: unknown, fallback: string): string {
+  const detail = (error as { data?: { detail?: string } })?.data?.detail;
+  return detail || fallback;
+}
 
 interface BatchDetailPanelProps {
   batchId: number;
   lines: ProductionLine[];
+  factoryScheduleBatches: ProductionScheduleBatch[];
+  onSchedulePlannedStartChange?: (plannedStartLocal: string) => void;
   formulas: ProductionFormula[];
-  items: { id: number; name: string }[];
   getItemName: (id: number) => string;
+  getMachineName: (id: number) => string;
   getStatusBadge: (s: string) => string;
   onClose: () => void;
   onRequestStart: () => void;
@@ -90,12 +149,28 @@ interface BatchDetailPanelProps {
   isDeletingBatch: boolean;
 }
 
+function mergeSavedStageParameters(
+  current: ProductionBatchStageParameter[],
+  saved: ProductionBatchStageParameter[],
+): ProductionBatchStageParameter[] {
+  if (saved.length === 0) return current;
+  const next = [...current];
+  for (const row of saved) {
+    const index = next.findIndex((item) => item.id === row.id);
+    if (index >= 0) next[index] = { ...next[index], ...row };
+    else next.push(row);
+  }
+  return next;
+}
+
 const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   batchId,
   lines,
+  factoryScheduleBatches,
+  onSchedulePlannedStartChange,
   formulas,
-  items,
   getItemName,
+  getMachineName,
   getStatusBadge,
   onClose,
   onRequestStart,
@@ -103,19 +178,19 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   onCancel,
   onDeleted,
   updateProductionBatch,
-  isUpdatingBatch,
+  isUpdatingBatch: _isUpdatingBatch,
   deleteProductionBatch,
   isDeletingBatch,
 }) => {
+  const millTimezone = useMillTimezone();
   const {
     data: batch,
     isLoading: loadingBatch,
     error: batchError,
   } = useGetProductionBatchByIdQuery(batchId);
-  const {
-    data: batchItems = [],
-    isLoading: loadingItems,
-  } = useGetBatchItemsQuery({ batchId }, { skip: !batchId });
+  const { data: batchItems = [] } = useGetBatchItemsQuery({ batchId }, { skip: !batchId });
+  const [selectedStageLogId, setSelectedStageLogId] = useState<number | null>(null);
+  const prevBatchIdForStepRef = useRef<number | null>(null);
   const { data: stageLogsRaw = [], isLoading: loadingStageLogs } = useGetBatchStageLogsQuery(batchId, {
     skip: !batchId,
   });
@@ -123,13 +198,53 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     () => [...stageLogsRaw].sort((a, b) => a.stage_order - b.stage_order || a.id - b.id),
     [stageLogsRaw]
   );
+
+  useEffect(() => {
+    if (stageLogs.length === 0) {
+      setSelectedStageLogId(null);
+      prevBatchIdForStepRef.current = batchId;
+      return;
+    }
+    const batchChanged = prevBatchIdForStepRef.current !== batchId;
+    prevBatchIdForStepRef.current = batchId;
+    setSelectedStageLogId((prev) => {
+      if (!batchChanged && prev != null && stageLogs.some((log) => log.id === prev)) {
+        return prev;
+      }
+      const inProgress = stageLogs.find((log) => log.status === 'in_progress');
+      if (inProgress) return inProgress.id;
+      const pending = stageLogs.find((log) => log.status === 'pending');
+      if (pending) return pending.id;
+      return stageLogs[0].id;
+    });
+  }, [batchId, stageLogs]);
   const formulaIdForStages = batch?.formula_id ?? undefined;
   const { data: formulaStages = [] } = useGetFormulaStagesQuery(formulaIdForStages!, {
     skip: !formulaIdForStages,
   });
-  const [addBatchItem, { isLoading: isAddingItem }] = useAddBatchItemMutation();
+  const { data: formulaStageItems = [] } = useGetAllFormulaStageItemsQuery(formulaIdForStages ?? 0, {
+    skip: !formulaIdForStages,
+  });
+  const { data: formulaStageParameters = [] } = useGetAllFormulaStageParametersQuery(
+    formulaIdForStages ?? 0,
+    { skip: !formulaIdForStages },
+  );
+  const { data: batchStageParameters = [] } = useGetBatchStageParametersQuery(batchId, {
+    skip: !batchId,
+  });
+  const { data: batchStageItems = [] } = useGetBatchStageItemsQuery(batchId, {
+    skip: !batchId,
+  });
   const [updateBatchItem] = useUpdateBatchItemMutation();
-  const [removeBatchItem] = useRemoveBatchItemMutation();
+  const [updateBatchStageItem] = useUpdateBatchStageItemMutation();
+  const [updateBatchStageParameter] = useUpdateBatchStageParameterMutation();
+  const [setBatchStageParameterBySource] = useSetBatchStageParameterBySourceMutation();
+  const [startStageLog] = useStartBatchStageLogMutation();
+  const [finishStageLog, { isLoading: finishingStep }] = useFinishBatchStageLogMutation();
+  const [updateStageLog] = useUpdateBatchStageLogMutation();
+  const [revertToDraft, { isLoading: isRevertingToDraft }] = useRevertBatchToDraftMutation();
+  const { data: linkedOrders } = useGetLinkedProductionOrdersQuery(batchId, { skip: !batchId });
+  const factoryForMachines = lines.find((row) => row.id === batch?.production_line_id)?.factory_id;
 
   const byRole = useMemo(() => {
     const map: Record<ItemRole, ProductionBatchItem[]> = {
@@ -144,85 +259,248 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     return map;
   }, [batchItems]);
 
-  const [addItemId, setAddItemId] = useState('');
-  const [addRole, setAddRole] = useState<ItemRole>('input');
-  const [addExpected, setAddExpected] = useState('');
-  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
-  const [isInlineEditing, setIsInlineEditing] = useState(false);
-  const [editBatchDate, setEditBatchDate] = useState('');
-  const [editShift, setEditShift] = useState('');
+  const [editSelectedShiftId, setEditSelectedShiftId] = useState<number | null>(null);
+  const { data: workspaceShifts = [] } = useGetWorkspaceShiftsQuery({ activeOnly: true });
   const [editExpectedOutput, setEditExpectedOutput] = useState('');
   const [editExpectedDuration, setEditExpectedDuration] = useState('');
   const [editActualOutput, setEditActualOutput] = useState('');
   const [editActualDuration, setEditActualDuration] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [collapsedRoles, setCollapsedRoles] = useState<Record<ItemRole, boolean>>({
-    input: false,
-    output: false,
-    waste: true,
-    byproduct: true,
+  const [editPlannedStart, setEditPlannedStart] = useState('');
+  const [startStepLog, setStartStepLog] = useState<ProductionBatchStageLog | null>(null);
+  const [startMachinePick, setStartMachinePick] = useState<number | null>(null);
+  const [stepStartedEarlier, setStepStartedEarlier] = useState(false);
+  const [stepStartedAtLocal, setStepStartedAtLocal] = useState(defaultLocalDatetimeNow);
+  const [overlapConflicts, setOverlapConflicts] = useState<ProductionScheduleConflict[]>([]);
+  const [startStepPickWarnings, setStartStepPickWarnings] = useState<MachinePickWarningReason[] | null>(
+    null,
+  );
+  const [startStepLiveConflict, setStartStepLiveConflict] = useState<MachineLiveWork | null>(null);
+  const pendingStartStepRef = useRef<{
+    machineId?: number;
+    started_at?: string;
+  } | null>(null);
+  const pendingOpenStageLogRef = useRef<ProductionBatchStageLog | null>(null);
+  const startLiveAckMachineIdRef = useRef<number | null>(null);
+  const workspaceSettings = useAppSelector((state) => state.auth.workspace?.settings);
+  const productionMachinePickPolicy = parseProductionMachinePickPolicy(workspaceSettings);
+  const materialsSectionRef = useRef<HTMLDivElement>(null);
+  const materialsHandleRef = useRef<BatchRunStepMaterialsHandle>(null);
+  const [emphasizeFinishFields, setEmphasizeFinishFields] = useState(false);
+  const [finishReadinessSnapshot, setFinishReadinessSnapshot] =
+    useState<StepFinishReadiness | null>(null);
+  const [finishFlushBusy, setFinishFlushBusy] = useState(false);
+  const [savingConditions, setSavingConditions] = useState(false);
+  const [postFinishNext, setPostFinishNext] = useState<{
+    afterLogId: number;
+    nextLogId: number;
+    nextStageName: string;
+  } | null>(null);
+
+  const startStepLine = startStepLog
+    ? lines.find((row) => row.id === startStepLog.production_line_id)
+    : undefined;
+
+  const startStepStoragePreview = useBatchInputStoragePreview({
+    batchId,
+    lineFactoryId: startStepLine?.factory_id ?? factoryForMachines,
+    enabled: !!startStepLog,
+    stageLog: startStepLog,
+    formulaStageItems,
+    formulaStages,
+    stageLogs,
+    stepItems: batchStageItems,
+    highlightStepInputs: true,
+    onlyStepInputs: true,
   });
-  const [stageLogDialogOpen, setStageLogDialogOpen] = useState(false);
-  const [editingStageLog, setEditingStageLog] = useState<ProductionBatchStageLog | null>(null);
+  const [shortStockSeed, setShortStockSeed] = useState<ShortStockSeed | null>(null);
+  const [shortPurchaseSeed, setShortPurchaseSeed] = useState<ShortStockSeed | null>(null);
+
+  const openShortStock = (row: { itemId: number; factoryId: number; required: number; onHand: number }, action: 'stock' | 'purchase') => {
+    const quantity = storageGapQty(row.required, row.onHand);
+    if (quantity <= 0) return;
+    const seed: ShortStockSeed = {
+      itemId: row.itemId,
+      itemName: getItemName(row.itemId),
+      factoryId: row.factoryId,
+      quantity,
+      existing: existingStorageForShort(startStepStoragePreview.storageRows, row.itemId, row.factoryId),
+    };
+    if (action === 'stock') setShortStockSeed(seed);
+    else setShortPurchaseSeed(seed);
+  };
+
+  const startStepLineMachineCount = startStepLine ? machinesForLine(startStepLine).length : 0;
+
+  const startStepNeedsMachinePick =
+    startStepLog != null &&
+    startStepLog.machine_id == null &&
+    startStepLineMachineCount > 1;
+
+  const startStepResolvedMachineId = useMemo(() => {
+    if (!startStepLog) return null;
+    if (startStepLog.machine_id != null) return startStepLog.machine_id;
+    if (startMachinePick != null) return startMachinePick;
+    return soleMachineIdOnLine(startStepLine);
+  }, [startStepLog, startMachinePick, startStepLine]);
+
+  const { data: startStepMachine, isLoading: loadingStartStepMachine } = useGetMachineByIdQuery(
+    startStepResolvedMachineId ?? 0,
+    { skip: startStepResolvedMachineId == null },
+  );
+
+  const startStepDialogDescription = useMemo(() => {
+    if (!startStepLog) return '';
+    return batchStartStepDescription({
+      rows: startStepStoragePreview.rows,
+      batchIsDraft: batch?.status === 'draft' || batch?.status === 'recurring',
+      hasShortage: startStepStoragePreview.shortages.length > 0,
+    });
+  }, [startStepLog, startStepStoragePreview.rows, startStepStoragePreview.shortages.length, batch?.status]);
+
+  useEffect(() => {
+    if (postFinishNext && selectedStageLogId != null && selectedStageLogId !== postFinishNext.afterLogId) {
+      setPostFinishNext(null);
+    }
+  }, [selectedStageLogId, postFinishNext]);
+
+  const startStepMachineLabel = useMemo(() => {
+    if (!startStepLog) return null;
+    if (startStepLog.machine_id != null) {
+      return getMachineName(startStepLog.machine_id);
+    }
+    if (startStepLine && machinesForLine(startStepLine).length === 1) {
+      return machinesForLine(startStepLine)[0].name;
+    }
+    return null;
+  }, [startStepLog, startStepLine, getMachineName]);
+
+  useEffect(() => {
+    onSchedulePlannedStartChange?.(editPlannedStart);
+  }, [editPlannedStart, onSchedulePlannedStartChange]);
 
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
   const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
 
   useEffect(() => {
-    setAddItemId('');
-    setAddRole('input');
-    setAddExpected('');
-    setIsInlineEditing(false);
-  }, [batchId]);
-
-  useEffect(() => {
     if (!batch) return;
-    setEditBatchDate(batch.batch_date.split('T')[0] ?? '');
-    setEditShift(batch.shift ?? '');
+    setEditSelectedShiftId(batch.shift_id ?? null);
     setEditExpectedOutput(batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '');
     setEditExpectedDuration(batch.expected_duration_minutes != null ? String(batch.expected_duration_minutes) : '');
     setEditActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
     setEditActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
     setEditNotes(batch.notes ?? '');
+    setEditPlannedStart(plannedStartLocalFromIso(batch.planned_start_at));
     // Reset drafts only for a different batch or a newer server copy, not on
     // every refetched object identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.id, batch?.updated_at]);
 
-  useEffect(() => {
-    setCollapsedRoles((prev) => {
-      const next = {} as Record<ItemRole, boolean>;
-      for (const role of ITEM_ROLES) {
-        const hasRows = byRole[role].length > 0;
-        // Default behavior: roles with rows are expanded; empty roles are collapsed.
-        next[role] = !hasRows;
-      }
-      const unchanged = ITEM_ROLES.every((role) => prev[role] === next[role]);
-      return unchanged ? prev : next;
-    });
-  }, [byRole]);
-
-  const canMutateItems = batch && (batch.status === 'draft' || batch.status === 'in_progress');
+  const isPreStartBatch =
+    batch?.status === 'draft' || batch?.status === 'recurring';
+  const canMutateItems =
+    batch && (isPreStartBatch || batch.status === 'in_progress');
   const canLogStages = batch && batch.status !== 'cancelled';
+  /** Batch in progress: edit material/condition actuals on any step (including completed steps). */
   const canEditActuals = batch?.status === 'in_progress';
-  const canEditBatch = batch?.status === 'draft' || batch?.status === 'in_progress';
+  const canEditStepMaterials =
+    Boolean(canEditActuals) || (Boolean(canMutateItems) && isPreStartBatch);
+  const canEditBatch = isPreStartBatch || batch?.status === 'in_progress';
 
-  const handleSaveBatchDetails = async () => {
+  const persistBatchUpdate = async (
+    data: Parameters<typeof updateProductionBatch>[0]['data'],
+    successMessage = 'Saved',
+  ) => {
     if (!batch || !canEditBatch) return;
+    try {
+      await updateProductionBatch({ id: batch.id, data }).unwrap();
+      if (successMessage) appToast.success(successMessage);
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      appToast.error(err?.data?.detail || 'Failed to save');
+    }
+  };
+
+  const handleSaveBatchDetails = async (override?: {
+    plannedStart?: string;
+    shiftId?: number | null;
+  }) => {
+    if (!batch || !canEditBatch) return;
+    const plannedStart = override?.plannedStart ?? editPlannedStart;
+    const shiftId =
+      override && 'shiftId' in override
+        ? override.shiftId ?? null
+        : plannedStart
+          ? findShiftForDate(
+              workspaceShifts.filter((shift) => shift.is_active),
+              new Date(plannedStart),
+            )?.id ?? null
+          : null;
     try {
       const currentExpectedOutput =
         batch.expected_output_quantity ??
         byRole.output.reduce((sum, row) => sum + (row.expected_quantity ?? 0), 0);
       const nextExpectedOutput = editExpectedOutput.trim()
-        ? parseInt(editExpectedOutput, 10)
+        ? parseProductionQuantity(editExpectedOutput) ?? undefined
         : batch.expected_output_quantity ?? undefined;
 
+      if (overlapConflicts.length === 0 && plannedStart) {
+        const stepPlans = stageLogs.length
+          ? stageLogs.map((log) => ({
+              productionLineId: log.production_line_id,
+              machineId: resolveLineMachineIdForSchedule(
+                lines.find((row) => row.id === log.production_line_id),
+                log.machine_id,
+              ),
+              expectedMinutes: log.expected_duration_minutes ?? 0,
+            }))
+          : [
+              {
+                productionLineId: batch.production_line_id,
+                machineId: resolveLineMachineIdForSchedule(
+                  lines.find((row) => row.id === batch.production_line_id),
+                  null,
+                ),
+                expectedMinutes: batch.expected_duration_minutes ?? 0,
+              },
+            ];
+        const candidates = sequentialStepWindows({
+          batchId: batch.id,
+          batchNumber: batch.batch_number,
+          plannedStartAt: new Date(plannedStart).toISOString(),
+          steps: stepPlans,
+        });
+        const others = factoryScheduleBatches.flatMap((row) =>
+          row.steps.map((step) => ({
+            batchId: row.batch_id,
+            batchNumber: row.batch_number,
+            productionLineId: step.production_line_id,
+            machineId: step.machine_id,
+            plannedStartAt: step.planned_start_at,
+            plannedEndAt: step.planned_end_at,
+          })),
+        );
+        const conflicts = candidates.flatMap((candidate) => findProductionScheduleConflicts(candidate, others));
+        const unique = conflicts.filter(
+          (conflict, index) =>
+            conflicts.findIndex((row) => row.batchId === conflict.batchId && row.reason === conflict.reason) === index,
+        );
+        if (unique.length > 0) {
+          setOverlapConflicts(unique);
+          return;
+        }
+      }
+      setOverlapConflicts([]);
+
       const base = {
-        batch_date: editBatchDate,
-        shift: editShift.trim() || undefined,
+        batch_date: plannedStart
+          ? millBatchDate({ plannedLocal: plannedStart, timeZone: millTimezone })
+          : batch.batch_date.split('T')[0],
         notes: editNotes.trim() || undefined,
+        planned_start_at: plannedStart ? new Date(plannedStart).toISOString() : null,
+        ...(isPreStartBatch ? { shift_id: shiftId } : {}),
       };
-      if (batch.status === 'draft') {
+      if (isPreStartBatch) {
         await updateProductionBatch({
           id: batch.id,
           data: {
@@ -241,7 +519,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           const scaleOps = byRole.input
             .filter((row) => row.expected_quantity != null)
             .map((row) => {
-              const scaledExpected = Math.max(1, Math.round((row.expected_quantity ?? 0) * multiplier));
+              const scaledExpected = Math.max(0, Math.round((row.expected_quantity ?? 0) * multiplier * 100) / 100);
               if (scaledExpected === row.expected_quantity) return null;
               return updateBatchItem({
                 id: row.id,
@@ -256,7 +534,6 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           } else {
             appToast.success('Batch updated');
           }
-          setIsInlineEditing(false);
           return;
         }
       } else {
@@ -264,49 +541,231 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
           id: batch.id,
           data: {
             ...base,
-            actual_output_quantity: editActualOutput.trim() ? parseInt(editActualOutput, 10) : undefined,
+            actual_output_quantity: editActualOutput.trim()
+              ? parseProductionQuantity(editActualOutput) ?? undefined
+              : undefined,
             actual_duration_minutes: editActualDuration.trim() ? parseInt(editActualDuration, 10) : undefined,
           },
         }).unwrap();
       }
       appToast.success('Batch updated');
-      setIsInlineEditing(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
       appToast.error(err?.data?.detail || 'Failed to update');
     }
   };
 
-  const handleAddLine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batch) return;
-    const itemId = parseInt(addItemId, 10);
-    const exp = addExpected.trim() ? parseInt(addExpected, 10) : undefined;
-    if (!itemId) {
-      appToast.error('Select an item');
-      return;
+  const selectedStageLog = useMemo(
+    () => stageLogs.find((log) => log.id === selectedStageLogId) ?? null,
+    [stageLogs, selectedStageLogId],
+  );
+
+  const selectedStageParameters = useMemo(
+    () =>
+      selectedStageLogId != null
+        ? batchStageParameters.filter((row) => row.batch_stage_log_id === selectedStageLogId)
+        : [],
+    [batchStageParameters, selectedStageLogId],
+  );
+
+  useEffect(() => {
+    setEmphasizeFinishFields(false);
+  }, [selectedStageLogId]);
+
+  const stepFinishReadiness = useMemo(
+    () =>
+      getStepFinishReadiness({
+        stageLog: selectedStageLog,
+        formulaStageItems,
+        batchItems,
+        stepItems: batchStageItems,
+        formulaStageParameters,
+        stageParameters: selectedStageParameters,
+        getItemName,
+      }),
+    [
+      selectedStageLog,
+      formulaStageItems,
+      batchItems,
+      batchStageItems,
+      formulaStageParameters,
+      selectedStageParameters,
+      getItemName,
+    ],
+  );
+
+  useEffect(() => {
+    if (stepFinishReadiness.ready) setEmphasizeFinishFields(false);
+  }, [stepFinishReadiness.ready]);
+
+  const activeFinishReadiness = finishReadinessSnapshot ?? stepFinishReadiness;
+
+  const finishBlockedHint = useMemo(() => {
+    if (activeFinishReadiness.ready) return undefined;
+    const bullets = [
+      ...activeFinishReadiness.missingMaterialLabels,
+      ...activeFinishReadiness.missingConditionLabels.map((label) => `Condition: ${label}`),
+    ];
+    return {
+      title: 'Enter actuals before finishing',
+      reason: 'Fill in every Actual value for materials and conditions on this step.',
+      bullets: bullets.length > 0 ? bullets.slice(0, 8) : undefined,
+    };
+  }, [activeFinishReadiness]);
+
+  const handleSaveCondition = async (
+    input: SaveBatchConditionInput,
+  ): Promise<{ ok: true; parameter?: ProductionBatchStageParameter } | { ok: false }> => {
+    const prepared = prepareBatchConditionSave(input);
+    if (!prepared.ok) {
+      if (prepared.noop) return { ok: true };
+      if (prepared.errorMessage) appToast.error(prepared.errorMessage);
+      return { ok: false };
     }
+
     try {
-      await addBatchItem({
-        batchId: batch.id,
-        data: {
-          batch_id: batch.id,
-          item_id: itemId,
-          item_role: addRole,
-          expected_quantity: exp,
-        },
-      }).unwrap();
-      appToast.success('Line added');
-      setAddItemId('');
-      setAddExpected('');
+      if (input.batchParam) {
+        const parameter = await updateBatchStageParameter({
+          id: input.batchParam.id,
+          batchId,
+          data: prepared.patch,
+        }).unwrap();
+        return { ok: true, parameter };
+      }
+      if (selectedStageLog && input.sourceParameterId != null) {
+        const parameter = await setBatchStageParameterBySource({
+          batchId,
+          logId: selectedStageLog.id,
+          sourceParameterId: input.sourceParameterId,
+          data: prepared.patch,
+        }).unwrap();
+        return { ok: true, parameter };
+      }
+      appToast.error('Cannot save condition for this step');
+      return { ok: false };
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to add line');
+      appToast.error(err?.data?.detail || 'Failed to save');
+      return { ok: false };
+    }
+  };
+
+  const handleSaveStepInput = async (
+    row: { id: number },
+    raw: string,
+    options?: { silent?: boolean },
+  ): Promise<boolean> => {
+    const n = raw.trim() === '' ? null : parseProductionQuantity(raw);
+    if (raw.trim() !== '' && (n == null || Number.isNaN(n) || n < 0)) {
+      if (!options?.silent) appToast.error('Invalid quantity');
+      return false;
+    }
+    try {
+      await updateBatchStageItem({
+        id: row.id,
+        batchId,
+        data: { actual_quantity: n },
+      }).unwrap();
+      if (!options?.silent) appToast.success('Saved');
+      return true;
+    } catch (e: unknown) {
+      const err = e as { data?: { detail?: string } };
+      if (!options?.silent) appToast.error(err?.data?.detail || 'Failed to save');
+      return false;
+    }
+  };
+
+  const stageParametersForLog = useCallback(
+    (log: ProductionBatchStageLog) =>
+      batchStageParameters.filter((row) => row.batch_stage_log_id === log.id),
+    [batchStageParameters],
+  );
+
+  const requestFinishStage = async (log: ProductionBatchStageLog) => {
+    setFinishFlushBusy(true);
+    try {
+      const conditionFlush = await materialsHandleRef.current?.saveConditions();
+      if (conditionFlush && !conditionFlush.ok) return;
+      const flushResult = await materialsHandleRef.current?.flushDraftActuals();
+      if (!flushResult?.ok) return;
+      const merged = flushResult.mergedStepItems;
+      const readiness = getStepFinishReadiness({
+        stageLog: log,
+        formulaStageItems,
+        batchItems,
+        stepItems: merged,
+        formulaStageParameters,
+        stageParameters: mergeSavedStageParameters(
+          stageParametersForLog(log),
+          conditionFlush?.parameters ?? [],
+        ),
+        getItemName,
+      });
+      if (!readiness.ready) {
+        setFinishReadinessSnapshot(readiness);
+        setEmphasizeFinishFields(true);
+        materialsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      setFinishReadinessSnapshot(null);
+      setEmphasizeFinishFields(false);
+      await finishStepNow(log, merged);
+    } finally {
+      setFinishFlushBusy(false);
+    }
+  };
+
+  const finishStepNow = async (
+    log: ProductionBatchStageLog,
+    stepItems: ProductionBatchStageItem[],
+  ) => {
+    const outputRow = stepItems.find(
+      (row) => row.batch_stage_log_id === log.id && row.item_role === 'output',
+    );
+    const output = parseProductionQuantity(
+      outputRow?.actual_quantity != null ? String(outputRow.actual_quantity) : '',
+    );
+    if (output == null || output < 0) {
+      appToast.error('Enter output actual on this step before finishing');
+      return;
+    }
+    const closesBatch = isLastOpenStep(log, stageLogs);
+    try {
+      await finishStageLog({
+        id: log.id,
+        batchId,
+        output_quantity: output,
+      }).unwrap();
+      setFinishReadinessSnapshot(null);
+      if (!closesBatch) {
+        const next = stageLogs.find(
+          (row) =>
+            row.id !== log.id &&
+            row.stage_order > log.stage_order &&
+            row.status === 'pending',
+        );
+        if (next) {
+          setPostFinishNext({
+            afterLogId: log.id,
+            nextLogId: next.id,
+            nextStageName: next.stage_name,
+          });
+        }
+      } else {
+        setPostFinishNext(null);
+      }
+      appToast.success(
+        closesBatch
+          ? 'Step finished — batch completed and inventory posted'
+          : 'Step finished',
+      );
+    } catch (error: unknown) {
+      appToast.error(apiDetail(error, 'Failed to finish step'));
     }
   };
 
   const handleSaveActual = async (row: ProductionBatchItem, raw: string) => {
-    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
+    const n = raw.trim() === '' ? undefined : parseProductionQuantity(raw) ?? undefined;
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 0)) {
       appToast.error('Invalid quantity');
       return;
@@ -314,7 +773,12 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     try {
       await updateBatchItem({
         id: row.id,
-        data: { actual_quantity: n },
+        data: {
+          actual_quantity: n,
+          ...(selectedStageLog?.id != null
+            ? { context_batch_stage_log_id: selectedStageLog.id }
+            : {}),
+        },
       }).unwrap();
       appToast.success('Saved');
     } catch (e: unknown) {
@@ -325,7 +789,7 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
   const handleSaveExpected = async (row: ProductionBatchItem, raw: string) => {
     if (!canMutateItems) return;
-    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
+    const n = raw.trim() === '' ? undefined : parseProductionQuantity(raw) ?? undefined;
     if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 1)) {
       appToast.error('Expected quantity must be a positive integer');
       return;
@@ -333,7 +797,12 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     try {
       await updateBatchItem({
         id: row.id,
-        data: { expected_quantity: n },
+        data: {
+          expected_quantity: n,
+          ...(selectedStageLog?.id != null
+            ? { context_batch_stage_log_id: selectedStageLog.id }
+            : {}),
+        },
       }).unwrap();
       appToast.success('Expected quantity saved');
     } catch (e: unknown) {
@@ -342,12 +811,23 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
     }
   };
 
+  const handleRevertToDraft = async () => {
+    if (!batch || batch.status !== 'recurring') return;
+    try {
+      await revertToDraft(batch.id).unwrap();
+      appToast.success('Batch moved to draft for editing');
+    } catch (e: unknown) {
+      appToast.error(apiDetail(e, 'Failed to move batch to draft'));
+    }
+  };
+
   const handleDeleteDraft = async () => {
-    if (!batch || batch.status !== 'draft') return;
-    if (!window.confirm(`Remove draft batch ${batch.batch_number}?`)) return;
+    if (!batch || !isPreStartBatch) return;
+    const label = batch.status === 'recurring' ? 'recurring' : 'draft';
+    if (!window.confirm(`Remove ${label} batch ${batch.batch_number}?`)) return;
     try {
       await deleteProductionBatch(batch.id).unwrap();
-      appToast.success('Draft removed');
+      appToast.success(batch.status === 'recurring' ? 'Recurring run removed' : 'Draft removed');
       onDeleted();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
@@ -357,8 +837,8 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
 
   if (loadingBatch) {
     return (
-      <Card className="border-border">
-        <CardContent className="flex justify-center py-16">
+      <Card className="shrink-0 flex-col border-border">
+        <CardContent className="flex min-h-[12rem] items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
         </CardContent>
       </Card>
@@ -379,439 +859,412 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
   }
 
   const efficiencyDisplay = formatOptionalPercent(batch.efficiency_percentage);
+  const isRecipeFloorView = Boolean(batch.formula_id);
 
-  const getExpectedStageOutput = (log: ProductionBatchStageLog): number | null => {
-    if (log.formula_stage_id) {
-      const tpl = formulaStages.find((s) => s.id === log.formula_stage_id);
-      if (tpl?.expected_output_quantity != null) return tpl.expected_output_quantity;
+  const runStageAction = async (action: () => Promise<unknown>, fallback: string) => {
+    try {
+      await action();
+    } catch (error: unknown) {
+      appToast.error(apiDetail(error, fallback));
     }
-    return null;
   };
 
-  const openNewStageLog = () => {
-    setEditingStageLog(null);
-    setStageLogDialogOpen(true);
+  const openStartStepDialog = (log: ProductionBatchStageLog) => {
+    setStartStepLog(log);
+    setStartMachinePick(log.machine_id ?? null);
+    setStepStartedEarlier(false);
+    setStepStartedAtLocal(defaultLocalDatetimeNow());
   };
 
-  const openEditStageLog = (log: ProductionBatchStageLog) => {
-    setEditingStageLog(log);
-    setStageLogDialogOpen(true);
+  const multiStepRun = stageLogs.length >= 2;
+  const showRailMachine = !isRecipeFloorView || stageLogs.length <= 1;
+  const railMachineLine = !isRecipeFloorView
+    ? line
+    : stageLogs.length === 1
+      ? lines.find((l) => l.id === stageLogs[0].production_line_id) ?? line
+      : undefined;
+  const railMachineId =
+    stageLogs.length === 1
+      ? stageLogs[0].machine_id ?? batch.machine_id ?? null
+      : batch.machine_id ?? null;
+
+  const batchPlannedWindows: ProductionPlannedWindow[] = (() => {
+    if (!editPlannedStart.trim()) return [];
+    const startMs = new Date(editPlannedStart).getTime();
+    if (!Number.isFinite(startMs)) return [];
+    const steps = stageLogs.length
+      ? stageLogs.map((log) => ({
+          productionLineId: log.production_line_id,
+          machineId: log.machine_id ?? null,
+          expectedMinutes: log.expected_duration_minutes ?? 0,
+        }))
+      : [
+          {
+            productionLineId: batch.production_line_id,
+            machineId: batch.machine_id ?? null,
+            expectedMinutes: batch.expected_duration_minutes ?? 0,
+          },
+        ];
+    return sequentialStepWindows({
+      batchId: batch.id,
+      batchNumber: batch.batch_number,
+      plannedStartAt: new Date(editPlannedStart).toISOString(),
+      steps,
+    }).map((w) => ({ plannedStartAt: w.plannedStartAt, plannedEndAt: w.plannedEndAt }));
+  })();
+
+  const scheduleBatchesForMachinePick = (() => {
+    const local =
+      batchPlannedWindows.length > 0
+        ? scheduleBatchFromOpenRun(batch, stageLogs, batchPlannedWindows)
+        : null;
+    return mergeScheduleBatchesForLiveWork(factoryScheduleBatches, local);
+  })();
+
+  const resolveStageLogMachineId = (log: ProductionBatchStageLog): number | null => {
+    if (log.machine_id != null) return log.machine_id;
+    const stepLine = lines.find((row) => row.id === log.production_line_id);
+    return soleMachineIdOnLine(stepLine);
   };
 
-  const stageTimelineBlock = (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stage timeline</p>
-          <p className="text-xs text-muted-foreground">Manual logs � audit only; inventory posts on batch start/complete.</p>
-        </div>
-        {canLogStages && (
-          <Button type="button" size="sm" variant="outline" onClick={openNewStageLog}>
-            <ClipboardList className="mr-1 h-4 w-4" />
-            Log stage
-          </Button>
-        )}
-      </div>
-      {loadingStageLogs ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-        </div>
-      ) : stageLogs.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-          {batch.formula_id
-            ? 'Pending stage logs appear when batch is created from a formula with stages.'
-            : 'No stage logs � add ad-hoc stages as production runs.'}
-        </p>
-      ) : (
-        <ol className="relative space-y-0 border-l border-border/80 pl-4">
-          {stageLogs.map((log, idx) => {
-            const expectedOut = getExpectedStageOutput(log);
-            const loggedOut = log.output_quantity;
-            const efficiencyHint =
-              expectedOut != null && loggedOut != null && expectedOut > 0
-                ? `${Math.round((loggedOut / expectedOut) * 100)}% of expected`
-                : null;
-            const stageLine = log.production_line_id
-              ? lines.find((l) => l.id === log.production_line_id)?.name
-              : null;
-            return (
-              <li key={log.id} className="relative pb-4 last:pb-0">
-                <span
-                  className={cn(
-                    'absolute -left-[1.35rem] top-1 flex h-3 w-3 rounded-full ring-2 ring-background',
-                    log.status === 'completed'
-                      ? 'bg-emerald-500'
-                      : log.status === 'in_progress'
-                        ? 'bg-blue-500'
-                        : log.status === 'skipped'
-                          ? 'bg-amber-400'
-                          : 'bg-muted-foreground/40'
-                  )}
-                />
-                <button
-                  type="button"
-                  className="w-full rounded-md border border-border/60 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/25"
-                  onClick={() => canLogStages && openEditStageLog(log)}
-                  disabled={!canLogStages}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{log.stage_name}</span>
-                    <Badge className={cn('text-[10px] capitalize', STAGE_LOG_STATUS_BADGE[log.status])}>
-                      {log.status.replace('_', ' ')}
-                    </Badge>
-                    {idx > 0 && log.input_quantity != null && (
-                      <span className="text-xs text-muted-foreground">in {log.input_quantity}</span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    {stageLine && <span>Line: {stageLine}</span>}
-                    {log.started_at && (
-                      <span>Started {new Date(log.started_at).toLocaleString()}</span>
-                    )}
-                    {log.completed_at && (
-                      <span>Done {new Date(log.completed_at).toLocaleString()}</span>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs tabular-nums">
-                    {loggedOut != null && (
-                      <span>
-                        Out: <span className="font-medium text-foreground">{loggedOut}</span>
-                        {expectedOut != null && (
-                          <span className="text-muted-foreground"> / {expectedOut} exp</span>
-                        )}
-                      </span>
-                    )}
-                    {log.waste_quantity != null && log.waste_quantity > 0 && (
-                      <span className="text-amber-800 dark:text-amber-100">Waste: {log.waste_quantity}</span>
-                    )}
-                    {efficiencyHint && (
-                      <span className="text-emerald-700 dark:text-emerald-300">{efficiencyHint}</span>
-                    )}
-                  </div>
-                  {log.notes?.trim() && (
-                    <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{log.notes}</p>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-    </div>
-  );
+  const requestStartStage = (log: ProductionBatchStageLog) => {
+    const machineId = resolveStageLogMachineId(log);
+    if (machineId == null) {
+      startLiveAckMachineIdRef.current = null;
+      openStartStepDialog(log);
+      return;
+    }
+    const liveWork = findLiveWorkOnMachine(machineId, scheduleBatchesForMachinePick);
+    if (!hasLiveStepConflictOnMachine(liveWork, log.id)) {
+      startLiveAckMachineIdRef.current = null;
+      openStartStepDialog(log);
+      return;
+    }
+    if (productionMachinePickPolicy === 'block_overlap') {
+      appToast.error('Another step is in progress on this machine');
+      return;
+    }
+    pendingOpenStageLogRef.current = log;
+    setStartStepLiveConflict(liveWork);
+  };
 
-  const linesBlock = (
-    <div className="flex min-h-0 flex-col">
-      {loadingItems ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
-        </div>
-      ) : batchItems.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-          {batch.status === 'draft' && batch.formula_id
-            ? 'No lines yet — they appear after Start. Add items below when allowed, or wait for the formula.'
-            : batch.status === 'draft'
-              ? 'No lines yet. Add items below, or attach a formula and start.'
-              : 'No line items returned.'}
-        </p>
-      ) : (
-        <div className="space-y-4 pb-2 pl-0.5 pr-1 pt-0.5">
-          {ITEM_ROLES.map((role) => {
-            const rows = byRole[role];
-            const isCollapsed = collapsedRoles[role] ?? rows.length === 0;
-            return (
-              <div key={role} className="rounded-lg border border-border/80 bg-card shadow-sm">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5 text-left"
-                  onClick={() =>
-                    setCollapsedRoles((prev) => ({
-                      ...prev,
-                      [role]: !isCollapsed,
-                    }))
-                  }
-                  aria-expanded={!isCollapsed}
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        'shrink-0 text-[10px] font-semibold uppercase tracking-wide',
-                        BATCH_ROLE_BADGE[role]
-                      )}
-                    >
-                      {BATCH_ROLE_BADGE_LABEL[role]}
-                    </Badge>
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {BATCH_ROLE_SECTION_TITLE[role]}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {rows.length} {rows.length === 1 ? 'line' : 'lines'}
-                  </span>
-                </button>
+  const railPlannedWindow = batchPlannedWindows[0] ?? null;
+  const selectedStepPlannedWindow = (() => {
+    if (!selectedStageLog || batchPlannedWindows.length === 0) return null;
+    const idx = stageLogs.findIndex((log) => log.id === selectedStageLog.id);
+    if (idx < 0 || idx >= batchPlannedWindows.length) return null;
+    return batchPlannedWindows[idx];
+  })();
 
-                {!isCollapsed && (
-                  <>
-                    {rows.length === 0 ? (
-                      <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">No lines</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-border/60 hover:bg-transparent">
-                            <TableHead className="text-xs font-medium">Item</TableHead>
-                            <TableHead className="w-[88px] text-right text-xs font-medium">Expected</TableHead>
-                            <TableHead className="w-[100px] text-right text-xs font-medium">Actual</TableHead>
-                            <TableHead className="w-[48px] p-0 text-right text-xs font-medium"> </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
-                          {rows.map((row) => (
-                            <BatchLineTableRow
-                              key={row.id}
-                              row={row}
-                              name={getItemName(row.item_id)}
-                              canRemove={!!canMutateItems}
-                              canEditExpected={!!canMutateItems && row.item_role === 'input'}
-                              canEditActual={!!canEditActuals}
-                              onRemove={async () => {
-                                if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
-                                try {
-                                  await removeBatchItem(row.id).unwrap();
-                                  appToast.success('Removed');
-                                } catch (e: unknown) {
-                                  const err = e as { data?: { detail?: string } };
-                                  appToast.error(err?.data?.detail || 'Failed');
-                                }
-                              }}
-                              onSaveExpected={(raw) => handleSaveExpected(row, raw)}
-                              onSaveActual={(raw) => handleSaveActual(row, raw)}
-                            />
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  const startStepPlannedWindow = (() => {
+    if (!startStepLog || batchPlannedWindows.length === 0) return null;
+    const idx = stageLogs.findIndex((log) => log.id === startStepLog.id);
+    if (idx < 0 || idx >= batchPlannedWindows.length) return null;
+    return batchPlannedWindows[idx];
+  })();
 
-  const addItemForm = (
-    <form onSubmit={handleAddLine} className="flex flex-col gap-4">
-      <div>
-        <p className="text-sm font-medium text-foreground">Add item</p>
-        <p className="text-xs text-muted-foreground">Appends a line to this batch. Saves immediately.</p>
-      </div>
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="batch-add-item">Item</Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAddItemDialogOpen(true)}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Create item
-          </Button>
-        </div>
-        <Select value={addItemId} onValueChange={setAddItemId}>
-          <SelectTrigger id="batch-add-item" className="w-full">
-            <SelectValue placeholder="Select item" />
-          </SelectTrigger>
-          <SelectContent>
-            {items.map((i) => (
-              <SelectItem key={i.id} value={i.id.toString()}>
-                {i.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="batch-add-role">Role</Label>
-        <Select value={addRole} onValueChange={(v) => setAddRole(v as ItemRole)}>
-          <SelectTrigger id="batch-add-role" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ITEM_ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r === 'output' ? 'products' : r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="batch-add-exp">Expected qty (optional)</Label>
-        <Input
-          id="batch-add-exp"
-          type="number"
-          min={0}
-          placeholder="—"
-          value={addExpected}
-          onChange={(e) => setAddExpected(e.target.value)}
-        />
-      </div>
-      <Button
-        type="submit"
-        size="sm"
-        disabled={isAddingItem}
-        className="w-full bg-brand-primary hover:bg-brand-primary-hover sm:w-auto sm:self-start"
-      >
-        {isAddingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Add item
-      </Button>
-      <AddItemDialog
-        open={isAddItemDialogOpen}
-        onOpenChange={setIsAddItemDialogOpen}
-        onSuccess={(item) => {
-          setAddItemId(item.id.toString());
-          appToast.success('Item created and selected');
-        }}
+  const executeStartStep = () => {
+    if (!startStepLog) return;
+    const pending = pendingStartStepRef.current;
+    if (!pending) return;
+    void runStageAction(async () => {
+      await startStageLog({
+        id: startStepLog.id,
+        batchId,
+        machine_id: pending.machineId,
+        started_at: pending.started_at,
+      }).unwrap();
+      setStartStepLog(null);
+      setStartStepPickWarnings(null);
+      setStartStepLiveConflict(null);
+      pendingStartStepRef.current = null;
+    }, 'Failed to start step');
+  };
+
+  const confirmStartStep = () => {
+    if (!startStepLog) return;
+    if (!startStepStoragePreview.canStartBatch) {
+      appToast.error('Cannot start — fix storage or batch items first');
+      return;
+    }
+    const earlierErr = validateStartedEarlier(stepStartedEarlier, stepStartedAtLocal);
+    if (earlierErr) {
+      appToast.error(earlierErr);
+      return;
+    }
+    let machineId: number | undefined = startStepLog.machine_id ?? undefined;
+    if (machineId == null && startStepLine) {
+      machineId = soleMachineIdOnLine(startStepLine) ?? undefined;
+    }
+    if (machineId == null && startStepNeedsMachinePick) {
+      if (startMachinePick == null) {
+        appToast.error('Select a machine');
+        return;
+      }
+      machineId = startMachinePick;
+    }
+    const started_at = startedAtForApi(stepStartedEarlier, stepStartedAtLocal);
+    pendingStartStepRef.current = { machineId, started_at };
+
+    if (machineId != null) {
+      if (loadingStartStepMachine || !startStepMachine) {
+        appToast.error('Loading machine status… try again');
+        return;
+      }
+      const allowedIds = startStepLine ? machinesForLine(startStepLine).map((m) => m.id) : [machineId];
+      const occupancyByMachineId = buildMachineOccupancyForWindow(
+        allowedIds,
+        startStepPlannedWindow,
+        scheduleBatchesForMachinePick,
+        { batchId: batch.id, stageLogId: startStepLog.id },
+      );
+      const liveWorkByMachineId = buildMachineLiveWorkMap(scheduleBatchesForMachinePick, allowedIds);
+      const liveWorkOnMachine = liveWorkByMachineId[machineId] ?? null;
+      const evaluation = evaluateMachinePick(
+        startStepMachine,
+        productionMachinePickPolicy,
+        occupancyByMachineId?.[machineId],
+        {
+          hasPlannedWindow: occupancyByMachineId != null,
+          plannedWindow: startStepPlannedWindow ?? null,
+          windowIncludesNow: occupancyByMachineId
+            ? plannedWindowIncludesNow(startStepPlannedWindow ?? null)
+            : plannedWindowIncludesNow(undefined),
+          liveWorkOnMachine,
+          excludeStageLogId: startStepLog.id,
+        },
+      );
+      const startConfirmWarnings = warningsForStartStepConfirm(evaluation.warnings);
+      if (evaluation.blocked) {
+        appToast.error(
+          startConfirmWarnings.map((w) => machinePickWarningLabel(w)).join(' · ') ||
+            'Cannot use this machine under workspace policy',
+        );
+        return;
+      }
+      if (
+        hasLiveStepConflictOnMachine(liveWorkOnMachine, startStepLog.id) &&
+        machineId !== startLiveAckMachineIdRef.current
+      ) {
+        pendingOpenStageLogRef.current = null;
+        setStartStepLiveConflict(liveWorkOnMachine);
+        return;
+      }
+      const otherWarnings = startConfirmWarnings.filter((w) => w !== 'occupied');
+      if (otherWarnings.length > 0) {
+        setStartStepPickWarnings(otherWarnings);
+        return;
+      }
+    }
+
+    executeStartStep();
+  };
+
+  const canEditStepMeta = Boolean(canEditBatch);
+
+  const commitPlannedAndShift = async (override?: {
+    plannedStart?: string;
+    shiftId?: number | null;
+  }) => {
+    if (!canEditBatch || !batch) return;
+    const plannedStart = override?.plannedStart ?? editPlannedStart;
+    const shiftId =
+      override && 'shiftId' in override
+        ? override.shiftId ?? null
+        : plannedStart
+          ? findShiftForDate(
+              workspaceShifts.filter((shift) => shift.is_active),
+              new Date(plannedStart),
+            )?.id ?? null
+          : null;
+    if (override?.plannedStart != null) setEditPlannedStart(override.plannedStart);
+    setEditSelectedShiftId(shiftId);
+    const plannedIso = plannedStart.trim() ? new Date(plannedStart).toISOString() : null;
+    const serverPlanned = batch.planned_start_at ?? null;
+    const serverShift = batch.shift_id ?? null;
+    const sameInstant =
+      plannedIso == null
+        ? serverPlanned == null
+        : serverPlanned != null && new Date(plannedIso).getTime() === new Date(serverPlanned).getTime();
+    if (sameInstant && shiftId === serverShift) return;
+    await handleSaveBatchDetails({ plannedStart, shiftId });
+  };
+
+  const commitNotes = async () => {
+    if (!canEditBatch) return;
+    const trimmed = editNotes.trim();
+    if ((batch.notes ?? '').trim() === trimmed) return;
+    await persistBatchUpdate({ notes: trimmed || undefined });
+  };
+
+  const commitExpectedOutput = async () => {
+    if (!canEditBatch || !isPreStartBatch) return;
+    const trimmed = editExpectedOutput.trim();
+    const next = trimmed === '' ? undefined : parseProductionQuantity(trimmed) ?? undefined;
+    if (trimmed !== '' && (next == null || next < 0.01)) {
+      appToast.error('Enter a positive quantity or leave blank');
+      return;
+    }
+    if (next === batch.expected_output_quantity) return;
+    await handleSaveBatchDetails();
+  };
+
+  const commitActualOutput = async () => {
+    if (!canEditBatch || batch.status !== 'in_progress') return;
+    const trimmed = editActualOutput.trim();
+    const next = trimmed === '' ? undefined : parseProductionQuantity(trimmed) ?? undefined;
+    if (trimmed !== '' && (next == null || Number.isNaN(next) || next < 0)) {
+      appToast.error('Invalid quantity');
+      return;
+    }
+    if (next === batch.actual_output_quantity) return;
+    await persistBatchUpdate({
+      actual_output_quantity: next,
+      actual_duration_minutes: editActualDuration.trim()
+        ? parseInt(editActualDuration, 10)
+        : undefined,
+    });
+  };
+
+  const handleRailMachineChange = (machineId: number | null) => {
+    if (!canEditBatch) return;
+    if (stageLogs.length === 1) {
+      void runStageAction(
+        () =>
+          updateStageLog({
+            id: stageLogs[0].id,
+            batchId,
+            data: { machine_id: machineId },
+          }).unwrap(),
+        'Failed to save machine',
+      );
+      return;
+    }
+    void persistBatchUpdate({ machine_id: machineId });
+  };
+
+  const patchStageLog = (
+    log: ProductionBatchStageLog,
+    data: Parameters<typeof updateStageLog>[0]['data'],
+  ) => {
+    void runStageAction(
+      () => updateStageLog({ id: log.id, batchId, data }).unwrap(),
+      'Failed to save step',
+    );
+  };
+
+  const showFloorWorkspace = stageLogs.length > 0;
+  const selectedCanStartStep =
+    selectedStageLog != null && !earlierStepsBlockStart(selectedStageLog, stageLogs);
+
+  const floorPanel = (
+    <BatchRunSelectedStepPanel
+      log={selectedStageLog}
+      lines={lines}
+      multiStepRun={multiStepRun}
+      canEditStepMeta={canEditStepMeta && selectedStageLog?.status === 'pending'}
+      canLogStages={Boolean(canLogStages)}
+      factoryId={factoryForMachines ?? undefined}
+      scheduleBatches={scheduleBatchesForMachinePick}
+      plannedWindow={selectedStepPlannedWindow}
+      onSaveLine={(log, lineId) => patchStageLog(log, { production_line_id: lineId })}
+      onSaveMinutes={(log, minutes) =>
+        patchStageLog(log, { expected_duration_minutes: minutes })
+      }
+      onSaveMachine={(log, machineId) => patchStageLog(log, { machine_id: machineId })}
+      onStart={requestStartStage}
+      onFinish={requestFinishStage}
+      onSaveConditions={async () => {
+        setSavingConditions(true);
+        try {
+          const result = await materialsHandleRef.current?.saveConditions();
+          if (result?.ok && result.changed) appToast.success('Saved');
+        } finally {
+          setSavingConditions(false);
+        }
+      }}
+      saveConditionsBusy={savingConditions}
+      canStartStep={selectedCanStartStep}
+      finishBlocked={
+        selectedStageLog?.status === 'in_progress' &&
+        finishReadinessSnapshot != null &&
+        !finishReadinessSnapshot.ready
+      }
+      finishBlockedHint={finishBlockedHint}
+      onFinishBlocked={() => {
+        if (selectedStageLog) void requestFinishStage(selectedStageLog);
+      }}
+      finishBusy={finishFlushBusy || finishingStep}
+      nextStepOffer={
+        postFinishNext
+          ? {
+              afterLogId: postFinishNext.afterLogId,
+              nextLogId: postFinishNext.nextLogId,
+              stageName: postFinishNext.nextStageName,
+            }
+          : null
+      }
+      onGoToNextStep={() => {
+        if (!postFinishNext) return;
+        setSelectedStageLogId(postFinishNext.nextLogId);
+        setPostFinishNext(null);
+      }}
+    >
+      <BatchRunStepMaterials
+        ref={materialsHandleRef}
+        stageLog={selectedStageLog}
+        stageLogs={stageLogs}
+        formulaStageItems={formulaStageItems}
+        formulaStages={formulaStages}
+        batchItems={batchItems}
+        stepItems={batchStageItems}
+        getItemName={getItemName}
+        canMutateItems={Boolean(canMutateItems)}
+        canEditActuals={canEditStepMaterials}
+        onSaveExpected={handleSaveExpected}
+        onSaveActual={handleSaveActual}
+        onSaveStepInput={handleSaveStepInput}
+        stageParameters={selectedStageParameters}
+        formulaStageParameters={formulaStageParameters}
+        onSaveCondition={handleSaveCondition}
+        materialsSectionRef={materialsSectionRef}
+        highlightMissingActualRowKeys={
+          emphasizeFinishFields ? activeFinishReadiness.missingMaterialRowKeys : []
+        }
+        highlightMissingConditionSourceIds={
+          emphasizeFinishFields ? activeFinishReadiness.missingConditionSourceIds : []
+        }
       />
-    </form>
+    </BatchRunSelectedStepPanel>
   );
-
-  const renderSummaryDataBlock = (isEditing: boolean) => (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Summary</p>
-      {isEditing ? (
-        <div className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Production line</Label>
-              <p className="text-sm font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Formula</Label>
-              <p className="text-sm font-medium">{formula?.name ?? 'Simple mode'}</p>
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="batch-edit-date">Batch date</Label>
-              <Input id="batch-edit-date" type="date" value={editBatchDate} onChange={(e) => setEditBatchDate(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="batch-edit-shift">Shift</Label>
-              <Input id="batch-edit-shift" value={editShift} onChange={(e) => setEditShift(e.target.value)} placeholder="Optional" />
-            </div>
-          </div>
-          {batch.status === 'draft' && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-out">Expected product qty</Label>
-                <Input id="batch-edit-exp-out" type="number" min={0} value={editExpectedOutput} onChange={(e) => setEditExpectedOutput(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-dur">Expected duration (minutes)</Label>
-                <Input id="batch-edit-exp-dur" type="number" min={0} value={editExpectedDuration} onChange={(e) => setEditExpectedDuration(e.target.value)} placeholder="Optional" />
-              </div>
-            </div>
-          )}
-          {batch.status === 'in_progress' && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-out">Actual product qty</Label>
-                <Input id="batch-edit-act-out" type="number" min={0} value={editActualOutput} onChange={(e) => setEditActualOutput(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-dur">Actual duration (minutes)</Label>
-                <Input id="batch-edit-act-dur" type="number" min={0} value={editActualDuration} onChange={(e) => setEditActualDuration(e.target.value)} placeholder="Optional" />
-              </div>
-            </div>
-          )}
-          <div className="grid gap-1.5">
-            <Label htmlFor="batch-edit-notes">Notes</Label>
-            <Textarea id="batch-edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={3} placeholder="Optional" />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" className="bg-brand-primary hover:bg-brand-primary-hover" onClick={handleSaveBatchDetails} disabled={isUpdatingBatch}>
-              {isUpdatingBatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save changes
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setIsInlineEditing(false)}>
-              Cancel edit
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-muted-foreground">Production line</dt>
-              <dd className="mt-0.5 font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Formula</dt>
-              <dd className="mt-0.5 font-medium">{formula?.name ?? 'Simple mode'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Batch date</dt>
-              <dd className="mt-0.5 font-medium tabular-nums">
-                {new Date(batch.batch_date).toLocaleDateString()}
-              </dd>
-            </div>
-            {batch.expected_output_quantity != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Expected products</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
-              </div>
-            )}
-            {batch.actual_output_quantity != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Actual products</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
-              </div>
-            )}
-            {efficiencyDisplay != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Efficiency</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{efficiencyDisplay}</dd>
-              </div>
-            )}
-          </dl>
-          {batch.notes?.trim() && (
-            <div className="mt-4 border-t border-border/60 pt-3">
-              <p className="text-xs text-muted-foreground">Notes</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed">{batch.notes}</p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
-  const summaryDataBlock = renderSummaryDataBlock(isInlineEditing);
 
   const workflowActionsBlock = (
     <div className="flex flex-wrap gap-2">
-      {batch.status === 'draft' && (
+      {isPreStartBatch && (
         <>
-          <Button
-            size="sm"
-            className="bg-brand-primary hover:bg-brand-primary-hover"
-            onClick={onRequestStart}
-          >
-            <Play className="mr-1 h-4 w-4" />
-            Start…
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
-            <Pencil className="mr-1 h-4 w-4" />
-            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
-          </Button>
+          {stageLogs.length === 0 ? (
+            <Button
+              size="sm"
+              className="bg-brand-primary hover:bg-brand-primary-hover"
+              onClick={onRequestStart}
+            >
+              <Play className="mr-1 h-4 w-4" />
+              Start
+            </Button>
+          ) : null}
+          {batch.status === 'recurring' ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleRevertToDraft()}
+              disabled={isRevertingToDraft}
+            >
+              {isRevertingToDraft ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Edit as draft
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
@@ -824,24 +1277,22 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             ) : (
               <Trash2 className="mr-1 h-4 w-4" />
             )}
-            Delete draft
+            {batch.status === 'recurring' ? 'Remove recurring run' : 'Delete draft'}
           </Button>
         </>
       )}
         {batch.status === 'in_progress' && (
           <>
-          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
-            <Pencil className="mr-1 h-4 w-4" />
-            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
-          </Button>
-            <Button
-              size="sm"
-              className="bg-brand-primary hover:bg-brand-primary-hover"
-              onClick={() => onComplete(batch)}
-            >
-              <Check className="mr-1 h-4 w-4" />
-              Complete
-            </Button>
+            {stageLogs.length === 0 ? (
+              <Button
+                size="sm"
+                className="bg-brand-primary hover:bg-brand-primary-hover"
+                onClick={() => onComplete(batch)}
+              >
+                <Check className="mr-1 h-4 w-4" />
+                Complete
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -853,231 +1304,273 @@ const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
             </Button>
           </>
         )}
-      {batch.status === 'completed' && (
-        <span className="text-xs text-muted-foreground">Products and waste auto-posted on completion.</span>
-      )}
     </div>
   );
 
-  const summaryBlock = (
-    <div className="space-y-4">
-      {summaryDataBlock}
-      {workflowActionsBlock}
-    </div>
-  );
-
-  const leftDetailsAndLinesBlock = (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-1 pr-2 md:pr-5">
-      {summaryBlock}
-      <Separator />
-      {stageTimelineBlock}
-      <Separator />
-      {linesBlock}
-    </div>
-  );
-
-  const rightAddBlock = (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain py-1 pl-0.5 pr-1 md:pl-2 md:pr-2">
-      {canMutateItems ? (
-        <div className="rounded-lg border border-border/80 bg-card p-3 md:p-4">{addItemForm}</div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Add item is available while batch is <span className="font-medium">draft</span> or <span className="font-medium">in progress</span>.
+  const runWorkspaceBody = (
+    <div className="flex min-w-0 flex-col border-t border-border pt-4">
+      {stageLogs.length > 1 ? (
+        <BatchRunVerticalStepper
+          orientation="horizontal"
+          stageLogs={stageLogs}
+          loading={loadingStageLogs}
+          selectedLogId={selectedStageLogId}
+          onSelect={setSelectedStageLogId}
+        />
+      ) : null}
+      <div className="flex min-w-0">
+        {stageLogs.length > 0 ? (
+          <BatchRunVerticalStepper
+            orientation="vertical"
+            stageLogs={stageLogs}
+            loading={loadingStageLogs}
+            selectedLogId={selectedStageLogId}
+            onSelect={setSelectedStageLogId}
+            className="shrink-0 self-start"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {showFloorWorkspace ? (
+            floorPanel
+          ) : (
+            <div className="flex min-h-[12rem] items-center justify-center px-4 py-10 text-center text-sm text-muted-foreground">
+              {isRecipeFloorView
+                ? 'No steps on this run yet.'
+                : 'Simple run — set when, qty, and machine in the strip above.'}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 
   return (
     <>
-      <Card className="border-border shadow-sm min-h-[420px]">
-        <CardContent className="flex h-full min-h-0 flex-col gap-4 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <Card className="shrink-0 flex-col border-border shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <p className="text-base font-semibold tracking-tight text-foreground">{batch.batch_number}</p>
               <span
                 className={cn(
                   'inline-block rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
-                  getStatusBadge(batch.status)
+                  getStatusBadge(batch.status),
                 )}
               >
                 {batch.status.replace('_', ' ')}
               </span>
+              {formula ? (
+                <Badge variant="secondary" className="max-w-[14rem] truncate font-normal">
+                  {formula.name}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="font-normal">
+                  Simple run
+                </Badge>
+              )}
+              {!isRecipeFloorView && line ? (
+                <span className="truncate text-xs text-muted-foreground">{line.name}</span>
+              ) : null}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Clear selection">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {workflowActionsBlock}
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Clear selection">
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(460px,68%)_minmax(260px,32%)] md:gap-8">
-            <div className="min-h-0 min-w-0 border-border md:border-r md:overflow-hidden">{leftDetailsAndLinesBlock}</div>
-            <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)] md:overflow-hidden">{rightAddBlock}</div>
-          </div>
+          <BatchRunContextStrip
+            batch={batch}
+            canEditBatch={Boolean(canEditBatch)}
+            workspaceShifts={workspaceShifts}
+            plannedStart={editPlannedStart}
+            selectedShiftId={editSelectedShiftId}
+            onPlannedStartChange={(value) => {
+              setEditPlannedStart(value);
+              setOverlapConflicts([]);
+            }}
+            onSelectedShiftIdChange={setEditSelectedShiftId}
+            onPlannedStartCommit={(plannedLocal) =>
+              void commitPlannedAndShift({ plannedStart: plannedLocal })
+            }
+            onShiftCommit={(plannedLocal, shiftId) =>
+              void commitPlannedAndShift(
+                plannedLocal != null
+                  ? { plannedStart: plannedLocal, shiftId: shiftId ?? null }
+                  : undefined,
+              )
+            }
+            showRailMachine={showRailMachine}
+            railMachineLine={railMachineLine}
+            railMachineId={railMachineId}
+            onRailMachineChange={handleRailMachineChange}
+            factoryId={factoryForMachines ?? undefined}
+            scheduleBatches={scheduleBatchesForMachinePick}
+            railPlannedWindow={railPlannedWindow}
+            railExcludeStageLogId={stageLogs.length === 1 ? stageLogs[0].id : undefined}
+            railExcludeBatchId={batch.id}
+            expectedOutput={editExpectedOutput}
+            onExpectedOutputChange={setEditExpectedOutput}
+            onExpectedOutputCommit={() => void commitExpectedOutput()}
+            actualOutput={editActualOutput}
+            onActualOutputChange={setEditActualOutput}
+            actualDuration={editActualDuration}
+            onActualDurationChange={setEditActualDuration}
+            onActualOutputCommit={() => void commitActualOutput()}
+            notes={editNotes}
+            onNotesChange={setEditNotes}
+            onNotesCommit={() => void commitNotes()}
+            efficiencyDisplay={efficiencyDisplay}
+            linkedOrders={linkedOrders}
+          />
+
+          {runWorkspaceBody}
         </CardContent>
       </Card>
-      <BatchStageLogDialog
-        open={stageLogDialogOpen}
+      <Dialog
+        open={!!startStepLog}
         onOpenChange={(open) => {
-          setStageLogDialogOpen(open);
-          if (!open) setEditingStageLog(null);
+          if (!open) {
+            setStartStepLog(null);
+            startLiveAckMachineIdRef.current = null;
+          }
         }}
-        batchId={batchId}
-        lines={lines}
-        log={editingStageLog}
-        formulaStages={formulaStages}
-        defaultStageOrder={
-          stageLogs.length > 0 ? Math.max(...stageLogs.map((l) => l.stage_order)) + 1 : 0
+      >
+        <DialogContent
+          className={cn(
+            'flex max-w-none flex-col overflow-hidden w-[min(56rem,94vw)]',
+            'h-[66vh] max-h-[66vh]',
+          )}
+        >
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Start {startStepLog?.stage_name ?? 'step'}</DialogTitle>
+            <DialogDescription>{startStepDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {startStepLog ? (
+              <BatchStartStepDialogBody
+                stageLog={startStepLog}
+                lineName={startStepLine?.name ?? null}
+                machineLabel={startStepMachineLabel}
+                storagePreview={{
+                  rows: startStepStoragePreview.rows,
+                  stockCheckLoading: startStepStoragePreview.stockCheckLoading,
+                  loadingItems: startStepStoragePreview.loadingItems,
+                  noItems: startStepStoragePreview.noItems,
+                  noInputs: startStepStoragePreview.noInputs,
+                  shortages: startStepStoragePreview.shortages,
+                }}
+                getItemName={getItemName}
+                onReplenish={openShortStock}
+                needsMachinePick={startStepNeedsMachinePick}
+                machinePick={
+                  <ProductionLineMachineSelect
+                    line={startStepLine}
+                    value={startMachinePick}
+                    onChange={setStartMachinePick}
+                    factoryId={factoryForMachines ?? startStepLine?.factory_id}
+                    scheduleBatches={scheduleBatchesForMachinePick}
+                    plannedWindow={startStepPlannedWindow}
+                    id="start-step-machine"
+                    excludeStageLogId={startStepLog.id}
+                    excludeBatchId={batch.id}
+                    summarySize="comfortable"
+                    embedded
+                    description="Choose which machine on this line will run the step."
+                  />
+                }
+              />
+            ) : null}
+          </div>
+          <DialogFooter className="shrink-0 gap-2 sm:justify-between">
+            <Button type="button" variant="outline" onClick={() => setStartStepLog(null)}>
+              Cancel
+            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ProductionStartEarlierDialogButton
+                idPrefix="start-step"
+                enabled={stepStartedEarlier}
+                onEnabledChange={setStepStartedEarlier}
+                value={stepStartedAtLocal}
+                onChange={setStepStartedAtLocal}
+              />
+              <Button
+                type="button"
+                onClick={confirmStartStep}
+                disabled={
+                  !startStepStoragePreview.canStartBatch || startStepStoragePreview.loadingItems
+                }
+              >
+                {batch?.status === 'draft' ? 'Start batch & step' : 'Start step'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <BatchShortStockDialogs
+        stockSeed={shortStockSeed}
+        purchaseSeed={shortPurchaseSeed}
+        onStockOpenChange={(open) => {
+          if (!open) setShortStockSeed(null);
+        }}
+        onPurchaseOpenChange={(open) => {
+          if (!open) setShortPurchaseSeed(null);
+        }}
+      />
+      <ProductionScheduleConflictDialog
+        open={overlapConflicts.length > 0}
+        conflicts={overlapConflicts}
+        onCancel={() => setOverlapConflicts([])}
+        onSaveAnyway={() => {
+          const pending = overlapConflicts;
+          setOverlapConflicts(pending);
+          void handleSaveBatchDetails();
+        }}
+      />
+      <ProductionStartLiveMachineDialog
+        open={startStepLiveConflict != null}
+        machineName={
+          startStepMachine?.name ??
+          startStepMachineLabel ??
+          (pendingOpenStageLogRef.current
+            ? getMachineName(resolveStageLogMachineId(pendingOpenStageLogRef.current) ?? 0)
+            : null)
         }
+        liveWork={startStepLiveConflict}
+        onCancel={() => {
+          setStartStepLiveConflict(null);
+          pendingOpenStageLogRef.current = null;
+          pendingStartStepRef.current = null;
+        }}
+        onConfirm={() => {
+          const pendingLog = pendingOpenStageLogRef.current;
+          setStartStepLiveConflict(null);
+          if (pendingLog) {
+            const ackMachineId = resolveStageLogMachineId(pendingLog);
+            startLiveAckMachineIdRef.current = ackMachineId;
+            pendingOpenStageLogRef.current = null;
+            openStartStepDialog(pendingLog);
+            return;
+          }
+          startLiveAckMachineIdRef.current = startStepResolvedMachineId;
+          executeStartStep();
+        }}
+      />
+      <ProductionMachinePickWarningDialog
+        open={startStepPickWarnings != null && startStepPickWarnings.length > 0}
+        machineName={startStepMachine?.name ?? startStepMachineLabel}
+        warnings={startStepPickWarnings ?? []}
+        onCancel={() => {
+          setStartStepPickWarnings(null);
+          pendingStartStepRef.current = null;
+        }}
+        onContinue={() => {
+          setStartStepPickWarnings(null);
+          executeStartStep();
+        }}
       />
     </>
-  );
-};
-
-interface BatchLineTableRowProps {
-  row: ProductionBatchItem;
-  name: string;
-  canRemove: boolean;
-  canEditExpected: boolean;
-  canEditActual: boolean;
-  onRemove: () => void;
-  onSaveExpected: (raw: string) => void;
-  onSaveActual: (raw: string) => void;
-}
-
-const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
-  row,
-  name,
-  canRemove,
-  canEditExpected,
-  canEditActual,
-  onRemove,
-  onSaveExpected,
-  onSaveActual,
-}) => {
-  const [localExpected, setLocalExpected] = useState(row.expected_quantity?.toString() ?? '');
-  const [localActual, setLocalActual] = useState(row.actual_quantity?.toString() ?? '');
-  const [editingExpected, setEditingExpected] = useState(false);
-  const [editingActual, setEditingActual] = useState(false);
-
-  useEffect(() => {
-    setLocalExpected(row.expected_quantity?.toString() ?? '');
-    setLocalActual(row.actual_quantity?.toString() ?? '');
-  }, [row.id, row.expected_quantity, row.actual_quantity]);
-
-  return (
-    <TableRow className="border-border/60">
-      <TableCell className="py-2.5 align-middle font-medium">{name}</TableCell>
-      <TableCell className="py-2.5 align-middle text-right text-sm tabular-nums text-muted-foreground">
-        {canEditExpected && editingExpected ? (
-          <>
-            <Label htmlFor={`expected-${row.id}`} className="sr-only">
-              Expected for {name}
-            </Label>
-            <Input
-              id={`expected-${row.id}`}
-              autoFocus
-              className="ml-auto h-8 w-[5.5rem]"
-              type="text"
-              inputMode="numeric"
-              value={localExpected}
-              onChange={(e) => setLocalExpected(e.target.value)}
-              onBlur={() => {
-                if (localExpected !== (row.expected_quantity?.toString() ?? '')) {
-                  onSaveExpected(localExpected);
-                }
-                setEditingExpected(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                } else if (e.key === 'Escape') {
-                  setLocalExpected(row.expected_quantity?.toString() ?? '');
-                  setEditingExpected(false);
-                }
-              }}
-              placeholder="—"
-            />
-          </>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums',
-              canEditExpected && 'cursor-text hover:bg-muted/40'
-            )}
-            onDoubleClick={() => {
-              if (canEditExpected) setEditingExpected(true);
-            }}
-            title={canEditExpected ? 'Double-click to edit expected qty' : undefined}
-          >
-            {row.expected_quantity ?? '—'}
-          </button>
-        )}
-      </TableCell>
-      <TableCell className="py-2.5 align-middle text-right">
-        {canEditActual && editingActual ? (
-          <>
-            <Label htmlFor={`actual-${row.id}`} className="sr-only">
-              Actual for {name}
-            </Label>
-            <Input
-              id={`actual-${row.id}`}
-              autoFocus
-              className="ml-auto h-8 w-[5.5rem]"
-              type="text"
-              inputMode="numeric"
-              value={localActual}
-              onChange={(e) => setLocalActual(e.target.value)}
-              onBlur={() => {
-                if (localActual !== (row.actual_quantity?.toString() ?? '')) {
-                  onSaveActual(localActual);
-                }
-                setEditingActual(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                } else if (e.key === 'Escape') {
-                  setLocalActual(row.actual_quantity?.toString() ?? '');
-                  setEditingActual(false);
-                }
-              }}
-              placeholder="—"
-            />
-          </>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums text-muted-foreground',
-              canEditActual && 'cursor-text hover:bg-muted/40'
-            )}
-            onDoubleClick={() => {
-              if (canEditActual) setEditingActual(true);
-            }}
-            title={canEditActual ? 'Double-click to edit actual qty' : undefined}
-          >
-            {row.actual_quantity ?? '—'}
-          </button>
-        )}
-      </TableCell>
-      <TableCell className="p-1 align-middle text-right">
-        {canRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={onRemove}
-            aria-label={`Remove ${name}`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </TableCell>
-    </TableRow>
   );
 };
 

@@ -332,7 +332,7 @@ const SoInvoiceWorkflowChecklist: React.FC<SoInvoiceWorkflowChecklistProps> = ({
             >
               <ChecklistStepHeader
                 state="active"
-                title="Finalize invoice"
+                title="Ready to finalize"
                 description={finalizeDescription}
                 badge={ratioBadge('Ready', 'amber')}
               />

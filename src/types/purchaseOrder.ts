@@ -19,6 +19,7 @@ export interface PurchaseOrder {
   id: number;
   workspace_id: number;
   po_number: string;
+  is_tour_sample?: boolean;
   account_id: number | null;
   destination_type: string;
   destination_id: number;
@@ -159,6 +160,7 @@ export interface CreatePurchaseOrder {
   order_date?: string | null;
   expected_delivery_date?: string | null;
   description?: string | null;
+  production_batch_id?: number | null;
   current_status_id?: number;
   order_workflow_id?: number | null;
   items?: CreatePurchaseOrderItem[];
@@ -174,6 +176,7 @@ export interface UpdatePurchaseOrder {
   invoice_id?: number | null;
   required_approvals?: number | null;
   description?: string | null;
+  production_batch_id?: number | null;
   supplier_confirmed?: boolean;
   details_confirmed?: boolean;
   items_confirmed?: boolean;

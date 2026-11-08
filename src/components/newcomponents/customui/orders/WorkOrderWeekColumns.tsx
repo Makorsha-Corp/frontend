@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WeekDayCell, WorkOrderSheetRow } from '@/pages/newpages/orders/workOrderSheetData';
 import {
@@ -11,7 +10,7 @@ import {
   weekDayColumnHeaderClass,
   weekDayColumnShellClass,
   weekDayCountLabel,
-  weekDayEmptyAddButtonClass,
+  weekDayEmptyOpenDayButtonClass,
   weekDayColumnEmptyInsetClass,
 } from './weekCalendarStyles';
 
@@ -35,8 +34,6 @@ function uniqueOrdersForDay(rows: WorkOrderSheetRow[]): WorkOrderSheetRow[] {
 
 const WorkOrderWeekColumns: React.FC<WorkOrderWeekColumnsProps> = ({
   days,
-  onSelectDay,
-  onAddForDay,
   onRowClick,
 }) => {
   const ordersByDay = useMemo(
@@ -69,10 +66,10 @@ const WorkOrderWeekColumns: React.FC<WorkOrderWeekColumnsProps> = ({
               <div className={weekDayColumnEmptyInsetClass()}>
                 <button
                   type="button"
-                  className={weekDayEmptyAddButtonClass('columns')}
-                  onClick={() => onAddForDay(day.date)}
+                  className={weekDayEmptyOpenDayButtonClass('columns')}
+                  onClick={() => onSelectDay(day.date)}
                 >
-                  <Plus className="h-3 w-3 shrink-0" />
+                  Open day
                   Add work
                 </button>
               </div>

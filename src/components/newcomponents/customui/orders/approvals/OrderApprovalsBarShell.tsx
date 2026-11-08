@@ -18,6 +18,7 @@ export interface OrderApprovalsBarSummary {
 
 export interface OrderApprovalsBarShellProps {
   id: string;
+  'data-help-tour'?: string;
   /** Resets mobile expand state when order changes. */
   collapseResetKey?: string | number;
   highlighted?: boolean;
@@ -71,6 +72,7 @@ export function OrderApprovalsVoidedBadge() {
 
 const OrderApprovalsBarShell: React.FC<OrderApprovalsBarShellProps> = ({
   id,
+  'data-help-tour': dataHelpTour,
   collapseResetKey,
   highlighted = false,
   onHighlightDismiss,
@@ -97,6 +99,7 @@ const OrderApprovalsBarShell: React.FC<OrderApprovalsBarShellProps> = ({
   return (
     <div
       id={id}
+      data-help-tour={dataHelpTour}
       className={cn(ORDER_APPROVALS_BAR_OUTER_CLASS, highlighted && 'po-scroll-target-highlight', className)}
       onMouseEnter={() => {
         if (highlighted) onHighlightDismiss?.();

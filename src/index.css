@@ -234,6 +234,17 @@
   background: transparent;
 }
 
+.time-picker-scroll-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.time-picker-scroll-hide::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .po-scroll-target-highlight {
   box-shadow:
     0 0 0 3px hsl(var(--primary) / 0.5),
@@ -294,4 +305,137 @@
       7px -7px,
       -7px 0;
   }
+}
+
+/* In-app help guides — dim siblings, brighten target.
+   Overlay is invisible. Path uses inline pointer-events:auto, so a stale hole
+   swallows clicks on the real control (Finalize). Kill hit-testing; .driver-active *
+   already blocks everything except the active element and popover. */
+.driver-overlay,
+.driver-overlay path {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* PO tour: React may remount the control (esp. finalize) after driver marks a dead node. */
+body.driver-active #po-confirm-items,
+body.driver-active #po-approve-order-btn,
+body.driver-active #po-finalize-invoice-btn,
+body.driver-active #po-manage-receiving-btn,
+body.driver-active #po-receive-items-btn,
+body.driver-active #po-confirm-receipt-btn,
+body.driver-active #po-receive-qty-line-0-stepper,
+body.driver-active #po-receive-qty-line-0-stepper *,
+body.driver-active #po-receive-qty-line-0,
+body.driver-active #po-receive-all-btn-1,
+body.driver-active #po-mark-order-complete-btn {
+  pointer-events: auto !important;
+}
+
+.help-guide-dim {
+  filter: brightness(0.55);
+  transition: filter 160ms ease;
+}
+
+.help-guide-lit {
+  filter: brightness(1.06);
+}
+
+/* In-app help guides (driver.js) — match ERP popover tokens */
+.help-guide-popover.driver-popover {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.12);
+}
+
+.help-guide-popover .driver-popover-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.help-guide-popover .driver-popover-description {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.help-guide-popover .driver-popover-progress-text {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.help-guide-popover .driver-popover-close-btn {
+  color: hsl(var(--muted-foreground));
+  border-radius: calc(var(--radius) - 2px);
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.help-guide-popover .driver-popover-close-btn:hover,
+.help-guide-popover .driver-popover-close-btn:focus-visible {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted) / 0.5);
+}
+
+.help-guide-popover .driver-popover-footer {
+  margin-top: 1rem;
+  gap: 0.75rem;
+}
+
+.help-guide-popover .driver-popover-navigation-btns {
+  gap: 0.5rem;
+}
+
+.help-guide-popover .driver-popover-navigation-btns button,
+.help-guide-popover .driver-popover-footer .driver-popover-footer-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  text-shadow: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.help-guide-popover .driver-popover-navigation-btns button + button {
+  margin-left: 0;
+}
+
+.help-guide-popover .driver-popover-navigation-btns button:first-child {
+  border: 1px solid hsl(var(--input));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.help-guide-popover .driver-popover-navigation-btns button:first-child:hover:not(.driver-popover-btn-disabled),
+.help-guide-popover .driver-popover-navigation-btns button:first-child:focus-visible:not(.driver-popover-btn-disabled) {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.help-guide-popover .driver-popover-navigation-btns button:last-child {
+  border: 1px solid transparent;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.help-guide-popover .driver-popover-navigation-btns button:last-child:hover:not(.driver-popover-btn-disabled),
+.help-guide-popover .driver-popover-navigation-btns button:last-child:focus-visible:not(.driver-popover-btn-disabled) {
+  background-color: hsl(var(--primary-hover));
+}
+
+.help-guide-popover .driver-popover-navigation-btns .driver-popover-btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -126,6 +126,12 @@ const StorageSection: React.FC<StorageSectionProps> = ({
               )}
               <p className={catalogSectionSummaryClass}>
                 {formatNumber(overview.totalQty)} units · {formatCurrency(overview.estimatedValue)} est.
+                {' · '}
+                Finished goods here are stock.{' '}
+                <Link to="/products" className="text-brand-primary underline-offset-2 hover:underline">
+                  List them on Products
+                </Link>{' '}
+                to sell.
               </p>
             </div>
             {!collapsed && (

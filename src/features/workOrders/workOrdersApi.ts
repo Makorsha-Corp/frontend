@@ -20,12 +20,13 @@ import type {
 } from '../../types/workOrder';
 import type { CreateWorkOrderFromTemplate } from '../../types/workOrderTemplate';
 import type { WorkOrderSheetEntryRequest, WorkOrderSheetEntryResponse, ListWorkOrderSheetParams, WorkOrderSheetListResponse, ListWorkOrderSheetDailyCountsParams, WorkOrderSheetDailyCountsResponse } from '../../types/workOrderSheet';
+import type { CreateWorkOrderProgramRequest, WorkOrderProgram } from '../../types/workOrderProgram';
 import { API_LIMITS } from '@/constants/apiLimits';
 
 export const workOrdersApi = createApi({
   reducerPath: 'workOrdersApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['WorkOrder', 'WorkOrderItem', 'WorkOrderApprovers', 'WorkOrderEvents', 'Notification'],
+  tagTypes: ['WorkOrder', 'WorkOrderItem', 'WorkOrderApprovers', 'WorkOrderEvents', 'WorkOrderProgram', 'Notification'],
   endpoints: (builder) => ({
     getWorkOrders: builder.query<WorkOrder[], ListWorkOrdersParams>({
       query: ({
@@ -132,6 +133,25 @@ export const workOrdersApi = createApi({
       },
       transformResponse: (response: WorkOrderSheetDailyCountsResponse) => response.counts,
       providesTags: ['WorkOrder'],
+    }),
+    getWorkOrderPrograms: builder.query<WorkOrderProgram[], { factory_id: number }>({
+      query: ({ factory_id }) => `work-order-programs/?factory_id=${factory_id}`,
+      providesTags: ['WorkOrderProgram'],
+    }),
+    createWorkOrderProgram: builder.mutation<WorkOrderProgram, CreateWorkOrderProgramRequest>({
+      query: (body) => ({
+        url: 'work-order-programs/',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['WorkOrderProgram', 'WorkOrder', 'WorkOrderItem'],
+    }),
+    stopWorkOrderProgram: builder.mutation<WorkOrderProgram, number>({
+      query: (programId) => ({
+        url: `work-order-programs/${programId}/stop/`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['WorkOrderProgram', 'WorkOrder', 'WorkOrderItem'],
     }),
     createWorkOrderSheetEntry: builder.mutation<WorkOrderSheetEntryResponse, WorkOrderSheetEntryRequest>({
       query: (body) => ({
@@ -358,6 +378,9 @@ export const {
   useCreateWorkOrderFromTemplateMutation,
   useGetWorkOrdersSheetQuery,
   useGetWorkOrderSheetDailyCountsQuery,
+  useGetWorkOrderProgramsQuery,
+  useCreateWorkOrderProgramMutation,
+  useStopWorkOrderProgramMutation,
   useCreateWorkOrderSheetEntryMutation,
   useUpdateWorkOrderMutation,
   useStartWorkOrderMutation,

@@ -16,6 +16,8 @@ interface PurchaseOrdersOverviewPanelProps {
   accountName: (id: number) => string;
   statusLabel: (id: number) => string;
   onSelectOrder: (id: number) => void;
+  /** Hide recent/pending order rows during a whole-page tour (KPIs stay). */
+  hideOrderLists?: boolean;
 }
 
 const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = ({
@@ -26,13 +28,15 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
   accountName,
   statusLabel,
   onSelectOrder,
+  hideOrderLists = false,
 }) => {
   const activityOrders = useMemo(() => {
+    if (hideOrderLists) return [];
     if (hubStats?.recent_orders?.length) {
       return hubStats.recent_orders.map(recentSummaryToPurchaseOrder);
     }
     return orders;
-  }, [hubStats?.recent_orders, orders]);
+  }, [hideOrderLists, hubStats?.recent_orders, orders]);
   const formatCompactCurrency = (v: number) =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -51,7 +55,10 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
   }
 
   return (
-    <div className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6">
+    <div
+      data-help-tour="purchase.overview"
+      className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <OrderOverviewKpiCard
           title="Total orders"
@@ -83,7 +90,7 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
           onSelectOrder={onSelectOrder}
         />
         <PurchaseOrderPendingActions
-          pendingHighlights={hubStats ?? undefined}
+          pendingHighlights={hideOrderLists ? undefined : (hubStats ?? undefined)}
           onSelectOrder={onSelectOrder}
         />
       </div>

@@ -1,6 +1,8 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
+import { helpTicketsApi } from '@/features/helpTickets/helpTicketsApi';
 import type { Discussion, DiscussionListResponse, CreateDiscussion } from '@/types/discussion';
+import type { AppDispatch } from '@/app/store';
 
 interface GetDiscussionsParams {
   entity_type: string;
@@ -35,6 +37,20 @@ export const discussionsApi = createApi({
         { type: 'Discussion', id: `${entity_type}_${entity_id}` },
         'Notification',
       ],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          if (arg.entity_type === 'support_ticket') {
+            (dispatch as AppDispatch)(
+              helpTicketsApi.util.invalidateTags([
+                { type: 'HelpTicketEvents', id: arg.entity_id },
+              ]),
+            );
+          }
+        } catch {
+          /* mutation failed */
+        }
+      },
     }),
   }),
 });

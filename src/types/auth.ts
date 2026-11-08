@@ -1,19 +1,26 @@
 // User types
 import type { SavedStamp } from '@/types/savedStamp';
 
+export interface HelpGuidesSeen {
+  by_workspace?: Record<string, string[]>;
+}
+
 export interface User {
   id: number;
   email: string;
   name: string;
   timezone?: string | null;
+  use_24_hour_time?: boolean;
   is_platform_admin?: boolean;
   saved_stamp?: SavedStamp | null;
+  help_guides_seen?: HelpGuidesSeen | null;
   created_at?: string;
 }
 
 export interface ProfileMeUpdate {
   name?: string;
   timezone?: string | null;
+  use_24_hour_time?: boolean;
   saved_stamp?: SavedStamp | null;
 }
 

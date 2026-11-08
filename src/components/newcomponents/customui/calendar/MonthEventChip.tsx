@@ -23,14 +23,15 @@ const MonthEventChip: React.FC<MonthEventChipProps> = ({
     <CalendarEventPopover event={event} className="inline-block max-w-full shrink-0">
       <div
         className={cn(
-          'max-w-full truncate rounded border leading-tight',
+          'max-w-full truncate rounded border-transparent leading-tight transition-[filter]',
           chipPadding,
           chipText,
-          style.event,
+          style.chipActive,
+          'hover:brightness-110',
           className,
         )}
       >
-        {event.title}
+        <span className="truncate font-medium">{event.title}</span>
       </div>
     </CalendarEventPopover>
   );

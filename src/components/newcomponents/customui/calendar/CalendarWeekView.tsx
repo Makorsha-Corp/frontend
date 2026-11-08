@@ -1,37 +1,49 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
+import { useUserTimeFormat } from '@/hooks/useUserTimeFormat';
 import type { CalendarDayCell } from '@/pages/newpages/calendar/calendarDateUtils';
 import CalendarEventPopover from './CalendarEventPopover';
-import { getCategoryStyle } from './calendarCategoryStyles';
+import CalendarStripeEventCard from './CalendarStripeEventCard';
+import { formatCalendarEventWhen } from './calendarEventWhen';
+import {
+  calendarGridShellClass,
+  calendarWeekDayColumnClass,
+  calendarWeekDayHeaderClass,
+  calendarWeekEventCountLabel,
+} from './calendarPageStyles';
 
 export interface CalendarWeekViewProps {
   days: CalendarDayCell[];
   onSelectDay: (date: string) => void;
 }
 
-function hasCategoryClusterBreak(events: CalendarDayCell['events'], index: number): boolean {
-  if (index === 0) return false;
-  return events[index - 1].category !== events[index].category;
-}
-
 const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({ days, onSelectDay }) => {
+  const millTimezone = useMillTimezone();
+  const { use24Hour } = useUserTimeFormat();
+
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-border overflow-hidden rounded-lg border border-border bg-card">
+    <div
+      className={cn(
+        calendarGridShellClass,
+        'grid min-h-0 flex-1 grid-cols-7 divide-x divide-border overflow-hidden',
+      )}
+    >
       {days.map((day) => (
         <div
           key={day.date}
-          className={cn(
-            'flex min-h-0 min-w-0 flex-col overflow-hidden',
-            day.isSelected && 'bg-brand-primary/[0.06]',
-          )}
+          className={calendarWeekDayColumnClass({
+            isToday: day.isToday,
+            isSelected: day.isSelected,
+          })}
         >
           <button
             type="button"
-            className={cn(
-              'flex shrink-0 flex-col gap-1 border-b border-border px-2 py-2 text-left transition-colors hover:bg-muted/30',
-              day.isSelected && 'border-t-2 border-t-brand-primary',
-            )}
+            className={calendarWeekDayHeaderClass({
+              isToday: day.isToday,
+              isSelected: day.isSelected,
+            })}
             onClick={() => onSelectDay(day.date)}
           >
             <div className="flex items-center gap-1">
@@ -43,40 +55,33 @@ const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({ days, onSelectDay }
               ) : null}
             </div>
             <span className="text-[10px] text-muted-foreground">
-              {day.events.length} {day.events.length === 1 ? 'event' : 'events'}
+              {calendarWeekEventCountLabel(day.events.length)}
             </span>
           </button>
 
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-1.5">
-            {day.events.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border/70 px-2 py-6 text-center text-[11px] text-muted-foreground">
-                No events
-              </div>
-            ) : (
-              day.events.map((event, index) => {
-                const style = getCategoryStyle(event.category);
-                const clusterBreak = hasCategoryClusterBreak(day.events, index);
+          <div className="min-h-0 flex-1 overflow-y-auto bg-background p-2">
+            {day.events.length > 0 ? (
+              <div>
+                {day.events.map((event) => {
+                  const whenLabel = formatCalendarEventWhen(event, millTimezone, use24Hour);
 
-                return (
-                  <CalendarEventPopover
-                    key={event.id}
-                    event={event}
-                    className="block w-full shrink-0"
-                  >
-                    <div
-                      className={cn(
-                        'w-full rounded-md border p-2 text-left text-xs shadow-sm transition-colors hover:bg-muted/20',
-                        clusterBreak && 'mt-1.5 border-t border-border/40 pt-2',
-                        style.event,
-                      )}
+                  return (
+                    <CalendarEventPopover
+                      key={event.id}
+                      event={event}
+                      className="block w-full shrink-0"
                     >
-                      <p className="truncate font-medium">{event.title}</p>
-                      <p className="truncate text-[10px] opacity-80">{event.date_label}</p>
-                    </div>
-                  </CalendarEventPopover>
-                );
-              })
-            )}
+                      <CalendarStripeEventCard
+                        event={event}
+                        whenLabel={whenLabel}
+                        showSubtitle={false}
+                        className="mb-1.5"
+                      />
+                    </CalendarEventPopover>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         </div>
       ))}

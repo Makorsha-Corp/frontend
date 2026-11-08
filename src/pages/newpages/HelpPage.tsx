@@ -15,16 +15,13 @@ import {
 import {
   useCreateHelpTicketMutation,
   useListHelpTicketsQuery,
-  useUpdateHelpTicketMutation,
 } from '@/features/helpTickets/helpTicketsApi';
-import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 import type { HelpTicket, HelpTicketStatus, HelpTicketType } from '@/types/helpTicket';
 
 const HelpPage: React.FC = () => {
-  const formatDateTime = useFormatDateTimeFromApi();
   const isLgScreen = useIsLgScreen();
 
   const [activeType, setActiveType] = useState<HelpTicketType>('support');
@@ -43,7 +40,6 @@ const HelpPage: React.FC = () => {
 
   const { data: tickets = [], isLoading, isError } = useListHelpTicketsQuery(listArgs);
   const [createTicket, { isLoading: isCreating }] = useCreateHelpTicketMutation();
-  const [updateTicket, { isLoading: isUpdating }] = useUpdateHelpTicketMutation();
 
   const filteredTickets = useMemo(
     () => filterTicketsBySearch(tickets, searchInput),
@@ -100,21 +96,6 @@ const HelpPage: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async () => {
-    if (!selectedTicket) return;
-
-    const nextStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
-    try {
-      await updateTicket({
-        ticketId: selectedTicket.id,
-        data: { status: nextStatus },
-      }).unwrap();
-      appToast.success(nextStatus === 'closed' ? copy.statusCloseSuccess : copy.statusReopenSuccess);
-    } catch {
-      appToast.error(copy.statusUpdateError);
-    }
-  };
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <HelpPageShellHeader
@@ -136,6 +117,7 @@ const HelpPage: React.FC = () => {
         >
           <HelpTicketListPanel
             type={activeType}
+            variant="workspace"
             tickets={filteredTickets}
             selectedId={selectedId}
             statusFilter={statusFilter}
@@ -156,10 +138,10 @@ const HelpPage: React.FC = () => {
           <HelpTicketDetailPanel
             type={activeType}
             ticket={selectedTicket}
-            formatDateTime={formatDateTime}
-            isUpdating={isUpdating}
-            onToggleStatus={handleToggleStatus}
+            isUpdating={false}
+            onToggleStatus={() => {}}
             onCreate={() => setCreateOpen(true)}
+            canChangeStatus={false}
           />
         </main>
       </div>

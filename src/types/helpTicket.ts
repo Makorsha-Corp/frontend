@@ -1,4 +1,4 @@
-export type HelpTicketStatus = 'open' | 'closed';
+export type HelpTicketStatus = 'pending' | 'opened' | 'closed';
 export type HelpTicketType = 'support' | 'feedback';
 
 export interface HelpTicket {
@@ -34,4 +34,16 @@ export interface HelpTicketUpdate {
   description?: string;
   category?: string | null;
   status?: HelpTicketStatus;
+}
+
+export interface HelpTicketEvent {
+  id: number;
+  workspace_id: number;
+  help_ticket_id: number;
+  event_type: string;
+  description: string;
+  metadata?: Record<string, unknown> | null;
+  performed_by: number | null;
+  user_name?: string | null;
+  created_at: string;
 }

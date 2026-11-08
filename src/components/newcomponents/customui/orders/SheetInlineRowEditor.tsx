@@ -14,6 +14,7 @@ import type { Machine } from '@/types/machine';
 import type { WorkOrderType } from '@/types/workOrderType';
 import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
 import { findOpenWorkOrderSlotConflict } from '@/pages/newpages/orders/workOrderSlotConflict';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
 import { WorkOrderSlotConflictDialog } from '@/components/newcomponents/customui/orders/WorkOrderSlotConflictDialog';
 import type { Item } from '@/types/item';
 import type { WorkOrder } from '@/types/workOrder';
@@ -44,6 +45,7 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const millTimezone = useMillTimezone();
   const [machineId, setMachineId] = useState('');
   const [worksTypeId, setWorksTypeId] = useState('');
   const [itemId, setItemId] = useState('');
@@ -83,8 +85,9 @@ const SheetInlineRowEditor: React.FC<SheetInlineRowEditorProps> = ({
       machineId: Number(machineId),
       workOrderTypeId: Number(worksTypeId),
       plannedDate: sheetDate,
+      timeZone: millTimezone,
     });
-  }, [slotCheckOrders, machineId, worksTypeId, sheetDate]);
+  }, [slotCheckOrders, machineId, worksTypeId, sheetDate, millTimezone]);
 
   const performSave = async () => {
     const hasPart = Boolean(itemId && Number(quantity) > 0);

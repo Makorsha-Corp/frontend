@@ -37,6 +37,9 @@ export interface WorkOrderTemplate {
   auto_generate: boolean;
   default_factory_section_id: number | null;
   default_machine_id: number | null;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
   created_by: number | null;
   created_at: string;
   updated_by: number | null;
@@ -82,6 +85,9 @@ export interface CreateWorkOrderTemplate {
   auto_generate?: boolean;
   default_factory_section_id?: number | null;
   default_machine_id?: number | null;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
 }
 
 export interface UpdateWorkOrderTemplate {
@@ -106,6 +112,9 @@ export interface UpdateWorkOrderTemplate {
   auto_generate?: boolean;
   default_factory_section_id?: number | null;
   default_machine_id?: number | null;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
 }
 
 export interface UpdateWorkOrderTemplateItem {

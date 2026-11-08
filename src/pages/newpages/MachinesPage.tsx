@@ -18,13 +18,15 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
 import { useGetMachinesQuery, useGetUpcomingMachineWorkQuery, useDeleteMachineMutation } from '@/features/machines/machinesApi';
 import type { Machine } from '@/types/machine';
-import { Layers, Loader2, Plus, Search, Cog, Play, Pause, Wrench, SlidersHorizontal } from 'lucide-react';
+import { Layers, Loader2, Plus, Search, Cog, Play, Pause, Wrench } from 'lucide-react';
 import EditFactorySectionDialog from '@/components/newcomponents/customui/EditFactorySectionDialog';
 import AddMachineDialog from '@/components/newcomponents/customui/AddMachineDialog';
 import EditMachineDialog from '@/components/newcomponents/customui/EditMachineDialog';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import MachineDetailCard from '@/components/newcomponents/customui/MachineDetailCard';
-import MachinesFiltersDialog, { type MachinesFiltersValue } from '@/components/newcomponents/customui/MachinesFiltersDialog';
+import MachinesFiltersPopover, {
+  type MachinesFiltersValue,
+} from '@/components/newcomponents/customui/MachinesFiltersPopover';
 import { MachineListCardWithLatest } from '@/components/newcomponents/customui/MachineListCard';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import {
@@ -48,13 +50,13 @@ const machineSectionHeaderClass = (atTop = false) =>
 interface MachineListToolbarControlsProps {
   search: string;
   onSearchChange: (value: string) => void;
-  onOpenFilters: () => void;
+  filtersControl: React.ReactNode;
 }
 
 const MachineListToolbarControls: React.FC<MachineListToolbarControlsProps> = ({
   search,
   onSearchChange,
-  onOpenFilters,
+  filtersControl,
 }) => (
   <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
     <div className="relative min-w-[140px] w-[min(200px,36vw)] shrink-0">
@@ -70,17 +72,7 @@ const MachineListToolbarControls: React.FC<MachineListToolbarControlsProps> = ({
         )}
       />
     </div>
-    <Button
-      variant="outline"
-      className={cn(
-        appShellHeaderControlClass,
-        'shrink-0 border-border bg-background focus-visible:ring-offset-0'
-      )}
-      onClick={onOpenFilters}
-    >
-      <SlidersHorizontal className="mr-2 h-4 w-4" />
-      Filters
-    </Button>
+    {filtersControl}
   </div>
 );
 
@@ -92,7 +84,7 @@ interface MachineSectionHeaderRowProps {
   atTop?: boolean;
   search: string;
   onSearchChange: (value: string) => void;
-  onOpenFilters: () => void;
+  filtersControl: React.ReactNode;
 }
 
 const defaultFormatCount = (count: number) => `${count} machine${count === 1 ? '' : 's'}`;
@@ -105,7 +97,7 @@ const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
   atTop = false,
   search,
   onSearchChange,
-  onOpenFilters,
+  filtersControl,
 }) => (
   <div className={machineSectionHeaderClass(atTop || showListToolbar)}>
     <div className="flex min-w-0 flex-wrap items-center gap-2.5">
@@ -119,7 +111,7 @@ const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
       <MachineListToolbarControls
         search={search}
         onSearchChange={onSearchChange}
-        onOpenFilters={onOpenFilters}
+        filtersControl={filtersControl}
       />
     ) : null}
   </div>
@@ -229,7 +221,6 @@ const MachinesPage: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddMachineOpen, setIsAddMachineOpen] = useState(false);
   const [isEditMachineOpen, setIsEditMachineOpen] = useState(false);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const activeFilters = React.useMemo(
     () => parseMachineFiltersFromParams(searchParams),
@@ -352,9 +343,28 @@ const MachinesPage: React.FC = () => {
     [allSections, location.sectionId],
   );
 
-  const commitMachineFilters = (nextFilters: MachinesFiltersValue) => {
-    setSearchParams((prev) => writeFiltersToParams(prev, nextFilters), { replace: true });
-  };
+  const commitMachineFilters = useCallback(
+    (nextFilters: MachinesFiltersValue) => {
+      setSearchParams((prev) => writeFiltersToParams(prev, nextFilters), { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  const machinesFiltersControl = React.useMemo(
+    () => (
+      <MachinesFiltersPopover
+        value={activeFilters}
+        factories={factories}
+        sections={allSections}
+        showLocationFilters={false}
+        onApply={commitMachineFilters}
+        onClear={() =>
+          commitMachineFilters({ ...defaultMachineFilters, search: activeFilters.search })
+        }
+      />
+    ),
+    [activeFilters, factories, allSections, commitMachineFilters],
+  );
 
   const clearFilters = () => {
     setPageFactory('all');
@@ -753,7 +763,7 @@ const MachinesPage: React.FC = () => {
                         showListToolbar
                         search={activeFilters.search}
                         onSearchChange={handleSearchChange}
-                        onOpenFilters={() => setIsFiltersOpen(true)}
+                        filtersControl={machinesFiltersControl}
                       />
                       <div className="text-center py-16">
                         <Cog className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -777,7 +787,7 @@ const MachinesPage: React.FC = () => {
                             showListToolbar={String(key) === firstGroupedSectionKey}
                             search={activeFilters.search}
                             onSearchChange={handleSearchChange}
-                            onOpenFilters={() => setIsFiltersOpen(true)}
+                            filtersControl={machinesFiltersControl}
                           />
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                             {secMachines.map((m) => (
@@ -807,7 +817,7 @@ const MachinesPage: React.FC = () => {
                                 showListToolbar={sectionKey === firstGroupedSectionKey}
                                 search={activeFilters.search}
                                 onSearchChange={handleSearchChange}
-                                onOpenFilters={() => setIsFiltersOpen(true)}
+                                filtersControl={machinesFiltersControl}
                               />
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                                 {secGroup.machines.map((m) => (
@@ -833,7 +843,7 @@ const MachinesPage: React.FC = () => {
                         showListToolbar
                         search={activeFilters.search}
                         onSearchChange={handleSearchChange}
-                        onOpenFilters={() => setIsFiltersOpen(true)}
+                        filtersControl={machinesFiltersControl}
                       />
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                       {effectiveFilteredMachines.map((m) => (
@@ -871,23 +881,6 @@ const MachinesPage: React.FC = () => {
         )}
       </div>
       </LayoutGroup>
-
-      <MachinesFiltersDialog
-        open={isFiltersOpen}
-        onOpenChange={setIsFiltersOpen}
-        value={activeFilters}
-        factories={factories}
-        sections={allSections}
-        showLocationFilters={false}
-        onApply={(next) => {
-          commitMachineFilters(next);
-          setIsFiltersOpen(false);
-        }}
-        onClear={() => {
-          clearFilters();
-          setIsFiltersOpen(false);
-        }}
-      />
 
       <EditFactorySectionDialog
         open={isEditDialogOpen}

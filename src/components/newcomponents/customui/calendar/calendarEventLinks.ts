@@ -1,4 +1,9 @@
-import { buildAccountInvoiceHref, buildOrderHref } from '@/lib/entityLinks';
+import {
+  buildAccountInvoiceHref,
+  buildOrderHref,
+  buildProductionBatchHref,
+  buildWorkOrderHref,
+} from '@/lib/entityLinks';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
 

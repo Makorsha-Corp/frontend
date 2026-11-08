@@ -80,7 +80,7 @@ const RecurringProgramsManagerDialog: React.FC<RecurringProgramsManagerDialogPro
                   Recurring programs
                 </DialogTitle>
                 <DialogDescription>
-                  Active recurring series on machines in your current view.
+                  Recurring programs for this factory. Stop a program to remove upcoming drafts.
                 </DialogDescription>
               </div>
               <TooltipProvider delayDuration={200}>
@@ -110,7 +110,6 @@ const RecurringProgramsManagerDialog: React.FC<RecurringProgramsManagerDialogPro
               factoryId={factoryId}
               machineId={machineId}
               machinesInScope={machines}
-              onEditTemplate={openEdit}
               onProgramsChanged={onProgramsChanged}
               onOpenWorkOrder={handleOpenWorkOrder}
             />

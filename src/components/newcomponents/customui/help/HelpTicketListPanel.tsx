@@ -1,7 +1,7 @@
 import React from 'react';
 
+import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { cn } from '@/lib/utils';
-import { formatAbsoluteFromApi, formatRelativeFromApi } from '@/utils/datetime';
 import type { HelpTicket, HelpTicketType } from '@/types/helpTicket';
 
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
@@ -28,7 +28,7 @@ interface HelpTicketListPanelProps {
   isLoading: boolean;
   isError: boolean;
   onCreate: () => void;
-  variant?: 'mill' | 'platform';
+  variant?: 'workspace' | 'platform';
   showWorkspace?: boolean;
   loadError?: string | null;
   hideCreate?: boolean;
@@ -62,7 +62,7 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
   isLoading,
   isError,
   onCreate,
-  variant = 'mill',
+  variant = 'workspace',
   showWorkspace = variant === 'platform',
   loadError,
   hideCreate = variant === 'platform',
@@ -70,6 +70,7 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
 }) => {
   const copy = getHelpCopy(type);
   const errorMessage = loadError ?? copy.loadError;
+  const formatDate = useFormatDateFromApi();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -96,7 +97,6 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
           <ul>
             {tickets.map((ticket) => {
               const isSelected = ticket.id === selectedId;
-              const absoluteTime = formatAbsoluteFromApi(ticket.created_at);
               return (
                 <li key={ticket.id}>
                   <button
@@ -109,7 +109,7 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 flex-1 items-start gap-2">
-                        {ticket.status === 'open' ? (
+                        {ticket.status === 'opened' ? (
                           <span
                             className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500"
                             aria-label="Open"
@@ -137,7 +137,7 @@ const HelpTicketListPanel: React.FC<HelpTicketListPanelProps> = ({
                         </>
                       ) : null}
                       <span aria-hidden>·</span>
-                      <span title={absoluteTime}>{formatRelativeFromApi(ticket.created_at)}</span>
+                      <span className="tabular-nums">{formatDate(ticket.created_at)}</span>
                     </div>
                     {ticket.creator_name ? (
                       <p className="mt-1 pl-4 text-xs text-muted-foreground">

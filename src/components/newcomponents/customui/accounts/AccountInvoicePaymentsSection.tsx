@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import { CreditCard, Loader2, XCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import {
   useCreateInvoicePaymentMutation,
@@ -63,7 +64,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
   // Make payment dialog
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentDate, setPaymentDate] = useState(() => todayLocalDateKey());
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
@@ -98,7 +99,7 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
 
   const openPaymentDialog = () => {
     setPaymentAmount(invoice.outstanding_amount > 0 ? String(invoice.outstanding_amount) : '');
-    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentDate(todayLocalDateKey());
     setPaymentMethod('');
     setPaymentReference('');
     setPaymentNotes('');
@@ -150,9 +151,12 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
     }
   };
 
-  const canAddPayment = isFinalized && invoice.allow_payments && !isVoided;
+  const isPaid = invoice.payment_status === 'paid';
+  const canAddPayment = isFinalized && invoice.allow_payments && !isVoided && !isPaid;
   const addPaymentDisabledReason = isDraft
     ? 'Invoice must be finalized before payments can be recorded'
+    : isPaid
+      ? 'Invoice is already paid'
     : !invoice.allow_payments
       ? invoice.payment_locked_reason || 'Payments are locked for this invoice'
       : null;
@@ -169,23 +173,14 @@ const AccountInvoicePaymentsSection: React.FC<AccountInvoicePaymentsSectionProps
                 {activePayments.length}
               </Badge>
             </CardTitle>
-            {!isVoided && !readOnly && (
-              <div className="relative group shrink-0">
-                <Button
-                  size="sm"
-                  onClick={canAddPayment ? openPaymentDialog : undefined}
-                  disabled={!canAddPayment}
-                  className={cn(!canAddPayment && 'opacity-50 cursor-not-allowed')}
-                >
-                  <CreditCard className="mr-1.5 h-4 w-4" />
-                  Make Payment
-                </Button>
-                {addPaymentDisabledReason && (
-                  <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 w-56 rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
-                    {addPaymentDisabledReason}
-                  </div>
-                )}
-              </div>
+            {!isVoided && !readOnly && canAddPayment && (
+              <Button size="sm" onClick={openPaymentDialog}>
+                <CreditCard className="mr-1.5 h-4 w-4" />
+                Make Payment
+              </Button>
+            )}
+            {!isVoided && !readOnly && !canAddPayment && addPaymentDisabledReason && (
+              <p className="text-xs text-muted-foreground">{addPaymentDisabledReason}</p>
             )}
           </div>
         </CardHeader>

@@ -22,15 +22,17 @@ const MachinesWorkOrdersTabs: React.FC<MachinesWorkOrdersTabsProps> = ({
   className,
   compact = false,
 }) => (
-  <AppShellHeaderEmphasisTabs
-    value={activeTab}
-    onValueChange={(nextValue) => onTabChange(nextValue as 'machines' | 'workOrders')}
-    tabs={[...MACHINES_HUB_TABS]}
-    layoutId="machines-hub-tabs"
-    width="machines"
-    className={className}
-    compact={compact}
-  />
+  <div data-help-tour="work-orders.tab">
+    <AppShellHeaderEmphasisTabs
+      value={activeTab}
+      onValueChange={(nextValue) => onTabChange(nextValue as 'machines' | 'workOrders')}
+      tabs={[...MACHINES_HUB_TABS]}
+      layoutId="machines-hub-tabs"
+      width="machines"
+      className={className}
+      compact={compact}
+    />
+  </div>
 );
 
 export default MachinesWorkOrdersTabs;

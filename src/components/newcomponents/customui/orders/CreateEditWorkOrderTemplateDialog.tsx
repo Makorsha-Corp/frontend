@@ -69,6 +69,11 @@ import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/Ite
 import { resolveFactoryIdFromWorkOrderContext } from '@/components/newcomponents/customui/itemSelectorUtils';
 import { useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { scrollToHighlightTarget } from '@/utils/poScrollHighlight';
+import {
+  RecurrenceCadenceField,
+  type WorkOrderRecurrenceCadenceValue,
+} from '@/components/newcomponents/customui/orders/RecurrenceCadenceField';
+import { DEFAULT_RECURRENCE_CADENCE } from '@/pages/newpages/orders/workOrderRecurrenceCadence';
 
 type TemplateSaveBlockReason = 'name' | 'type' | 'account' | 'cost';
 
@@ -161,6 +166,8 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
   const isEdit = Boolean(template);
 
   const [templateName, setTemplateName] = useState('');
+  const [plannedStartTime, setPlannedStartTime] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('');
   const [typeId, setTypeId] = useState('');
   const [isCreatingType, setIsCreatingType] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
@@ -184,7 +191,9 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
 
   const [description, setDescription] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [recurrenceCadence, setRecurrenceCadence] = useState<WorkOrderRecurrenceCadenceValue>(
+    DEFAULT_RECURRENCE_CADENCE,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [itemPickerTarget, setItemPickerTarget] = useState<'item' | 'replaced'>('item');
@@ -233,6 +242,14 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
     [machines, machineId],
   );
 
+  const selectedWorkOrderType = useMemo(
+    () => workOrderTypes.find((t) => String(t.id) === typeId) ?? null,
+    [workOrderTypes, typeId],
+  );
+
+  const workOrderTypeSelectValue =
+    workOrderTypes.length === 0 || !selectedWorkOrderType ? '__none__' : String(selectedWorkOrderType.id);
+
   const scopeFactoryId = useMemo(() => {
     if (sectionId) {
       return sections.find((s) => s.id === Number(sectionId))?.factory_id ?? undefined;
@@ -262,6 +279,8 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
 
     if (template) {
       setTemplateName(template.template_name);
+      setPlannedStartTime(template.planned_start_time?.slice(0, 5) ?? '');
+      setDurationMinutes(template.expected_duration_minutes ? String(template.expected_duration_minutes) : '');
       setTypeId(String(template.work_order_type_id));
       setPriority(template.priority);
       setAssignedTo(template.assigned_to ?? '');
@@ -285,9 +304,21 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       }
       setDescription(template.description ?? '');
       setIsRecurring(template.is_recurring);
-      setRecurrenceType((template.recurrence_type as 'daily' | 'weekly' | 'monthly') || 'weekly');
+      {
+        const cadence =
+          (template.recurrence_type as WorkOrderRecurrenceCadenceValue['cadence']) || 'weekly';
+        setRecurrenceCadence({
+          cadence,
+          intervalDays:
+            cadence === 'custom' && template.recurrence_day
+              ? template.recurrence_day
+              : DEFAULT_RECURRENCE_CADENCE.intervalDays,
+        });
+      }
     } else {
       setTemplateName('');
+      setPlannedStartTime('');
+      setDurationMinutes('');
       setTypeId('');
       setPriority('MEDIUM');
       setAssignedTo('');
@@ -301,7 +332,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       setApproverIds([]);
       setDescription('');
       setIsRecurring(defaultRecurring);
-      setRecurrenceType('weekly');
+      setRecurrenceCadence(DEFAULT_RECURRENCE_CADENCE);
     }
     setDraftLine(emptyLine());
     setIsCreatingType(false);
@@ -313,7 +344,10 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
 
   useEffect(() => {
     if (!open || isEdit || workOrderTypes.length === 0) return;
-    setTypeId((prev) => prev || String(workOrderTypes[0].id));
+    setTypeId((prev) => {
+      if (prev && workOrderTypes.some((t) => String(t.id) === prev)) return prev;
+      return String(workOrderTypes[0].id);
+    });
   }, [open, isEdit, workOrderTypes]);
 
   useEffect(() => {
@@ -516,6 +550,10 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       appToast.error(templateSaveBlockMessage(saveBlockReason));
       return;
     }
+    if (durationMinutes.trim() && !plannedStartTime) {
+      appToast.error('Duration requires a start time');
+      return;
+    }
     setIsSaving(true);
     try {
       const basePayload = {
@@ -531,13 +569,19 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
         approver_user_ids: approverIds.length > 0 ? approverIds : [],
         default_factory_section_id: sectionId ? Number(sectionId) : undefined,
         default_machine_id: machineId ? Number(machineId) : undefined,
+        shift_id: null,
+        planned_start_time: plannedStartTime || null,
+        expected_duration_minutes: plannedStartTime && durationMinutes ? Number(durationMinutes) : null,
         is_recurring: isRecurring,
-        recurrence_type: isRecurring ? recurrenceType : null,
+        recurrence_type: isRecurring ? recurrenceCadence.cadence : null,
+        recurrence_day:
+          isRecurring && recurrenceCadence.cadence === 'custom'
+            ? recurrenceCadence.intervalDays
+            : null,
         ...(isRecurring
           ? isEdit
             ? {}
             : {
-                recurrence_day: null,
                 next_generation_date: null,
                 recurrence_start_date: null,
                 recurrence_end_date: null,
@@ -592,21 +636,55 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
           placeholder="e.g. Monthly Oil Change"
         />
       </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-1">
+          <Label className="text-xs text-muted-foreground">Start time (optional)</Label>
+          <Input
+            type="time"
+            value={plannedStartTime}
+            onChange={(event) => setPlannedStartTime(event.target.value)}
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-xs text-muted-foreground">How long (min)</Label>
+          <Input
+            type="number"
+            min={1}
+            value={durationMinutes}
+            disabled={!plannedStartTime}
+            onChange={(event) => setDurationMinutes(event.target.value)}
+          />
+        </div>
+      </div>
 
       <div id={TEMPLATE_HIGHLIGHT_IDS.type} className={cn('grid gap-1 p-0.5', highlightClass('type'))}>
         <Label className="text-xs text-muted-foreground">Work order type *</Label>
         {!isCreatingType ? (
           <div className="flex items-center gap-2">
-            <Select value={typeId} onValueChange={setTypeId}>
+            <Select
+              value={workOrderTypeSelectValue}
+              onValueChange={(v) => setTypeId(v === '__none__' ? '' : v)}
+              disabled={workOrderTypes.length === 0}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Select a type..." />
+                <SelectValue placeholder="None">
+                  {workOrderTypes.length === 0 || !selectedWorkOrderType
+                    ? 'None'
+                    : selectedWorkOrderType.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {workOrderTypes.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.name}
+                {workOrderTypes.length === 0 ? (
+                  <SelectItem value="__none__" disabled>
+                    None
                   </SelectItem>
-                ))}
+                ) : (
+                  workOrderTypes.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setIsCreatingType(true)}>
@@ -916,16 +994,34 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
       {billTo === 'external' && (
         <div id={TEMPLATE_HIGHLIGHT_IDS.account} className={cn('grid gap-1 p-0.5', highlightClass('account'))}>
           <Label className="text-xs text-muted-foreground">Vendor account</Label>
-          <Select value={accountId} onValueChange={setAccountId}>
+          <Select
+            value={
+              accounts.length === 0 || !accounts.some((a) => String(a.id) === accountId)
+                ? '__none__'
+                : accountId
+            }
+            onValueChange={(v) => setAccountId(v === '__none__' ? '' : v)}
+            disabled={accounts.length === 0}
+          >
             <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select account..." />
+              <SelectValue placeholder="None">
+                {accounts.length === 0 || !accounts.some((a) => String(a.id) === accountId)
+                  ? 'None'
+                  : accounts.find((a) => String(a.id) === accountId)?.name}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={String(a.id)}>
-                  {a.name}
+              {accounts.length === 0 ? (
+                <SelectItem value="__none__" disabled>
+                  None
                 </SelectItem>
-              ))}
+              ) : (
+                accounts.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>
+                    {a.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -1069,23 +1165,11 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
 
   const scheduleFieldsBlock = (
     <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">Frequency</Label>
-        <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as 'daily' | 'weekly' | 'monthly')}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="daily">Daily</SelectItem>
-            <SelectItem value="weekly">Weekly</SelectItem>
-            <SelectItem value="monthly">Monthly</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <RecurrenceCadenceField value={recurrenceCadence} onChange={setRecurrenceCadence} />
 
       <p className="rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm leading-snug text-muted-foreground">
-        Set frequency here. On a sheet row, pick this template and set start + end dates (up to 6 months).
-        Saving the first row schedules all draft work orders in that range.
+        Default frequency for Add work. On the sheet, turn on Recurring, pick this template if you want,
+        set work date and end date, then save to create the program.
       </p>
     </div>
   );
@@ -1102,7 +1186,7 @@ const CreateEditWorkOrderTemplateDialog: React.FC<CreateEditWorkOrderTemplateDia
           <div className="flex items-center justify-between rounded-md border border-border p-3">
             <div>
               <p className="text-sm font-medium text-foreground">Recurring schedule</p>
-              <p className="text-xs text-muted-foreground">First sheet save auto-schedules drafts in the date range.</p>
+              <p className="text-xs text-muted-foreground">Prefills Recurring on Add work — does not create orders by itself.</p>
             </div>
             <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
           </div>

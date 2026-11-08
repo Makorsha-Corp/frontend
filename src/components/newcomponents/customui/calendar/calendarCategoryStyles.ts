@@ -7,64 +7,74 @@ export interface CalendarCategoryStyle {
   chipActive: string;
   event: string;
   dot: string;
+  /** Left stripe on month/week/day event chips */
+  stripe: string;
 }
 
 export const CALENDAR_CATEGORY_STYLES: Record<CalendarCategory, CalendarCategoryStyle> = {
   work_orders: {
     label: CALENDAR_CATEGORY_LABELS.work_orders,
-    chip: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-    chipActive: 'border-sky-500 bg-sky-500/20 text-sky-800 dark:text-sky-200',
-    event: 'border-sky-500/30 bg-sky-500/10 text-sky-900 dark:text-sky-100',
+    chip: 'border-transparent bg-sky-500/20 text-sky-800/80 dark:bg-sky-500/25 dark:text-sky-200/80',
+    chipActive: 'border-transparent bg-sky-500 text-white shadow-sm dark:bg-sky-600 dark:text-white',
+    event: 'border-sky-500/25 bg-sky-500/8 text-sky-950 dark:text-sky-50',
     dot: 'bg-sky-500',
+    stripe: 'border-l-sky-500',
   },
   maintenance: {
     label: CALENDAR_CATEGORY_LABELS.maintenance,
-    chip: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    chipActive: 'border-amber-500 bg-amber-500/20 text-amber-800 dark:text-amber-200',
-    event: 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100',
+    chip: 'border-transparent bg-amber-500/20 text-amber-900/80 dark:bg-amber-500/25 dark:text-amber-100/80',
+    chipActive: 'border-transparent bg-amber-500 text-amber-950 shadow-sm dark:bg-amber-500 dark:text-amber-950',
+    event: 'border-amber-500/25 bg-amber-500/8 text-amber-950 dark:text-amber-50',
     dot: 'bg-amber-500',
+    stripe: 'border-l-amber-500',
   },
   purchase: {
     label: CALENDAR_CATEGORY_LABELS.purchase,
-    chip: 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300',
-    chipActive: 'border-violet-500 bg-violet-500/20 text-violet-800 dark:text-violet-200',
-    event: 'border-violet-500/30 bg-violet-500/10 text-violet-900 dark:text-violet-100',
+    chip: 'border-transparent bg-violet-500/20 text-violet-800/80 dark:bg-violet-500/25 dark:text-violet-200/80',
+    chipActive: 'border-transparent bg-violet-500 text-white shadow-sm dark:bg-violet-600 dark:text-white',
+    event: 'border-violet-500/25 bg-violet-500/8 text-violet-950 dark:text-violet-50',
     dot: 'bg-violet-500',
+    stripe: 'border-l-violet-500',
   },
   expense: {
     label: CALENDAR_CATEGORY_LABELS.expense,
-    chip: 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    chipActive: 'border-rose-500 bg-rose-500/20 text-rose-800 dark:text-rose-200',
-    event: 'border-rose-500/30 bg-rose-500/10 text-rose-900 dark:text-rose-100',
+    chip: 'border-transparent bg-rose-500/20 text-rose-800/80 dark:bg-rose-500/25 dark:text-rose-200/80',
+    chipActive: 'border-transparent bg-rose-500 text-white shadow-sm dark:bg-rose-600 dark:text-white',
+    event: 'border-rose-500/25 bg-rose-500/8 text-rose-950 dark:text-rose-50',
     dot: 'bg-rose-500',
+    stripe: 'border-l-rose-500',
   },
   sales: {
     label: CALENDAR_CATEGORY_LABELS.sales,
-    chip: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-    chipActive: 'border-emerald-500 bg-emerald-500/20 text-emerald-800 dark:text-emerald-200',
-    event: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100',
+    chip: 'border-transparent bg-emerald-500/20 text-emerald-900/80 dark:bg-emerald-500/25 dark:text-emerald-100/80',
+    chipActive: 'border-transparent bg-emerald-500 text-white shadow-sm dark:bg-emerald-600 dark:text-white',
+    event: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-950 dark:text-emerald-50',
     dot: 'bg-emerald-500',
+    stripe: 'border-l-emerald-500',
   },
   invoices: {
     label: CALENDAR_CATEGORY_LABELS.invoices,
-    chip: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300',
-    chipActive: 'border-orange-500 bg-orange-500/20 text-orange-800 dark:text-orange-200',
-    event: 'border-orange-500/30 bg-orange-500/10 text-orange-900 dark:text-orange-100',
+    chip: 'border-transparent bg-orange-500/20 text-orange-900/80 dark:bg-orange-500/25 dark:text-orange-100/80',
+    chipActive: 'border-transparent bg-orange-500 text-white shadow-sm dark:bg-orange-600 dark:text-white',
+    event: 'border-orange-500/25 bg-orange-500/8 text-orange-950 dark:text-orange-50',
     dot: 'bg-orange-500',
+    stripe: 'border-l-orange-500',
   },
   production: {
     label: CALENDAR_CATEGORY_LABELS.production,
-    chip: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-    chipActive: 'border-cyan-500 bg-cyan-500/20 text-cyan-800 dark:text-cyan-200',
-    event: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-900 dark:text-cyan-100',
+    chip: 'border-transparent bg-cyan-500/20 text-cyan-900/80 dark:bg-cyan-500/25 dark:text-cyan-100/80',
+    chipActive: 'border-transparent bg-cyan-500 text-white shadow-sm dark:bg-cyan-600 dark:text-white',
+    event: 'border-cyan-500/25 bg-cyan-500/8 text-cyan-950 dark:text-cyan-50',
     dot: 'bg-cyan-500',
+    stripe: 'border-l-cyan-500',
   },
   projects: {
     label: CALENDAR_CATEGORY_LABELS.projects,
-    chip: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
-    chipActive: 'border-indigo-500 bg-indigo-500/20 text-indigo-800 dark:text-indigo-200',
-    event: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-900 dark:text-indigo-100',
+    chip: 'border-transparent bg-indigo-500/20 text-indigo-900/80 dark:bg-indigo-500/25 dark:text-indigo-100/80',
+    chipActive: 'border-transparent bg-indigo-500 text-white shadow-sm dark:bg-indigo-600 dark:text-white',
+    event: 'border-indigo-500/25 bg-indigo-500/8 text-indigo-950 dark:text-indigo-50',
     dot: 'bg-indigo-500',
+    stripe: 'border-l-indigo-500',
   },
 };
 

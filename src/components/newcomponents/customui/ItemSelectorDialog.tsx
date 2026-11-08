@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { shouldDropDefaultCatalogTags } from '@/lib/catalogDefaultTagFallback';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,8 @@ import MachineSelectorTile, {
   MachineSelectorFooterStatus,
 } from '@/components/newcomponents/customui/MachineSelectorTile';
 import { cn } from '@/lib/utils';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Plus, Search, X } from 'lucide-react';
+import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
 
 const INVENTORY_TYPE_OPTIONS: { value: InventoryType | 'all'; label: string }[] = [
   { value: 'all', label: 'All types' },
@@ -96,6 +98,10 @@ export interface ItemSelectorDialogProps {
   inStockOnly?: boolean;
   title?: string;
   description?: string;
+  /** Pre-apply catalog tag filters (system tag codes). User can clear filters. */
+  catalogDefaultTagCodes?: string[];
+  /** Show “Create item” with tags from catalogDefaultTagCodes. */
+  allowCreateCatalogItem?: boolean;
 }
 
 type TabValue = 'catalog' | 'storage' | 'machine';
@@ -178,6 +184,8 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   inStockOnly = true,
   title = 'Select item',
   description = 'Choose from the item catalog or from factory inventory on hand.',
+  catalogDefaultTagCodes,
+  allowCreateCatalogItem = false,
 }) => {
   const [tab, setTab] = useState<TabValue>(() =>
     resolveInitialTab(catalogOnly, inventoryOnly, includeMachineStock, initialTab),
@@ -195,6 +203,10 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   const [accumulatedCatalogItems, setAccumulatedCatalogItems] = useState<Item[]>([]);
   const [catalogHasMore, setCatalogHasMore] = useState(false);
   const [catalogTagFilterIds, setCatalogTagFilterIds] = useState<number[]>([]);
+  const [catalogTagsTouched, setCatalogTagsTouched] = useState(false);
+  const [droppedDefaultTags, setDroppedDefaultTags] = useState(false);
+  const catalogTagSeededRef = useRef(false);
+  const [createCatalogItemOpen, setCreateCatalogItemOpen] = useState(false);
 
   /** Undefined = all factories (same as Storage page with no factory filter). */
   const storageFactoryFilter = useMemo(() => {
@@ -370,6 +382,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   const catalogFiltersActive = Boolean(search.trim() || catalogTagFilterIds.length > 0);
 
   const toggleCatalogTag = (tagId: number) => {
+    setCatalogTagsTouched(true);
     setCatalogTagFilterIds((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
@@ -391,6 +404,9 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
 
   useEffect(() => {
     if (!open) {
+      catalogTagSeededRef.current = false;
+      setCatalogTagsTouched(false);
+      setDroppedDefaultTags(false);
       setSearch('');
       setMachineSearch('');
       setItemSearch('');
@@ -435,6 +451,51 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     // Seed defaults only when dialog opens — not when parent re-renders while open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const defaultCatalogTagIds = useMemo(() => {
+    if (!catalogDefaultTagCodes?.length) return [];
+    return itemTags
+      .filter((t) => catalogDefaultTagCodes.includes(t.tag_code))
+      .map((t) => t.id);
+  }, [catalogDefaultTagCodes, itemTags]);
+
+  useEffect(() => {
+    if (!open || !showCatalogPanel || defaultCatalogTagIds.length === 0) return;
+    if (catalogTagSeededRef.current || catalogTagsTouched || droppedDefaultTags) return;
+    catalogTagSeededRef.current = true;
+    setCatalogTagFilterIds(defaultCatalogTagIds);
+  }, [open, showCatalogPanel, defaultCatalogTagIds, catalogTagsTouched, droppedDefaultTags]);
+
+  useEffect(() => {
+    if (!open || !showCatalogPanel || catalogSkip !== 0 || !catalogResponse) return;
+    if (
+      !shouldDropDefaultCatalogTags({
+        loading: loadingCatalogInitial || fetchingCatalog,
+        itemCount: catalogResponse.total,
+        search,
+        userTouchedTags: catalogTagsTouched,
+        defaultTagIds: defaultCatalogTagIds,
+        activeTagIds: catalogTagFilterIds,
+        alreadyDropped: droppedDefaultTags,
+      })
+    ) {
+      return;
+    }
+    setDroppedDefaultTags(true);
+    setCatalogTagFilterIds([]);
+  }, [
+    open,
+    showCatalogPanel,
+    catalogSkip,
+    catalogResponse,
+    loadingCatalogInitial,
+    fetchingCatalog,
+    search,
+    catalogTagsTouched,
+    defaultCatalogTagIds,
+    catalogTagFilterIds,
+    droppedDefaultTags,
+  ]);
 
   useEffect(() => {
     if (!open || selectedItemId == null || !showCatalogPanel) return;
@@ -637,7 +698,10 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
             {catalogTagFilterIds.length > 0 ? (
               <button
                 type="button"
-                onClick={() => setCatalogTagFilterIds([])}
+                onClick={() => {
+                  setCatalogTagsTouched(true);
+                  setCatalogTagFilterIds([]);
+                }}
                 className="inline-flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
               >
                 <X className="h-3 w-3" />
@@ -1110,7 +1174,19 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     return renderStorageList();
   };
 
+  const handleCreateCatalogItemSuccess = (item: Item) => {
+    setCreateCatalogItemOpen(false);
+    onSelect({
+      itemId: item.id,
+      itemName: item.name,
+      itemUnit: item.unit,
+      selectionSource: 'catalog',
+    });
+    onOpenChange(false);
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className="flex h-[78vh] max-h-[78vh] w-[min(40rem,94vw)] max-w-none flex-col p-5 sm:max-w-none sm:p-6"
@@ -1158,15 +1234,29 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </div>
 
           <DialogFooter className="shrink-0 flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              {footerSummary ? (
-                <>
-                  Selected: <span className="font-medium text-foreground">{footerSummary}</span>
-                </>
-              ) : (
-                <>Click a row to highlight it, then confirm below.</>
-              )}
-            </p>
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <p className="text-xs text-muted-foreground">
+                {footerSummary ? (
+                  <>
+                    Selected: <span className="font-medium text-foreground">{footerSummary}</span>
+                  </>
+                ) : (
+                  <>Click a row to highlight it, then confirm below.</>
+                )}
+              </p>
+              {allowCreateCatalogItem && showCatalogPanel ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 justify-start px-2 text-xs text-brand-primary hover:text-brand-primary"
+                  onClick={() => setCreateCatalogItemOpen(true)}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Create catalog item
+                </Button>
+              ) : null}
+            </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
@@ -1183,6 +1273,15 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {allowCreateCatalogItem ? (
+        <AddItemDialog
+          open={createCatalogItemOpen}
+          onOpenChange={setCreateCatalogItemOpen}
+          onSuccess={handleCreateCatalogItemSuccess}
+          defaultTagCodes={catalogDefaultTagCodes}
+        />
+      ) : null}
+    </>
   );
 };
 

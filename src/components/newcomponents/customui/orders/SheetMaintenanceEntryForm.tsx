@@ -15,6 +15,7 @@ import { StepNumberInput } from '@/components/ui/step-number-input';
 import {
   useAddWorkOrderApproverMutation,
   useAddWorkOrderItemMutation,
+  useCreateWorkOrderProgramMutation,
   useCreateWorkOrderSheetEntryMutation,
   useGetWorkOrderApproversQuery,
   useGetWorkOrderByIdQuery,
@@ -63,6 +64,16 @@ import { cn } from '@/lib/utils';
 import type { WorkOrder } from '@/types/workOrder';
 import { workOrderEntryErrorMessage } from '@/pages/newpages/orders/workOrderEntryFeedback';
 import { findOpenWorkOrderSlotConflict } from '@/pages/newpages/orders/workOrderSlotConflict';
+import { resolveWorkOrderWindow } from '@/pages/newpages/orders/workOrderWindow';
+import {
+  durationMinutesFromWindow,
+  mergeWorkWhenDate,
+  utcInstantToWorkWhen,
+  workWhenClock,
+  workWhenDate,
+} from '@/pages/newpages/orders/workOrderWhen';
+import WorkWhenPicker from '@/components/newcomponents/customui/WorkWhenPicker';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
 import { WorkOrderSlotConflictDialog } from '@/components/newcomponents/customui/orders/WorkOrderSlotConflictDialog';
 import {
   buildMachineQtyMap,
@@ -73,16 +84,24 @@ import { WorkOrderStockShortfallDialog } from '@/components/newcomponents/custom
 import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
 import { useGetMachineItemsQuery } from '@/features/machineItems/machineItemsApi';
 import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
+import {
+  RecurrenceCadenceField,
+  recurrenceRowControlClassName,
+  type WorkOrderRecurrenceCadenceValue,
+} from '@/components/newcomponents/customui/orders/RecurrenceCadenceField';
+import { DEFAULT_RECURRENCE_CADENCE } from '@/pages/newpages/orders/workOrderRecurrenceCadence';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import {
+  defaultRecurrenceEndDate,
+  RECURRENCE_END_RANGE_HINT,
   validateRecurrenceSpan,
 } from '@/pages/newpages/orders/workOrderTemplateLabels';
 import {
-  buildRepickRecurrenceConfirmMessage,
-  findDraftsOutsideRecurrenceRange,
-  formatRecurrenceProgramDateLabel,
-  recurrenceRangeChanged,
-} from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { listPlannedRecurrenceDates } from '@/pages/newpages/orders/workOrderRecurrenceDates';
 import LineItemCommitCheckButton, {
   partDraftHintText,
@@ -94,7 +113,7 @@ import {
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 const FOOTER_TEMPLATE_HINT =
-  'Templates prefill row defaults. For recurring templates, work date is the program start — set end date and save to schedule or reschedule drafts in range.';
+  'Templates prefill row defaults. Turn on Recurring on the row to schedule a series (with or without a template).';
 
 interface PartLineDraft {
   key: string;
@@ -192,7 +211,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const [machineId, setMachineId] = useState('');
-  const [workDate, setWorkDate] = useState(sheetDate);
+  const [workWhen, setWorkWhen] = useState(sheetDate);
+  const [durationMinutes, setDurationMinutes] = useState('');
+  const millTimezone = useMillTimezone();
   const [machinePickerOpen, setMachinePickerOpen] = useState(false);
   const [worksTypeId, setWorksTypeId] = useState('');
   const [workers, setWorkers] = useState('');
@@ -220,6 +241,9 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [itemLabels, setItemLabels] = useState<Record<string, string>>({});
 
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurrenceCadence, setRecurrenceCadence] =
+    useState<WorkOrderRecurrenceCadenceValue>(DEFAULT_RECURRENCE_CADENCE);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [priority, setPriority] = useState<WorkOrderPriority>('MEDIUM');
   const [billTo, setBillTo] = useState<'internal' | 'external'>('internal');
@@ -237,6 +261,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const { data: editApproversData } = useGetWorkOrderApproversQuery(workOrderId!, { skip: !isEdit });
 
   const [submitEntry, { isLoading: isCreating }] = useCreateWorkOrderSheetEntryMutation();
+  const [createProgram, { isLoading: isCreatingProgram }] = useCreateWorkOrderProgramMutation();
   const [updateOrder, { isLoading: isUpdating }] = useUpdateWorkOrderMutation();
   const [addItem] = useAddWorkOrderItemMutation();
   const [updateItem] = useUpdateWorkOrderItemMutation();
@@ -248,7 +273,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const [prefilled, setPrefilled] = useState(false);
   const footerActionBarRef = useRef<HTMLDivElement>(null);
 
-  const isLoading = isCreating || isUpdating;
+  const isLoading = isCreating || isCreatingProgram || isUpdating;
 
   const machinesInScope = useMemo(() => {
     if (sectionId) return machines.filter((m) => m.factory_section_id === sectionId);
@@ -331,8 +356,13 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   }, [defaultMachineId]);
 
   useEffect(() => {
-    if (!isEdit) setWorkDate(sheetDate);
-  }, [sheetDate, isEdit]);
+    if (isEdit) return;
+    if (showWorkDate) {
+      setWorkWhen((prev) => mergeWorkWhenDate(prev, sheetDate));
+      return;
+    }
+    setWorkWhen((prev) => mergeWorkWhenDate(prev, sheetDate));
+  }, [sheetDate, isEdit, showWorkDate]);
 
   useEffect(() => {
     if (!isEdit || !editOrder || prefilled) return;
@@ -359,6 +389,23 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     }
     if (editOrder.work_order_template_id) {
       setSelectedTemplateId(String(editOrder.work_order_template_id));
+    }
+    const plannedDate = editOrder.planned_date ?? sheetDate;
+    if (editOrder.planned_start_at) {
+      setWorkWhen(utcInstantToWorkWhen(editOrder.planned_start_at, millTimezone));
+      if (editOrder.planned_end_at) {
+        setDurationMinutes(
+          durationMinutesFromWindow(
+            editOrder.planned_start_at,
+            editOrder.planned_end_at,
+            plannedDate,
+            millTimezone,
+          ),
+        );
+      }
+    } else {
+      setWorkWhen(plannedDate);
+      setDurationMinutes('');
     }
     if (editItems.length > 0) {
       setPartsOpen(true);
@@ -388,7 +435,7 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       setMoreOpen(true);
     }
     setPrefilled(true);
-  }, [isEdit, editOrder, editItems, editApproversData, prefilled]);
+  }, [isEdit, editOrder, editItems, editApproversData, prefilled, millTimezone, sheetDate]);
 
   useEffect(() => {
     if (!isEdit) setPrefilled(false);
@@ -402,18 +449,45 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const isFooterLayout = layout === 'footer';
 
-  const entryStartDate = showWorkDate && !isEdit ? workDate : sheetDate;
+  const entryStartDate = workWhenDate(workWhen);
+  const workClock = workWhenClock(workWhen);
+  const timingPickerInWorkDateRow = showWorkDate && !isEdit;
+
+  const resolvedWindow = useMemo(() => {
+    try {
+      const window = resolveWorkOrderWindow({
+        plannedDate: entryStartDate,
+        plannedStartTime: workClock,
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
+        timeZone: millTimezone,
+      });
+      return {
+        start: window.start?.toISOString() ?? null,
+        end: window.end?.toISOString() ?? null,
+        error: null as string | null,
+      };
+    } catch (error) {
+      return {
+        start: null,
+        end: null,
+        error: error instanceof Error ? error.message : 'Invalid window',
+      };
+    }
+  }, [entryStartDate, workClock, durationMinutes, millTimezone]);
 
   const slotConflict = useMemo(() => {
-    if (!slotCheckOrders?.length || !machineId || !worksTypeId) return null;
+    if (!slotCheckOrders?.length || !machineId || !worksTypeId || resolvedWindow.error) return null;
     return findOpenWorkOrderSlotConflict({
       orders: slotCheckOrders,
       machineId: Number(machineId),
       workOrderTypeId: Number(worksTypeId),
       plannedDate: entryStartDate,
+      candidateStart: resolvedWindow.start,
+      candidateEnd: resolvedWindow.end,
+      timeZone: millTimezone,
       excludeWorkOrderId: isEdit ? workOrderId : undefined,
     });
-  }, [slotCheckOrders, machineId, worksTypeId, entryStartDate, isEdit, workOrderId]);
+  }, [slotCheckOrders, machineId, worksTypeId, entryStartDate, isEdit, workOrderId, resolvedWindow, millTimezone]);
 
   const [slotConflictDialogOpen, setSlotConflictDialogOpen] = useState(false);
   const bypassSlotConflictRef = useRef(false);
@@ -425,25 +499,38 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     [templates, selectedTemplateId],
   );
 
-  const showRecurrenceRange = Boolean(selectedTemplate?.is_recurring && !isEdit);
+  const showRecurrenceRange = Boolean(recurringEnabled && !isEdit);
+  const activeRecurrenceType = recurrenceCadence.cadence;
+  const activeRecurrenceIntervalDays =
+    recurrenceCadence.cadence === 'custom' ? recurrenceCadence.intervalDays : undefined;
+
+  useEffect(() => {
+    if (!showRecurrenceRange || !entryStartDate) return;
+    setRecurrenceEndDate((prev) => {
+      if (prev) return prev;
+      return defaultRecurrenceEndDate(entryStartDate, activeRecurrenceType);
+    });
+  }, [showRecurrenceRange, entryStartDate, activeRecurrenceType]);
 
   const machineLockedFromTemplate = Boolean(
     templateLocked && selectedTemplate?.default_machine_id,
   );
 
   const plannedRecurrenceDates = useMemo(() => {
-    if (!selectedTemplate?.is_recurring || !showRecurrenceRange) return [];
+    if (!showRecurrenceRange) return [];
     if (!entryStartDate || !recurrenceEndDate) return [];
     return listPlannedRecurrenceDates(
       entryStartDate,
       recurrenceEndDate,
-      selectedTemplate.recurrence_type,
+      activeRecurrenceType,
+      activeRecurrenceIntervalDays,
     );
   }, [
-    selectedTemplate,
     showRecurrenceRange,
     entryStartDate,
     recurrenceEndDate,
+    activeRecurrenceType,
+    activeRecurrenceIntervalDays,
   ]);
 
   const recurrenceCalendarHighlights = useMemo(() => {
@@ -453,16 +540,23 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   }, [plannedRecurrenceDates, showRecurrenceRange, entryStartDate]);
 
   const stockOccurrenceCount = useMemo(() => {
-    if (showRecurrenceRange && entryStartDate && recurrenceEndDate && selectedTemplate) {
+    if (showRecurrenceRange && entryStartDate && recurrenceEndDate) {
       const dates = listPlannedRecurrenceDates(
         entryStartDate,
         recurrenceEndDate,
-        selectedTemplate.recurrence_type,
+        activeRecurrenceType,
+        activeRecurrenceIntervalDays,
       );
       return dates.length > 0 ? dates.length : 1;
     }
     return 1;
-  }, [showRecurrenceRange, entryStartDate, recurrenceEndDate, selectedTemplate]);
+  }, [
+    showRecurrenceRange,
+    entryStartDate,
+    recurrenceEndDate,
+    activeRecurrenceType,
+    activeRecurrenceIntervalDays,
+  ]);
 
   const stockShortfalls = useMemo(() => {
     if (!resolvedMachineId || inventoryPartLinesForStock.length === 0) return [];
@@ -523,20 +617,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
   const isFutureWorkDate = useMemo(() => {
     if (!showWorkDate || isEdit) return false;
     try {
-      return startOfDay(parseISO(workDate)) > startOfDay(new Date());
+      return startOfDay(parseISO(workWhenDate(workWhen))) > startOfDay(new Date());
     } catch {
       return false;
     }
-  }, [showWorkDate, isEdit, workDate]);
+  }, [showWorkDate, isEdit, workWhen]);
 
   const isPastWorkDate = useMemo(() => {
     if (!showWorkDate || isEdit) return false;
     try {
-      return startOfDay(parseISO(workDate)) < startOfDay(new Date());
+      return startOfDay(parseISO(workWhenDate(workWhen))) < startOfDay(new Date());
     } catch {
       return false;
     }
-  }, [showWorkDate, isEdit, workDate]);
+  }, [showWorkDate, isEdit, workWhen]);
 
   const addLine = () => setLines((prev) => [...prev, emptyPartLine()]);
   const removeLine = (key: string) => {
@@ -912,38 +1006,6 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         appToast.error(spanError);
         return;
       }
-      if (
-        selectedTemplate &&
-        recurrenceEndDate &&
-        recurrenceRangeChanged(selectedTemplate, entryStartDate, recurrenceEndDate) &&
-        slotCheckOrders?.length &&
-        machineId
-      ) {
-        const orphans = findDraftsOutsideRecurrenceRange(
-          slotCheckOrders,
-          selectedTemplate.id,
-          Number(machineId),
-          entryStartDate,
-          recurrenceEndDate,
-        );
-        if (orphans.length > 0) {
-          const machineName =
-            machines.find((m) => m.id === Number(machineId))?.name ?? `Machine #${machineId}`;
-          const dateLabels = orphans
-            .slice(0, 5)
-            .map((o) => formatRecurrenceProgramDateLabel(o.plannedDate));
-          const confirmed = window.confirm(
-            buildRepickRecurrenceConfirmMessage({
-              draftCount: orphans.length,
-              templateName: selectedTemplate.template_name,
-              machineName,
-              dateLabels,
-              remainingDateCount: Math.max(0, orphans.length - dateLabels.length),
-            }),
-          );
-          if (!confirmed) return;
-        }
-      }
     }
 
     const validLines = isFooterLayout
@@ -956,6 +1018,20 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
       return;
     }
 
+    if (durationMinutes.trim() && !workClock) {
+      appToast.error('Duration requires a start time');
+      return;
+    }
+    if (resolvedWindow.error) {
+      appToast.error(resolvedWindow.error);
+      return;
+    }
+
+    const timingPayload = {
+      shift_id: null,
+      planned_start_time: workClock,
+      expected_duration_minutes: workClock && durationMinutes ? Number(durationMinutes) : null,
+    };
     if (slotConflict && !bypassSlotConflictRef.current) {
       setSlotConflictDialogOpen(true);
       return;
@@ -980,7 +1056,8 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
             account_id: billTo === 'external' ? Number(accountId) : null,
             cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
             machine_id: mid,
-            planned_date: sheetDate,
+            planned_date: entryStartDate,
+            ...timingPayload,
           },
         }).unwrap();
         if (shouldSyncParts) {
@@ -988,18 +1065,42 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
         }
         await syncEditApprovers(workOrderId);
         appToast.success('Entry updated');
-      } else {
-        await submitEntry({
+      } else if (showRecurrenceRange) {
+        await createProgram({
           machine_id: mid,
           work_order_type_id: typeId,
           planned_date: entryStartDate,
+          ...timingPayload,
+          end_date: recurrenceEndDate,
+          cadence: recurrenceCadence.cadence,
+          ...(recurrenceCadence.cadence === 'custom'
+            ? { interval_days: recurrenceCadence.intervalDays }
+            : {}),
           assigned_to: workers.trim() || undefined,
           description: remarks.trim() || undefined,
           priority,
           account_id: billTo === 'external' ? Number(accountId) : undefined,
           cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
           template_id: selectedTemplateId ? Number(selectedTemplateId) : undefined,
-          recurrence_end_date: showRecurrenceRange ? recurrenceEndDate : undefined,
+          approvers: buildApprovers(),
+          items:
+            validLines.length > 0
+              ? validLines.map((l) => mapPartLineToApi(l, mid))
+              : undefined,
+        }).unwrap();
+        appToast.success('Recurring program created');
+      } else {
+        await submitEntry({
+          machine_id: mid,
+          work_order_type_id: typeId,
+          planned_date: entryStartDate,
+          ...timingPayload,
+          assigned_to: workers.trim() || undefined,
+          description: remarks.trim() || undefined,
+          priority,
+          account_id: billTo === 'external' ? Number(accountId) : undefined,
+          cost: billTo === 'internal' && hasMiscCost === 'yes' ? Number(cost) : undefined,
+          template_id: selectedTemplateId ? Number(selectedTemplateId) : undefined,
           approvers: buildApprovers(),
           items:
             validLines.length > 0
@@ -1028,11 +1129,21 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
 
   const applyTemplateData = async (template: WorkOrderTemplate) => {
     setSelectedTemplateId(String(template.id));
-    if (template.is_recurring && template.recurrence_end_date) {
-      setRecurrenceEndDate(template.recurrence_end_date.slice(0, 10));
-    } else {
-      setRecurrenceEndDate('');
+    if (template.is_recurring) {
+      setRecurringEnabled(true);
+      {
+        const cadence =
+          (template.recurrence_type as WorkOrderRecurrenceCadenceValue['cadence']) ?? 'weekly';
+        setRecurrenceCadence({
+          cadence,
+          intervalDays:
+            cadence === 'custom' && template.recurrence_day
+              ? template.recurrence_day
+              : DEFAULT_RECURRENCE_CADENCE.intervalDays,
+        });
+      }
     }
+    setRecurrenceEndDate('');
     setWorksTypeId(String(template.work_order_type_id));
     if (template.assigned_to) setWorkers(template.assigned_to);
     if (template.default_machine_id) setMachineId(String(template.default_machine_id));
@@ -1571,53 +1682,107 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     </div>
   ) : null;
 
+  const recurrenceEndDateField = (
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="grid w-[9.25rem] shrink-0 gap-1">
+            <Label className="cursor-help text-xs text-muted-foreground">End date</Label>
+            <DatePickerField
+              value={recurrenceEndDate}
+              onChange={setRecurrenceEndDate}
+              highlightedDates={recurrenceCalendarHighlights}
+              recurrenceStartDate={entryStartDate}
+              placeholder="Pick end date"
+              triggerClassName="h-9 w-full max-w-[9.25rem] px-3 text-sm"
+              aria-label="Recurrence end date (max 6 months)"
+            />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[16rem] text-xs leading-snug">
+          {RECURRENCE_END_RANGE_HINT}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
+  const workWhenPicker = (label: string, ariaLabel: string, widthClass = 'w-[min(16rem,56vw)]') => (
+    <div className={cn('grid shrink-0 gap-1', widthClass)}>
+      <Label
+        className="block truncate text-xs text-muted-foreground"
+        title={showRecurrenceRange ? 'Work date — first date in the recurring series' : undefined}
+      >
+        {label}
+      </Label>
+      <WorkWhenPicker
+        value={workWhen}
+        onChange={setWorkWhen}
+        durationMinutes={durationMinutes}
+        onDurationMinutesChange={setDurationMinutes}
+        timeZone={millTimezone}
+        highlightedDates={recurrenceCalendarHighlights}
+        triggerClassName="h-9 w-full px-3 text-sm"
+        aria-label={ariaLabel}
+        placeholder="Pick date"
+      />
+    </div>
+  );
+
   const workDateField =
     showWorkDate && !isEdit ? (
       <div className="pb-2">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="grid max-w-[11rem] shrink-0 gap-1">
-            <Label className="text-xs text-muted-foreground">
-              {showRecurrenceRange ? 'Work date (recurrence start)' : 'Work date'}
-            </Label>
-            <DatePickerField
-              value={workDate}
-              onChange={setWorkDate}
-              highlightedDates={recurrenceCalendarHighlights}
-              triggerClassName="h-9 w-full px-3 text-sm"
-              aria-label={showRecurrenceRange ? 'Work date (recurrence start)' : 'Work date'}
-            />
-          </div>
+          {workWhenPicker(
+            showRecurrenceRange ? 'Recurrence start' : 'Work date',
+            showRecurrenceRange ? 'Work date (recurrence start)' : 'Work date',
+            'w-[min(16rem,56vw)]',
+          )}
           {isPastWorkDate ? (
             <p className="max-w-md pb-1 text-xs leading-snug text-muted-foreground">
               Logging past work — saves a normal draft for manager review. It won&apos;t show as overdue.
             </p>
           ) : null}
+          <div className="grid w-fit shrink-0 gap-1">
+            <Label htmlFor="sheet-recurring" className="text-xs text-muted-foreground">
+              Recurring
+            </Label>
+            <Button
+              type="button"
+              id="sheet-recurring"
+              variant="outline"
+              aria-pressed={recurringEnabled}
+              aria-label="Recurring work"
+              className={cn(
+                recurrenceRowControlClassName,
+                recurringEnabled &&
+                  'border-brand-primary/40 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15 hover:text-brand-primary',
+              )}
+              onClick={() => setRecurringEnabled((v) => !v)}
+            >
+              {recurringEnabled ? 'On' : 'Off'}
+            </Button>
+          </div>
           {showRecurrenceRange ? (
-            <div className="grid max-w-[11rem] shrink-0 gap-1">
-              <Label className="text-xs text-muted-foreground">Recurrence end (max 6 months)</Label>
-              <DatePickerField
-                value={recurrenceEndDate}
-                onChange={setRecurrenceEndDate}
-                highlightedDates={recurrenceCalendarHighlights}
-                recurrenceStartDate={entryStartDate}
-                placeholder="Pick end date"
-                triggerClassName="h-9 w-full px-3 text-sm"
-                aria-label="Recurrence end date"
+            <>
+              <RecurrenceCadenceField
+                value={recurrenceCadence}
+                onChange={setRecurrenceCadence}
               />
-            </div>
-          ) : null}
-          {selectedTemplate?.is_recurring ? (
-            <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
-              <Label className="text-xs text-muted-foreground">Schedule</Label>
-              <WorkProgramSummaryStrip
-                template={selectedTemplate}
-                machines={machinesInScope}
-                compact
-                recurrenceStartIso={entryStartDate}
-                recurrenceEndIso={showRecurrenceRange ? recurrenceEndDate : null}
-                className="w-full"
-              />
-            </div>
+              {recurrenceEndDateField}
+              <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
+                <Label className="text-xs text-muted-foreground">Schedule</Label>
+                <WorkProgramSummaryStrip
+                  template={selectedTemplate}
+                  recurrenceType={activeRecurrenceType}
+                  recurrenceIntervalDays={activeRecurrenceIntervalDays}
+                  machines={machinesInScope}
+                  compact
+                  recurrenceStartIso={entryStartDate}
+                  recurrenceEndIso={recurrenceEndDate || null}
+                  className="w-full"
+                />
+              </div>
+            </>
           ) : null}
         </div>
       </div>
@@ -1627,47 +1792,45 @@ const SheetMaintenanceEntryForm: React.FC<SheetMaintenanceEntryFormProps> = ({
     showRecurrenceRange && !(showWorkDate && !isEdit) ? (
       <div className="pb-2">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="grid max-w-[11rem] shrink-0 gap-1">
-            <Label className="text-xs text-muted-foreground">Recurrence start</Label>
+          <div className="grid w-[9.25rem] shrink-0 gap-1">
+            <Label className="text-xs text-muted-foreground">Start date</Label>
             <DatePickerField
               value={entryStartDate}
               disabled
               highlightedDates={recurrenceCalendarHighlights}
-              triggerClassName="h-9 w-full px-3 text-sm"
+              triggerClassName="h-9 w-full max-w-[9.25rem] px-3 text-sm"
               aria-label="Recurrence start date"
             />
           </div>
-          <div className="grid max-w-[11rem] shrink-0 gap-1">
-            <Label className="text-xs text-muted-foreground">Recurrence end (max 6 months)</Label>
-            <DatePickerField
-              value={recurrenceEndDate}
-              onChange={setRecurrenceEndDate}
-              highlightedDates={recurrenceCalendarHighlights}
-              recurrenceStartDate={entryStartDate}
-              placeholder="Pick end date"
-              triggerClassName="h-9 w-full px-3 text-sm"
-              aria-label="Recurrence end date"
+          {recurrenceEndDateField}
+          <RecurrenceCadenceField value={recurrenceCadence} onChange={setRecurrenceCadence} />
+          <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
+            <Label className="text-xs text-muted-foreground">Schedule</Label>
+            <WorkProgramSummaryStrip
+              template={selectedTemplate}
+              recurrenceType={activeRecurrenceType}
+              recurrenceIntervalDays={activeRecurrenceIntervalDays}
+              machines={machinesInScope}
+              compact
+              recurrenceStartIso={entryStartDate}
+              recurrenceEndIso={recurrenceEndDate || null}
+              className="w-full"
             />
           </div>
-          {selectedTemplate?.is_recurring ? (
-            <div className="grid min-w-[min(100%,12rem)] flex-1 gap-1 sm:min-w-[16rem]">
-              <Label className="text-xs text-muted-foreground">Schedule</Label>
-              <WorkProgramSummaryStrip
-                template={selectedTemplate}
-                machines={machinesInScope}
-                compact
-                recurrenceStartIso={entryStartDate}
-                recurrenceEndIso={showRecurrenceRange ? recurrenceEndDate : null}
-                className="w-full"
-              />
-            </div>
-          ) : null}
         </div>
       </div>
     ) : null;
 
   const footerCoreFields = (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        {!timingPickerInWorkDateRow ? (
+          <div className="col-span-2 grid gap-2 md:col-span-5">
+            {workWhenPicker('Work date', 'Work date and time')}
+            {resolvedWindow.error ? (
+              <p className="text-xs text-destructive">{resolvedWindow.error}</p>
+            ) : null}
+          </div>
+        ) : null}
         <WorkOrderTemplateSelector
           compact
           value={selectedTemplateId}

@@ -33,6 +33,9 @@ export interface WorkOrderSheetEntryRequest {
   machine_id: number;
   work_order_type_id: number;
   planned_date: string;
+  shift_id?: number | null;
+  planned_start_time?: string | null;
+  expected_duration_minutes?: number | null;
   assigned_to?: string;
   description?: string;
   priority?: WorkOrderPriority;

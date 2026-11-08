@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { sliceToFactoryFilter } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
@@ -56,7 +56,10 @@ export function usePageFactoryScope(options?: UsePageFactoryScopeOptions) {
     () => options?.initialOverride != null,
   );
 
+  const prevGlobalFactoryId = useRef(globalFactoryId);
   useEffect(() => {
+    if (prevGlobalFactoryId.current === globalFactoryId) return;
+    prevGlobalFactoryId.current = globalFactoryId;
     setOverride(null);
     setIsPageOverride(false);
   }, [globalFactoryId]);

@@ -1,7 +1,12 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/app/baseQuery';
 import type { RootState } from '@/app/store';
-import { logout as logoutAction } from '@/features/auth/authSlice';
+import { logout as logoutAction, updateUser } from '@/features/auth/authSlice';
+import {
+  mergeHelpGuideSeenLocal,
+  removeHelpGuidesSeenLocal,
+  resetHelpGuidesSeenLocal,
+} from '@/features/helpGuides/helpGuidesSeen';
 // Import from explicit module files: the project has both `src/types.ts`
 // (legacy) and `src/types/` (current). The `@/types` alias resolves to the
 // legacy file, so module-explicit imports are required for new auth types.
@@ -98,6 +103,103 @@ export const authApi = createApi({
       }),
     }),
 
+    markHelpGuideSeen: builder.mutation<User, { tour_id: string }>({
+      query: (body) => ({
+        url: 'auth/me/help-guides/mark-seen',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: User) => response,
+      async onQueryStarted({ tour_id }, { dispatch, getState, queryFulfilled }) {
+        const state = getState() as RootState;
+        const workspaceId = state.auth.workspace?.id;
+        const user = state.auth.user;
+        if (workspaceId != null && user) {
+          dispatch(
+            updateUser({
+              help_guides_seen: mergeHelpGuideSeenLocal(user.help_guides_seen, workspaceId, tour_id),
+            }),
+          );
+        }
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            updateUser({
+              help_guides_seen: data.help_guides_seen ?? undefined,
+            }),
+          );
+        } catch {
+          // Server remains source of truth on next getMe; avoid duplicate auto-run via optimistic mark.
+        }
+      },
+    }),
+
+    unmarkHelpGuidesSeen: builder.mutation<User, { tour_ids: string[] }>({
+      query: (body) => ({
+        url: 'auth/me/help-guides/unmark-seen',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: User) => response,
+      async onQueryStarted({ tour_ids }, { dispatch, getState, queryFulfilled }) {
+        const state = getState() as RootState;
+        const workspaceId = state.auth.workspace?.id;
+        const user = state.auth.user;
+        if (workspaceId != null && user) {
+          dispatch(
+            updateUser({
+              help_guides_seen: removeHelpGuidesSeenLocal(
+                user.help_guides_seen,
+                workspaceId,
+                tour_ids,
+              ),
+            }),
+          );
+        }
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            updateUser({
+              help_guides_seen: data.help_guides_seen ?? undefined,
+            }),
+          );
+        } catch {
+          // noop
+        }
+      },
+    }),
+
+    resetHelpGuides: builder.mutation<User, { scope: 'workspace' | 'all' }>({
+      query: (body) => ({
+        url: 'auth/me/help-guides/reset',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: User) => response,
+      async onQueryStarted({ scope }, { dispatch, getState, queryFulfilled }) {
+        const state = getState() as RootState;
+        const workspaceId = state.auth.workspace?.id;
+        const user = state.auth.user;
+        if (workspaceId != null && user) {
+          dispatch(
+            updateUser({
+              help_guides_seen: resetHelpGuidesSeenLocal(user.help_guides_seen, scope, workspaceId),
+            }),
+          );
+        }
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            updateUser({
+              help_guides_seen: data.help_guides_seen ?? undefined,
+            }),
+          );
+        } catch {
+          // noop
+        }
+      },
+    }),
+
     // Legacy alias
     getCurrentUser: builder.query<User, void>({
       query: () => 'auth/me/',
@@ -106,7 +208,7 @@ export const authApi = createApi({
     }),
 
     // Get user's workspaces
-    getWorkspaces: builder.query<WorkspaceListItem[], void>({
+    getWorkspaces: builder.query<WorkspaceListItem[], number>({
       query: () => 'workspaces/',
       providesTags: ['Workspace'],
     }),
@@ -188,6 +290,9 @@ export const {
   useGetMeQuery,
   useUpdateMeMutation,
   useSignStampImageUploadMutation,
+  useMarkHelpGuideSeenMutation,
+  useUnmarkHelpGuidesSeenMutation,
+  useResetHelpGuidesMutation,
   useGetCurrentUserQuery,
   useGetWorkspacesQuery,
   useCreateWorkspaceMutation,

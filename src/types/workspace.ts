@@ -1,6 +1,9 @@
 // Workspace types
+export type ProductionMachinePickPolicy = 'soft' | 'block_unavailable' | 'block_overlap';
+
 export interface WorkspaceSettings {
   timezone?: string | null;
+  production_machine_pick_policy?: ProductionMachinePickPolicy;
 }
 
 export interface Workspace {

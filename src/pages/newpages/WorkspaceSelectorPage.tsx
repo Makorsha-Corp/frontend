@@ -126,8 +126,13 @@ const WorkspaceSelectorPage: React.FC = () => {
   } | null>(null);
   const [invitePosition, setInvitePosition] = useState('');
 
-  const { data: workspaces, isLoading: isLoadingWorkspaces } =
-    useGetWorkspacesQuery(undefined, { skip: !token });
+  const {
+    data: workspaces,
+    isLoading: isLoadingWorkspaces,
+    isFetching: isFetchingWorkspaces,
+  } = useGetWorkspacesQuery(user?.id ?? 0, { skip: !token || user?.id == null });
+  const workspacesPending =
+    !token || user?.id == null || isLoadingWorkspaces || (isFetchingWorkspaces && workspaces == null);
   const [createWorkspace, { isLoading: isCreating }] = useCreateWorkspaceMutation();
   const [validateInvitation, { isLoading: isValidating }] = useValidateInvitationMutation();
   const [acceptInvitation, { isLoading: isAccepting }] = useAcceptInvitationMutation();
@@ -292,6 +297,8 @@ const WorkspaceSelectorPage: React.FC = () => {
   };
 
   const firstName = user?.name?.split(' ')[0] || 'there';
+  const createdMs = user?.created_at ? Date.parse(user.created_at) : NaN;
+  const isNewAccount = Number.isFinite(createdMs) && Date.now() - createdMs < 24 * 60 * 60 * 1000;
 
   const blurSwapTransition = { duration: 0.22, ease: [0.4, 0, 0.2, 1] } as const;
   const createPanelMotion = {
@@ -366,14 +373,14 @@ const WorkspaceSelectorPage: React.FC = () => {
         <div className="w-full max-w-lg">
           <div className="mb-6 text-center lg:text-left">
             <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Welcome back, {firstName}
+              {isNewAccount ? 'Welcome' : 'Welcome back'}, {firstName}
             </h1>
             <p className="mt-1 text-pretty text-sm text-muted-foreground sm:text-base">
               Pick a workspace to open the dashboard, or create a new one.
             </p>
           </div>
 
-          {isLoadingWorkspaces ? (
+          {workspacesPending ? (
             <Card className="overflow-hidden rounded-3xl border-0 bg-card shadow-2xl ring-1 ring-border/70">
               <CardContent className="flex justify-center py-16">
                 <div className="text-center">

@@ -207,6 +207,7 @@ export interface AppShellHeaderIconActionProps {
   ariaLabel: string;
   variant?: 'default' | 'outline' | 'secondary' | 'ghost';
   className?: string;
+  'data-help-tour'?: string;
 }
 
 export function AppShellHeaderIconAction({
@@ -215,6 +216,7 @@ export function AppShellHeaderIconAction({
   ariaLabel,
   variant = 'default',
   className,
+  'data-help-tour': dataHelpTour,
 }: AppShellHeaderIconActionProps) {
   return (
     <Button
@@ -229,6 +231,7 @@ export function AppShellHeaderIconAction({
       )}
       onClick={onClick}
       aria-label={ariaLabel}
+      data-help-tour={dataHelpTour}
     >
       <Icon className="h-4 w-4" />
     </Button>

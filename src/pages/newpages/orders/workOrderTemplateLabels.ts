@@ -14,6 +14,10 @@ export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] 
 
 export const RECURRENCE_MAX_SPAN_DAYS = 183;
 
+/** Hover hint for recurrence end date pickers on the sheet. */
+export const RECURRENCE_END_RANGE_HINT =
+  'Last date in the series. Start through end cannot exceed 6 months (~183 days).';
+
 
 
 /** @deprecated Internal only — use `template.is_recurring` for badges, not user-facing entity labels. */
@@ -33,23 +37,16 @@ export function getWorkOrderTemplateKind(template: WorkOrderTemplate): WorkOrder
 
 
 export function formatRecurrenceCadence(template: WorkOrderTemplate): string | null {
-
   if (!template.is_recurring) return null;
-
-
-
   const type = template.recurrence_type ?? 'weekly';
-
+  if (type === 'custom') {
+    const n = template.recurrence_day ?? 1;
+    return n === 1 ? 'Every day' : `Every ${n} days`;
+  }
   if (type === 'daily') return 'Daily';
-
   if (type === 'weekly') return 'Weekly';
-
   if (type === 'monthly') return 'Monthly';
-
-
-
   return 'Recurring';
-
 }
 
 
@@ -91,17 +88,13 @@ export function defaultRecurrenceEndDate(startIso: string, recurrenceType: strin
   const type = recurrenceType ?? 'weekly';
 
   if (type === 'daily') {
-
     end.setDate(end.getDate() + 14);
-
   } else if (type === 'monthly') {
-
     end.setMonth(end.getMonth() + 3);
-
-  } else {
-
+  } else if (type === 'custom') {
     end.setDate(end.getDate() + 28);
-
+  } else {
+    end.setDate(end.getDate() + 28);
   }
 
   return end.toISOString().slice(0, 10);

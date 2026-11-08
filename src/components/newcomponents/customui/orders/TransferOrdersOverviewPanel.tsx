@@ -15,6 +15,7 @@ interface TransferOrdersOverviewPanelProps {
   isLoading?: boolean;
   routeSubtext: (order: TransferOrder) => string;
   onSelectOrder: (id: number) => void;
+  hideOrderLists?: boolean;
 }
 
 const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = ({
@@ -24,13 +25,15 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
   isLoading,
   routeSubtext,
   onSelectOrder,
+  hideOrderLists = false,
 }) => {
   const activityOrders = useMemo(() => {
+    if (hideOrderLists) return [];
     if (hubStats?.recent_orders?.length) {
       return hubStats.recent_orders.map(recentSummaryToTransferOrder);
     }
     return orders;
-  }, [hubStats?.recent_orders, orders]);
+  }, [hideOrderLists, hubStats?.recent_orders, orders]);
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -41,7 +44,10 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
   }
 
   return (
-    <div className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6">
+    <div
+      data-help-tour="transfer.overview"
+      className="flex flex-col min-h-0 h-full overflow-y-auto p-6 space-y-6"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <OrderOverviewKpiCard
           title="Total transfers"
@@ -72,7 +78,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
           onSelectOrder={onSelectOrder}
         />
         <TransferOrderPendingActions
-          pendingHighlights={hubStats ?? undefined}
+          pendingHighlights={hideOrderLists ? undefined : (hubStats ?? undefined)}
           onSelectOrder={onSelectOrder}
         />
       </div>

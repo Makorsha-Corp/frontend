@@ -9,6 +9,7 @@ export interface PurchaseOrdersPageHeaderProps {
   searchInput: string;
   onSearchInputChange: (value: string) => void;
   onAdd: () => void;
+  headerToolbarExtras?: React.ReactNode;
 }
 
 const PurchaseOrdersPageHeader: React.FC<PurchaseOrdersPageHeaderProps> = ({
@@ -17,6 +18,7 @@ const PurchaseOrdersPageHeader: React.FC<PurchaseOrdersPageHeaderProps> = ({
   searchInput,
   onSearchInputChange,
   onAdd,
+  headerToolbarExtras,
 }) => (
   <OrderHubShellHeader
     icon={ShoppingCart}
@@ -32,6 +34,8 @@ const PurchaseOrdersPageHeader: React.FC<PurchaseOrdersPageHeaderProps> = ({
     onAdd={onAdd}
     addButtonLabel="Add Purchase Order"
     addAriaLabel="Add purchase order"
+    helpGuideKind="purchase"
+    headerToolbarExtras={headerToolbarExtras}
   />
 );
 

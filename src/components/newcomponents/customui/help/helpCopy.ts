@@ -32,11 +32,22 @@ export interface HelpTypeCopy {
   descriptionPlaceholder: string;
   tipsTitle: string;
   tipsBullets: readonly string[];
+  openLabel: string;
   closeLabel: string;
   reopenLabel: string;
+  statusOpenSuccess: string;
   statusCloseSuccess: string;
   statusReopenSuccess: string;
   statusUpdateError: string;
+  reopenConfirmTitle: string;
+  reopenConfirmDescription: string;
+  reopenConfirmAction: string;
+  /** Workspace Help — users cannot reopen. */
+  closedComposerPlaceholder: string;
+  closedAttachmentNotice: string;
+  /** Platform inbox — operator can reopen. */
+  closedComposerPlaceholderOperator: string;
+  closedAttachmentNoticeOperator: string;
 }
 
 const SUPPORT_COPY: HelpTypeCopy = {
@@ -70,11 +81,21 @@ const SUPPORT_COPY: HelpTypeCopy = {
     'Screenshots and attachments help us diagnose quickly',
     'We typically reply within one business day',
   ],
+  openLabel: 'Open ticket',
   closeLabel: 'Close ticket',
   reopenLabel: 'Reopen ticket',
+  statusOpenSuccess: 'Ticket opened.',
   statusCloseSuccess: 'Ticket closed.',
   statusReopenSuccess: 'Ticket reopened.',
   statusUpdateError: 'Could not update ticket status.',
+  reopenConfirmTitle: 'Reopen ticket?',
+  reopenConfirmDescription:
+    'This will move the ticket back to Open so support can continue working on it.',
+  reopenConfirmAction: 'Reopen ticket',
+  closedComposerPlaceholder: 'Ticket closed — replies disabled',
+  closedAttachmentNotice: 'Ticket closed — uploads disabled',
+  closedComposerPlaceholderOperator: 'Ticket closed — reopen to reply',
+  closedAttachmentNoticeOperator: 'Ticket closed — reopen to add attachments',
 };
 
 const FEEDBACK_COPY: HelpTypeCopy = {
@@ -88,7 +109,7 @@ const FEEDBACK_COPY: HelpTypeCopy = {
   emptySubtitle: 'Share ideas, pain points, and wishes — we read every submission.',
   emptyCta: 'Submit feedback',
   welcomeHeadline: 'Shape the product',
-  welcomeSubtitle: 'Tell us what would make Kolom better for your mill.',
+  welcomeSubtitle: 'Tell us what would make Kolom better for your workspace.',
   welcomeBullets: [
     'Feature requests and workflow improvements',
     'Pain points in daily operations',
@@ -108,11 +129,21 @@ const FEEDBACK_COPY: HelpTypeCopy = {
     'Note which module or page it relates to',
     'We use feedback to prioritize the roadmap',
   ],
+  openLabel: 'Open feedback',
   closeLabel: 'Close feedback',
   reopenLabel: 'Reopen feedback',
+  statusOpenSuccess: 'Feedback opened.',
   statusCloseSuccess: 'Feedback closed.',
   statusReopenSuccess: 'Feedback reopened.',
   statusUpdateError: 'Could not update feedback status.',
+  reopenConfirmTitle: 'Reopen feedback?',
+  reopenConfirmDescription:
+    'This will move the feedback back to Open so the team can continue reviewing it.',
+  reopenConfirmAction: 'Reopen feedback',
+  closedComposerPlaceholder: 'Feedback closed — replies disabled',
+  closedAttachmentNotice: 'Feedback closed — uploads disabled',
+  closedComposerPlaceholderOperator: 'Feedback closed — reopen to reply',
+  closedAttachmentNoticeOperator: 'Feedback closed — reopen to add attachments',
 };
 
 export function getHelpCopy(type: HelpTicketType): HelpTypeCopy {

@@ -36,6 +36,7 @@ export const SO_EVENT_VISUALS: Record<string, SoEventVisual> = {
   approved: { icon: Check, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
   approval_withdrawn: { icon: X, wrap: 'bg-muted', color: 'text-muted-foreground' },
   order_completed: { icon: CheckCircle2, wrap: 'bg-green-100 dark:bg-green-900/30', color: 'text-green-600 dark:text-green-400' },
+  payment_recorded: { icon: CreditCard, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   payment_status_synced: { icon: CreditCard, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   attachment_added: { icon: Paperclip, wrap: 'bg-sky-100 dark:bg-sky-900/30', color: 'text-sky-600 dark:text-sky-400' },
   attachment_removed: { icon: Trash2, wrap: 'bg-muted', color: 'text-muted-foreground' },

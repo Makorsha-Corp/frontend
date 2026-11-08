@@ -5,8 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import DatePickerField from '@/components/newcomponents/customui/DatePickerField';
 import { Label } from '@/components/ui/label';
+import WorkWhenPicker from '@/components/newcomponents/customui/WorkWhenPicker';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
+import { useUserTimeFormat } from '@/hooks/useUserTimeFormat';
+import { formatWorkOrderCardWhen } from '@/pages/newpages/orders/workOrderCardWhen';
+import {
+  workWhenClock,
+  workWhenStateFromPlanned,
+  workWhenTimingSignature,
+  workWhenToUpdatePayload,
+} from '@/pages/newpages/orders/workOrderWhen';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -67,6 +76,7 @@ import {
   WORK_ORDER_PRIORITIES,
   priorityLabel,
   workOrderDisplayLabel,
+  isWorkOrderPreStart,
   workOrderStatusBadgeClass,
   workOrderStatusLabel,
   workOrderItemActionLabel,
@@ -95,11 +105,6 @@ import {
 } from '@/pages/newpages/orders/workOrderDateUtils';
 
 const detailNestedTableShellClass = 'border border-border rounded-lg overflow-hidden';
-
-function toDateInputValue(d: string | null | undefined): string {
-  if (!d) return '';
-  return d.slice(0, 10);
-}
 
 const fieldLabelClass = 'text-xs text-muted-foreground uppercase tracking-wide';
 
@@ -142,7 +147,11 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   const [showUpdateEvents, setShowUpdateEvents] = useState(false);
   const [showAbsoluteEventTimes, setShowAbsoluteEventTimes] = useState(false);
   const [assignedToEdit, setAssignedToEdit] = useState(orderProp.assigned_to ?? '');
+  const [workWhen, setWorkWhen] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('');
   const formatDate = useFormatDateFromApi();
+  const millTimezone = useMillTimezone();
+  const { use24Hour } = useUserTimeFormat();
 
   const { workspace, user } = useAppSelector((s) => s.auth);
   const currentUserId = user?.id ?? null;
@@ -153,6 +162,17 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   useEffect(() => {
     setAssignedToEdit(order.assigned_to ?? '');
   }, [order.id, order.assigned_to]);
+
+  useEffect(() => {
+    const seeded = workWhenStateFromPlanned(
+      order.planned_date,
+      order.planned_start_at,
+      order.planned_end_at,
+      millTimezone,
+    );
+    setWorkWhen(seeded.workWhen);
+    setDurationMinutes(seeded.durationMinutes);
+  }, [order.id, order.planned_date, order.planned_start_at, order.planned_end_at, millTimezone]);
 
   const { data: items = [], isLoading: itemsLoading } = useGetWorkOrderItemsQuery(order.id);
   const { data: approversData } = useGetWorkOrderApproversQuery(order.id);
@@ -234,7 +254,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   };
 
   const confirmStructuralEdit = (): boolean => {
-    if (order.status !== 'DRAFT' || !hasRecordedApprovals) return true;
+    if (!isWorkOrderPreStart(order.status) || !hasRecordedApprovals) return true;
     return window.confirm('Editing details will reset approvals. Continue?');
   };
 
@@ -246,6 +266,57 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
       const e = err as { data?: { detail?: string } };
       appToast.error(e?.data?.detail || 'Failed to update work order');
     }
+  };
+
+  const savedWorkWhenSignature = useMemo(() => {
+    const seeded = workWhenStateFromPlanned(
+      order.planned_date,
+      order.planned_start_at,
+      order.planned_end_at,
+      millTimezone,
+    );
+    return workWhenTimingSignature(seeded.workWhen, seeded.durationMinutes);
+  }, [order.planned_date, order.planned_start_at, order.planned_end_at, millTimezone]);
+
+  const whenReadOnlyLabel = useMemo(() => {
+    if (order.planned_start_at) {
+      return formatWorkOrderCardWhen(
+        order.planned_start_at,
+        order.planned_end_at,
+        millTimezone,
+        use24Hour,
+      );
+    }
+    if (order.planned_date?.trim()) {
+      return formatDate(order.planned_date) ?? 'Whole day';
+    }
+    return 'Whole day';
+  }, [
+    order.planned_date,
+    order.planned_start_at,
+    order.planned_end_at,
+    millTimezone,
+    use24Hour,
+    formatDate,
+  ]);
+
+  const commitWorkWhenOnPopoverClosed = () => {
+    if (workWhenTimingSignature(workWhen, durationMinutes) === savedWorkWhenSignature) return;
+    if (durationMinutes.trim() && !workWhenClock(workWhen)) {
+      appToast.error('Duration requires a start time');
+      const seeded = workWhenStateFromPlanned(
+        order.planned_date,
+        order.planned_start_at,
+        order.planned_end_at,
+        millTimezone,
+      );
+      setWorkWhen(seeded.workWhen);
+      setDurationMinutes(seeded.durationMinutes);
+      return;
+    }
+    const payload = workWhenToUpdatePayload(workWhen, durationMinutes);
+    if (!payload.planned_date) return;
+    void handleFieldUpdate(payload);
   };
 
   const handleStart = async () => {
@@ -342,7 +413,7 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+    <div data-help-tour="work-orders.detail" className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="shrink-0 border-b border-border bg-card">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 lg:flex-nowrap lg:px-6">
           <div className="flex items-center gap-3 min-w-0 shrink-0">
@@ -568,32 +639,22 @@ const WorkOrderDetailPanel: React.FC<WorkOrderDetailPanelProps> = ({
                         <p className="text-sm font-medium">{order.assigned_to ?? '—'}</p>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Label className={fieldLabelClass}>Planned start date</Label>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className={fieldLabelClass}>When</Label>
                       {canEditScheduleFields ? (
-                        <DatePickerField
-                          value={toDateInputValue(order.planned_date)}
-                          onChange={(planned_date) => handleFieldUpdate({ planned_date: planned_date || undefined })}
-                          triggerClassName="h-8 w-full px-3 text-sm"
-                          aria-label="Planned start date"
+                        <WorkWhenPicker
+                          value={workWhen}
+                          onChange={setWorkWhen}
+                          durationMinutes={durationMinutes}
+                          onDurationMinutesChange={setDurationMinutes}
+                          timeZone={millTimezone}
+                          triggerClassName="h-9 w-full max-w-md px-3 text-sm"
+                          aria-label="Planned work date and time"
+                          placeholder="Pick date"
+                          onPopoverClosed={commitWorkWhenOnPopoverClosed}
                         />
                       ) : (
-                        <p className="text-sm font-medium">{formatDate(order.planned_date)}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label className={fieldLabelClass}>End date</Label>
-                      {canEditScheduleFields ? (
-                        <DatePickerField
-                          value={toDateInputValue(order.end_date)}
-                          onChange={(end_date) => handleFieldUpdate({ end_date: end_date || undefined })}
-                          placeholder="Optional"
-                          recurrenceStartDate={toDateInputValue(order.planned_date)}
-                          triggerClassName="h-8 w-full px-3 text-sm"
-                          aria-label="End date"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium">{formatDate(order.end_date)}</p>
+                        <p className="text-sm font-medium tabular-nums">{whenReadOnlyLabel}</p>
                       )}
                     </div>
                     <div className="sm:col-span-2 space-y-2">

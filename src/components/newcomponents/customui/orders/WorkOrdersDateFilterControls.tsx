@@ -11,12 +11,17 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import {
   workOrderCalendarHasOrdersModifierClassNames,
+  workOrderWeekHoverModifierClassNames,
+  workOrderWeekPickerDayClass,
   workOrderWeekSelectedModifierClassNames,
 } from '@/components/ui/calendarDayClassNames';
+import { buttonVariants } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SHEET_WEEK_STARTS_ON } from '@/pages/newpages/orders/workOrderSheetData';
 import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import { cn } from '@/lib/utils';
+
+export type WorkOrdersDateFilterVisibleMode = 'all' | 'week' | 'day';
 
 export interface WorkOrdersDateFilterControlsProps {
   dateViewMode: WorkOrdersDateViewMode;
@@ -28,6 +33,8 @@ export interface WorkOrdersDateFilterControlsProps {
   orderCountByDate?: Record<string, number>;
   calendarMonth?: Date;
   onCalendarMonthChange?: (month: Date) => void;
+  /** Default: all three segments (work orders). Production schedule uses `['week']` only. */
+  visibleModes?: WorkOrdersDateFilterVisibleMode[];
   className?: string;
 }
 
@@ -53,10 +60,16 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
   orderCountByDate = {},
   calendarMonth,
   onCalendarMonthChange,
+  visibleModes = ['all', 'week', 'day'],
   className,
 }) => {
+  const showAll = visibleModes.includes('all');
+  const showWeek = visibleModes.includes('week');
+  const showDay = visibleModes.includes('day');
+  const weekOnly = showWeek && !showAll && !showDay;
   const [weekPickerOpen, setWeekPickerOpen] = useState(false);
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
+  const [hoveredWeekDate, setHoveredWeekDate] = useState<Date | undefined>();
 
   const parsedDate = sheetDate ? parseISO(sheetDate) : undefined;
   const [internalCalendarMonth, setInternalCalendarMonth] = useState(() =>
@@ -85,29 +98,37 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
     () => ({
       ...workOrderCalendarHasOrdersModifierClassNames,
       ...workOrderWeekSelectedModifierClassNames,
+      ...workOrderWeekHoverModifierClassNames,
     }),
     [],
   );
   const dayPillLabel =
     dateViewMode === 'day' && parsedDate ? format(parsedDate, 'd MMM') : 'Date';
   const weekPillLabel =
-    dateViewMode === 'week' && weekPeriodLabel ? weekPeriodLabel : 'Week';
+    weekOnly || (dateViewMode === 'week' && weekPeriodLabel) ? (weekPeriodLabel ?? 'Week') : 'Week';
 
   const weekCalendarModifiers = useMemo(() => {
-    const base = {
+    const base: Record<string, (date: Date) => boolean> = {
       hasOrders: dayHasOrders,
     };
-    if (!parsedDate) return base;
-    const weekStart = startOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
-    const weekEnd = endOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
-    return {
-      ...base,
-      selectedWeek: (date: Date) =>
-        isSameWeek(date, parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON }),
-      selectedWeekStart: (date: Date) => isSameDay(date, weekStart),
-      selectedWeekEnd: (date: Date) => isSameDay(date, weekEnd),
-    };
-  }, [parsedDate, dayHasOrders]);
+    if (parsedDate) {
+      const weekStart = startOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      const weekEnd = endOfWeek(parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      base.selectedWeek = (date: Date) =>
+        isSameWeek(date, parsedDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      base.selectedWeekStart = (date: Date) => isSameDay(date, weekStart);
+      base.selectedWeekEnd = (date: Date) => isSameDay(date, weekEnd);
+    }
+    if (hoveredWeekDate) {
+      const hoverStart = startOfWeek(hoveredWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      const hoverEnd = endOfWeek(hoveredWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      base.hoverWeek = (date: Date) =>
+        isSameWeek(date, hoveredWeekDate, { weekStartsOn: SHEET_WEEK_STARTS_ON });
+      base.hoverWeekStart = (date: Date) => isSameDay(date, hoverStart);
+      base.hoverWeekEnd = (date: Date) => isSameDay(date, hoverEnd);
+    }
+    return base;
+  }, [parsedDate, hoveredWeekDate, dayHasOrders]);
 
   const dayCalendarModifiers = useMemo(
     () => ({
@@ -118,6 +139,7 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
 
   const handleWeekPickerOpenChange = (open: boolean) => {
     setWeekPickerOpen(open);
+    if (!open) setHoveredWeekDate(undefined);
     if (open) syncCalendarMonthToSelection();
   };
 
@@ -137,65 +159,77 @@ const WorkOrdersDateFilterControls: React.FC<WorkOrdersDateFilterControlsProps> 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <div className={segmentTrackClass}>
-        <button
-          type="button"
-          className={segmentPillClass(dateViewMode === 'all')}
-          onClick={() => onDateViewModeChange('all')}
-        >
-          All dates
-        </button>
+        {showAll ? (
+          <button
+            type="button"
+            className={segmentPillClass(dateViewMode === 'all')}
+            onClick={() => onDateViewModeChange('all')}
+          >
+            All dates
+          </button>
+        ) : null}
 
-        <Popover open={weekPickerOpen} onOpenChange={handleWeekPickerOpenChange}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={segmentPillClass(dateViewMode === 'week')}
-              onClick={handleWeekPillClick}
-            >
-              {weekPillLabel}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              weekStartsOn={SHEET_WEEK_STARTS_ON}
-              selected={parsedDate}
-              month={resolvedCalendarMonth}
-              onMonthChange={handleCalendarMonthChange}
-              modifiers={weekCalendarModifiers}
-              modifiersClassNames={calendarModifierClassNames}
-              onSelect={(date) => {
-                if (!date) return;
-                onPickWeek(format(date, 'yyyy-MM-dd'));
-                setWeekPickerOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+        {showWeek ? (
+          <Popover open={weekPickerOpen} onOpenChange={handleWeekPickerOpenChange}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={segmentPillClass(weekOnly || dateViewMode === 'week')}
+                onClick={weekOnly ? undefined : handleWeekPillClick}
+              >
+                {weekPillLabel}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <div onMouseLeave={() => setHoveredWeekDate(undefined)}>
+                <Calendar
+                  mode="single"
+                  weekStartsOn={SHEET_WEEK_STARTS_ON}
+                  selected={parsedDate}
+                  month={resolvedCalendarMonth}
+                  onMonthChange={handleCalendarMonthChange}
+                  modifiers={weekCalendarModifiers}
+                  modifiersClassNames={calendarModifierClassNames}
+                  onDayMouseEnter={setHoveredWeekDate}
+                  classNames={{
+                    day: cn(buttonVariants({ variant: 'ghost' }), workOrderWeekPickerDayClass),
+                  }}
+                  onSelect={(date) => {
+                    if (!date) return;
+                    onPickWeek(format(date, 'yyyy-MM-dd'));
+                    setWeekPickerOpen(false);
+                  }}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : null}
 
-        <Popover open={dayPickerOpen} onOpenChange={handleDayPickerOpenChange}>
-          <PopoverTrigger asChild>
-            <button type="button" className={segmentPillClass(dateViewMode === 'day')}>
-              {dayPillLabel}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={parsedDate}
-              month={resolvedCalendarMonth}
-              onMonthChange={handleCalendarMonthChange}
-              modifiers={dayCalendarModifiers}
-              modifiersClassNames={workOrderCalendarHasOrdersModifierClassNames}
-              onSelect={(d) => {
-                if (d) {
-                  onPickDate(format(d, 'yyyy-MM-dd'));
-                  setDayPickerOpen(false);
-                }
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+        {showDay ? (
+          <Popover open={dayPickerOpen} onOpenChange={handleDayPickerOpenChange}>
+            <PopoverTrigger asChild>
+              <button type="button" className={segmentPillClass(dateViewMode === 'day')}>
+                {dayPillLabel}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={parsedDate}
+                month={resolvedCalendarMonth}
+                onMonthChange={handleCalendarMonthChange}
+                modifiers={dayCalendarModifiers}
+                modifiersClassNames={workOrderCalendarHasOrdersModifierClassNames}
+                onSelect={(d) => {
+                  if (d) {
+                    onPickDate(format(d, 'yyyy-MM-dd'));
+                    setDayPickerOpen(false);
+                  }
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        ) : null}
       </div>
     </div>
   );

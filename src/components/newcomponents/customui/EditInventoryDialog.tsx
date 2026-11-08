@@ -47,7 +47,7 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
     e.preventDefault();
     if (!inventory) return;
 
-    const qtyNum = parseInt(qty, 10);
+    const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
       appToast.error('Quantity must be 0 or greater');
       return;

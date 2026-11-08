@@ -362,7 +362,7 @@ const ExpenseOrderDetailPanel: React.FC<ExpenseOrderDetailPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+    <div data-help-tour="expense.detail" className="flex flex-col h-full min-h-0 overflow-hidden">
       <div ref={scrollContainerRef} className={ORDER_DETAIL_SCROLL_CLASS}>
           <EoApprovalsTopBar
             orderId={order.id}

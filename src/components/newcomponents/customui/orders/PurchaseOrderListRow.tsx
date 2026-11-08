@@ -29,6 +29,7 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
   formatCurrency,
   formatDate,
 }) => {
+  const itemCountKnown = order.item_count != null;
   const itemCount = order.item_count ?? 0;
   const previewNames = useMemo(() => order.item_names_preview ?? [], [order.item_names_preview]);
   const stageBadges = getPurchaseOrderListRowBadges(order);
@@ -114,7 +115,7 @@ const PurchaseOrderListRow: React.FC<PurchaseOrderListRowProps> = ({
           title={receivingHint ? `${itemNamesTitle} · ${receivingHint}` : itemNamesTitle}
         >
           <div className="flex min-w-0 max-w-full items-center justify-end text-right">
-            {itemCount > 0 ? (
+            {!itemCountKnown ? null : itemCount > 0 ? (
               <PurchaseOrderItemsHoverPreview
                 purchaseOrderId={order.id}
                 itemCount={itemCount}

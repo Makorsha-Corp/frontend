@@ -13,6 +13,7 @@ function parseView(raw: string | null): CalendarView {
 }
 
 function parseCategories(raw: string | null): CalendarCategory[] {
+  if (raw === '') return [];
   if (!raw) return [...ALL_CALENDAR_CATEGORIES];
   const parts = raw.split(',').filter(Boolean) as CalendarCategory[];
   const valid = parts.filter((p) => ALL_CALENDAR_CATEGORIES.includes(p));
@@ -37,7 +38,7 @@ export function useCalendarFilters() {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         for (const [key, value] of Object.entries(patch)) {
-          if (value === null || value === '') next.delete(key);
+          if (value === null) next.delete(key);
           else next.set(key, value);
         }
         return next;
@@ -83,10 +84,13 @@ export function useCalendarFilters() {
     [activeCategories, patchParams],
   );
 
-  const showAllCategories = useCallback(
-    () => patchParams({ calTypes: null }),
-    [patchParams],
-  );
+  const toggleAllCategories = useCallback(() => {
+    if (activeCategories.length === ALL_CALENDAR_CATEGORIES.length) {
+      patchParams({ calTypes: '' });
+    } else {
+      patchParams({ calTypes: null });
+    }
+  }, [activeCategories.length, patchParams]);
 
   return {
     view,
@@ -99,6 +103,6 @@ export function useCalendarFilters() {
     setSelectedDate,
     openDayView,
     toggleCategory,
-    showAllCategories,
+    toggleAllCategories,
   };
 }

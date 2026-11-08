@@ -1,20 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
-import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
-import {
-  appShellHeaderControlClass,
-  appShellHeaderScopeSeparatorClass,
-} from '@/components/newcomponents/customui/AppShellHeader';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { format, parseISO } from 'date-fns';
+import { useProductionPageNavigation } from '@/pages/newpages/production/useProductionPageNavigation';
+import { normalizeProductionScheduleWeekAnchor } from '@/components/newcomponents/customui/production/productionScheduleWeek';
 import MachinesInlineLocationFilters from '@/components/newcomponents/customui/MachinesInlineLocationFilters';
 import {
   singleFactoryToSlice,
   sliceToSingleFactoryId,
 } from '@/lib/machinesLocationFilterAdapters';
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
+import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
+import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
+import { appShellHeaderScopeSeparatorClass } from '@/components/newcomponents/customui/AppShellHeader';
+import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  formatProductionQuantity,
+  formatProductionScaleFactor,
+  parseProductionQuantity,
+} from '@/lib/productionQuantity';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -32,26 +38,97 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmphasisTabsProvider } from '@/components/newcomponents/customui/EmphasisTabSwitcher';
+import ProductionPageHeaderTabList, {
+  type ProductionPageTab,
+} from '@/components/newcomponents/customui/production/ProductionPageHeaderTabs';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  ProductionBatchSearchBar,
+  ProductionSetupSearchBar,
+  BATCH_STATUS_POPOVER_STATUSES,
+  PRODUCTION_BATCH_STATUSES,
+  batchMatchesDateRange,
+  filterBatchesByStatusForList,
+  isDefaultBatchStatusFilter,
+  isDayDefaultBatchStatusFilter,
+  isWeekDefaultBatchStatusFilter,
+  normalizeLegacyBatchStatusToken,
+  resolveEffectiveBatchStatusFilter,
+  type ProductionBatchStatus,
+} from '@/components/newcomponents/customui/production/ProductionContextFilters';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import ProductionSetupPanel from '@/components/newcomponents/customui/production/ProductionSetupPanel';
+import ProductionLineDetailDialog from '@/components/newcomponents/customui/production/ProductionLineDetailDialog';
+import ProductionLineMachinesSelector from '@/components/newcomponents/customui/production/ProductionLineMachinesSelector';
+import {
+  lineMachineIds,
+  resolveLineMachineIdForSchedule,
+} from '@/components/newcomponents/customui/production/StationMachinesField';
+import ProductionRunsTab from '@/components/newcomponents/customui/production/ProductionRunsTab';
+import {
+  buildStageDraftDefaults,
+  plannedStartLocalAtEight,
+  type ScheduleBatchCreateSeed,
+} from '@/components/newcomponents/customui/production/scheduleBatchCreateSeed';
+import ProductionOverviewByLine from '@/components/newcomponents/customui/production/ProductionOverviewByLine';
+import ProductionHeaderFilters from '@/components/newcomponents/customui/production/ProductionHeaderFilters';
+import {
+  batchesInLineScope,
+  linesInLineScope,
+} from '@/components/newcomponents/customui/production/productionHeaderFilterHelpers';
+import { productionActivityFilterSummary } from '@/lib/productionActivityFilterSummary';
+import {
+  activityFormulaIdsForQuery,
+  isNoActivityRecipesSelected,
+} from '@/lib/productionActivityRecipeFilter';
+import { buildActivityHeatmapItemsFromBatches } from '@/lib/productionActivityHeatmapItems';
+import BatchDetailPanel from '@/components/newcomponents/customui/production/panels/BatchDetailPanel';
+import {
+  resolveScheduleFactoryId,
+  useFactoryProductionSchedule,
+} from '@/features/production/useFactoryProductionSchedule';
+import { plannedStartLocalFromIso } from '@/lib/plannedStartLocal';
+import BatchActivityPanel from '@/components/newcomponents/customui/production/BatchActivityPanel';
+import BatchRow from '@/components/newcomponents/customui/production/panels/BatchRow';
+import AddBatchRecipePathList from '@/components/newcomponents/customui/production/AddBatchRecipePathList';
+import AddBatchRecipePathStepEditor from '@/components/newcomponents/customui/production/AddBatchRecipePathStepEditor';
+import RecipePickerDialog from '@/components/newcomponents/customui/production/RecipePickerDialog';
+import ProductionLineMachineSelect from '@/components/newcomponents/customui/production/ProductionLineMachineSelect';
 import { cn } from '@/lib/utils';
-import AddItemDialog from '@/components/newcomponents/customui/AddItemDialog';
-import FormulaDetailsDialog from '@/components/newcomponents/customui/FormulaDetailsDialog';
+import BatchShiftWhenRow from '@/components/newcomponents/customui/production/BatchShiftWhenRow';
+import { useGetWorkspaceShiftsQuery } from '@/features/workspaceShifts/workspaceShiftsApi';
+import { millBatchDate } from '@/lib/millCalendarDate';
+import { useMillTimezone } from '@/hooks/useMillTimezone';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
+import {
+  finishedGoodOutputItemIds,
+  finishedGoodOutputQuantity,
+} from '@/lib/recipeDerivedMetrics';
+import AddBatchRecipeStepMaterials from '@/components/newcomponents/customui/production/AddBatchRecipeStepMaterials';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import AddFactoryDialog from '@/components/newcomponents/customui/AddFactoryDialog';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
+import { useGetMachinesQuery } from '@/features/machines/machinesApi';
+import { useGetFactorySectionsQuery } from '@/features/factorySections/factorySectionsApi';
+import {
+  allProductionLineIds,
+  isAllProductionLinesSelected,
+} from '@/components/newcomponents/customui/production/productionRunsLineFilterUtils';
+import { useGetSalesOrderItemsQuery, useGetSalesOrdersQuery } from '@/features/salesOrders/salesOrdersApi';
+import { ProductionScheduleConflictDialog } from '@/components/newcomponents/customui/production/ProductionScheduleConflictDialog';
+import {
+  findProductionScheduleConflicts,
+  sequentialStepWindows,
+  type ProductionScheduleConflict,
+} from '@/components/newcomponents/customui/production/productionScheduleConflict';
 import { useGetItemsQuery } from '@/features/items/itemsApi';
-import { useGetInventoryListQuery } from '@/features/inventory/inventoryApi';
+import BatchStartStoragePreview from '@/components/newcomponents/customui/production/BatchStartStoragePreview';
+import BatchShortStockDialogs, {
+  existingStorageForShort,
+  type ShortStockSeed,
+} from '@/components/newcomponents/customui/production/BatchShortStockDialogs';
+import { storageGapQty } from '@/lib/batchInputStorageCheck';
+import { useBatchInputStoragePreview } from '@/hooks/useBatchInputStoragePreview';
 import {
   useGetProductionLinesQuery,
   useCreateProductionLineMutation,
@@ -59,73 +136,100 @@ import {
   useDeleteProductionLineMutation,
   useGetProductionFormulasQuery,
   useCreateProductionFormulaMutation,
+  useCopyProductionFormulaMutation,
   useUpdateProductionFormulaMutation,
   useDeleteProductionFormulaMutation,
-  useGetFormulaItemsQuery,
+  useGetFormulaStagesQuery,
+  useGetAllFormulaStageItemsQuery,
+  useGetAllFormulaStageParametersQuery,
+  useGetProductionRouteStepsQuery,
+  useGetProductionScheduleQuery,
   useGetProductionBatchesQuery,
+  useGetProductionOverviewStatsQuery,
+  useGetProductionBatchActivityQuery,
   useGetProductionBatchByIdQuery,
   useCreateProductionBatchMutation,
+  useCreateProductionBatchProgramMutation,
   useUpdateProductionBatchMutation,
   useDeleteProductionBatchMutation,
   useStartBatchMutation,
   useCompleteBatchMutation,
   useCancelBatchMutation,
   useGetBatchItemsQuery,
-  useAddBatchItemMutation,
-  useUpdateBatchItemMutation,
-  useRemoveBatchItemMutation,
 } from '@/features/production/productionApi';
 import type {
   ProductionLine,
   ProductionFormula,
   ProductionBatch,
-  ProductionBatchItem,
-  ItemRole,
 } from '@/types/production';
 import {
   FlaskConical,
-  Search,
   Plus,
   Loader2,
-  Trash2,
-  Pencil,
-  Play,
-  Check,
-  X,
   ChevronDown,
-  ChevronRight,
-  LayoutDashboard,
-  Layers,
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 import { appToast } from '@/lib/appToast';
+import ProductionStartEarlierFields from '@/components/newcomponents/customui/production/ProductionStartEarlierFields';
+import {
+  ProductionRunRecurrenceFields,
+  type ProductionRunRecurrenceCadence,
+} from '@/components/newcomponents/customui/production/ProductionRunRecurrenceFields';
+import { DEFAULT_RECURRENCE_CADENCE } from '@/pages/newpages/orders/workOrderRecurrenceCadence';
+import { validateRecurrenceSpan } from '@/pages/newpages/orders/workOrderTemplateLabels';
+import { apiErrorDetail } from '@/utils/apiError';
+import {
+  defaultLocalDatetimeNow,
+  startedAtForApi,
+  validateStartedEarlier,
+} from '@/lib/productionStartEarlier';
 
-const BATCH_STATUSES = ['draft', 'in_progress', 'completed', 'cancelled'] as const;
-const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
 const BATCH_STATUS_FILTER_STORAGE_KEY = 'production.batches.statusFilter';
+const BATCH_STATUS_FILTER_CUSTOM_READY_KEY = 'production.batches.statusFilterCustomReady';
 
-type ProductionPageTab = 'overview' | 'batches';
+function readStoredBatchStatuses(): ProductionBatchStatus[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(BATCH_STATUS_FILTER_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const validStatuses = parsed
+      .filter((v): v is string => typeof v === 'string')
+      .map(normalizeLegacyBatchStatusToken)
+      .filter((v): v is ProductionBatchStatus =>
+        PRODUCTION_BATCH_STATUSES.includes(v as ProductionBatchStatus),
+      );
+    if (validStatuses.length === 0) return [];
+    const withoutCompleted = validStatuses.filter((s) => s !== 'completed');
+    if (withoutCompleted.length === 0) return [];
+    if (
+      withoutCompleted.length === BATCH_STATUS_POPOVER_STATUSES.length &&
+      BATCH_STATUS_POPOVER_STATUSES.every((s) => withoutCompleted.includes(s))
+    ) {
+      return [];
+    }
+    const customReady = window.localStorage.getItem(BATCH_STATUS_FILTER_CUSTOM_READY_KEY) === '1';
+    if (!customReady) {
+      window.localStorage.setItem(BATCH_STATUS_FILTER_CUSTOM_READY_KEY, '1');
+      if (
+        isWeekDefaultBatchStatusFilter(withoutCompleted) ||
+        isDayDefaultBatchStatusFilter(withoutCompleted)
+      ) {
+        window.localStorage.setItem(BATCH_STATUS_FILTER_STORAGE_KEY, '[]');
+        return [];
+      }
+    }
+    return withoutCompleted;
+  } catch {
+    return [];
+  }
+}
 
-const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
-  input: 'border-transparent bg-blue-500/15 text-blue-800 dark:text-blue-200',
-  output: 'border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
-  waste: 'border-transparent bg-amber-500/15 text-amber-900 dark:text-amber-100',
-  byproduct: 'border-transparent bg-violet-500/15 text-violet-800 dark:text-violet-200',
-};
-
-const BATCH_ROLE_SECTION_TITLE: Record<ItemRole, string> = {
-  input: 'Inputs',
-  output: 'Products',
-  waste: 'Waste',
-  byproduct: 'Byproducts',
-};
-
-const BATCH_ROLE_BADGE_LABEL: Record<ItemRole, string> = {
-  input: 'input',
-  output: 'products',
-  waste: 'waste',
-  byproduct: 'byproduct',
-};
+function persistStoredBatchStatuses(statuses: ProductionBatchStatus[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(BATCH_STATUS_FILTER_STORAGE_KEY, JSON.stringify(statuses));
+}
 
 /** Backend Numeric/Decimal fields often arrive as strings in JSON */
 function toFiniteNumber(value: unknown): number | null {
@@ -134,70 +238,144 @@ function toFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function formatOptionalPercent(value: unknown, digits = 1): string | null {
-  const n = toFiniteNumber(value);
-  if (n == null) return null;
-  return `${n.toFixed(digits)}%`;
-}
-
-
 const ProductionPage: React.FC = () => {
-  const CARDS_PER_PAGE = 9;
-  const { factoryId, setFactoryId } = usePageFactoryScopeId();
-  const [lineId, setLineId] = useState<number | null>(null);
-  const [batchStatusFilter, setBatchStatusFilter] = useState<Array<(typeof BATCH_STATUSES)[number]>>(() => {
-    if (typeof window === 'undefined') return [...BATCH_STATUSES];
-    try {
-      const raw = window.localStorage.getItem(BATCH_STATUS_FILTER_STORAGE_KEY);
-      if (!raw) return [...BATCH_STATUSES];
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [...BATCH_STATUSES];
-      const validStatuses = parsed.filter((v): v is (typeof BATCH_STATUSES)[number] =>
-        BATCH_STATUSES.includes(v as (typeof BATCH_STATUSES)[number])
-      );
-      return validStatuses;
-    } catch {
-      return [...BATCH_STATUSES];
-    }
+  const isLgScreen = useIsLgScreen();
+  const [catalogLineIds, setCatalogLineIds] = useState<number[] | null>(null);
+  const [catalogMachineIds, setCatalogMachineIds] = useState<number[] | null>(null);
+  const {
+    factoryId,
+    setFactoryId,
+    activeTab,
+    setActiveTab,
+    selectedBatchId,
+    setSelectedBatchId,
+    lineId,
+    setLineId,
+    batchSearchQuery,
+    setBatchSearchQuery,
+    batchStatusFilter,
+    setBatchStatusFilter,
+    setupSearchQuery,
+    setSetupSearchQuery,
+    setupFocusFormulaId,
+    setSetupFocusFormulaId,
+    handleSetupFocusFormulaHandled,
+    showCompletedBatches,
+    setShowCompletedBatches,
+    batchDateFrom,
+    batchDateTo,
+    setBatchDateRange,
+    runsDateViewMode,
+    runsWeekAnchorIso,
+    runsDayIso,
+    runsLineIdsFromUrl,
+    runsMachine,
+    setRunsDateViewMode,
+    pickRunsWeek,
+    pickRunsDay,
+    openRunsDay,
+    setRunsLineIds,
+    setRunsMachine,
+    runsWeekBatchGrid,
+    setRunsWeekBatchGrid,
+  } = useProductionPageNavigation({
+    readStoredStatuses: readStoredBatchStatuses,
+    persistStoredStatuses: persistStoredBatchStatuses,
+    knownLineIds: catalogLineIds,
+    knownMachineIds: catalogMachineIds,
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<ProductionPageTab>('overview');
-  const [linePage, setLinePage] = useState(1);
-  const [formulaPage, setFormulaPage] = useState(1);
-  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [activityFormulaIds, setActivityFormulaIds] = useState<number[]>([]);
+  const [factoryPickerOpen, setFactoryPickerOpen] = useState(false);
+  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const {
+    highlighted: factoryPickerHighlight,
+    pulseHighlight: pulseFactoryPickerHighlight,
+    dismissHighlight: dismissFactoryPickerHighlight,
+  } = useScrollTargetHighlight();
+  const {
+    data: factoryMachines = [],
+    isLoading: loadingMachines,
+    isFetching: fetchingMachines,
+  } = useGetMachinesQuery(
+    { limit: 500, ...(factoryId != null ? { factory_id: factoryId } : {}) },
+    { skip: isLoadingFactories },
+  );
+  const { data: factorySections = [] } = useGetFactorySectionsQuery(
+    { limit: 500, ...(factoryId != null ? { factory_id: factoryId } : {}) },
+    { skip: isLoadingFactories },
+  );
 
+  const factoryMachineOptions = useMemo(
+    () =>
+      factoryMachines.map((machine) => ({
+        id: machine.id,
+        name: machine.name,
+        is_running: machine.is_running,
+        latest_status_type: machine.latest_status_type ?? null,
+      })),
+    [factoryMachines],
+  );
   // Dialog states
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
   const [editingFormula, setEditingFormula] = useState<ProductionFormula | null>(null);
   const [isAddFormulaOpen, setIsAddFormulaOpen] = useState(false);
+  const [createRecipeRouteId, setCreateRecipeRouteId] = useState<number | null>(null);
   const [lineActionTarget, setLineActionTarget] = useState<ProductionLine | null>(null);
   const [formulaActionTarget, setFormulaActionTarget] = useState<ProductionFormula | null>(null);
-  const [selectedFormulaId, setSelectedFormulaId] = useState<number | null>(null);
-  const [isLineEditMode, setIsLineEditMode] = useState(false);
   const [isFormulaEditMode, setIsFormulaEditMode] = useState(false);
-  const [lineDraftName, setLineDraftName] = useState('');
-  const [lineDraftDescription, setLineDraftDescription] = useState('');
   const [formulaDraftCode, setFormulaDraftCode] = useState('');
   const [formulaDraftName, setFormulaDraftName] = useState('');
   const [formulaDraftDescription, setFormulaDraftDescription] = useState('');
-  const [formulaDraftDuration, setFormulaDraftDuration] = useState('');
+  const [runsHeaderControls, setRunsHeaderControls] = useState<React.ReactNode>(null);
   const [isAddBatchOpen, setIsAddBatchOpen] = useState(false);
+  const [addBatchInitialMode, setAddBatchInitialMode] = useState<'recipe' | 'recurring'>('recipe');
+  const [scheduleCreateSeed, setScheduleCreateSeed] = useState<ScheduleBatchCreateSeed | null>(null);
   const [isAddFactoryOpen, setIsAddFactoryOpen] = useState(false);
   const [completingBatch, setCompletingBatch] = useState<ProductionBatch | null>(null);
   const [cancellingBatch, setCancellingBatch] = useState<ProductionBatch | null>(null);
   const [startBatchId, setStartBatchId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(BATCH_STATUS_FILTER_STORAGE_KEY, JSON.stringify(batchStatusFilter));
-  }, [batchStatusFilter]);
+  const promptFactorySelect = useCallback(() => {
+    pulseFactoryPickerHighlight();
+    setFactoryPickerOpen(true);
+  }, [pulseFactoryPickerHighlight]);
 
-  const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 100 });
+  const requireFactory = useCallback((): boolean => {
+    if (factoryId != null) return true;
+    promptFactorySelect();
+    return false;
+  }, [factoryId, promptFactorySelect]);
+
+  const openRunsNewRun = useCallback(
+    (day: Date | null) => {
+      if (!requireFactory()) return;
+      setAddBatchInitialMode('recipe');
+      setScheduleCreateSeed(day ? { day: new Date(day) } : null);
+      setIsAddBatchOpen(true);
+    },
+    [requireFactory],
+  );
+
+  const openRunsRecurring = useCallback(() => {
+    if (!requireFactory()) return;
+    setAddBatchInitialMode('recurring');
+    setScheduleCreateSeed(null);
+    setIsAddBatchOpen(true);
+  }, [requireFactory]);
+
+  const factoryNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const factory of factories) {
+      map.set(factory.id, factory.abbreviation?.trim() || factory.name);
+    }
+    return map;
+  }, [factories]);
   const { data: items = [] } = useGetItemsQuery({ skip: 0, limit: 100 }, { skip: false });
 
   const {
     data: lines = [],
     isLoading: loadingLines,
+    isFetching: fetchingLines,
     error: linesError,
   } = useGetProductionLinesQuery(
     {
@@ -213,6 +391,48 @@ const ProductionPage: React.FC = () => {
     if (!factoryId) return lines;
     return lines.filter((l) => l.factory_id === factoryId);
   }, [lines, factoryId]);
+
+  useEffect(() => {
+    if (loadingLines || fetchingLines) {
+      setCatalogLineIds(null);
+      return;
+    }
+    setCatalogLineIds(linesForFactory.map((line) => line.id));
+  }, [loadingLines, fetchingLines, linesForFactory]);
+
+  useEffect(() => {
+    if (loadingMachines || fetchingMachines) {
+      setCatalogMachineIds(null);
+      return;
+    }
+    setCatalogMachineIds(factoryMachines.map((machine) => machine.id));
+  }, [loadingMachines, fetchingMachines, factoryMachines]);
+
+  useEffect(() => {
+    if (isLoadingFactories || factories.length === 0) return;
+    if (factoryId == null) return;
+    if (factories.some((factory) => factory.id === factoryId)) return;
+    setFactoryId(null);
+  }, [isLoadingFactories, factories, factoryId, setFactoryId]);
+
+  const effectiveRunsLineIds = useMemo(() => {
+    if (runsLineIdsFromUrl === null) return allProductionLineIds(linesForFactory);
+    return runsLineIdsFromUrl.filter((id) => linesForFactory.some((l) => l.id === id));
+  }, [runsLineIdsFromUrl, linesForFactory]);
+
+  const handleRunsLineIdsChange = useCallback(
+    (lineIds: number[]) => {
+      setRunsLineIds(lineIds, allProductionLineIds(linesForFactory));
+    },
+    [linesForFactory, setRunsLineIds],
+  );
+
+  useEffect(() => {
+    setLineActionTarget((prev) => {
+      if (!prev) return prev;
+      return linesForFactory.find((l) => l.id === prev.id) ?? prev;
+    });
+  }, [linesForFactory]);
 
   const {
     data: formulas = [],
@@ -231,22 +451,108 @@ const ProductionPage: React.FC = () => {
     {
       skip: 0,
       limit: 100,
-      production_line_id: lineId ?? undefined,
       status: undefined,
     },
     { skip: false }
   );
 
+  useEffect(() => {
+    if (lineId == null || runsLineIdsFromUrl !== null || linesForFactory.length === 0) return;
+    setRunsLineIds([lineId], allProductionLineIds(linesForFactory));
+    setLineId(null);
+  }, [lineId, runsLineIdsFromUrl, linesForFactory, setRunsLineIds, setLineId]);
+
   const batches = useMemo(() => {
-    if (!factoryId || lineId) return batchesRaw;
-    const lineIds = new Set(linesForFactory.map((l) => l.id));
-    return batchesRaw.filter((b) => lineIds.has(b.production_line_id));
-  }, [batchesRaw, factoryId, lineId, linesForFactory]);
+    let rows = batchesRaw;
+    if (factoryId != null) {
+      const lineIds = new Set(linesForFactory.map((l) => l.id));
+      rows = rows.filter((b) => lineIds.has(b.production_line_id));
+    }
+    return batchesInLineScope(rows, linesForFactory, effectiveRunsLineIds);
+  }, [batchesRaw, factoryId, linesForFactory, effectiveRunsLineIds]);
+
+  const selectedBatchFromList = useMemo(
+    () => (selectedBatchId != null ? batches.find((b) => b.id === selectedBatchId) ?? null : null),
+    [batches, selectedBatchId],
+  );
+  const { data: selectedBatchById, isError: selectedBatchByIdError } = useGetProductionBatchByIdQuery(
+    selectedBatchId!,
+    { skip: selectedBatchId == null || selectedBatchFromList != null },
+  );
+  const deepLinkBatch = selectedBatchFromList ?? selectedBatchById ?? null;
+
+  const [schedulePlannedStartLocal, setSchedulePlannedStartLocal] = useState('');
+  useEffect(() => {
+    if (selectedBatchId == null) {
+      setSchedulePlannedStartLocal('');
+      return;
+    }
+    setSchedulePlannedStartLocal(plannedStartLocalFromIso(deepLinkBatch?.planned_start_at));
+  }, [selectedBatchId, deepLinkBatch?.planned_start_at]);
+
+  const scheduleFactoryId = useMemo(
+    () =>
+      resolveScheduleFactoryId({
+        batchProductionLineId: deepLinkBatch?.production_line_id,
+        lines: linesForFactory,
+        pageFactoryId: factoryId,
+      }),
+    [deepLinkBatch?.production_line_id, linesForFactory, factoryId],
+  );
+
+  const factoryScheduleBatches = useFactoryProductionSchedule({
+    factoryId: selectedBatchId != null ? scheduleFactoryId : null,
+    plannedStartLocal: schedulePlannedStartLocal,
+  });
+
+  const handleSchedulePlannedStartChange = useCallback((plannedStartLocal: string) => {
+    setSchedulePlannedStartLocal(plannedStartLocal);
+  }, []);
+
+  useEffect(() => {
+    if (selectedBatchId == null || selectedBatchFromList != null || !selectedBatchByIdError) return;
+    setSelectedBatchId(null);
+  }, [selectedBatchId, selectedBatchFromList, selectedBatchByIdError, setSelectedBatchId]);
+
+  useEffect(() => {
+    if (!deepLinkBatch) return;
+    const line = lines.find((l) => l.id === deepLinkBatch.production_line_id);
+    const batchFactoryId = line?.factory_id;
+    if (batchFactoryId == null || batchFactoryId === factoryId) return;
+    setFactoryId(batchFactoryId);
+  }, [deepLinkBatch, factoryId, lines, setFactoryId]);
+
+  /** Calendar deep link: align runs week/day when batch is not on the current grid. */
+  useEffect(() => {
+    if (selectedBatchId == null || !deepLinkBatch || selectedBatchFromList) return;
+    const anchor = deepLinkBatch.planned_start_at
+      ? format(parseISO(deepLinkBatch.planned_start_at), 'yyyy-MM-dd')
+      : deepLinkBatch.batch_date.slice(0, 10);
+    if (runsDateViewMode === 'day') {
+      if (runsDayIso !== anchor) pickRunsDay(anchor);
+      return;
+    }
+    if (runsDateViewMode === 'week') {
+      const currentWeek = normalizeProductionScheduleWeekAnchor(runsWeekAnchorIso);
+      const targetWeek = normalizeProductionScheduleWeekAnchor(anchor);
+      if (currentWeek !== targetWeek) pickRunsWeek(anchor);
+    }
+  }, [
+    selectedBatchId,
+    deepLinkBatch,
+    selectedBatchFromList,
+    runsDateViewMode,
+    runsDayIso,
+    runsWeekAnchorIso,
+    pickRunsDay,
+    pickRunsWeek,
+  ]);
 
   const [createLine, { isLoading: isCreatingLine }] = useCreateProductionLineMutation();
   const [updateLine, { isLoading: isUpdatingLine }] = useUpdateProductionLineMutation();
   const [deleteLine, { isLoading: isDeletingLine }] = useDeleteProductionLineMutation();
   const [createFormula, { isLoading: isCreatingFormula }] = useCreateProductionFormulaMutation();
+  const [copyFormula, { isLoading: isCopyingFormula }] = useCopyProductionFormulaMutation();
   const [updateFormula, { isLoading: isUpdatingFormula }] = useUpdateProductionFormulaMutation();
   const [deleteFormula, { isLoading: isDeletingFormula }] = useDeleteProductionFormulaMutation();
   const [createBatch, { isLoading: isCreatingBatch }] = useCreateProductionBatchMutation();
@@ -256,71 +562,121 @@ const ProductionPage: React.FC = () => {
   const [updateProductionBatch, { isLoading: isUpdatingBatch }] = useUpdateProductionBatchMutation();
   const [deleteProductionBatch, { isLoading: isDeletingBatch }] = useDeleteProductionBatchMutation();
 
+  const setupLinesInScope = useMemo(
+    () => linesInLineScope(linesForFactory, effectiveRunsLineIds),
+    [linesForFactory, effectiveRunsLineIds],
+  );
+
   const filteredLines = useMemo(() => {
-    if (!searchQuery.trim()) return linesForFactory;
-    const q = searchQuery.toLowerCase();
-    return linesForFactory.filter(
+    if (!setupSearchQuery.trim()) return setupLinesInScope;
+    const q = setupSearchQuery.toLowerCase();
+    return setupLinesInScope.filter(
       (l) =>
         l.name.toLowerCase().includes(q) ||
         (l.description && l.description.toLowerCase().includes(q))
     );
-  }, [linesForFactory, searchQuery]);
+  }, [setupLinesInScope, setupSearchQuery]);
 
   const filteredFormulas = useMemo(() => {
-    if (!searchQuery.trim()) return formulas;
-    const q = searchQuery.toLowerCase();
+    if (!setupSearchQuery.trim()) return formulas;
+    const q = setupSearchQuery.toLowerCase();
     return formulas.filter(
       (f) =>
         f.name.toLowerCase().includes(q) ||
         f.formula_code.toLowerCase().includes(q) ||
         (f.description && f.description.toLowerCase().includes(q))
     );
-  }, [formulas, searchQuery]);
-  const lineTotalPages = Math.max(1, Math.ceil(filteredLines.length / CARDS_PER_PAGE));
-  const formulaTotalPages = Math.max(1, Math.ceil(filteredFormulas.length / CARDS_PER_PAGE));
-  const linePageOptions = useMemo(
-    () => Array.from({ length: lineTotalPages }, (_, idx) => (idx + 1).toString()),
-    [lineTotalPages]
+  }, [formulas, setupSearchQuery]);
+
+  /** Setup lists only active recipes; delete is a soft deactivate (is_active=false). */
+  const setupFormulas = useMemo(
+    () => filteredFormulas.filter((f) => f.is_active),
+    [filteredFormulas],
   );
-  const formulaPageOptions = useMemo(
-    () => Array.from({ length: formulaTotalPages }, (_, idx) => (idx + 1).toString()),
-    [formulaTotalPages]
+
+  const batchStatusViewMode = activeTab === 'batches' ? runsDateViewMode : 'all';
+
+  const effectiveBatchStatusFilter = useMemo(
+    () => resolveEffectiveBatchStatusFilter(batchStatusFilter, batchStatusViewMode),
+    [batchStatusFilter, batchStatusViewMode],
   );
-  const pagedLines = useMemo(() => {
-    const start = (linePage - 1) * CARDS_PER_PAGE;
-    return filteredLines.slice(start, start + CARDS_PER_PAGE);
-  }, [filteredLines, linePage, CARDS_PER_PAGE]);
-  const pagedFormulas = useMemo(() => {
-    const start = (formulaPage - 1) * CARDS_PER_PAGE;
-    return filteredFormulas.slice(start, start + CARDS_PER_PAGE);
-  }, [filteredFormulas, formulaPage, CARDS_PER_PAGE]);
-  const selectedFormula = useMemo(
-    () => (selectedFormulaId != null ? formulas.find((f) => f.id === selectedFormulaId) ?? null : null),
-    [selectedFormulaId, formulas]
-  );
-  useEffect(() => {
-    setLinePage(1);
-    setFormulaPage(1);
-  }, [factoryId, searchQuery]);
-  useEffect(() => {
-    setLinePage((prev) => Math.min(prev, lineTotalPages));
-  }, [lineTotalPages]);
-  useEffect(() => {
-    setFormulaPage((prev) => Math.min(prev, formulaTotalPages));
-  }, [formulaTotalPages]);
 
   const filteredBatches = useMemo(() => {
-    const statusFiltered = batches.filter((b) =>
-      batchStatusFilter.includes(b.status as (typeof BATCH_STATUSES)[number])
+    const statusFiltered = filterBatchesByStatusForList(
+      batches,
+      showCompletedBatches,
+      effectiveBatchStatusFilter,
     );
-    if (!searchQuery.trim()) return statusFiltered;
-    const q = searchQuery.toLowerCase();
-    return statusFiltered.filter(
+    const dateFiltered = statusFiltered.filter((b) =>
+      batchMatchesDateRange(b, batchDateFrom, batchDateTo),
+    );
+    if (!batchSearchQuery.trim()) return dateFiltered;
+    const q = batchSearchQuery.toLowerCase();
+    return dateFiltered.filter(
       (b) =>
         b.batch_number.toLowerCase().includes(q) ||
-        (b.notes && b.notes.toLowerCase().includes(q))
+        (b.notes && b.notes.toLowerCase().includes(q)),
     );
-  }, [batches, searchQuery, batchStatusFilter]);
+  }, [
+    batches,
+    batchSearchQuery,
+    effectiveBatchStatusFilter,
+    showCompletedBatches,
+    batchDateFrom,
+    batchDateTo,
+  ]);
+
+  const batchesMatchingRunsToolbar = useMemo(() => {
+    const statusFiltered = filterBatchesByStatusForList(
+      batches,
+      showCompletedBatches,
+      effectiveBatchStatusFilter,
+    );
+    let rows = statusFiltered;
+    if (runsMachine !== 'all') {
+      const machineId = Number(runsMachine);
+      if (!Number.isNaN(machineId)) {
+        rows = rows.filter((b) => b.machine_id === machineId);
+      }
+    }
+    if (!batchSearchQuery.trim()) return rows;
+    const q = batchSearchQuery.toLowerCase();
+    return rows.filter(
+      (b) =>
+        b.batch_number.toLowerCase().includes(q) ||
+        (b.notes && b.notes.toLowerCase().includes(q)),
+    );
+  }, [
+    batches,
+    batchSearchQuery,
+    effectiveBatchStatusFilter,
+    showCompletedBatches,
+    runsMachine,
+  ]);
+
+  /** Week board line filter is per step; batch header line can differ. */
+  const batchesForScheduleEligibility = batchesMatchingRunsToolbar;
+
+  const batchesForRunsTab = useMemo(() => {
+    let rows = batchesMatchingRunsToolbar;
+    if (
+      effectiveRunsLineIds.length > 0 &&
+      !isAllProductionLinesSelected(effectiveRunsLineIds, linesForFactory)
+    ) {
+      const lineSet = new Set(effectiveRunsLineIds);
+      rows = rows.filter((b) => lineSet.has(b.production_line_id));
+    } else if (effectiveRunsLineIds.length === 0 && linesForFactory.length > 0) {
+      rows = [];
+    }
+    return rows;
+  }, [batchesMatchingRunsToolbar, effectiveRunsLineIds, linesForFactory]);
+
+  const runsLinesForGrid = useMemo(() => {
+    if (isAllProductionLinesSelected(effectiveRunsLineIds, linesForFactory)) return linesForFactory;
+    if (effectiveRunsLineIds.length === 0) return [];
+    const allowed = new Set(effectiveRunsLineIds);
+    return linesForFactory.filter((l) => allowed.has(l.id));
+  }, [linesForFactory, effectiveRunsLineIds]);
 
   // Metrics for Overview
   const metrics = useMemo(() => {
@@ -347,41 +703,180 @@ const ProductionPage: React.FC = () => {
     };
   }, [batches]);
 
+  const overviewStatsQueryArgs = useMemo(() => {
+    const allStatusesSelected = isDefaultBatchStatusFilter(batchStatusFilter);
+    return {
+      factory_id: factoryId ?? undefined,
+      date_from: batchDateFrom ?? undefined,
+      date_to: batchDateTo ?? undefined,
+      statuses: allStatusesSelected ? undefined : batchStatusFilter.join(','),
+    };
+  }, [factoryId, batchStatusFilter, batchDateFrom, batchDateTo]);
+
+  const { data: overviewStatsRaw, isLoading: loadingOverviewStats } = useGetProductionOverviewStatsQuery(
+    overviewStatsQueryArgs,
+    { refetchOnMountOrArgChange: true },
+  );
+
+  const overviewStats = useMemo(() => {
+    if (!overviewStatsRaw) return undefined;
+    if (isAllProductionLinesSelected(effectiveRunsLineIds, linesForFactory)) {
+      return overviewStatsRaw;
+    }
+    if (effectiveRunsLineIds.length === 0) {
+      return { ...overviewStatsRaw, lines: [], outliers: [] };
+    }
+    const allowed = new Set(effectiveRunsLineIds);
+    return {
+      ...overviewStatsRaw,
+      lines: overviewStatsRaw.lines.filter((row) => allowed.has(row.production_line_id)),
+      outliers: overviewStatsRaw.outliers.filter((row) => allowed.has(row.production_line_id)),
+    };
+  }, [overviewStatsRaw, effectiveRunsLineIds, linesForFactory]);
+
+  const effectiveActivityLineIds = useMemo(() => {
+    if (linesForFactory.length === 0) return [];
+    if (isAllProductionLinesSelected(effectiveRunsLineIds, linesForFactory)) return [];
+    return effectiveRunsLineIds;
+  }, [effectiveRunsLineIds, linesForFactory]);
+
+  const activityFormulaQueryIds = useMemo(
+    () => activityFormulaIdsForQuery(activityFormulaIds),
+    [activityFormulaIds],
+  );
+
+  const skipActivityStatsQuery =
+    isNoActivityRecipesSelected(activityFormulaIds) ||
+    (linesForFactory.length > 0 &&
+      !isAllProductionLinesSelected(effectiveRunsLineIds, linesForFactory) &&
+      effectiveRunsLineIds.length === 0);
+
+  const activityStatsQueryArgs = useMemo(() => {
+    const allStatusesSelected = isDefaultBatchStatusFilter(batchStatusFilter);
+    const formulaIds = activityFormulaQueryIds;
+    return {
+      factory_id: factoryId ?? undefined,
+      production_line_ids: effectiveActivityLineIds.length ? effectiveActivityLineIds : undefined,
+      formula_ids: formulaIds,
+      statuses: allStatusesSelected ? undefined : batchStatusFilter.join(','),
+    };
+  }, [factoryId, effectiveActivityLineIds, activityFormulaQueryIds, batchStatusFilter]);
+
+  const {
+    data: activityStats,
+    isLoading: loadingActivityStats,
+    isError: activityStatsError,
+    isFetching: fetchingActivityStats,
+  } = useGetProductionBatchActivityQuery(activityStatsQueryArgs, {
+    refetchOnMountOrArgChange: true,
+    skip: skipActivityStatsQuery,
+  });
+
+  const activityHeatmapItemsFromApi = useMemo(
+    () => activityStats?.days.map((d) => ({ date: d.date, count: d.count })) ?? [],
+    [activityStats],
+  );
+
+  const activityHeatmapFallbackItems = useMemo(() => {
+    if (isNoActivityRecipesSelected(activityFormulaIds)) return [];
+    const allStatusesSelected = isDefaultBatchStatusFilter(batchStatusFilter);
+    return buildActivityHeatmapItemsFromBatches(batches, {
+      lineIds: effectiveActivityLineIds.length ? effectiveActivityLineIds : undefined,
+      formulaIds: activityFormulaQueryIds,
+      statuses: allStatusesSelected ? undefined : [...batchStatusFilter],
+    });
+  }, [batches, effectiveActivityLineIds, activityFormulaIds, activityFormulaQueryIds, batchStatusFilter]);
+
+  const activityHeatmapItems = useMemo(() => {
+    if (isNoActivityRecipesSelected(activityFormulaIds)) return [];
+    if (activityStats && !activityStatsError) return activityHeatmapItemsFromApi;
+    if (activityStatsError && activityHeatmapFallbackItems.length > 0) {
+      return activityHeatmapFallbackItems;
+    }
+    if (!fetchingActivityStats && !activityStats && activityHeatmapFallbackItems.length > 0) {
+      return activityHeatmapFallbackItems;
+    }
+    return activityHeatmapItemsFromApi;
+  }, [
+    activityStats,
+    activityStatsError,
+    activityHeatmapItemsFromApi,
+    activityHeatmapFallbackItems,
+    fetchingActivityStats,
+  ]);
+
+  const activityFilterSummary = useMemo(
+    () =>
+      productionActivityFilterSummary(
+        linesForFactory,
+        setupFormulas,
+        effectiveActivityLineIds,
+        activityFormulaIds,
+      ),
+    [linesForFactory, setupFormulas, effectiveActivityLineIds, activityFormulaIds],
+  );
+
   const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
 
   const handleFactoryLocationChange = (slice: Partial<MachinesLocationFilterSlice>) => {
     if (slice.factory_ids === undefined) return;
     setFactoryId(sliceToSingleFactoryId({ factory_ids: slice.factory_ids }));
-    setLineId(null);
+    setFactoryPickerOpen(false);
   };
 
-  const handleLineChange = (value: string) => {
-    const id = value ? parseInt(value, 10) : null;
-    setLineId(id);
-  };
+  const headerBatchStatusViewMode = activeTab === 'batches' ? runsDateViewMode : 'all';
 
-  const toggleBatchStatusFilter = (status: (typeof BATCH_STATUSES)[number]) => {
-    setBatchStatusFilter((prev) =>
-      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
-    );
-  };
+  const handleBatchStatusFilterApply = useCallback(
+    (filter: ProductionBatchStatus[], showCompleted: boolean) => {
+      setBatchStatusFilter(filter);
+      setShowCompletedBatches(showCompleted);
+    },
+    [setBatchStatusFilter, setShowCompletedBatches],
+  );
 
-  const clearBatchStatusFilter = () => setBatchStatusFilter([]);
+  const batchSearchHeaderControl = (
+    <ProductionBatchSearchBar
+      searchQuery={batchSearchQuery}
+      onSearchQueryChange={setBatchSearchQuery}
+      className="min-w-[8.5rem] w-[min(11rem,22vw)] max-w-[220px] shrink"
+    />
+  );
 
-  const selectAllBatchStatuses = () => setBatchStatusFilter([...BATCH_STATUSES]);
-
-  const batchStatusFilterLabel =
-    batchStatusFilter.length === 0
-      ? 'No status'
-      : batchStatusFilter.length === BATCH_STATUSES.length
-        ? 'All statuses'
-        : `${batchStatusFilter.length} selected`;
+  const productionHeaderFiltersControl = (
+    <ProductionHeaderFilters
+      activeTab={activeTab}
+      lines={linesForFactory}
+      selectedLineIds={effectiveRunsLineIds}
+      onSelectedLineIdsChange={handleRunsLineIdsChange}
+      batchDateFrom={batchDateFrom}
+      batchDateTo={batchDateTo}
+      onBatchDateRangeApply={setBatchDateRange}
+      batchStatusFilter={batchStatusFilter}
+      batchStatusViewMode={headerBatchStatusViewMode}
+      showCompletedBatches={showCompletedBatches}
+      onBatchStatusFilterApply={handleBatchStatusFilterApply}
+      activityFormulaIds={activityFormulaIds}
+      onActivityFormulaIdsChange={setActivityFormulaIds}
+      formulas={formulas}
+      runsMachine={runsMachine}
+      onRunsMachineChange={setRunsMachine}
+      machines={factoryMachines}
+      factories={factories}
+      sections={factorySections}
+      factoryFilter={factoryId != null ? String(factoryId) : 'all'}
+    />
+  );
 
   const getItemName = (itemId: number) => items.find((i) => i.id === itemId)?.name ?? `Item #${itemId}`;
+  const getMachineName = (machineId: number) =>
+    factoryMachines.find((m) => m.id === machineId)?.name ?? `Machine #${machineId}`;
+  const getLineName = (lineId: number) =>
+    linesForFactory.find((l) => l.id === lineId)?.name ?? `Line #${lineId}`;
 
   const getStatusBadge = (status: string) => {
     const map: Record<string, string> = {
       draft: 'bg-muted text-muted-foreground',
+      recurring: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
       in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
       completed: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
       cancelled: 'bg-destructive/10 text-destructive',
@@ -402,36 +897,39 @@ const ProductionPage: React.FC = () => {
   };
 
   const handleDeactivateFormula = async (formula: ProductionFormula) => {
-    if (!window.confirm(`Deactivate "${formula.name}"?`)) return;
+    if (
+      !window.confirm(
+        `Deactivate "${formula.name}"? It will be hidden from Setup and new batches. Existing batch history is kept.`,
+      )
+    ) {
+      return;
+    }
     try {
       await deleteFormula(formula.id).unwrap();
-      appToast.success('Formula deactivated');
+      appToast.success('Recipe deactivated');
       setFormulaActionTarget(null);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to deactivate');
+      appToast.error(err?.data?.detail || 'Failed to deactivate recipe');
     }
   };
 
-  const handleSaveLineFromPopup = async () => {
+  const handleSaveLineDetail = async (payload: {
+    name: string;
+    description: string;
+    machineIds: number[];
+  }) => {
     if (!lineActionTarget) return;
-    if (!lineDraftName.trim()) {
-      appToast.error('Line name is required');
-      return;
-    }
     try {
       await updateLine({
         id: lineActionTarget.id,
         data: {
-          name: lineDraftName.trim(),
-          description: lineDraftDescription.trim() || undefined,
+          name: payload.name,
+          description: payload.description || undefined,
+          machine_ids: payload.machineIds,
         },
       }).unwrap();
       appToast.success('Line updated');
-      setIsLineEditMode(false);
-      setLineActionTarget((prev) =>
-        prev ? { ...prev, name: lineDraftName.trim(), description: lineDraftDescription.trim() || null } : prev
-      );
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
       appToast.error(err?.data?.detail || 'Failed to update line');
@@ -464,8 +962,6 @@ const ProductionPage: React.FC = () => {
         data: {
           name: formulaDraftName.trim(),
           description: formulaDraftDescription.trim() || undefined,
-          estimated_duration_minutes:
-            formulaDraftDuration.trim() === '' ? undefined : parseInt(formulaDraftDuration, 10),
         },
       }).unwrap();
       appToast.success('Formula updated');
@@ -477,8 +973,6 @@ const ProductionPage: React.FC = () => {
               formula_code: formulaDraftCode.trim(),
               name: formulaDraftName.trim(),
               description: formulaDraftDescription.trim() || null,
-              estimated_duration_minutes:
-                formulaDraftDuration.trim() === '' ? null : parseInt(formulaDraftDuration, 10),
             }
           : prev
       );
@@ -517,170 +1011,85 @@ const ProductionPage: React.FC = () => {
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeaderCompactList
-          sticky
-          icon={FlaskConical}
-          title="Production"
-          leftExtras={
-            <>
-              <div className={cn(appShellHeaderScopeSeparatorClass, 'hidden lg:block')} aria-hidden />
-              <MachinesInlineLocationFilters
-                which="factories"
-                variant="toolbar"
-                value={factoryLocationValue}
-                onChange={handleFactoryLocationChange}
-                factories={factories}
-                sections={[]}
-              />
-              <div className="flex w-full flex-wrap items-center gap-2 lg:hidden">
-                <Select value={lineId?.toString() ?? 'all'} onValueChange={handleLineChange}>
-                  <SelectTrigger className="h-9 w-[min(200px,100%)]">
-                    <SelectValue placeholder="Production line" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All lines</SelectItem>
-                    {linesForFactory.map((l) => (
-                      <SelectItem key={l.id} value={l.id.toString()}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-9 w-[min(170px,100%)] justify-start border-border bg-background">
-                      {batchStatusFilterLabel}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-2" align="start">
-                    <div className="space-y-1">
-                      <button
-                        type="button"
-                        className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                        onClick={selectAllBatchStatuses}
-                      >
-                        Select all
-                      </button>
-                      <button
-                        type="button"
-                        className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                        onClick={clearBatchStatusFilter}
-                      >
-                        Clear all
-                      </button>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="space-y-2">
-                      {BATCH_STATUSES.map((s) => (
-                        <label key={s} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted/50">
-                          <Checkbox
-                            checked={batchStatusFilter.includes(s)}
-                            onCheckedChange={() => toggleBatchStatusFilter(s)}
-                          />
-                          <span className="text-sm capitalize">{s.replace('_', ' ')}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </>
-          }
-          searchInput={searchQuery}
-          onSearchInputChange={setSearchQuery}
-          searchPlaceholder="Search production..."
-          searchAriaLabel="Search production"
-          desktopActions={
-            <>
-              <Select value={lineId?.toString() ?? 'all'} onValueChange={handleLineChange}>
-                <SelectTrigger className="h-9 w-[200px]">
-                  <SelectValue placeholder="Production line" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All lines</SelectItem>
-                  {linesForFactory.map((l) => (
-                    <SelectItem key={l.id} value={l.id.toString()}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="h-9 w-[170px] justify-start border-border bg-background">
-                    {batchStatusFilterLabel}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2" align="start">
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                      onClick={selectAllBatchStatuses}
-                    >
-                      Select all
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                      onClick={clearBatchStatusFilter}
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="space-y-2">
-                    {BATCH_STATUSES.map((s) => (
-                      <label key={s} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted/50">
-                        <Checkbox
-                          checked={batchStatusFilter.includes(s)}
-                          onCheckedChange={() => toggleBatchStatusFilter(s)}
-                        />
-                        <span className="text-sm capitalize">{s.replace('_', ' ')}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <div className="relative w-[200px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search production..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9"
+      <EmphasisTabsProvider value={activeTab} layoutId="production-page-tabs">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as ProductionPageTab)}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        >
+          <AppShellHeaderCompactList
+            sticky
+            icon={FlaskConical}
+            title="Production"
+            headerNav={<ProductionPageHeaderTabList />}
+            headerNavMobile={<ProductionPageHeaderTabList compact />}
+            leftExtras={
+              <>
+                <MachinesInlineLocationFilters
+                  which="factories"
+                  variant="toolbar"
+                  selectionMode="single"
+                  showAllFactoriesOption
+                  value={factoryLocationValue}
+                  onChange={handleFactoryLocationChange}
+                  factories={factories}
+                  sections={[]}
+                  open={factoryPickerOpen}
+                  onOpenChange={setFactoryPickerOpen}
+                  highlight={factoryPickerHighlight}
+                  onHighlightDismiss={dismissFactoryPickerHighlight}
                 />
-              </div>
-            </>
-          }
-        />
+              </>
+            }
+            desktopActions={
+              activeTab === 'batches' ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {productionHeaderFiltersControl}
+                  {batchSearchHeaderControl}
+                  {runsHeaderControls}
+                </div>
+              ) : activeTab === 'setup' ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {productionHeaderFiltersControl}
+                  <ProductionSetupSearchBar
+                    searchQuery={setupSearchQuery}
+                    onSearchQueryChange={setSetupSearchQuery}
+                    className="min-w-[8.5rem] w-[min(11rem,22vw)] max-w-[220px] shrink"
+                  />
+                </div>
+              ) : activeTab === 'overview' ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {productionHeaderFiltersControl}
+                  {batchSearchHeaderControl}
+                </div>
+              ) : null
+            }
+            mobileActions={
+              activeTab === 'setup' ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {productionHeaderFiltersControl}
+                  <ProductionSetupSearchBar
+                    searchQuery={setupSearchQuery}
+                    onSearchQueryChange={setSetupSearchQuery}
+                    className="w-[min(10rem,42vw)] max-w-[200px] shrink"
+                  />
+                </div>
+              ) : activeTab === 'overview' || activeTab === 'batches' ? (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {productionHeaderFiltersControl}
+                  {batchSearchHeaderControl}
+                </div>
+              ) : null
+            }
+            addAriaLabel="Start new production run"
+          />
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as ProductionPageTab)}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden gap-6"
-          >
-            <div className="flex shrink-0 justify-center">
-              <TabsList className={appShellHeaderControlClass}>
-                <TabsTrigger value="overview" className="gap-1.5 px-3">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="batches" className="gap-1.5 px-3">
-                  <Layers className="h-4 w-4" />
-                  Batches
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <TabsContent
               value="overview"
-              className="mt-0 min-h-0 flex-1 space-y-6 overflow-y-auto data-[state=inactive]:hidden"
+              className="mt-0 min-h-0 flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden"
             >
-          {/* Top analytics: status + efficiency + activity */}
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
             <Card className="border-border xl:col-span-1">
               <CardHeader>
                 <CardTitle className="text-base">Batches by Status</CardTitle>
@@ -720,378 +1129,158 @@ const ProductionPage: React.FC = () => {
 
             <Card className="border-border xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Batch activity (last 12 months)</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Filtered by factory, line & status above
-                </p>
+                <div>
+                  <CardTitle className="text-base">Batch activity (last 12 months)</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">{activityFilterSummary}</p>
+                </div>
               </CardHeader>
               <CardContent>
-                <ContributionHeatmap items={filteredBatches.map((b) => ({ date: b.batch_date }))} itemLabel="batch" />
+                {loadingActivityStats && activityHeatmapItems.length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {activityStatsError ? (
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Activity totals could not be loaded from the server
+                        {activityHeatmapFallbackItems.length > 0
+                          ? ' — showing counts from loaded batches (last 100 max).'
+                          : '.'}
+                      </p>
+                    ) : null}
+                    <ContributionHeatmap items={activityHeatmapItems} itemLabel="batch" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Half-half: Production Lines | Formulas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            {/* Production Lines */}
-              <Card className="border-border h-full flex flex-col min-h-0 overflow-hidden">
-                <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      {filteredLines.length} production {filteredLines.length === 1 ? 'line' : 'lines'}
-                    </span>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="h-8 w-8"
-                      onClick={() => setIsAddLineOpen(true)}
-                      disabled={!factoryId}
-                      title="Add line"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2"
-                      onClick={() => setLinePage((p) => Math.max(1, p - 1))}
-                      disabled={linePage <= 1}
-                    >
-                      Prev
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2"
-                      onClick={() => setLinePage((p) => Math.min(lineTotalPages, p + 1))}
-                      disabled={linePage >= lineTotalPages}
-                    >
-                      Next
-                    </Button>
-                    <Select value={linePage.toString()} onValueChange={(value) => setLinePage(parseInt(value, 10))}>
-                      <SelectTrigger className="h-8 w-[92px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {linePageOptions.map((page) => (
-                          <SelectItem key={page} value={page}>
-                            {page} / {lineTotalPages}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <CardContent className="p-0 flex-1 min-h-0 max-h-[min(48vh,520px)] overflow-y-auto">
-                  {linesError ? (
-                    <div className="py-8 px-4 text-center">
-                      <p className="text-sm text-destructive font-medium">Failed to load production lines</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(linesError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
-                      </p>
-                    </div>
-                  ) : loadingLines ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                    </div>
-                  ) : filteredLines.length === 0 ? (
-                    <div className="py-12 text-center text-muted-foreground text-sm">
-                      {!factoryId
-                        ? 'Select a factory to view production lines'
-                        : 'No production lines. Add one to get started.'}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 p-3">
-                      {pagedLines.map((line) => (
-                        <button
-                          key={line.id}
-                          type="button"
-                          onClick={() => setLineActionTarget(line)}
-                          title={line.name}
-                          className="flex items-center rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted/40"
-                        >
-                          <span className="text-sm font-medium text-card-foreground truncate">
-                            {line.name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <ProductionOverviewByLine
+                className="mt-6"
+                stats={overviewStats}
+                loading={loadingOverviewStats}
+              />
+            </TabsContent>
 
-                {/* Formulas */}
-                <div className="h-full">
-              <Card className="border-border h-full flex flex-col min-h-0 overflow-hidden">
-                <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      {filteredFormulas.length} formulas
-                    </span>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="h-8 w-8"
-                      onClick={() => setIsAddFormulaOpen(true)}
-                      title="Add formula"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2"
-                      onClick={() => setFormulaPage((p) => Math.max(1, p - 1))}
-                      disabled={formulaPage <= 1}
-                    >
-                      Prev
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2"
-                      onClick={() => setFormulaPage((p) => Math.min(formulaTotalPages, p + 1))}
-                      disabled={formulaPage >= formulaTotalPages}
-                    >
-                      Next
-                    </Button>
-                    <Select
-                      value={formulaPage.toString()}
-                      onValueChange={(value) => setFormulaPage(parseInt(value, 10))}
-                    >
-                      <SelectTrigger className="h-8 w-[92px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formulaPageOptions.map((page) => (
-                          <SelectItem key={page} value={page}>
-                            {page} / {formulaTotalPages}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <CardContent className="p-0 flex-1 min-h-0 max-h-[min(48vh,520px)] overflow-y-auto">
-                  {formulasError ? (
-                    <div className="py-8 px-4 text-center">
-                      <p className="text-sm text-destructive font-medium">Failed to load formulas</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(formulasError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
-                      </p>
-                    </div>
-                  ) : loadingFormulas ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                    </div>
-                  ) : filteredFormulas.length === 0 ? (
-                    <div className="py-12 text-center text-muted-foreground text-sm">
-                      No formulas. Add one to define production recipes.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 p-3">
-                      {pagedFormulas.map((formula) => (
-                        <button
-                          key={formula.id}
-                          type="button"
-                          title={`${formula.name} (${formula.formula_code})`}
-                          className="flex flex-col justify-center rounded-md border border-border bg-background px-2.5 py-2 text-left transition-colors hover:bg-muted/40 min-w-0"
-                          onClick={() => setSelectedFormulaId(formula.id)}
-                        >
-                          <span className="text-sm font-medium text-card-foreground truncate">
-                            {formula.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {formula.formula_code}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+            <TabsContent
+              value="setup"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden p-6 data-[state=inactive]:hidden"
+            >
+              <ProductionSetupPanel
+                factoryId={factoryId}
+                lines={filteredLines}
+                formulas={setupFormulas}
+                loadingLines={loadingLines}
+                linesError={linesError}
+                loadingFormulas={loadingFormulas}
+                formulasError={formulasError}
+                items={items}
+                getItemName={getItemName}
+                onAddStation={() => setIsAddLineOpen(true)}
+                onSelectStation={setLineActionTarget}
+                onAddRecipe={() => {
+                  if (!requireFactory()) return;
+                  setIsAddFormulaOpen(true);
+                }}
+                showFactoryScopeAll={factoryId == null}
+                factoryNameById={factoryNameById}
+                onEditRecipe={(formulaId) => {
+                  const formula = formulas.find((f) => f.id === formulaId);
+                  if (formula) setEditingFormula(formula);
+                }}
+                onDeleteRecipe={(formulaId) => {
+                  const target =
+                    setupFormulas.find((f) => f.id === formulaId) ??
+                    formulas.find((f) => f.id === formulaId);
+                  if (target) void handleDeactivateFormula(target);
+                }}
+                isDeletingRecipe={isDeletingFormula}
+                focusFormulaId={setupFocusFormulaId}
+                onFocusFormulaHandled={handleSetupFocusFormulaHandled}
+              />
             </TabsContent>
 
             <TabsContent
               value="batches"
-              className="mt-0 grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden data-[state=inactive]:hidden xl:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden p-0 data-[state=inactive]:hidden"
             >
-                <Card className="flex min-h-0 flex-col overflow-hidden border-border">
-                  <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {filteredBatches.length} batches
-                    </span>
-                    <Button
-                      size="sm"
-                      className="bg-brand-primary hover:bg-brand-primary-hover"
-                      onClick={() => setIsAddBatchOpen(true)}
-                      disabled={linesForFactory.length === 0}
-                    >
-                      <Plus className="mr-1 h-4 w-4" />
-                      Add Batch
-                    </Button>
-                  </div>
-                  <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
-                    {batchesError ? (
-                      <div className="px-4 py-8 text-center">
-                        <p className="text-sm font-medium text-destructive">Failed to load batches</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {(batchesError as { data?: { detail?: string } })?.data?.detail || 'Check console for details'}
-                        </p>
-                      </div>
-                    ) : loadingBatches ? (
-                      <div className="flex justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-                      </div>
-                    ) : filteredBatches.length === 0 ? (
-                      <div className="flex min-h-[240px] items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                        {linesForFactory.length === 0
-                          ? 'Add production lines first'
-                          : 'No batches. Create one to start production.'}
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border">
-                        {filteredBatches.map((batch) => (
-                          <BatchRow
-                            key={batch.id}
-                            batch={batch}
-                            lines={linesForFactory}
-                            formulas={formulas}
-                            getItemName={getItemName}
-                            getStatusBadge={getStatusBadge}
-                            isSelected={selectedBatchId === batch.id}
-                            onClick={() => setSelectedBatchId(selectedBatchId === batch.id ? null : batch.id)}
-                            onComplete={() => setCompletingBatch(batch)}
-                            onCancel={() => setCancellingBatch(batch)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <div className="min-h-0 min-w-0 overflow-hidden">
-                {selectedBatchId ? (
-                  <BatchDetailPanel
-                    batchId={selectedBatchId}
-                    lines={linesForFactory}
-                    formulas={formulas}
-                    items={items}
-                    getItemName={getItemName}
-                    getStatusBadge={getStatusBadge}
-                    onClose={() => setSelectedBatchId(null)}
-                    onRequestStart={() => setStartBatchId(selectedBatchId)}
-                    onComplete={(b) => setCompletingBatch(b)}
-                    onCancel={(b) => setCancellingBatch(b)}
-                    onDeleted={() => {
-                      setSelectedBatchId(null);
-                      setStartBatchId(null);
-                    }}
-                    updateProductionBatch={updateProductionBatch}
-                    isUpdatingBatch={isUpdatingBatch}
-                    deleteProductionBatch={deleteProductionBatch}
-                    isDeletingBatch={isDeletingBatch}
-                  />
-                ) : (
-                  <Card className="flex h-full min-h-0 flex-col border-dashed border-border bg-muted/20">
-                    <CardContent className="flex flex-1 items-center justify-center py-16 text-center text-sm text-muted-foreground">
-                      Select a batch to view details
-                    </CardContent>
-                  </Card>
+              <ProductionRunsTab
+                factoryId={factoryId}
+                showFactoryScopeAll={factoryId == null}
+                factoryNameById={factoryNameById}
+                lines={runsLinesForGrid}
+                batches={batchesForRunsTab}
+                scheduleFilterBatches={batchesForScheduleEligibility}
+                formulas={formulas}
+                getItemName={getItemName}
+                getStatusBadge={getStatusBadge}
+                isLgScreen={isLgScreen}
+                onNewRun={openRunsNewRun}
+                onNewRecurring={openRunsRecurring}
+                onHeaderControls={setRunsHeaderControls}
+                allLines={linesForFactory}
+                selectedLineIds={effectiveRunsLineIds}
+                weekBatchGrid={runsWeekBatchGrid}
+                onWeekBatchGridChange={setRunsWeekBatchGrid}
+                dateViewMode={runsDateViewMode}
+                weekAnchorIso={runsWeekAnchorIso}
+                dayIso={runsDayIso}
+                onDateViewModeChange={setRunsDateViewMode}
+                onPickWeek={pickRunsWeek}
+                onPickDay={pickRunsDay}
+                onOpenDay={openRunsDay}
+                selectedBatchId={selectedBatchId}
+                onSelectedBatchChange={setSelectedBatchId}
+                renderDetail={(batchId, close) => (
+                  <>
+                    <BatchDetailPanel
+                      batchId={batchId}
+                      lines={linesForFactory}
+                      factoryScheduleBatches={factoryScheduleBatches}
+                      onSchedulePlannedStartChange={handleSchedulePlannedStartChange}
+                      formulas={formulas}
+                      getItemName={getItemName}
+                      getMachineName={getMachineName}
+                      getStatusBadge={getStatusBadge}
+                      onClose={close}
+                      onRequestStart={() => setStartBatchId(batchId)}
+                      onComplete={(b) => setCompletingBatch(b)}
+                      onCancel={(b) => setCancellingBatch(b)}
+                      onDeleted={() => {
+                        close();
+                        setStartBatchId(null);
+                      }}
+                      updateProductionBatch={updateProductionBatch}
+                      isUpdatingBatch={isUpdatingBatch}
+                      deleteProductionBatch={deleteProductionBatch}
+                      isDeletingBatch={isDeletingBatch}
+                    />
+                    <BatchActivityPanel
+                      batchId={batchId}
+                      displayContext={{ getItemName, getMachineName, getLineName }}
+                    />
+                  </>
                 )}
-                </div>
+              />
             </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+          </div>
+        </Tabs>
+      </EmphasisTabsProvider>
 
-      <Dialog
+      <ProductionLineDetailDialog
+        line={lineActionTarget}
         open={!!lineActionTarget}
         onOpenChange={(open) => {
-          if (!open) {
-            setLineActionTarget(null);
-            setIsLineEditMode(false);
-          }
+          if (!open) setLineActionTarget(null);
         }}
-      >
-        <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle>{lineActionTarget?.name ?? 'Production line'}</DialogTitle>
-            <DialogDescription>
-              Manage this line from one place.
-            </DialogDescription>
-          </DialogHeader>
-          {isLineEditMode ? (
-            <div className="space-y-3">
-              <div className="grid gap-1.5">
-                <Label>Name</Label>
-                <Input value={lineDraftName} onChange={(e) => setLineDraftName(e.target.value)} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Description</Label>
-                <Textarea
-                  value={lineDraftDescription}
-                  onChange={(e) => setLineDraftDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {lineActionTarget?.description ? (
-                <p className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-                  {lineActionTarget.description}
-                </p>
-              ) : (
-                <p className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-                  No description added.
-                </p>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!lineActionTarget) return;
-                if (!isLineEditMode) {
-                  setLineDraftName(lineActionTarget.name);
-                  setLineDraftDescription(lineActionTarget.description ?? '');
-                  setIsLineEditMode(true);
-                } else {
-                  setIsLineEditMode(false);
-                }
-              }}
-            >
-              {isLineEditMode ? 'Cancel edit' : 'Edit'}
-            </Button>
-            {isLineEditMode ? (
-              <Button onClick={handleSaveLineFromPopup} disabled={isUpdatingLine}>
-                {isUpdatingLine ? 'Saving...' : 'Save'}
-              </Button>
-            ) : null}
-            <Button
-              variant="destructive"
-              onClick={() => lineActionTarget && handleDeactivateLine(lineActionTarget)}
-              disabled={isDeletingLine}
-            >
-              {isDeletingLine ? 'Deactivating...' : 'Deactivate line'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        factoryId={factoryId}
+        factoryMachineOptions={factoryMachineOptions}
+        onSave={handleSaveLineDetail}
+        onDeactivate={handleDeactivateLine}
+        isSaving={isUpdatingLine}
+        isDeleting={isDeletingLine}
+      />
 
       <Dialog
         open={!!formulaActionTarget}
@@ -1129,15 +1318,6 @@ const ProductionPage: React.FC = () => {
                   rows={3}
                 />
               </div>
-              <div className="grid gap-1.5">
-                <Label>Estimated duration (minutes)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formulaDraftDuration}
-                  onChange={(e) => setFormulaDraftDuration(e.target.value)}
-                />
-              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1161,9 +1341,6 @@ const ProductionPage: React.FC = () => {
                   setFormulaDraftCode(formulaActionTarget.formula_code);
                   setFormulaDraftName(formulaActionTarget.name);
                   setFormulaDraftDescription(formulaActionTarget.description ?? '');
-                  setFormulaDraftDuration(
-                    formulaActionTarget.estimated_duration_minutes?.toString() ?? ''
-                  );
                   setIsFormulaEditMode(true);
                 } else {
                   setIsFormulaEditMode(false);
@@ -1201,6 +1378,7 @@ const ProductionPage: React.FC = () => {
         line={null}
         createLine={createLine}
         updateLine={updateLine}
+        factoryMachines={factoryMachineOptions}
         isCreating={isCreatingLine}
         isUpdating={isUpdatingLine}
         onSuccess={() => {
@@ -1215,48 +1393,54 @@ const ProductionPage: React.FC = () => {
           if (!open) {
             setIsAddFormulaOpen(false);
             setEditingFormula(null);
+            setCreateRecipeRouteId(null);
           }
         }}
         formula={editingFormula}
         formulas={formulas}
+        factoryId={factoryId}
         createFormula={createFormula}
+        copyFormula={copyFormula}
         updateFormula={updateFormula}
         isCreating={isCreatingFormula}
+        isCopying={isCopyingFormula}
         isUpdating={isUpdatingFormula}
-        onSuccess={() => {
+        onSuccess={(createdFormulaId) => {
           setIsAddFormulaOpen(false);
           setEditingFormula(null);
+          setCreateRecipeRouteId(null);
+          if (createdFormulaId != null) {
+            setSetupFocusFormulaId(createdFormulaId);
+          }
         }}
       />
-
-      {selectedFormula && (
-        <FormulaDetailsDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setSelectedFormulaId(null);
-          }}
-          formula={selectedFormula}
-          lines={linesForFactory}
-          items={items}
-          getItemName={getItemName}
-          onEditRequest={() => {
-            setEditingFormula(selectedFormula);
-            setIsAddFormulaOpen(false);
-            setSelectedFormulaId(null);
-          }}
-        />
-      )}
 
       {/* Add Batch Dialog */}
       <AddBatchDialog
         open={isAddBatchOpen}
-        onOpenChange={setIsAddBatchOpen}
+        onOpenChange={(open) => {
+          setIsAddBatchOpen(open);
+          if (!open) {
+            setScheduleCreateSeed(null);
+            setAddBatchInitialMode('recipe');
+          }
+        }}
+        scheduleCreateSeed={scheduleCreateSeed}
+        initialMode={addBatchInitialMode}
         lines={linesForFactory}
         formulas={formulas}
         factoryId={factoryId}
+        items={items}
         createBatch={createBatch}
         isCreating={isCreatingBatch}
-        onSuccess={() => setIsAddBatchOpen(false)}
+        onSuccess={(batchId) => {
+          const fromSchedule = scheduleCreateSeed != null;
+          setIsAddBatchOpen(false);
+          setScheduleCreateSeed(null);
+          if (!fromSchedule) {
+            setSelectedBatchId(batchId);
+          }
+        }}
       />
 
       {/* Complete Batch Dialog */}
@@ -1302,6 +1486,7 @@ interface AddEditLineDialogProps {
   factories: { id: number; name: string }[];
   factoryId: number | null;
   line: ProductionLine | null;
+  factoryMachines: { id: number; name: string; is_running?: boolean }[];
   createLine: ReturnType<typeof useCreateProductionLineMutation>[0];
   updateLine: ReturnType<typeof useUpdateProductionLineMutation>[0];
   isCreating: boolean;
@@ -1315,6 +1500,7 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
   factories,
   factoryId,
   line,
+  factoryMachines,
   createLine,
   updateLine,
   isCreating,
@@ -1323,6 +1509,7 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
 }) => {
   const [name, setName] = useState(line?.name ?? '');
   const [description, setDescription] = useState(line?.description ?? '');
+  const [machineIds, setMachineIds] = useState<number[]>(line ? lineMachineIds(line) : []);
   const [selectedFactoryId, setSelectedFactoryId] = useState<string>(
     (line?.factory_id ?? factoryId ?? factories[0]?.id)?.toString() ?? ''
   );
@@ -1331,11 +1518,16 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
     if (open) {
       setName(line?.name ?? '');
       setDescription(line?.description ?? '');
+      setMachineIds(line ? lineMachineIds(line) : []);
       setSelectedFactoryId(
         (line?.factory_id ?? factoryId ?? factories[0]?.id)?.toString() ?? ''
       );
     }
   }, [open, line, factoryId, factories]);
+
+  const effectiveFactoryId =
+    line?.factory_id ??
+    (Number.parseInt(selectedFactoryId, 10) || factoryId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1352,7 +1544,7 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
       if (line) {
         await updateLine({
           id: line.id,
-          data: { name: name.trim(), description: description.trim() || undefined },
+          data: { name: name.trim(), description: description.trim() || undefined, machine_ids: machineIds },
         }).unwrap();
         appToast.success('Line updated');
       } else {
@@ -1360,6 +1552,7 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
           factory_id: fid,
           name: name.trim(),
           description: description.trim() || undefined,
+          machine_ids: machineIds,
         }).unwrap();
         appToast.success('Line created');
       }
@@ -1373,15 +1566,15 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[440px]">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="flex max-h-[90vh] w-[min(32rem,94vw)] max-w-none flex-col overflow-hidden sm:max-w-none">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{line ? 'Edit Production Line' : 'Add Production Line'}</DialogTitle>
             <DialogDescription>
               {line ? 'Update the production line details.' : 'Create a new production line.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
             {!line && (
               <div className="grid gap-2">
                 <Label>Factory</Label>
@@ -1415,8 +1608,17 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
                 placeholder="Brief description"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Machines</Label>
+              <ProductionLineMachinesSelector
+                factoryId={effectiveFactoryId}
+                machines={factoryMachines}
+                selectedIds={machineIds}
+                onChange={setMachineIds}
+              />
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -1438,11 +1640,14 @@ interface AddEditFormulaDialogProps {
   onOpenChange: (open: boolean) => void;
   formula: ProductionFormula | null;
   formulas: ProductionFormula[];
+  factoryId: number | null;
   createFormula: ReturnType<typeof useCreateProductionFormulaMutation>[0];
+  copyFormula: ReturnType<typeof useCopyProductionFormulaMutation>[0];
   updateFormula: ReturnType<typeof useUpdateProductionFormulaMutation>[0];
   isCreating: boolean;
+  isCopying: boolean;
   isUpdating: boolean;
-  onSuccess: () => void;
+  onSuccess: (createdFormulaId?: number) => void;
 }
 
 const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
@@ -1450,25 +1655,26 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
   onOpenChange,
   formula,
   formulas,
+  factoryId,
   createFormula,
+  copyFormula,
   updateFormula,
   isCreating,
+  isCopying,
   isUpdating,
   onSuccess,
 }) => {
   const [formulaCode, setFormulaCode] = useState(formula?.formula_code ?? '');
   const [name, setName] = useState(formula?.name ?? '');
   const [description, setDescription] = useState(formula?.description ?? '');
-  const [estimatedDuration, setEstimatedDuration] = useState(
-    formula?.estimated_duration_minutes?.toString() ?? ''
-  );
+  const [copyFromId, setCopyFromId] = useState('__none__');
 
   React.useEffect(() => {
     if (open) {
       setFormulaCode(formula?.formula_code ?? '');
       setName(formula?.name ?? '');
       setDescription(formula?.description ?? '');
-      setEstimatedDuration(formula?.estimated_duration_minutes?.toString() ?? '');
+      setCopyFromId('__none__');
     }
   }, [open, formula]);
 
@@ -1499,18 +1705,35 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
           data: {
             name: name.trim(),
             description: description.trim() || undefined,
-            estimated_duration_minutes: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
           },
         }).unwrap();
         appToast.success('Formula updated');
       } else {
-        await createFormula({
-          formula_code: formulaCode.trim(),
-          name: name.trim(),
-          description: description.trim() || undefined,
-          estimated_duration_minutes: estimatedDuration ? parseInt(estimatedDuration, 10) : undefined,
-        }).unwrap();
-        appToast.success('Formula created');
+        if (!factoryId) {
+          appToast.error('Select a factory first');
+          return;
+        }
+        const created =
+          copyFromId !== '__none__'
+            ? await copyFormula({
+                sourceFormulaId: Number(copyFromId),
+                data: {
+                  formula_code: formulaCode.trim(),
+                  name: name.trim(),
+                  factory_id: factoryId,
+                  description: description.trim() || undefined,
+                },
+              }).unwrap()
+            : await createFormula({
+                formula_code: formulaCode.trim(),
+                name: name.trim(),
+                description: description.trim() || undefined,
+                factory_id: factoryId,
+              }).unwrap();
+        appToast.success('Recipe created');
+        onSuccess(created.id);
+        onOpenChange(false);
+        return;
       }
       onSuccess();
       onOpenChange(false);
@@ -1525,9 +1748,11 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
       <DialogContent className="sm:max-w-[440px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{formula ? 'Edit Formula' : 'Add Formula'}</DialogTitle>
+            <DialogTitle>{formula ? 'Edit product recipe' : 'Add product recipe'}</DialogTitle>
             <DialogDescription>
-              {formula ? 'Update the formula details.' : 'Create a production recipe (BOM).'}
+              {formula
+                ? 'Update the recipe details.'
+                : 'Create a blank recipe or copy path and materials from another recipe.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -1540,6 +1765,24 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
                 disabled={!!formula}
               />
             </div>
+            {!formula ? (
+              <div className="grid gap-2">
+                <Label>Copy from (optional)</Label>
+                <Select value={copyFromId} onValueChange={setCopyFromId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Blank recipe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Blank recipe</SelectItem>
+                    {formulas.filter((f) => f.is_active).map((f) => (
+                      <SelectItem key={f.id} value={String(f.id)}>
+                        {f.name} ({f.formula_code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <Label>Name</Label>
               <Input
@@ -1556,23 +1799,13 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
                 placeholder="Brief description"
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Estimated Duration (minutes, optional)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={estimatedDuration}
-                onChange={(e) => setEstimatedDuration(e.target.value)}
-                placeholder="e.g. 60"
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating || isUpdating}>
-              {(isCreating || isUpdating) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button type="submit" disabled={isCreating || isCopying || isUpdating}>
+              {(isCreating || isCopying || isUpdating) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {formula ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
@@ -1614,1023 +1847,454 @@ const BatchStatusPieChart: React.FC<{ batches: ProductionBatch[] }> = ({ batches
   );
 };
 
-// ─── Batch Detail Panel ───────────────────────────────────────────────
-
-interface BatchDetailPanelProps {
-  batchId: number;
-  lines: ProductionLine[];
-  formulas: ProductionFormula[];
-  items: { id: number; name: string }[];
-  getItemName: (id: number) => string;
-  getStatusBadge: (s: string) => string;
-  onClose: () => void;
-  onRequestStart: () => void;
-  onComplete: (batch: ProductionBatch) => void;
-  onCancel: (batch: ProductionBatch) => void;
-  onDeleted: () => void;
-  updateProductionBatch: ReturnType<typeof useUpdateProductionBatchMutation>[0];
-  isUpdatingBatch: boolean;
-  deleteProductionBatch: ReturnType<typeof useDeleteProductionBatchMutation>[0];
-  isDeletingBatch: boolean;
-}
-
-const BatchDetailPanel: React.FC<BatchDetailPanelProps> = ({
-  batchId,
-  lines,
-  formulas,
-  items,
-  getItemName,
-  getStatusBadge,
-  onClose,
-  onRequestStart,
-  onComplete,
-  onCancel,
-  onDeleted,
-  updateProductionBatch,
-  isUpdatingBatch,
-  deleteProductionBatch,
-  isDeletingBatch,
-}) => {
-  const {
-    data: batch,
-    isLoading: loadingBatch,
-    error: batchError,
-  } = useGetProductionBatchByIdQuery(batchId);
-  const {
-    data: batchItems = [],
-    isLoading: loadingItems,
-  } = useGetBatchItemsQuery({ batchId }, { skip: !batchId });
-  const [addBatchItem, { isLoading: isAddingItem }] = useAddBatchItemMutation();
-  const [updateBatchItem] = useUpdateBatchItemMutation();
-  const [removeBatchItem] = useRemoveBatchItemMutation();
-
-  const byRole = useMemo(() => {
-    const map: Record<ItemRole, ProductionBatchItem[]> = {
-      input: [],
-      output: [],
-      waste: [],
-      byproduct: [],
-    };
-    for (const row of batchItems) {
-      map[row.item_role as ItemRole].push(row);
-    }
-    return map;
-  }, [batchItems]);
-
-  const [addItemId, setAddItemId] = useState('');
-  const [addRole, setAddRole] = useState<ItemRole>('input');
-  const [addExpected, setAddExpected] = useState('');
-  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
-  const [isInlineEditing, setIsInlineEditing] = useState(false);
-  const [editBatchDate, setEditBatchDate] = useState('');
-  const [editShift, setEditShift] = useState('');
-  const [editExpectedOutput, setEditExpectedOutput] = useState('');
-  const [editExpectedDuration, setEditExpectedDuration] = useState('');
-  const [editActualOutput, setEditActualOutput] = useState('');
-  const [editActualDuration, setEditActualDuration] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-  const [collapsedRoles, setCollapsedRoles] = useState<Record<ItemRole, boolean>>({
-    input: false,
-    output: false,
-    waste: true,
-    byproduct: true,
-  });
-
-  const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
-  const formula = batch?.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
-
-  useEffect(() => {
-    setAddItemId('');
-    setAddRole('input');
-    setAddExpected('');
-    setIsInlineEditing(false);
-  }, [batchId]);
-
-  useEffect(() => {
-    if (!batch) return;
-    setEditBatchDate(batch.batch_date.split('T')[0] ?? '');
-    setEditShift(batch.shift ?? '');
-    setEditExpectedOutput(batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '');
-    setEditExpectedDuration(batch.expected_duration_minutes != null ? String(batch.expected_duration_minutes) : '');
-    setEditActualOutput(batch.actual_output_quantity != null ? String(batch.actual_output_quantity) : '');
-    setEditActualDuration(batch.actual_duration_minutes != null ? String(batch.actual_duration_minutes) : '');
-    setEditNotes(batch.notes ?? '');
-    // Reset drafts only for a different batch or a newer server copy, not on
-    // every refetched object identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.id, batch?.updated_at]);
-
-  useEffect(() => {
-    setCollapsedRoles((prev) => {
-      const next = {} as Record<ItemRole, boolean>;
-      for (const role of ITEM_ROLES) {
-        const hasRows = byRole[role].length > 0;
-        // Default behavior: roles with rows are expanded; empty roles are collapsed.
-        next[role] = !hasRows;
-      }
-      const unchanged = ITEM_ROLES.every((role) => prev[role] === next[role]);
-      return unchanged ? prev : next;
-    });
-  }, [byRole]);
-
-  const canMutateItems = batch && (batch.status === 'draft' || batch.status === 'in_progress');
-  const canEditActuals = batch?.status === 'in_progress';
-  const canEditBatch = batch?.status === 'draft' || batch?.status === 'in_progress';
-
-  const handleSaveBatchDetails = async () => {
-    if (!batch || !canEditBatch) return;
-    try {
-      const currentExpectedOutput =
-        batch.expected_output_quantity ??
-        byRole.output.reduce((sum, row) => sum + (row.expected_quantity ?? 0), 0);
-      const nextExpectedOutput = editExpectedOutput.trim()
-        ? parseInt(editExpectedOutput, 10)
-        : batch.expected_output_quantity ?? undefined;
-
-      const base = {
-        batch_date: editBatchDate,
-        shift: editShift.trim() || undefined,
-        notes: editNotes.trim() || undefined,
-      };
-      if (batch.status === 'draft') {
-        await updateProductionBatch({
-          id: batch.id,
-          data: {
-            ...base,
-            expected_output_quantity: nextExpectedOutput,
-            expected_duration_minutes: editExpectedDuration.trim() ? parseInt(editExpectedDuration, 10) : undefined,
-          },
-        }).unwrap();
-
-        if (
-          nextExpectedOutput &&
-          currentExpectedOutput > 0 &&
-          nextExpectedOutput !== currentExpectedOutput
-        ) {
-          const multiplier = nextExpectedOutput / currentExpectedOutput;
-          const scaleOps = byRole.input
-            .filter((row) => row.expected_quantity != null)
-            .map((row) => {
-              const scaledExpected = Math.max(1, Math.round((row.expected_quantity ?? 0) * multiplier));
-              if (scaledExpected === row.expected_quantity) return null;
-              return updateBatchItem({
-                id: row.id,
-                data: { expected_quantity: scaledExpected },
-              }).unwrap();
-            })
-            .filter(Boolean) as Array<Promise<unknown>>;
-
-          if (scaleOps.length > 0) {
-            await Promise.all(scaleOps);
-            appToast.success('Batch updated and input lines scaled');
-          } else {
-            appToast.success('Batch updated');
-          }
-          setIsInlineEditing(false);
-          return;
-        }
-      } else {
-        await updateProductionBatch({
-          id: batch.id,
-          data: {
-            ...base,
-            actual_output_quantity: editActualOutput.trim() ? parseInt(editActualOutput, 10) : undefined,
-            actual_duration_minutes: editActualDuration.trim() ? parseInt(editActualDuration, 10) : undefined,
-          },
-        }).unwrap();
-      }
-      appToast.success('Batch updated');
-      setIsInlineEditing(false);
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to update');
-    }
-  };
-
-  const handleAddLine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batch) return;
-    const itemId = parseInt(addItemId, 10);
-    const exp = addExpected.trim() ? parseInt(addExpected, 10) : undefined;
-    if (!itemId) {
-      appToast.error('Select an item');
-      return;
-    }
-    try {
-      await addBatchItem({
-        batchId: batch.id,
-        data: {
-          batch_id: batch.id,
-          item_id: itemId,
-          item_role: addRole,
-          expected_quantity: exp,
-        },
-      }).unwrap();
-      appToast.success('Line added');
-      setAddItemId('');
-      setAddExpected('');
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to add line');
-    }
-  };
-
-  const handleSaveActual = async (row: ProductionBatchItem, raw: string) => {
-    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
-    if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 0)) {
-      appToast.error('Invalid quantity');
-      return;
-    }
-    try {
-      await updateBatchItem({
-        id: row.id,
-        data: { actual_quantity: n },
-      }).unwrap();
-      appToast.success('Saved');
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to save');
-    }
-  };
-
-  const handleSaveExpected = async (row: ProductionBatchItem, raw: string) => {
-    if (!canMutateItems) return;
-    const n = raw.trim() === '' ? undefined : parseInt(raw, 10);
-    if (raw.trim() !== '' && (n === undefined || Number.isNaN(n) || n < 1)) {
-      appToast.error('Expected quantity must be a positive integer');
-      return;
-    }
-    try {
-      await updateBatchItem({
-        id: row.id,
-        data: { expected_quantity: n },
-      }).unwrap();
-      appToast.success('Expected quantity saved');
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to save');
-    }
-  };
-
-  const handleDeleteDraft = async () => {
-    if (!batch || batch.status !== 'draft') return;
-    if (!window.confirm(`Remove draft batch ${batch.batch_number}?`)) return;
-    try {
-      await deleteProductionBatch(batch.id).unwrap();
-      appToast.success('Draft removed');
-      onDeleted();
-    } catch (e: unknown) {
-      const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to delete');
-    }
-  };
-
-  if (loadingBatch) {
-    return (
-      <Card className="border-border">
-        <CardContent className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (batchError || !batch) {
-    return (
-      <Card className="border-border border-destructive/40">
-        <CardContent className="py-8 text-center text-sm text-destructive">
-          Could not load batch.
-          <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
-            Close
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const efficiencyDisplay = formatOptionalPercent(batch.efficiency_percentage);
-
-  const linesBlock = (
-    <div className="flex min-h-0 flex-col">
-      {loadingItems ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
-        </div>
-      ) : batchItems.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-          {batch.status === 'draft' && batch.formula_id
-            ? 'No lines yet — they appear after Start. Add items below when allowed, or wait for the formula.'
-            : batch.status === 'draft'
-              ? 'No lines yet. Add items below, or attach a formula and start.'
-              : 'No line items returned.'}
-        </p>
-      ) : (
-        <div className="space-y-4 pb-2 pl-0.5 pr-1 pt-0.5">
-          {ITEM_ROLES.map((role) => {
-            const rows = byRole[role];
-            const isCollapsed = collapsedRoles[role] ?? rows.length === 0;
-            return (
-              <div key={role} className="rounded-lg border border-border/80 bg-card shadow-sm">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2.5 text-left"
-                  onClick={() =>
-                    setCollapsedRoles((prev) => ({
-                      ...prev,
-                      [role]: !isCollapsed,
-                    }))
-                  }
-                  aria-expanded={!isCollapsed}
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <Badge
-                      variant="secondary"
-                      className={cn(
-                        'shrink-0 text-[10px] font-semibold uppercase tracking-wide',
-                        BATCH_ROLE_BADGE[role]
-                      )}
-                    >
-                      {BATCH_ROLE_BADGE_LABEL[role]}
-                    </Badge>
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {BATCH_ROLE_SECTION_TITLE[role]}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {rows.length} {rows.length === 1 ? 'line' : 'lines'}
-                  </span>
-                </button>
-
-                {!isCollapsed && (
-                  <>
-                    {rows.length === 0 ? (
-                      <p className="px-3 py-4 text-center text-sm italic text-muted-foreground">No lines</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="border-border/60 hover:bg-transparent">
-                            <TableHead className="text-xs font-medium">Item</TableHead>
-                            <TableHead className="w-[88px] text-right text-xs font-medium">Expected</TableHead>
-                            <TableHead className="w-[100px] text-right text-xs font-medium">Actual</TableHead>
-                            <TableHead className="w-[48px] p-0 text-right text-xs font-medium"> </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="![&_tr:last-child]:border-b [&_tr:last-child]:border-border/60">
-                          {rows.map((row) => (
-                            <BatchLineTableRow
-                              key={row.id}
-                              row={row}
-                              name={getItemName(row.item_id)}
-                              canRemove={!!canMutateItems}
-                              canEditExpected={!!canMutateItems && row.item_role === 'input'}
-                              canEditActual={!!canEditActuals}
-                              onRemove={async () => {
-                                if (!window.confirm(`Remove line for ${getItemName(row.item_id)}?`)) return;
-                                try {
-                                  await removeBatchItem(row.id).unwrap();
-                                  appToast.success('Removed');
-                                } catch (e: unknown) {
-                                  const err = e as { data?: { detail?: string } };
-                                  appToast.error(err?.data?.detail || 'Failed');
-                                }
-                              }}
-                              onSaveExpected={(raw) => handleSaveExpected(row, raw)}
-                              onSaveActual={(raw) => handleSaveActual(row, raw)}
-                            />
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-
-  const addItemForm = (
-    <form onSubmit={handleAddLine} className="flex flex-col gap-4">
-      <div>
-        <p className="text-sm font-medium text-foreground">Add item</p>
-        <p className="text-xs text-muted-foreground">Appends a line to this batch. Saves immediately.</p>
-      </div>
-      <div className="grid gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label htmlFor="batch-add-item">Item</Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAddItemDialogOpen(true)}
-          >
-            <Plus className="mr-1 h-4 w-4" />
-            Create item
-          </Button>
-        </div>
-        <Select value={addItemId} onValueChange={setAddItemId}>
-          <SelectTrigger id="batch-add-item" className="w-full">
-            <SelectValue placeholder="Select item" />
-          </SelectTrigger>
-          <SelectContent>
-            {items.map((i) => (
-              <SelectItem key={i.id} value={i.id.toString()}>
-                {i.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="batch-add-role">Role</Label>
-        <Select value={addRole} onValueChange={(v) => setAddRole(v as ItemRole)}>
-          <SelectTrigger id="batch-add-role" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ITEM_ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r === 'output' ? 'products' : r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="batch-add-exp">Expected qty (optional)</Label>
-        <Input
-          id="batch-add-exp"
-          type="number"
-          min={0}
-          placeholder="—"
-          value={addExpected}
-          onChange={(e) => setAddExpected(e.target.value)}
-        />
-      </div>
-      <Button
-        type="submit"
-        size="sm"
-        disabled={isAddingItem}
-        className="w-full bg-brand-primary hover:bg-brand-primary-hover sm:w-auto sm:self-start"
-      >
-        {isAddingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Add item
-      </Button>
-      <AddItemDialog
-        open={isAddItemDialogOpen}
-        onOpenChange={setIsAddItemDialogOpen}
-        onSuccess={(item) => {
-          setAddItemId(item.id.toString());
-          appToast.success('Item created and selected');
-        }}
-      />
-    </form>
-  );
-
-  const renderSummaryDataBlock = (isEditing: boolean) => (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Summary</p>
-      {isEditing ? (
-        <div className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Production line</Label>
-              <p className="text-sm font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Formula</Label>
-              <p className="text-sm font-medium">{formula?.name ?? 'Simple mode'}</p>
-            </div>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="batch-edit-date">Batch date</Label>
-              <Input id="batch-edit-date" type="date" value={editBatchDate} onChange={(e) => setEditBatchDate(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="batch-edit-shift">Shift</Label>
-              <Input id="batch-edit-shift" value={editShift} onChange={(e) => setEditShift(e.target.value)} placeholder="Optional" />
-            </div>
-          </div>
-          {batch.status === 'draft' && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-out">Expected product qty</Label>
-                <Input id="batch-edit-exp-out" type="number" min={0} value={editExpectedOutput} onChange={(e) => setEditExpectedOutput(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-exp-dur">Expected duration (minutes)</Label>
-                <Input id="batch-edit-exp-dur" type="number" min={0} value={editExpectedDuration} onChange={(e) => setEditExpectedDuration(e.target.value)} placeholder="Optional" />
-              </div>
-            </div>
-          )}
-          {batch.status === 'in_progress' && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-out">Actual product qty</Label>
-                <Input id="batch-edit-act-out" type="number" min={0} value={editActualOutput} onChange={(e) => setEditActualOutput(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="batch-edit-act-dur">Actual duration (minutes)</Label>
-                <Input id="batch-edit-act-dur" type="number" min={0} value={editActualDuration} onChange={(e) => setEditActualDuration(e.target.value)} placeholder="Optional" />
-              </div>
-            </div>
-          )}
-          <div className="grid gap-1.5">
-            <Label htmlFor="batch-edit-notes">Notes</Label>
-            <Textarea id="batch-edit-notes" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={3} placeholder="Optional" />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" className="bg-brand-primary hover:bg-brand-primary-hover" onClick={handleSaveBatchDetails} disabled={isUpdatingBatch}>
-              {isUpdatingBatch && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save changes
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setIsInlineEditing(false)}>
-              Cancel edit
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-muted-foreground">Production line</dt>
-              <dd className="mt-0.5 font-medium">{line?.name ?? `Line #${batch.production_line_id}`}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Formula</dt>
-              <dd className="mt-0.5 font-medium">{formula?.name ?? 'Simple mode'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">Batch date</dt>
-              <dd className="mt-0.5 font-medium tabular-nums">
-                {new Date(batch.batch_date).toLocaleDateString()}
-              </dd>
-            </div>
-            {batch.expected_output_quantity != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Expected products</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{batch.expected_output_quantity}</dd>
-              </div>
-            )}
-            {batch.actual_output_quantity != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Actual products</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{batch.actual_output_quantity}</dd>
-              </div>
-            )}
-            {efficiencyDisplay != null && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Efficiency</dt>
-                <dd className="mt-0.5 font-medium tabular-nums">{efficiencyDisplay}</dd>
-              </div>
-            )}
-          </dl>
-          {batch.notes?.trim() && (
-            <div className="mt-4 border-t border-border/60 pt-3">
-              <p className="text-xs text-muted-foreground">Notes</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm font-medium leading-relaxed">{batch.notes}</p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
-  const summaryDataBlock = renderSummaryDataBlock(isInlineEditing);
-
-  const workflowActionsBlock = (
-    <div className="flex flex-wrap gap-2">
-      {batch.status === 'draft' && (
-        <>
-          <Button
-            size="sm"
-            className="bg-brand-primary hover:bg-brand-primary-hover"
-            onClick={onRequestStart}
-          >
-            <Play className="mr-1 h-4 w-4" />
-            Start…
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
-            <Pencil className="mr-1 h-4 w-4" />
-            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive hover:text-destructive"
-            onClick={handleDeleteDraft}
-            disabled={isDeletingBatch}
-          >
-            {isDeletingBatch ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-1 h-4 w-4" />
-            )}
-            Delete draft
-          </Button>
-        </>
-      )}
-        {batch.status === 'in_progress' && (
-          <>
-          <Button size="sm" variant="outline" onClick={() => setIsInlineEditing((prev) => !prev)}>
-            <Pencil className="mr-1 h-4 w-4" />
-            {isInlineEditing ? 'Cancel edit' : 'Edit batch'}
-          </Button>
-            <Button
-              size="sm"
-              className="bg-brand-primary hover:bg-brand-primary-hover"
-              onClick={() => onComplete(batch)}
-            >
-              <Check className="mr-1 h-4 w-4" />
-              Complete
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={() => onCancel(batch)}
-            >
-              <X className="mr-1 h-4 w-4" />
-              Cancel run
-            </Button>
-          </>
-        )}
-      {batch.status === 'completed' && (
-        <span className="text-xs text-muted-foreground">Products and waste auto-posted on completion.</span>
-      )}
-    </div>
-  );
-
-  const summaryBlock = (
-    <div className="space-y-4">
-      {summaryDataBlock}
-      {workflowActionsBlock}
-    </div>
-  );
-
-  const leftDetailsAndLinesBlock = (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto overscroll-contain py-1 pl-1 pr-2 md:pr-5">
-      {summaryBlock}
-      <Separator />
-      {linesBlock}
-    </div>
-  );
-
-  const rightAddBlock = (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto overscroll-contain py-1 pl-0.5 pr-1 md:pl-2 md:pr-2">
-      {canMutateItems ? (
-        <div className="rounded-lg border border-border/80 bg-card p-3 md:p-4">{addItemForm}</div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Add item is available while batch is <span className="font-medium">draft</span> or <span className="font-medium">in progress</span>.
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <>
-      <Card className="flex h-full min-h-0 flex-col border-border shadow-sm">
-        <CardContent className="flex h-full min-h-0 flex-col gap-4 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p className="text-base font-semibold tracking-tight text-foreground">{batch.batch_number}</p>
-              <span
-                className={cn(
-                  'inline-block rounded-md px-2 py-0.5 text-xs font-semibold capitalize',
-                  getStatusBadge(batch.status)
-                )}
-              >
-                {batch.status.replace('_', ' ')}
-              </span>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Clear selection">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-6 md:grid-cols-[minmax(460px,68%)_minmax(260px,32%)] md:gap-8">
-            <div className="min-h-0 min-w-0 border-border md:border-r md:overflow-hidden">{leftDetailsAndLinesBlock}</div>
-            <div className="min-h-0 min-w-0 md:min-h-[min(60vh,520px)] md:overflow-hidden">{rightAddBlock}</div>
-          </div>
-        </CardContent>
-      </Card>
-    </>
-  );
-};
-
-interface BatchLineTableRowProps {
-  row: ProductionBatchItem;
-  name: string;
-  canRemove: boolean;
-  canEditExpected: boolean;
-  canEditActual: boolean;
-  onRemove: () => void;
-  onSaveExpected: (raw: string) => void;
-  onSaveActual: (raw: string) => void;
-}
-
-const BatchLineTableRow: React.FC<BatchLineTableRowProps> = ({
-  row,
-  name,
-  canRemove,
-  canEditExpected,
-  canEditActual,
-  onRemove,
-  onSaveExpected,
-  onSaveActual,
-}) => {
-  const [localExpected, setLocalExpected] = useState(row.expected_quantity?.toString() ?? '');
-  const [localActual, setLocalActual] = useState(row.actual_quantity?.toString() ?? '');
-  const [editingExpected, setEditingExpected] = useState(false);
-  const [editingActual, setEditingActual] = useState(false);
-
-  useEffect(() => {
-    setLocalExpected(row.expected_quantity?.toString() ?? '');
-    setLocalActual(row.actual_quantity?.toString() ?? '');
-  }, [row.id, row.expected_quantity, row.actual_quantity]);
-
-  return (
-    <TableRow className="border-border/60">
-      <TableCell className="py-2.5 align-middle font-medium">{name}</TableCell>
-      <TableCell className="py-2.5 align-middle text-right text-sm tabular-nums text-muted-foreground">
-        {canEditExpected && editingExpected ? (
-          <>
-            <Label htmlFor={`expected-${row.id}`} className="sr-only">
-              Expected for {name}
-            </Label>
-            <Input
-              id={`expected-${row.id}`}
-              autoFocus
-              className="ml-auto h-8 w-[5.5rem]"
-              type="text"
-              inputMode="numeric"
-              value={localExpected}
-              onChange={(e) => setLocalExpected(e.target.value)}
-              onBlur={() => {
-                if (localExpected !== (row.expected_quantity?.toString() ?? '')) {
-                  onSaveExpected(localExpected);
-                }
-                setEditingExpected(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                } else if (e.key === 'Escape') {
-                  setLocalExpected(row.expected_quantity?.toString() ?? '');
-                  setEditingExpected(false);
-                }
-              }}
-              placeholder="—"
-            />
-          </>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums',
-              canEditExpected && 'cursor-text hover:bg-muted/40'
-            )}
-            onDoubleClick={() => {
-              if (canEditExpected) setEditingExpected(true);
-            }}
-            title={canEditExpected ? 'Double-click to edit expected qty' : undefined}
-          >
-            {row.expected_quantity ?? '—'}
-          </button>
-        )}
-      </TableCell>
-      <TableCell className="py-2.5 align-middle text-right">
-        {canEditActual && editingActual ? (
-          <>
-            <Label htmlFor={`actual-${row.id}`} className="sr-only">
-              Actual for {name}
-            </Label>
-            <Input
-              id={`actual-${row.id}`}
-              autoFocus
-              className="ml-auto h-8 w-[5.5rem]"
-              type="text"
-              inputMode="numeric"
-              value={localActual}
-              onChange={(e) => setLocalActual(e.target.value)}
-              onBlur={() => {
-                if (localActual !== (row.actual_quantity?.toString() ?? '')) {
-                  onSaveActual(localActual);
-                }
-                setEditingActual(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                } else if (e.key === 'Escape') {
-                  setLocalActual(row.actual_quantity?.toString() ?? '');
-                  setEditingActual(false);
-                }
-              }}
-              placeholder="—"
-            />
-          </>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              'ml-auto inline-flex min-h-8 min-w-[5.5rem] items-center justify-end rounded px-1 text-right text-sm tabular-nums text-muted-foreground',
-              canEditActual && 'cursor-text hover:bg-muted/40'
-            )}
-            onDoubleClick={() => {
-              if (canEditActual) setEditingActual(true);
-            }}
-            title={canEditActual ? 'Double-click to edit actual qty' : undefined}
-          >
-            {row.actual_quantity ?? '—'}
-          </button>
-        )}
-      </TableCell>
-      <TableCell className="p-1 align-middle text-right">
-        {canRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={onRemove}
-            aria-label={`Remove ${name}`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-};
-
-// ─── Batch Row ───────────────────────────────────────────────────────
-
-interface BatchRowProps {
-  batch: ProductionBatch;
-  lines: ProductionLine[];
-  formulas: ProductionFormula[];
-  getItemName: (itemId: number) => string;
-  getStatusBadge: (s: string) => string;
-  isSelected?: boolean;
-  onClick?: () => void;
-  onComplete: () => void;
-  onCancel: () => void;
-}
-
-const BatchRow: React.FC<BatchRowProps> = ({
-  batch,
-  lines,
-  formulas,
-  getItemName,
-  getStatusBadge,
-  isSelected,
-  onClick,
-  onComplete,
-  onCancel,
-}) => {
-  const line = lines.find((l) => l.id === batch.production_line_id);
-  const formula = batch.formula_id
-    ? formulas.find((f) => f.id === batch.formula_id)
-    : null;
-  const { data: formulaItems = [] } = useGetFormulaItemsQuery(
-    { formulaId: batch.formula_id ?? 0 },
-    { skip: !batch.formula_id }
-  );
-  const { data: batchRowItems = [] } = useGetBatchItemsQuery(
-    { batchId: batch.id },
-    { skip: !batch.id }
-  );
-  const returnProductNames = useMemo(() => {
-    const outputIds = new Set<number>();
-    for (const row of formulaItems) {
-      if (row.item_role === 'output') outputIds.add(row.item_id);
-    }
-    for (const row of batchRowItems) {
-      if (row.item_role === 'output') outputIds.add(row.item_id);
-    }
-    return Array.from(outputIds).map(getItemName).filter(Boolean);
-  }, [formulaItems, batchRowItems, getItemName]);
-  const returnProductsDisplay =
-    returnProductNames.length > 0 ? returnProductNames.join(', ') : 'No products yet';
-
-  return (
-    <div
-      className={`flex items-center justify-between px-4 py-3 hover:bg-muted/50 cursor-pointer ${isSelected ? 'bg-brand-primary/10' : ''}`}
-      onClick={onClick}
-    >
-        <div>
-        <div className="font-medium text-card-foreground">{batch.batch_number}</div>
-        <div className="text-sm text-muted-foreground">
-          {line?.name ?? `Line #${batch.production_line_id}`}
-          {formula && ` • ${formula.name}`}
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <span className={`text-xs px-2 py-0.5 rounded ${getStatusBadge(batch.status)}`}>
-            {batch.status.replace('_', ' ')}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {new Date(batch.batch_date).toLocaleDateString()}
-            {batch.expected_output_quantity != null && ` • Expected: ${batch.expected_output_quantity}`}
-            {batch.actual_output_quantity != null && ` • Actual: ${batch.actual_output_quantity}`}
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-2 text-right" onClick={(e) => e.stopPropagation()}>
-        <div className="text-xs text-muted-foreground">{returnProductsDisplay}</div>
-        <div className="flex items-center gap-1">
-        {batch.status === 'in_progress' && (
-          <>
-            <Button size="sm" variant="outline" onClick={onComplete}>
-              <Check className="h-4 w-4 mr-1" />
-              Complete
-            </Button>
-            <Button size="sm" variant="outline" className="text-destructive" onClick={onCancel}>
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-          </>
-        )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── Add Batch Dialog ────────────────────────────────────────────────
+
+/** RTK `data = []` defaults are a new array every render — breaks useEffect dependency equality. */
+const EMPTY_QUERY_LIST: never[] = [];
 
 interface AddBatchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  scheduleCreateSeed?: ScheduleBatchCreateSeed | null;
+  initialMode?: 'recipe' | 'recurring';
   lines: ProductionLine[];
   formulas: ProductionFormula[];
   factoryId: number | null;
+  items: { id: number; name: string }[];
   createBatch: ReturnType<typeof useCreateProductionBatchMutation>[0];
   isCreating: boolean;
-  onSuccess: () => void;
+  onSuccess: (batchId: number) => void;
 }
 
 const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
   open,
   onOpenChange,
+  scheduleCreateSeed,
+  initialMode = 'recipe',
   lines,
   formulas,
   factoryId,
+  items,
   createBatch,
   isCreating,
   onSuccess,
 }) => {
-  const [addBatchItem] = useAddBatchItemMutation();
+  const millTimezone = useMillTimezone();
+  const [batchMode, setBatchMode] = useState<'recipe' | 'simple' | 'recurring'>('recipe');
   const [lineId, setLineId] = useState('');
-  const [formulaId, setFormulaId] = useState('__none__');
-  const [batchDate, setBatchDate] = useState(() =>
-    new Date().toISOString().split('T')[0]
-  );
-  const [shift, setShift] = useState('');
+  const [formulaId, setFormulaId] = useState('');
+  const [selectedShiftId, setSelectedShiftId] = useState<number | null>(null);
   const [expectedOutput, setExpectedOutput] = useState('');
+  const { data: workspaceShifts = [] } = useGetWorkspaceShiftsQuery(
+    { activeOnly: true },
+    { skip: !open },
+  );
   const [notes, setNotes] = useState('');
-  const selectedFormulaId = formulaId && formulaId !== '__none__' ? parseInt(formulaId, 10) : null;
-  const parsedExpectedOutput =
-    expectedOutput.trim() === '' ? null : parseInt(expectedOutput, 10);
-  const { data: selectedFormulaItems = [] } = useGetFormulaItemsQuery(
-    { formulaId: selectedFormulaId ?? 0 },
-    { skip: !selectedFormulaId }
+  const [plannedStart, setPlannedStart] = useState('');
+  const [recurrenceCadence, setRecurrenceCadence] =
+    useState<ProductionRunRecurrenceCadence>(DEFAULT_RECURRENCE_CADENCE);
+  const [recurrenceEnd, setRecurrenceEnd] = useState('');
+  const [createProgram, { isLoading: isCreatingProgram }] = useCreateProductionBatchProgramMutation();
+  const [salesOrderId, setSalesOrderId] = useState('');
+  const [salesItemId, setSalesItemId] = useState('');
+  const [overlapConflicts, setOverlapConflicts] = useState<ProductionScheduleConflict[]>([]);
+  const activeFormulas = useMemo(() => formulas.filter((f) => f.is_active), [formulas]);
+  const usesRecipe = batchMode === 'recipe' || batchMode === 'recurring';
+  const selectedFormulaId =
+    usesRecipe && formulaId ? parseInt(formulaId, 10) : null;
+  const parsedExpectedOutput = parseProductionQuantity(expectedOutput);
+  const { data: formulaStagesRaw } = useGetFormulaStagesQuery(selectedFormulaId ?? 0, {
+    skip: !selectedFormulaId,
+  });
+  const formulaStages = formulaStagesRaw ?? EMPTY_QUERY_LIST;
+  const selectedFormula = formulas.find((f) => f.id === selectedFormulaId) ?? null;
+  const { data: routeStepsRaw } = useGetProductionRouteStepsQuery(selectedFormula?.route_id ?? 0, {
+    skip: !selectedFormula?.route_id,
+  });
+  const routeSteps = routeStepsRaw ?? EMPTY_QUERY_LIST;
+  const { data: formulaStageItemsRaw } = useGetAllFormulaStageItemsQuery(selectedFormulaId ?? 0, {
+    skip: !selectedFormulaId,
+  });
+  const formulaStageItems = formulaStageItemsRaw ?? EMPTY_QUERY_LIST;
+  const { data: formulaStageParametersRaw } = useGetAllFormulaStageParametersQuery(
+    selectedFormulaId ?? 0,
+    { skip: !selectedFormulaId },
+  );
+  const formulaStageParameters = formulaStageParametersRaw ?? EMPTY_QUERY_LIST;
+  const [stageDrafts, setStageDrafts] = useState<
+    Record<number, { include: boolean; lineId: string; minutes: string; machineId: string }>
+  >({});
+  const [itemQtyDrafts, setItemQtyDrafts] = useState<Record<number, string>>({});
+  const [conditionPlannedDrafts, setConditionPlannedDrafts] = useState<Record<number, string>>({});
+  const [selectedPathStageId, setSelectedPathStageId] = useState<number | null>(null);
+  const [recipeMoreOpen, setRecipeMoreOpen] = useState(false);
+  const [recipePickerOpen, setRecipePickerOpen] = useState(false);
+  const [runMachineId, setRunMachineId] = useState<number | null>(null);
+  const { data: salesOrders = [] } = useGetSalesOrdersQuery({ limit: 100 }, { skip: !open });
+  const { data: salesItems = [] } = useGetSalesOrderItemsQuery(Number(salesOrderId), { skip: !salesOrderId });
+  const plannedDate = plannedStart ? new Date(plannedStart) : null;
+  const { data: scheduleBatches = [] } = useGetProductionScheduleQuery(
+    {
+      factory_id: factoryId ?? 0,
+      start: plannedDate ? new Date(plannedDate.getTime() - 7 * 86_400_000).toISOString() : '',
+      end: plannedDate ? new Date(plannedDate.getTime() + 14 * 86_400_000).toISOString() : '',
+    },
+    { skip: !factoryId || !plannedDate || Number.isNaN(plannedDate.getTime()) },
   );
 
   const formulaDefaultOutput = useMemo(() => {
-    if (!selectedFormulaId || selectedFormulaItems.length === 0) return 0;
-    return selectedFormulaItems
-      .filter((fi) => fi.item_role === 'output')
-      .reduce((sum, fi) => sum + fi.quantity, 0);
-  }, [selectedFormulaId, selectedFormulaItems]);
+    if (!selectedFormulaId || formulaStages.length === 0) return 0;
+    return finishedGoodOutputQuantity(formulaStages, formulaStageItems);
+  }, [selectedFormulaId, formulaStages, formulaStageItems]);
+
+  const recipeMaterialScale = useMemo(() => {
+    const baseOutput = formulaDefaultOutput;
+    const targetOutput =
+      parsedExpectedOutput != null && parsedExpectedOutput > 0
+        ? parsedExpectedOutput
+        : baseOutput;
+    if (baseOutput <= 0 || targetOutput <= 0) {
+      return { multiplier: 1, baseOutput, targetOutput: baseOutput };
+    }
+    return {
+      multiplier: targetOutput / baseOutput,
+      baseOutput,
+      targetOutput,
+    };
+  }, [formulaDefaultOutput, parsedExpectedOutput]);
+
+  const lastStepOutputItemIds = useMemo(
+    () => finishedGoodOutputItemIds(formulaStages, formulaStageItems),
+    [formulaStages, formulaStageItems],
+  );
 
   React.useEffect(() => {
-    if (open) {
+    if (!open) return;
+    setBatchMode(initialMode);
+    setFormulaId('');
+    setSelectedShiftId(null);
+    setExpectedOutput('');
+    setNotes('');
+    setSalesOrderId('');
+    setSalesItemId('');
+    setOverlapConflicts([]);
+    setStageDrafts({});
+    setItemQtyDrafts({});
+    setConditionPlannedDrafts({});
+    setSelectedPathStageId(null);
+    setRecipeMoreOpen(false);
+    setRecipePickerOpen(false);
+    setRunMachineId(null);
+    setRecurrenceCadence('daily');
+    setRecurrenceEnd('');
+    if (scheduleCreateSeed) {
       setLineId('');
-      setFormulaId('__none__');
-      setBatchDate(new Date().toISOString().split('T')[0]);
-      setShift('');
-      setExpectedOutput('');
-      setNotes('');
+      setPlannedStart(plannedStartLocalAtEight(scheduleCreateSeed.day));
+    } else {
+      setLineId('');
+      setPlannedStart('');
     }
-  }, [open]);
+  }, [open, scheduleCreateSeed?.day.getTime(), initialMode]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const lid = parseInt(lineId, 10);
+  React.useEffect(() => {
+    if (!open || !usesRecipe) return;
+    if (formulaId) return;
+    if (activeFormulas.length === 1) {
+      setFormulaId(String(activeFormulas[0].id));
+    }
+  }, [open, usesRecipe, formulaId, activeFormulas]);
+
+  React.useEffect(() => {
+    if (!selectedFormulaId || formulaStages.length === 0) {
+      setStageDrafts((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+    const next = buildStageDraftDefaults(formulaStages, routeSteps);
+    setStageDrafts((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => {
+          const id = Number(key);
+          const a = prev[id];
+          const b = next[id];
+          return (
+            a &&
+            b &&
+            a.include === b.include &&
+            a.lineId === b.lineId &&
+            a.minutes === b.minutes &&
+            a.machineId === b.machineId
+          );
+        })
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [selectedFormulaId, formulaStages, routeSteps]);
+
+  const includedFormulaStages = useMemo(
+    () =>
+      formulaStages.filter((stage) => stageDrafts[stage.id]?.include !== false),
+    [formulaStages, stageDrafts],
+  );
+  const includedStageCount = includedFormulaStages.length;
+  const showRailMachine =
+    batchMode === 'simple' || (usesRecipe && includedStageCount === 1);
+  const showStepMachine = usesRecipe && includedStageCount >= 2;
+
+  const railMachineLine = useMemo(() => {
+    if (batchMode === 'simple') {
+      const id = parseInt(lineId, 10);
+      if (Number.isNaN(id)) return undefined;
+      return lines.find((l) => l.id === id);
+    }
+    if (usesRecipe && includedStageCount === 1) {
+      const stage = includedFormulaStages[0];
+      const draft = stageDrafts[stage.id];
+      const lid =
+        draft?.lineId && draft.lineId !== ''
+          ? Number(draft.lineId)
+          : stage.production_line_id ?? undefined;
+      return lines.find((l) => l.id === lid);
+    }
+    return undefined;
+  }, [batchMode, usesRecipe, lineId, lines, includedStageCount, includedFormulaStages, stageDrafts]);
+
+  React.useEffect(() => {
+    if (!selectedFormulaId || formulaStages.length === 0) {
+      setSelectedPathStageId(null);
+      return;
+    }
+    const sorted = [...formulaStages].sort((a, b) => a.stage_order - b.stage_order);
+    const included = sorted.filter((stage) => stageDrafts[stage.id]?.include !== false);
+    setSelectedPathStageId((prev) => {
+      if (prev != null && included.some((stage) => stage.id === prev)) return prev;
+      return included[0]?.id ?? null;
+    });
+  }, [selectedFormulaId, formulaStages, stageDrafts]);
+
+  const selectedPathStage = useMemo(
+    () => formulaStages.find((stage) => stage.id === selectedPathStageId) ?? null,
+    [formulaStages, selectedPathStageId],
+  );
+  const selectedPathStageDraft =
+    selectedPathStageId != null ? stageDrafts[selectedPathStageId] ?? null : null;
+
+  React.useEffect(() => {
+    if (!selectedFormulaId || formulaStageItems.length === 0) {
+      setItemQtyDrafts((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+    const outputTotal = finishedGoodOutputQuantity(formulaStages, formulaStageItems);
+    const target =
+      parsedExpectedOutput != null && parsedExpectedOutput > 0
+        ? parsedExpectedOutput
+        : outputTotal > 0
+          ? outputTotal
+          : null;
+    const multiplier = target != null && outputTotal > 0 ? target / outputTotal : 1;
+    const next: Record<number, string> = {};
+    for (const row of formulaStageItems) {
+      next[row.id] = String(Math.max(0, Math.round(row.quantity * multiplier * 100) / 100));
+    }
+    setItemQtyDrafts((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => prev[Number(key)] === next[Number(key)])
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [selectedFormulaId, formulaStages, formulaStageItems, expectedOutput]);
+
+  React.useEffect(() => {
+    if (!selectedFormulaId || formulaStageParameters.length === 0) {
+      setConditionPlannedDrafts((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+    const next: Record<number, string> = {};
+    for (const row of formulaStageParameters) {
+      next[row.id] = row.planned_value;
+    }
+    setConditionPlannedDrafts((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => prev[Number(key)] === next[Number(key)])
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [selectedFormulaId, formulaStageParameters]);
+
+  const resolveBatchProductionLineId = (): number | null => {
+    if (batchMode === 'simple') {
+      const simpleLine = parseInt(lineId, 10);
+      return Number.isFinite(simpleLine) && simpleLine > 0 ? simpleLine : null;
+    }
+    if (selectedFormulaId && formulaStages.length > 0) {
+      const sorted = [...formulaStages].sort((a, b) => a.stage_order - b.stage_order);
+      for (const stage of sorted) {
+        const draft = stageDrafts[stage.id];
+        if (draft && !draft.include) continue;
+        if (draft?.lineId) {
+          const override = Number(draft.lineId);
+          if (Number.isFinite(override) && override > 0) return override;
+        }
+        const step =
+          routeSteps.find((row) => row.id === stage.route_step_id) ??
+          routeSteps.find((row) => row.step_order === stage.stage_order);
+        const defaultLine = step?.production_line_id ?? stage.production_line_id;
+        if (defaultLine != null) return defaultLine;
+      }
+    }
+    const fallback = parseInt(lineId, 10);
+    return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
+  };
+
+  const buildNewBatchScheduleSteps = () => {
+    const lid = resolveBatchProductionLineId();
+    if (!plannedStart.trim() || !lid) return [];
+    return (formulaStages.length ? formulaStages : [null])
+      .map((stage) => {
+        const draft = stage ? stageDrafts[stage.id] : undefined;
+        const stepLineId =
+          draft?.lineId && draft.lineId !== ''
+            ? Number(draft.lineId)
+            : stage?.production_line_id ?? lid;
+        const minutes =
+          draft && draft.minutes?.trim() !== ''
+            ? Number(draft.minutes)
+            : stage?.expected_duration_minutes ?? 0;
+        if (stage && draft && !draft.include) {
+          return null;
+        }
+        const stepLine = lines.find((line) => line.id === stepLineId);
+        let machineId: number | null = null;
+        if (showStepMachine && stage && draft?.machineId?.trim()) {
+          const parsed = Number(draft.machineId);
+          machineId = Number.isNaN(parsed) ? null : parsed;
+        } else if (showRailMachine) {
+          machineId = runMachineId;
+        }
+        if (machineId == null) {
+          machineId = resolveLineMachineIdForSchedule(stepLine, null);
+        }
+        return {
+          productionLineId: stepLineId,
+          machineId,
+          expectedMinutes: Number.isNaN(minutes) ? 0 : minutes,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null);
+  };
+
+  const newBatchPlannedWindows = useMemo(() => {
+    const steps = buildNewBatchScheduleSteps();
+    if (steps.length === 0) return [];
+    const startIso = new Date(plannedStart).toISOString();
+    if (!Number.isFinite(new Date(plannedStart).getTime())) return [];
+    return sequentialStepWindows({
+      batchId: 0,
+      batchNumber: 'New batch',
+      plannedStartAt: startIso,
+      steps,
+    });
+  }, [
+    plannedStart,
+    batchMode,
+    formulaStages,
+    stageDrafts,
+    lineId,
+    lines,
+    routeSteps,
+    runMachineId,
+    showRailMachine,
+    showStepMachine,
+    selectedFormulaId,
+  ]);
+
+  const railPlannedWindow = useMemo(() => {
+    if (!showRailMachine || newBatchPlannedWindows.length === 0) return null;
+    const w = newBatchPlannedWindows[0];
+    return { plannedStartAt: w.plannedStartAt, plannedEndAt: w.plannedEndAt };
+  }, [showRailMachine, newBatchPlannedWindows]);
+
+  const selectedStepPlannedWindow = useMemo(() => {
+    if (!showStepMachine || selectedPathStageId == null || newBatchPlannedWindows.length === 0) {
+      return null;
+    }
+    const sorted = [...formulaStages].sort((a, b) => a.stage_order - b.stage_order);
+    const included = sorted.filter((stage) => stageDrafts[stage.id]?.include !== false);
+    const idx = included.findIndex((stage) => stage.id === selectedPathStageId);
+    if (idx < 0 || idx >= newBatchPlannedWindows.length) return null;
+    const w = newBatchPlannedWindows[idx];
+    return { plannedStartAt: w.plannedStartAt, plannedEndAt: w.plannedEndAt };
+  }, [showStepMachine, selectedPathStageId, formulaStages, stageDrafts, newBatchPlannedWindows]);
+
+  const handleSubmit = async (e?: React.FormEvent, force = false) => {
+    e?.preventDefault();
+    if (batchMode === 'recurring') {
+      if (!selectedFormulaId) {
+        appToast.error('Pick a recipe for this run');
+        return;
+      }
+      if (factoryId == null) {
+        appToast.error('Pick a factory first');
+        return;
+      }
+      if (!plannedStart.trim()) {
+        appToast.error('Set a planned start');
+        return;
+      }
+      const start = new Date(plannedStart);
+      if (Number.isNaN(start.getTime())) {
+        appToast.error('Planned start is not a valid date');
+        return;
+      }
+      const startDate = plannedStart.slice(0, 10);
+      const spanError = validateRecurrenceSpan(startDate, recurrenceEnd);
+      if (spanError) {
+        appToast.error(spanError);
+        return;
+      }
+      try {
+        await createProgram({
+          factory_id: factoryId,
+          formula_id: selectedFormulaId,
+          first_start_at: start.toISOString(),
+          cadence: recurrenceCadence.cadence,
+          ...(recurrenceCadence.cadence === 'custom'
+            ? { interval_days: recurrenceCadence.intervalDays }
+            : {}),
+          end_date: recurrenceEnd,
+        }).unwrap();
+        appToast.success('Recurring program created');
+        onOpenChange(false);
+      } catch (error) {
+        appToast.error(apiErrorDetail(error, 'Failed to create program'));
+      }
+      return;
+    }
+    if (usesRecipe && !selectedFormulaId) {
+      appToast.error('Pick a recipe for this run');
+      return;
+    }
+    const lid = resolveBatchProductionLineId();
     if (!lid) {
-      appToast.error('Production line is required');
+      appToast.error(
+        batchMode === 'simple'
+          ? 'Production line is required'
+          : 'Recipe path needs at least one included step with a production line',
+      );
       return;
     }
     if (
@@ -2642,56 +2306,129 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     }
 
     const effectiveTargetOutput =
-      selectedFormulaId && selectedFormulaItems.length > 0
+      batchMode === 'recipe' && selectedFormulaId && formulaStageItems.length > 0
         ? parsedExpectedOutput != null && !Number.isNaN(parsedExpectedOutput) && parsedExpectedOutput >= 1
           ? parsedExpectedOutput
           : formulaDefaultOutput > 0
             ? formulaDefaultOutput
             : undefined
-        : parsedExpectedOutput != null && !Number.isNaN(parsedExpectedOutput) && parsedExpectedOutput >= 1
+        : batchMode === 'simple' &&
+            parsedExpectedOutput != null &&
+            !Number.isNaN(parsedExpectedOutput) &&
+            parsedExpectedOutput >= 1
           ? parsedExpectedOutput
           : undefined;
 
+    if (!force && plannedStart) {
+      const steps = buildNewBatchScheduleSteps();
+      const candidates = sequentialStepWindows({
+        batchId: 0,
+        batchNumber: 'New batch',
+        plannedStartAt: new Date(plannedStart).toISOString(),
+        steps,
+      });
+      const others = scheduleBatches.flatMap((row) =>
+        row.steps.map((step) => ({
+          batchId: row.batch_id,
+          batchNumber: row.batch_number,
+          productionLineId: step.production_line_id,
+          machineId: step.machine_id,
+          plannedStartAt: step.planned_start_at,
+          plannedEndAt: step.planned_end_at,
+        })),
+      );
+      const conflicts = candidates.flatMap((candidate) => findProductionScheduleConflicts(candidate, others));
+      const unique = conflicts.filter(
+        (conflict, index) =>
+          conflicts.findIndex((row) => row.batchId === conflict.batchId && row.reason === conflict.reason) === index,
+      );
+      if (unique.length > 0) {
+        setOverlapConflicts(unique);
+        return;
+      }
+    }
+
+    const stageSeeds =
+      batchMode === 'recipe' && selectedFormulaId && formulaStages.length > 0
+        ? formulaStages.map((stage) => {
+            const draft = stageDrafts[stage.id];
+            const minutes =
+              draft?.minutes?.trim() === '' || draft?.minutes == null
+                ? undefined
+                : Number(draft.minutes);
+            const outputRow = formulaStageItems.find(
+              (row) => row.formula_stage_id === stage.id && row.item_role === 'output',
+            );
+            let expected_output_quantity: number | undefined;
+            if (outputRow) {
+              const raw = itemQtyDrafts[outputRow.id] ?? String(outputRow.quantity);
+              const qty = Number(raw);
+              if (!Number.isNaN(qty)) expected_output_quantity = Math.max(0, Math.round(qty * 100) / 100);
+            }
+            const machineRaw = draft?.machineId?.trim();
+            let machine_id: number | undefined;
+            if (showStepMachine && machineRaw) {
+              const parsed = Number(machineRaw);
+              if (!Number.isNaN(parsed)) machine_id = parsed;
+            } else if (!showStepMachine && includedStageCount === 1 && runMachineId != null) {
+              machine_id = runMachineId;
+            }
+            return {
+              formula_stage_id: stage.id,
+              include: draft?.include ?? true,
+              production_line_id:
+                draft?.lineId && draft.lineId !== '' ? Number(draft.lineId) : undefined,
+              machine_id,
+              expected_duration_minutes:
+                minutes != null && !Number.isNaN(minutes) ? minutes : undefined,
+              expected_output_quantity,
+            };
+          })
+        : undefined;
+
+    const itemSeeds =
+      batchMode === 'recipe' && selectedFormulaId && formulaStageItems.length > 0
+        ? formulaStageItems.map((row) => {
+            const raw = itemQtyDrafts[row.id] ?? String(row.quantity);
+            const qty = Number(raw);
+            return {
+              item_id: row.item_id,
+              item_role: row.item_role,
+              expected_quantity: Number.isNaN(qty) ? row.quantity : Math.max(0, Math.round(qty * 100) / 100),
+              formula_stage_id: row.formula_stage_id,
+            };
+          })
+        : undefined;
+
+    const parameterSeeds =
+      batchMode === 'recipe' && selectedFormulaId && formulaStageParameters.length > 0
+        ? formulaStageParameters.map((row) => {
+            const raw = (conditionPlannedDrafts[row.id] ?? row.planned_value).trim();
+            return {
+              source_parameter_id: row.id,
+              planned_value: raw !== '' ? raw : row.planned_value,
+            };
+          })
+        : undefined;
+
     try {
-      const createdBatch = await createBatch({
+      const created = await createBatch({
         production_line_id: lid,
-        formula_id: selectedFormulaId ?? undefined,
-        batch_date: batchDate,
-        shift: shift.trim() || undefined,
+        formula_id: batchMode === 'recipe' ? selectedFormulaId ?? undefined : undefined,
+        machine_id: showRailMachine && runMachineId != null ? runMachineId : undefined,
+        planned_start_at: plannedStart ? new Date(plannedStart).toISOString() : undefined,
+        sales_order_item_id: salesItemId ? Number(salesItemId) : undefined,
+        batch_date: millBatchDate({ plannedLocal: plannedStart, timeZone: millTimezone }),
+        shift_id: selectedShiftId ?? undefined,
         expected_output_quantity: effectiveTargetOutput,
         notes: notes.trim() || undefined,
+        stage_seeds: stageSeeds,
+        item_seeds: itemSeeds,
+        parameter_seeds: parameterSeeds,
       }).unwrap();
 
-      if (selectedFormulaId && selectedFormulaItems.length > 0) {
-        const formulaOutputBase = formulaDefaultOutput;
-        const targetOutput = effectiveTargetOutput;
-        const multiplier =
-          formulaOutputBase > 0 && targetOutput != null && targetOutput > 0
-            ? targetOutput / formulaOutputBase
-            : 1;
-
-        const addOps = selectedFormulaItems.map((fi) =>
-          addBatchItem({
-            batchId: createdBatch.id,
-            data: {
-              batch_id: createdBatch.id,
-              item_id: fi.item_id,
-              item_role: fi.item_role,
-              expected_quantity: Math.max(0, Math.trunc(fi.quantity * multiplier)),
-            },
-          }).unwrap()
-        );
-
-        try {
-          await Promise.all(addOps);
-        } catch {
-          // Keep draft batch even if one line insert fails.
-          appToast.error('Batch created, but some formula lines could not be seeded');
-        }
-      }
-
       appToast.success('Batch created');
-      onSuccess();
+      onSuccess(created.id);
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
@@ -2704,108 +2441,349 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     : lines;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[440px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Add Batch</DialogTitle>
-            <DialogDescription>
-              Create a batch in draft. Use formula for variance tracking, or leave empty for simple mode.
-            </DialogDescription>
+      <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(76rem,96vw)] max-w-none flex-col overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <DialogHeader className="shrink-0 pb-2">
+            <DialogTitle>New production run</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Production Line *</Label>
-              <Select value={lineId} onValueChange={setLineId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select line" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredLines.map((l) => (
-                    <SelectItem key={l.id} value={l.id.toString()}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Formula (optional - for variance tracking)</Label>
-              <Select value={formulaId} onValueChange={setFormulaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="None (simple mode)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None (simple mode)</SelectItem>
-                  {formulas.filter((f) => f.is_active).map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.name} ({f.formula_code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>
-                {selectedFormulaId ? 'Target product qty (optional)' : 'Expected product qty (optional)'}
-              </Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={expectedOutput}
-                onChange={(e) => setExpectedOutput(e.target.value)}
-                placeholder={
-                  selectedFormulaId
-                    ? formulaDefaultOutput > 0
-                      ? `Blank = default (${formulaDefaultOutput})`
-                      : 'Blank = formula base products'
-                    : 'Optional'
-                }
+
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:grid-cols-[22rem_minmax(0,1fr)]">
+            <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto border-border pr-1 md:border-r md:pr-4">
+              <div
+                className="grid grid-cols-3 gap-0.5 rounded-md border border-border/60 bg-muted/30 p-0.5"
+                role="group"
+                aria-label="Run mode"
+              >
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                    batchMode === 'recipe'
+                      ? 'bg-card text-foreground shadow-sm ring-1 ring-border/50'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setBatchMode('recipe')}
+                >
+                  Recipe
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                    batchMode === 'simple'
+                      ? 'bg-card text-foreground shadow-sm ring-1 ring-border/50'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => {
+                    setBatchMode('simple');
+                    setFormulaId('');
+                  }}
+                >
+                  Simple
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                    batchMode === 'recurring'
+                      ? 'bg-card text-foreground shadow-sm ring-1 ring-border/50'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={() => setBatchMode('recurring')}
+                >
+                  Recurring
+                </button>
+              </div>
+
+              {usesRecipe ? (
+                <>
+                  <div className="grid gap-1.5">
+                    <Label>Recipe *</Label>
+                    <button
+                      type="button"
+                      className={cn(
+                        'flex min-h-9 w-full flex-col justify-center rounded-md border border-input bg-background px-3 py-2 text-left text-sm ring-offset-background',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      )}
+                      onClick={() => setRecipePickerOpen(true)}
+                    >
+                      {selectedFormula ? (
+                        <>
+                          <span className="line-clamp-2 font-medium leading-snug">{selectedFormula.name}</span>
+                          <span className="text-xs text-muted-foreground">{selectedFormula.formula_code}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Select recipe…</span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Target qty</Label>
+                    <Input
+                      className="h-9"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={expectedOutput}
+                      onChange={(e) => setExpectedOutput(e.target.value)}
+                      placeholder={
+                        formulaDefaultOutput > 0 ? `Default ${formulaDefaultOutput}` : 'Optional'
+                      }
+                    />
+                    {recipeMaterialScale.baseOutput > 0 &&
+                    Math.abs(recipeMaterialScale.multiplier - 1) > 0.000_1 ? (
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        Recipe output {formatProductionQuantity(recipeMaterialScale.baseOutput)} →
+                        target {formatProductionQuantity(recipeMaterialScale.targetOutput)} (×{' '}
+                        {formatProductionScaleFactor(recipeMaterialScale.multiplier)})
+                      </p>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-1.5">
+                    <Label>Production line *</Label>
+                    <Select value={lineId} onValueChange={setLineId}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select line" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredLines.map((l) => (
+                          <SelectItem key={l.id} value={l.id.toString()}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Expected qty</Label>
+                    <Input
+                      className="h-9"
+                      type="text"
+                      inputMode="numeric"
+                      value={expectedOutput}
+                      onChange={(e) => setExpectedOutput(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </>
+              )}
+
+              {showRailMachine ? (
+                <ProductionLineMachineSelect
+                  line={railMachineLine}
+                  value={runMachineId}
+                  onChange={setRunMachineId}
+                  factoryId={factoryId ?? undefined}
+                  scheduleBatches={scheduleBatches}
+                  plannedWindow={railPlannedWindow}
+                  id="batch-run-machine"
+                />
+              ) : null}
+
+              <BatchShiftWhenRow
+                groupedSection
+                shifts={workspaceShifts}
+                plannedStart={plannedStart}
+                selectedShiftId={selectedShiftId}
+                onPlannedStartChange={setPlannedStart}
+                onSelectedShiftIdChange={setSelectedShiftId}
               />
-              {selectedFormulaId && formulaDefaultOutput > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Leave blank to use the formula&apos;s default products ({formulaDefaultOutput}) for scaling.
-                </p>
+
+              {batchMode === 'recurring' ? (
+                <ProductionRunRecurrenceFields
+                  cadence={recurrenceCadence}
+                  onCadenceChange={setRecurrenceCadence}
+                  endDate={recurrenceEnd}
+                  onEndDateChange={setRecurrenceEnd}
+                  plannedStart={plannedStart}
+                />
+              ) : null}
+
+              <div className="grid gap-1.5">
+                <Label>Notes (optional)</Label>
+                <Input
+                  className="h-9"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Notes"
+                />
+              </div>
+
+              {batchMode === 'recipe' ? (
+                <Collapsible open={recipeMoreOpen} onOpenChange={setRecipeMoreOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-full justify-start gap-1 px-2 text-muted-foreground"
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${recipeMoreOpen ? 'rotate-180' : ''}`}
+                      />
+                      More options
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 pt-1">
+                    <div className="grid gap-1.5">
+                      <Label>Sales order</Label>
+                      <Select
+                        value={salesOrderId || 'none'}
+                        onValueChange={(value) => {
+                          setSalesOrderId(value === 'none' ? '' : value);
+                          setSalesItemId('');
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Make-to-stock" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Make-to-stock</SelectItem>
+                          {salesOrders.filter((order) => !order.is_fully_delivered).map((order) => (
+                            <SelectItem key={order.id} value={String(order.id)}>
+                              {order.sales_order_number}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {salesOrderId ? (
+                      <div className="grid gap-1.5">
+                        <Label>Order line</Label>
+                        <Select
+                          value={salesItemId || 'none'}
+                          onValueChange={(value) => setSalesItemId(value === 'none' ? '' : value)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Pick a line" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Pick a line</SelectItem>
+                            {salesItems
+                              .filter((item) => {
+                                if (lastStepOutputItemIds.length === 0) return true;
+                                return item.item_id != null && lastStepOutputItemIds.includes(item.item_id);
+                              })
+                              .map((item) => (
+                                <SelectItem key={item.id} value={String(item.id)}>
+                                  {item.item_name || item.description || `Line #${item.id}`}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
+            </aside>
+
+            <div className="min-h-0 overflow-y-auto md:pl-1">
+              {batchMode === 'simple' ? (
+                <div className="flex min-h-[12rem] items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
+                  Simple run uses the line and qty on the left. No path or materials.
+                </div>
+              ) : usesRecipe && selectedFormulaId && formulaStages.length > 0 ? (
+                <div className="space-y-4 pb-2">
+                  <section>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Path for this run
+                    </p>
+                    <AddBatchRecipePathList
+                      stages={formulaStages}
+                      routeSteps={routeSteps}
+                      lines={filteredLines}
+                      stageDrafts={stageDrafts}
+                      selectedStageId={selectedPathStageId}
+                      onSelect={setSelectedPathStageId}
+                      onPatch={(stageId, patch) =>
+                        setStageDrafts((prev) => ({
+                          ...prev,
+                          [stageId]: { ...prev[stageId], ...patch },
+                        }))
+                      }
+                    />
+                  </section>
+                  <AddBatchRecipePathStepEditor
+                    stage={selectedPathStage}
+                    draft={selectedPathStageDraft}
+                    lines={filteredLines}
+                    routeSteps={routeSteps}
+                    showMachine={showStepMachine}
+                    factoryId={factoryId ?? undefined}
+                    scheduleBatches={scheduleBatches}
+                    plannedWindow={selectedStepPlannedWindow}
+                    onPatch={(patch) => {
+                      if (selectedPathStageId == null) return;
+                      setStageDrafts((prev) => ({
+                        ...prev,
+                        [selectedPathStageId]: { ...prev[selectedPathStageId], ...patch },
+                      }));
+                    }}
+                  >
+                    <AddBatchRecipeStepMaterials
+                      embedded
+                      stage={selectedPathStage}
+                      stageItems={formulaStageItems}
+                      stageParameters={formulaStageParameters}
+                      items={items}
+                      itemQtyDrafts={itemQtyDrafts}
+                      materialScaleMultiplier={recipeMaterialScale.multiplier}
+                      materialScaleBaseOutput={recipeMaterialScale.baseOutput}
+                      materialScaleTargetOutput={recipeMaterialScale.targetOutput}
+                      onQtyChange={(stageItemId, value) =>
+                        setItemQtyDrafts((prev) => ({ ...prev, [stageItemId]: value }))
+                      }
+                      conditionPlannedDrafts={conditionPlannedDrafts}
+                      onConditionPlannedChange={(parameterId, value) =>
+                        setConditionPlannedDrafts((prev) => ({ ...prev, [parameterId]: value }))
+                      }
+                    />
+                  </AddBatchRecipePathStepEditor>
+                </div>
+              ) : (
+                <div className="flex min-h-[12rem] items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
+                  Select a recipe to preview the path and materials.
+                </div>
               )}
             </div>
-            <div className="grid gap-2">
-              <Label>Batch Date *</Label>
-              <Input
-                type="date"
-                value={batchDate}
-                onChange={(e) => setBatchDate(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Shift (optional)</Label>
-              <Input
-                value={shift}
-                onChange={(e) => setShift(e.target.value)}
-                placeholder="e.g. Morning"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Notes (optional)</Label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes"
-              />
-            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating}>
-              {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create
+            <Button type="submit" disabled={isCreating || isCreatingProgram}>
+              {(isCreating || isCreatingProgram) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {batchMode === 'recurring' ? 'Create program' : 'Create'}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+    <RecipePickerDialog
+      open={recipePickerOpen}
+      onOpenChange={setRecipePickerOpen}
+      formulas={activeFormulas}
+      lines={filteredLines}
+      items={items}
+      selectedFormulaId={selectedFormulaId}
+      onConfirm={(id) => setFormulaId(String(id))}
+    />
+    <ProductionScheduleConflictDialog
+      open={overlapConflicts.length > 0}
+      conflicts={overlapConflicts}
+      onCancel={() => setOverlapConflicts([])}
+      onSaveAnyway={() => {
+        setOverlapConflicts([]);
+        void handleSubmit(undefined, true);
+      }}
+    />
+    </>
   );
 };
 
@@ -2838,7 +2816,7 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
       await completeBatch({
         id: batch.id,
         data: {
-          actual_output_quantity: actualOutput ? parseInt(actualOutput, 10) : undefined,
+          actual_output_quantity: actualOutput ? parseProductionQuantity(actualOutput) ?? undefined : undefined,
           actual_duration_minutes: actualDuration ? parseInt(actualDuration, 10) : undefined,
           notes: notes.trim() || undefined,
         },
@@ -3004,69 +2982,62 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
   onClose,
 }) => {
   const { data: batch, isLoading: loadingBatch, error: batchErr } = useGetProductionBatchByIdQuery(batchId);
-  const { data: batchItems = [], isLoading: loadingItems } = useGetBatchItemsQuery(
-    { batchId },
-    { skip: !batchId }
-  );
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
 
-  const inputItems = useMemo(
-    () => batchItems.filter((bi) => bi.item_role === 'input'),
-    [batchItems]
-  );
+  const storagePreview = useBatchInputStoragePreview({
+    batchId,
+    lineFactoryId: line?.factory_id,
+    enabled: !!batchId,
+    highlightStepInputs: false,
+  });
 
-  const { data: storageRows = [], isLoading: loadingStorage } = useGetInventoryListQuery(
-    {
-      skip: 0,
-      limit: 500,
-      inventory_type: 'STORAGE',
-      factory_id: line?.factory_id,
-    },
-    { skip: !line?.factory_id || inputItems.length === 0 }
-  );
+  const { noItems, stockCheckLoading, loadingItems, rows, shortages, canStartBatch, storageRows } =
+    storagePreview;
+  const [shortStockSeed, setShortStockSeed] = useState<ShortStockSeed | null>(null);
+  const [shortPurchaseSeed, setShortPurchaseSeed] = useState<ShortStockSeed | null>(null);
 
-  const qtyByItem = useMemo(() => {
-    const m = new Map<number, number>();
-    for (const inv of storageRows) {
-      m.set(inv.item_id, (m.get(inv.item_id) ?? 0) + inv.qty);
-    }
-    return m;
-  }, [storageRows]);
+  const openShortStock = (
+    row: { itemId: number; factoryId: number; required: number; onHand: number },
+    action: 'stock' | 'purchase',
+  ) => {
+    const quantity = storageGapQty(row.required, row.onHand);
+    if (quantity <= 0) return;
+    const seed: ShortStockSeed = {
+      itemId: row.itemId,
+      itemName: getItemName(row.itemId),
+      factoryId: row.factoryId,
+      quantity,
+      existing: existingStorageForShort(storageRows, row.itemId, row.factoryId),
+    };
+    if (action === 'stock') setShortStockSeed(seed);
+    else setShortPurchaseSeed(seed);
+  };
 
-  const shortages = useMemo(() => {
-    if (inputItems.length === 0 || loadingStorage) return [];
-    const out: { item_id: number; required: number; onHand: number }[] = [];
-    for (const bi of inputItems) {
-      const required = bi.actual_quantity ?? bi.expected_quantity ?? 0;
-      if (required <= 0) continue;
-      const onHand = qtyByItem.get(bi.item_id) ?? 0;
-      if (onHand < required) {
-        out.push({ item_id: bi.item_id, required, onHand });
-      }
-    }
-    return out;
-  }, [inputItems, qtyByItem, loadingStorage]);
+  const [startedEarlier, setStartedEarlier] = useState(false);
+  const [startedAtLocal, setStartedAtLocal] = useState(defaultLocalDatetimeNow);
 
-  const noItems = !loadingItems && batchItems.length === 0;
-  const stockCheckLoading = inputItems.length > 0 && !!line?.factory_id && loadingStorage;
-  const blockedByStock = shortages.length > 0;
+  const startEarlierError = validateStartedEarlier(startedEarlier, startedAtLocal);
 
   const canSubmit =
     !!batch &&
-    batch.status === 'draft' &&
-    !noItems &&
-    !blockedByStock &&
-    !stockCheckLoading &&
+    (batch.status === 'draft' || batch.status === 'recurring') &&
+    canStartBatch &&
     !loadingBatch &&
-    !loadingItems;
+    !startEarlierError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!batch || !canSubmit) return;
+    const err = validateStartedEarlier(startedEarlier, startedAtLocal);
+    if (err) {
+      appToast.error(err);
+      return;
+    }
     try {
+      const started_at = startedAtForApi(startedEarlier, startedAtLocal);
       await startBatch({
         id: batch.id,
-        data: {},
+        data: started_at ? { started_at } : {},
       }).unwrap();
       appToast.success('Batch started — inputs deducted from storage');
       onClose();
@@ -3077,6 +3048,7 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
   };
 
   return (
+    <>
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
@@ -3104,40 +3076,34 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
                 {line && ` · ${line.name}`}
               </p>
 
-              {noItems && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                  <p className="font-medium text-destructive">No items added to this batch.</p>
-                  <p className="text-muted-foreground mt-1">Add at least one item before starting.</p>
-                </div>
+              <BatchStartStoragePreview
+                rows={rows}
+                loading={stockCheckLoading}
+                loadingItems={loadingItems}
+                noItems={noItems}
+                noInputs={storagePreview.noInputs}
+                shortages={shortages}
+                getItemName={getItemName}
+                onReplenish={openShortStock}
+              />
+
+              {batch.status !== 'draft' && batch.status !== 'recurring' && (
+                <p className="text-sm text-destructive">This batch cannot be started.</p>
               )}
 
-              {!noItems && inputItems.length === 0 && (
-                <p className="text-xs text-muted-foreground">No input items — no storage deduction needed.</p>
-              )}
-
-              {stockCheckLoading && (
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking storage…
-                </p>
-              )}
-
-              {!stockCheckLoading && shortages.length > 0 && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                  <p className="font-medium text-destructive mb-2">Insufficient storage for input items</p>
-                  <ul className="list-disc pl-4 space-y-1">
-                    {shortages.map((s) => (
-                      <li key={s.item_id}>
-                        {getItemName(s.item_id)}: need {s.required}, on hand {s.onHand}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {batch.status !== 'draft' && (
-                <p className="text-sm text-destructive">This batch is not in draft status.</p>
-              )}
+              {canSubmit || (!noItems && (batch.status === 'draft' || batch.status === 'recurring')) ? (
+                <ProductionStartEarlierFields
+                  idPrefix="start-batch"
+                  enabled={startedEarlier}
+                  onEnabledChange={setStartedEarlier}
+                  value={startedAtLocal}
+                  onChange={setStartedAtLocal}
+                  disabled={isStarting}
+                />
+              ) : null}
+              {startEarlierError ? (
+                <p className="text-sm text-destructive">{startEarlierError}</p>
+              ) : null}
             </div>
           )}
 
@@ -3153,6 +3119,17 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
         </form>
       </DialogContent>
     </Dialog>
+    <BatchShortStockDialogs
+      stockSeed={shortStockSeed}
+      purchaseSeed={shortPurchaseSeed}
+      onStockOpenChange={(open) => {
+        if (!open) setShortStockSeed(null);
+      }}
+      onPurchaseOpenChange={(open) => {
+        if (!open) setShortPurchaseSeed(null);
+      }}
+    />
+    </>
   );
 };
 

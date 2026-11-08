@@ -139,15 +139,28 @@ const COMPLETE_BADGE = 'border-transparent bg-green-100 text-green-800 dark:bg-g
 const IN_PROGRESS_BADGE = 'border-transparent bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
 const PAID_BADGE = 'border-transparent bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
 const UNPAID_BADGE = 'border-transparent bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300';
+const DELIVERED_BADGE = 'border-transparent bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300';
 
-/** Navigator list: In Progress, or Paid/Unpaid + Complete once closed. */
+function paidBadge(order: SalesOrder): SoListRowBadge | null {
+  if (!order.invoice_confirmed && order.paid !== true) return null;
+  const paid = order.paid === true;
+  return { label: paid ? 'Paid' : 'Unpaid', className: paid ? PAID_BADGE : UNPAID_BADGE };
+}
+
+/** Navigator list: In Progress plus Paid/Delivered as they happen. Complete only after mark complete. */
 export function getSalesOrderListRowBadges(order: SalesOrder): SoListRowBadge[] {
   if (isSalesOrderMarkedComplete(order)) {
-    const paid = order.paid === true;
+    const paid = paidBadge(order);
     return [
-      { label: paid ? 'Paid' : 'Unpaid', className: paid ? PAID_BADGE : UNPAID_BADGE },
+      ...(paid ? [paid] : []),
       { label: 'Complete', className: COMPLETE_BADGE },
     ];
   }
-  return [{ label: 'In Progress', className: IN_PROGRESS_BADGE }];
+  const badges: SoListRowBadge[] = [{ label: 'In Progress', className: IN_PROGRESS_BADGE }];
+  if (order.is_fully_delivered) {
+    badges.push({ label: 'Delivered', className: DELIVERED_BADGE });
+  }
+  const paid = paidBadge(order);
+  if (paid) badges.push(paid);
+  return badges;
 }

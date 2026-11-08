@@ -43,10 +43,10 @@ export function weekDayContentInsetClass(): string {
   return 'mx-2 mb-2 overflow-hidden rounded-md bg-card';
 }
 
-/** Compact empty-day Add control inside content inset (rows = inline; columns = stacked). */
-export function weekDayEmptyAddButtonClass(variant: 'rows' | 'columns' = 'rows'): string {
+/** Empty day column — opens single-day view (schedule / add from footer). */
+export function weekDayEmptyOpenDayButtonClass(variant: 'rows' | 'columns' = 'rows'): string {
   return cn(
-    'flex w-full items-center justify-center gap-1 text-muted-foreground transition-colors hover:bg-muted/20',
+    'flex w-full items-center justify-center text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/20 hover:text-foreground',
     variant === 'rows'
       ? 'flex-row px-2 py-1.5 text-[11px]'
       : 'flex-col px-1.5 py-2 text-[10px]',

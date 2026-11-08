@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +16,10 @@ import {
   useCreateItemMutation,
   useLazyGetSimilarItemsQuery,
 } from '@/features/items/itemsApi';
+import { useGetTagsQuery } from '@/features/items/itemTagsApi';
 import { useAppDispatch } from '@/app/hooks';
 import { appToast } from '@/lib/appToast';
+import { apiErrorDetail } from '@/utils/apiError';
 import { Loader2 } from 'lucide-react';
 import type { Item, SimilarItemMatch } from '@/types/item';
 import { ITEM_SIMILAR_NAME_MIN_LENGTH, ITEM_SIMILARITY_THRESHOLD } from '@/types/item';
@@ -28,9 +30,16 @@ interface AddItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (item: Item) => void;
+  /** Pre-select system tags when opened (e.g. waste / byproduct from production). */
+  defaultTagCodes?: string[];
 }
 
-const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuccess }) => {
+const AddItemDialog: React.FC<AddItemDialogProps> = ({
+  open,
+  onOpenChange,
+  onSuccess,
+  defaultTagCodes,
+}) => {
   const dispatch = useAppDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -43,6 +52,26 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
 
   const [createItem, { isLoading }] = useCreateItemMutation();
   const [fetchSimilarItems, { isFetching: isCheckingSimilar }] = useLazyGetSimilarItemsQuery();
+  const { data: tags = [] } = useGetTagsQuery(undefined, { skip: !open });
+
+  const defaultTags = useMemo(
+    () =>
+      (defaultTagCodes ?? [])
+        .map((code) => tags.find((t) => t.tag_code === code))
+        .filter((t): t is NonNullable<typeof t> => Boolean(t)),
+    [defaultTagCodes, tags],
+  );
+
+  useEffect(() => {
+    if (!open || defaultTags.length === 0) return;
+    setSelectedTagIds((prev) => {
+      const merged = new Set(prev);
+      for (const tag of defaultTags) {
+        merged.add(tag.id);
+      }
+      return [...merged];
+    });
+  }, [open, defaultTags]);
 
   const resetForm = () => {
     setName('');
@@ -105,11 +134,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       await performCreate();
     } catch (error: unknown) {
       console.error('Failed to create item:', error);
-      const detail =
-        error && typeof error === 'object' && 'data' in error
-          ? (error as { data?: { detail?: string } }).data?.detail
-          : undefined;
-      appToast.error(detail || 'Failed to create item');
+      appToast.error(apiErrorDetail(error, 'Failed to create item'));
     }
   };
 
@@ -137,11 +162,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({ open, onOpenChange, onSuc
       await performCreate();
     } catch (error: unknown) {
       console.error('Failed to create item:', error);
-      const detail =
-        error && typeof error === 'object' && 'data' in error
-          ? (error as { data?: { detail?: string } }).data?.detail
-          : undefined;
-      appToast.error(detail || 'Failed to create item');
+      appToast.error(apiErrorDetail(error, 'Failed to create item'));
     }
   };
 

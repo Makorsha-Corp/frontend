@@ -33,7 +33,6 @@ export type WorkOrdersLayoutMode = 'list' | 'week';
 export type WorkOrdersWeekView = 'rows' | 'columns';
 export type DatePreset = 'today' | 'week' | 'month';
 export type WorkOrdersDateViewMode = 'all' | 'week' | 'day';
-
 export function deriveDateViewMode(
   hasDateFilter: boolean,
   dateScope: SheetDateScope,
@@ -311,10 +310,12 @@ export function useWorkOrdersFilters() {
     setSearchParams((prev) => {
       const layout = prev.get('woLayout');
       const weekViewParam = prev.get('woWeekView');
-      if (!layout && !weekViewParam) return prev;
+      const boardParam = prev.get('woBoard');
+      if (!layout && !weekViewParam && !boardParam) return prev;
       const next = new URLSearchParams(prev);
       next.delete('woLayout');
       next.delete('woWeekView');
+      next.delete('woBoard');
       if (layout === 'week' && !prev.get('woDate')) {
         next.set('woDate', todayIso());
       }

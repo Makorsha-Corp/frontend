@@ -1,80 +1,60 @@
 import React, { useMemo, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { API_LIMITS } from '@/constants/apiLimits';
-import { useGetWorkOrdersQuery } from '@/features/workOrders/workOrdersApi';
-import { useGetWorkOrderTemplatesQuery } from '@/features/workOrderTemplates/workOrderTemplatesApi';
-import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
-import type { Machine } from '@/types/machine';
 import {
-  buildRecurringProgramList,
-  formatRecurrenceProgramDateLabel,
-  type RecurrenceProgramSummary,
-  type RecurringProgramListItem,
-} from '@/pages/newpages/orders/workOrderRecurrenceProgram';
-import RecurringProgramDeleteButton from './RecurringProgramDeleteButton';
-import { ChevronDown, ChevronRight, Loader2, Pencil, Repeat2, Search } from 'lucide-react';
+  useGetWorkOrderProgramsQuery,
+  useStopWorkOrderProgramMutation,
+} from '@/features/workOrders/workOrdersApi';
+import type { Machine } from '@/types/machine';
+import type { WorkOrderProgram, WorkOrderProgramOccurrence } from '@/types/workOrderProgram';
+import { appToast } from '@/lib/appToast';
+import { ChevronDown, ChevronRight, Loader2, Search } from 'lucide-react';
+import { formatRecurrenceProgramDateLabel } from '@/pages/newpages/orders/workOrderRecurrenceProgram';
+import { formatRecurrenceCadenceShortLabel } from '@/pages/newpages/orders/workOrderRecurrenceCadence';
 
 export interface RecurringProgramsManagerTabProps {
   enabled: boolean;
   factoryId?: number | null;
   machineId?: number | null;
   machinesInScope: Machine[];
-  onEditTemplate: (template: WorkOrderTemplate) => void;
   onProgramsChanged?: () => void;
   onOpenWorkOrder?: (workOrderId: number) => void;
 }
 
-function programRowKey(item: RecurringProgramListItem): string {
-  return `${item.templateId}:${item.machineId}`;
+function programCadenceLabel(program: WorkOrderProgram): string {
+  return formatRecurrenceCadenceShortLabel(program.cadence, program.interval_days);
 }
 
-function searchPrograms(items: RecurringProgramListItem[], query: string): RecurringProgramListItem[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return items;
-  return items.filter(
-    (item) =>
-      item.templateName.toLowerCase().includes(q) ||
-      item.machineName.toLowerCase().includes(q) ||
-      item.cadence.toLowerCase().includes(q),
-  );
+function formatRange(program: WorkOrderProgram): string {
+  const start = format(parseISO(program.start_date.slice(0, 10)), 'MMM d, yyyy');
+  const end = format(parseISO(program.end_date.slice(0, 10)), 'MMM d, yyyy');
+  return `${start} – ${end}`;
 }
 
 function ProgramTimeline({
-  summary,
+  occurrences,
   onOpenWorkOrder,
 }: {
-  summary: RecurrenceProgramSummary;
+  occurrences: WorkOrderProgramOccurrence[];
   onOpenWorkOrder?: (workOrderId: number) => void;
 }) {
-  const sections: Array<{
-    label: string;
-    entries: Array<{ workOrderId: number; displayDate: string }>;
-  }> = [
-    {
-      label: 'Completed',
-      entries: summary.completedOccurrences.map((o) => ({
-        workOrderId: o.workOrderId,
-        displayDate: o.displayDate,
-      })),
-    },
-    {
-      label: 'Active',
-      entries: summary.inProgressOccurrences.map((o) => ({
-        workOrderId: o.workOrderId,
-        displayDate: o.displayDate,
-      })),
-    },
-    {
-      label: 'Upcoming',
-      entries: summary.futureDrafts.map((d) => ({
-        workOrderId: d.workOrderId,
-        displayDate: d.plannedDate,
-      })),
-    },
+  const sections: Array<{ label: string; entries: WorkOrderProgramOccurrence[] }> = [
+    { label: 'Completed', entries: occurrences.filter((row) => row.status === 'completed') },
+    { label: 'Active', entries: occurrences.filter((row) => row.status === 'in_progress') },
+    { label: 'Upcoming', entries: occurrences.filter((row) => row.status === 'draft') },
   ];
+
+  const visible = sections.some((section) => section.entries.length > 0);
+  if (!visible) {
+    return (
+      <p className="border-t border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+        No open work orders in this program.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-2 border-t border-border/60 bg-muted/20 px-4 py-3">
@@ -86,7 +66,7 @@ function ProgramTimeline({
             </div>
             <ul className="mt-1 flex flex-wrap gap-1.5">
               {section.entries.map((entry) => (
-                <li key={`${section.label}-${entry.workOrderId}`}>
+                <li key={entry.work_order_id}>
                   <button
                     type="button"
                     className={cn(
@@ -94,9 +74,11 @@ function ProgramTimeline({
                       'transition-colors hover:border-brand-primary/40 hover:bg-brand-primary/5 hover:text-foreground',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     )}
-                    onClick={() => onOpenWorkOrder?.(entry.workOrderId)}
+                    onClick={() => onOpenWorkOrder?.(entry.work_order_id)}
                   >
-                    {formatRecurrenceProgramDateLabel(entry.displayDate)}
+                    {entry.planned_date
+                      ? formatRecurrenceProgramDateLabel(entry.planned_date)
+                      : entry.work_order_number}
                   </button>
                 </li>
               ))}
@@ -104,11 +86,6 @@ function ProgramTimeline({
           </div>
         ) : null,
       )}
-      {summary.completedOccurrences.length === 0 &&
-      summary.inProgressOccurrences.length === 0 &&
-      summary.futureDraftCount === 0 ? (
-        <p className="text-xs text-muted-foreground">No occurrences in this program.</p>
-      ) : null}
     </div>
   );
 }
@@ -118,59 +95,66 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
   factoryId,
   machineId,
   machinesInScope,
-  onEditTemplate,
   onProgramsChanged,
   onOpenWorkOrder,
 }) => {
   const [search, setSearch] = useState('');
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
-
-  const machineIdsInScope = useMemo(
-    () => (machinesInScope.length > 0 ? new Set(machinesInScope.map((m) => m.id)) : undefined),
-    [machinesInScope],
-  );
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [stoppingId, setStoppingId] = useState<number | null>(null);
 
   const machineNameById = useMemo(
     () => new Map(machinesInScope.map((m) => [m.id, m.name])),
     [machinesInScope],
   );
 
-  const { data: templates = [], isLoading: templatesLoading } = useGetWorkOrderTemplatesQuery(
-    { is_active: true, limit: API_LIMITS.FLEXIBLE_1000 },
-    { skip: !enabled },
+  const { data: programs = [], isLoading, error } = useGetWorkOrderProgramsQuery(
+    { factory_id: factoryId! },
+    { skip: !enabled || factoryId == null },
   );
+  const [stopProgram] = useStopWorkOrderProgramMutation();
 
-  const { data: orders = [], isLoading: ordersLoading } = useGetWorkOrdersQuery(
-    {
-      factory_id: factoryId ?? undefined,
-      machine_id: machineId ?? undefined,
-      limit: API_LIMITS.FLEXIBLE_1000,
-    },
-    { skip: !enabled },
-  );
+  const scopedPrograms = useMemo(() => {
+    let rows = programs;
+    if (machineId != null) {
+      rows = rows.filter((program) => program.machine_id === machineId);
+    }
+    return [...rows].sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
+      return b.start_date.localeCompare(a.start_date);
+    });
+  }, [programs, machineId]);
 
-  const recurringTemplateCount = useMemo(
-    () => templates.filter((t) => t.is_recurring).length,
-    [templates],
-  );
+  const filteredPrograms = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return scopedPrograms;
+    return scopedPrograms.filter((program) => {
+      const machineName = machineNameById.get(program.machine_id) ?? '';
+      return (
+        program.title.toLowerCase().includes(q) ||
+        machineName.toLowerCase().includes(q) ||
+        program.cadence.toLowerCase().includes(q)
+      );
+    });
+  }, [scopedPrograms, search, machineNameById]);
 
-  const programs = useMemo(
-    () =>
-      buildRecurringProgramList({
-        orders,
-        templates,
-        machineNameById,
-        machineIdsInScope,
-      }),
-    [orders, templates, machineNameById, machineIdsInScope],
-  );
-
-  const filteredPrograms = useMemo(() => searchPrograms(programs, search), [programs, search]);
-  const isLoading = templatesLoading || ordersLoading;
-
-  const toggleExpanded = (key: string) => {
-    setExpandedKey((prev) => (prev === key ? null : key));
-  };
+  async function handleStop(program: WorkOrderProgram) {
+    if (stoppingId != null || program.status !== 'active') return;
+    const machineName = machineNameById.get(program.machine_id) ?? `Machine #${program.machine_id}`;
+    const confirmed = window.confirm(
+      `${program.title} · ${machineName}\n\nStop this program? Upcoming drafts after today will be removed. Active and completed work orders stay.`,
+    );
+    if (!confirmed) return;
+    setStoppingId(program.id);
+    try {
+      await stopProgram(program.id).unwrap();
+      appToast.success('Program stopped');
+      onProgramsChanged?.();
+    } catch {
+      appToast.error('Failed to stop program');
+    } finally {
+      setStoppingId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -180,25 +164,20 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
     );
   }
 
-  if (recurringTemplateCount === 0) {
+  if (error) {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-        <Repeat2 className="mb-2 h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">No recurring templates yet</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Use Create recurring template above, then Add work on the sheet with that template to start a program.
-        </p>
+      <div className="flex flex-col items-center justify-center px-4 py-10 text-center text-sm text-destructive">
+        Failed to load programs
       </div>
     );
   }
 
-  if (programs.length === 0) {
+  if (scopedPrograms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-        <Repeat2 className="mb-2 h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">No recurring programs in this view</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Use Add work on the sheet, pick a recurring template, set start and end dates, and save the entry.
+          On Add work, turn on Recurring, set frequency and end date, then save the row.
         </p>
       </div>
     );
@@ -224,19 +203,22 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredPrograms.map((item) => {
-              const key = programRowKey(item);
-              const expanded = expandedKey === key;
-              const { summary } = item;
+            {filteredPrograms.map((program) => {
+              const expanded = expandedId === program.id;
+              const occurrences = program.occurrences ?? [];
+              const completed = occurrences.filter((row) => row.status === 'completed').length;
+              const active = occurrences.filter((row) => row.status === 'in_progress').length;
+              const upcoming = occurrences.filter((row) => row.status === 'draft').length;
+              const machineName = machineNameById.get(program.machine_id) ?? `Machine #${program.machine_id}`;
 
               return (
-                <div key={key}>
+                <div key={program.id}>
                   <div
                     className={cn(
                       'flex cursor-pointer items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40',
                       expanded && 'bg-muted/20',
                     )}
-                    onClick={() => toggleExpanded(key)}
+                    onClick={() => setExpandedId(expanded ? null : program.id)}
                   >
                     <div className="flex min-w-0 flex-1 items-start gap-2">
                       {expanded ? (
@@ -246,51 +228,56 @@ const RecurringProgramsManagerTab: React.FC<RecurringProgramsManagerTabProps> = 
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-card-foreground">
-                          {item.templateName} · {item.machineName}
+                          {program.title} · {machineName}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {item.cadence}
-                          {item.recurrenceRange ? ` · ${item.recurrenceRange}` : ''}
+                          {programCadenceLabel(program)}
+                          {' · '}
+                          {formatRange(program)}
                         </p>
                         <div className="mt-1.5 flex flex-wrap gap-1">
-                          {summary.completedOccurrences.length > 0 ? (
+                          {program.status === 'stopped' ? (
                             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
-                              {summary.completedOccurrences.length} completed
+                              Stopped
                             </Badge>
                           ) : null}
-                          {summary.inProgressOccurrences.length > 0 ? (
+                          {completed > 0 ? (
                             <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
-                              {summary.inProgressOccurrences.length} active
+                              {completed} completed
                             </Badge>
                           ) : null}
-                          {summary.futureDraftCount > 0 ? (
+                          {active > 0 ? (
+                            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                              {active} active
+                            </Badge>
+                          ) : null}
+                          {upcoming > 0 ? (
                             <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">
-                              {summary.futureDraftCount} upcoming
+                              {upcoming} upcoming
                             </Badge>
                           ) : null}
                         </div>
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => onEditTemplate(item.template)}
-                        title="Edit template"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <RecurringProgramDeleteButton
-                        program={summary}
-                        machineName={item.machineName}
-                        onDeleted={() => onProgramsChanged?.()}
-                      />
-                    </div>
+                    {program.status === 'active' ? (
+                      <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={stoppingId != null}
+                          onClick={() => void handleStop(program)}
+                        >
+                          {stoppingId === program.id ? (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : null}
+                          Stop
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                   {expanded ? (
-                    <ProgramTimeline summary={summary} onOpenWorkOrder={onOpenWorkOrder} />
+                    <ProgramTimeline occurrences={occurrences} onOpenWorkOrder={onOpenWorkOrder} />
                   ) : null}
                 </div>
               );

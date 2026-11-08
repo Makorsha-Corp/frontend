@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
 import { AppShellHeaderIconAction } from '@/components/newcomponents/customui/AppShellHeader';
@@ -38,7 +38,6 @@ import { cn } from '@/lib/utils';
 const ItemsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const itemIdParam = searchParams.get('itemId');
-  const detailsParam = searchParams.get('details');
   const deepLinkItemId = itemIdParam ? parseInt(itemIdParam, 10) : null;
 
   const catalogFilters = useMemo(() => parseItemsCatalogFilters(searchParams), [searchParams]);
@@ -134,14 +133,17 @@ const ItemsPage: React.FC = () => {
   const { data: deepLinkItem } = useGetItemByIdQuery(deepLinkItemId ?? 0, {
     skip: deepLinkItemId == null || !Number.isFinite(deepLinkItemId),
   });
+  const openedDeepLinkRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (detailsParam !== '1' || deepLinkItemId == null || !Number.isFinite(deepLinkItemId)) return;
+    if (deepLinkItemId == null || !Number.isFinite(deepLinkItemId)) return;
+    if (openedDeepLinkRef.current === deepLinkItemId) return;
 
     const fromList = items.find((item) => item.id === deepLinkItemId);
     const item = fromList ?? deepLinkItem;
     if (!item) return;
 
+    openedDeepLinkRef.current = deepLinkItemId;
     setSelectedItem(item);
     setIsDetailsDialogOpen(true);
     setSearchParams(
@@ -152,7 +154,7 @@ const ItemsPage: React.FC = () => {
       },
       { replace: true },
     );
-  }, [detailsParam, deepLinkItemId, items, deepLinkItem, setSearchParams]);
+  }, [deepLinkItemId, items, deepLinkItem, setSearchParams]);
 
   useEffect(() => {
     if (itemsPage === undefined) return;

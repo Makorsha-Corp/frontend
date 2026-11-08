@@ -10,6 +10,10 @@ export interface WorkOrderHrefOptions {
   factoryId?: number | null;
 }
 
+export function buildProductionBatchHref(batchId: number): string {
+  return `/production?batchId=${batchId}`;
+}
+
 export function buildWorkOrderHref(
   workOrderId: number,
   opts?: WorkOrderHrefOptions

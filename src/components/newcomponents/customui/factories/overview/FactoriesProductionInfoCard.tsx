@@ -3,7 +3,7 @@ import { Package } from 'lucide-react';
 import FactoryModuleInfoCard, {
   factoryModuleInfoCardBodyClasses,
 } from '@/components/newcomponents/customui/factories/overview/FactoryModuleInfoCard';
-import { factoryHubLink } from '@/pages/newpages/factories/factoriesOverviewConstants';
+import { factoryProductionHubLink } from '@/pages/newpages/factories/factoriesOverviewConstants';
 import type { ProductionCardSnapshot } from '@/pages/newpages/factories/factoriesOverviewData';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,9 @@ const FactoriesProductionInfoCard: React.FC<FactoriesProductionInfoCardProps> = 
   snapshot,
   loading,
 }) => {
-  const href = factoryHubLink('/production', factoryFilter);
+  const href = factoryProductionHubLink(factoryFilter, {
+    batchesTab: snapshot.inProgressCount > 0,
+  });
   const hasAlert = snapshot.inProgressCount > 0;
   const lineLabel =
     snapshot.activeLineCount === 1

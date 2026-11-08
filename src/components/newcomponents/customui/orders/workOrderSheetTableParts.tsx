@@ -15,6 +15,7 @@ import {
   workOrderItemActionLabel,
   workOrderPriorityBadgeClass,
   workOrderPriorityBadgeLabel,
+  isWorkOrderPreStart,
   workOrderStatusBadgeClass,
   workOrderStatusLabel,
 } from '@/pages/newpages/orders/workOrderConstants';
@@ -83,7 +84,7 @@ function statusBadge(row: WorkOrderSheetRow) {
 }
 
 function approvalPendingBadge(row: WorkOrderSheetRow) {
-  if (row.approvalMet || row.approvers.length === 0 || row.status !== 'DRAFT') return null;
+  if (row.approvalMet || row.approvers.length === 0 || !isWorkOrderPreStart(row.status)) return null;
   return (
     <Badge variant="outline" className={cn(SHEET_BADGE, 'border-amber-500/40 text-amber-700 dark:text-amber-400')}>
       Needs approval
@@ -454,6 +455,10 @@ function sheetDateDraftBadgeClass(): string {
   return 'border border-dashed border-slate-400/40 bg-slate-500/10 font-normal text-foreground/90 hover:bg-slate-500/16 dark:border-slate-400/35 dark:bg-slate-400/14 dark:text-slate-100 dark:hover:bg-slate-400/20';
 }
 
+function sheetDateRecurringBadgeClass(): string {
+  return 'border border-dashed border-violet-500/40 bg-violet-500/10 font-normal text-foreground/90 hover:bg-violet-500/16 dark:border-violet-400/35 dark:bg-violet-500/14 dark:text-violet-50 dark:hover:bg-violet-500/20';
+}
+
 function sheetDateActiveBadgeClass(): string {
   return 'border border-solid border-amber-500/40 bg-amber-500/10 text-foreground/90 hover:bg-amber-500/16 dark:border-amber-400/35 dark:bg-amber-500/14 dark:text-amber-50 dark:hover:bg-amber-500/20';
 }
@@ -542,9 +547,11 @@ function SheetStartDateCell({
             'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             hasAttentionBadge
               ? sheetDateAttentionBadgeClass(attention.kind, attention.startVarianceTone)
-              : row.status === 'DRAFT'
-                ? sheetDateDraftBadgeClass()
-                : row.status === 'IN_PROGRESS'
+              : row.status === 'RECURRING'
+                ? sheetDateRecurringBadgeClass()
+                : row.status === 'DRAFT'
+                  ? sheetDateDraftBadgeClass()
+                  : row.status === 'IN_PROGRESS'
                   ? sheetDateActiveBadgeClass()
                   : 'border-transparent text-card-foreground hover:bg-muted/50',
             useStackedLayout || statusOnlyLayout ? 'flex-col gap-0.5 py-1' : null,

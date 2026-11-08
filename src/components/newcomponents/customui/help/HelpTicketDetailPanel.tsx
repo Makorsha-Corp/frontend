@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, LifeBuoy, MessageSquare, Tag, User } from 'lucide-react';
 
 import AttachmentPanel from '@/components/newcomponents/customui/AttachmentPanel';
@@ -6,18 +6,26 @@ import DiscussionThread from '@/components/newcomponents/customui/DiscussionThre
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import type { HelpTicket, HelpTicketType } from '@/types/helpTicket';
 
 import { getHelpCopy } from './helpCopy';
+import HelpTicketActivityPanel from './HelpTicketActivityPanel';
+import HelpTicketReopenDialog from './HelpTicketReopenDialog';
+import {
+  getHelpTicketStatusActionLabel,
+  helpTicketStatusRequiresConfirmation,
+  isHelpTicketClosed,
+} from './helpTicketStatus';
 import HelpTicketStatusBadge from './HelpTicketStatusBadge';
 
 interface HelpTicketDetailPanelProps {
   type: HelpTicketType;
   ticket: HelpTicket | null;
-  formatDateTime: (value: string) => string;
   isUpdating: boolean;
-  onToggleStatus: () => void;
+  onToggleStatus: () => void | Promise<void>;
   onCreate: () => void;
+  canChangeStatus?: boolean;
   workspaceName?: string;
   emptyDetailMessage?: string;
   hideWelcome?: boolean;
@@ -51,15 +59,42 @@ function MetadataItem({
 const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
   type,
   ticket,
-  formatDateTime,
   isUpdating,
   onToggleStatus,
   onCreate,
+  canChangeStatus = false,
   workspaceName,
   emptyDetailMessage,
   hideWelcome = false,
 }) => {
   const copy = getHelpCopy(type);
+  const formatDateTime = useFormatDateTimeFromApi();
+  const [reopenConfirmOpen, setReopenConfirmOpen] = useState(false);
+  const isClosed = ticket != null && isHelpTicketClosed(ticket.status);
+  const closedComposerPlaceholder = canChangeStatus
+    ? copy.closedComposerPlaceholderOperator
+    : copy.closedComposerPlaceholder;
+  const closedAttachmentNotice = canChangeStatus
+    ? copy.closedAttachmentNoticeOperator
+    : copy.closedAttachmentNotice;
+
+  const handleStatusAction = () => {
+    if (!ticket) return;
+    if (helpTicketStatusRequiresConfirmation(ticket.status)) {
+      setReopenConfirmOpen(true);
+      return;
+    }
+    onToggleStatus();
+  };
+
+  const handleReopenConfirm = async () => {
+    try {
+      await onToggleStatus();
+      setReopenConfirmOpen(false);
+    } catch {
+      // Parent shows error toast; keep dialog open for retry.
+    }
+  };
 
   if (!ticket) {
     if (hideWelcome) {
@@ -124,17 +159,27 @@ const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <HelpTicketStatusBadge status={ticket.status} size="toolbar" />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isUpdating}
-              onClick={onToggleStatus}
-            >
-              {ticket.status === 'open' ? copy.closeLabel : copy.reopenLabel}
-            </Button>
+            {canChangeStatus ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUpdating}
+                onClick={handleStatusAction}
+              >
+                {getHelpTicketStatusActionLabel(ticket.status, copy)}
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        <HelpTicketReopenDialog
+          open={reopenConfirmOpen}
+          onOpenChange={setReopenConfirmOpen}
+          onConfirm={handleReopenConfirm}
+          isConfirming={isUpdating}
+          copy={copy}
+        />
 
         <div
           className={cn(
@@ -159,7 +204,12 @@ const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
         </p>
       </section>
 
-      <DiscussionThread entityType="support_ticket" entityId={ticket.id} />
+      <DiscussionThread
+        entityType="support_ticket"
+        entityId={ticket.id}
+        readOnly={isClosed}
+        readOnlyComposerPlaceholder={closedComposerPlaceholder}
+      />
 
       <section className="rounded-lg border border-border bg-card p-4 md:p-6">
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -169,8 +219,12 @@ const HelpTicketDetailPanel: React.FC<HelpTicketDetailPanelProps> = ({
           entityType="support_ticket"
           entityId={ticket.id}
           entityLabel={ticket.ticket_number}
+          readOnly={isClosed}
+          readOnlyNotice={closedAttachmentNotice}
         />
       </section>
+
+      <HelpTicketActivityPanel ticketId={ticket.id} />
     </div>
   );
 };

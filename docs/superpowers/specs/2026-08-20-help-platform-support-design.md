@@ -5,25 +5,25 @@
 
 ## Problem
 
-Mill `/help` lists all workspace tickets to every member, has no reply thread, and Makorsha staff have no in-app inbox. Waitlist admin is env-email only with no ERP UI.
+Workspace `/help` lists all workspace tickets to every member, has no reply thread, and Makorsha staff have no in-app inbox. Waitlist admin is env-email only with no ERP UI.
 
 ## Decision
 
-- Mill users **file** tickets; **Makorsha staff** reply via discussions.
+- Workspace users **file** tickets; **Makorsha staff** reply via discussions.
 - **`profiles.is_platform_admin`** gates platform shell (not env emails for Help).
-- Mill list visibility: **creator** sees own; **`owner`** + **`ground-team-manager`** see all.
+- Workspace list visibility: **creator** sees own; **`owner`** + **`ground-team-manager`** see all.
 - Reuse **`DiscussionThread`** with entity type **`support_ticket`** (matches attachment enum).
 - Status stays **`open` / `closed`** only; no notifications this pass.
-- Two surfaces: mill **`/help`** + **`/platform`** shell (**Support** + **Waitlist**).
+- Two surfaces: workspace **`/help`** + **`/platform`** shell (**Support** + **Waitlist**).
 - Waitlist admin API: **`is_platform_admin`** or legacy **`WAITLIST_ADMIN_EMAILS`** (transition).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  millUser[Mill user] --> millHelp["/help"]
-  millHelp --> tickets[help_tickets]
-  millHelp --> thread[discussions support_ticket]
+  workspaceUser[Workspace user] --> workspaceHelp["/help"]
+  workspaceHelp --> tickets[help_tickets]
+  workspaceHelp --> thread[discussions support_ticket]
   staff[Platform admin] --> platform["/platform"]
   platform --> support["/platform/support"]
   platform --> waitlistUi["/platform/waitlist"]
@@ -36,7 +36,7 @@ flowchart LR
 
 `GET /platform/help/tickets` is **cross-workspace** (no membership check). Opening a ticket in Support inbox, frontend **switches `X-Workspace-ID`** to the ticket's `workspace_id` so discussions, attachments, and PATCH close/reopen use existing workspace-scoped endpoints.
 
-**Platform admin workspace bypass:** `get_current_workspace` allows **`is_platform_admin`** users to set `X-Workspace-ID` to any valid workspace without membership — required for staff to reply on mill tickets they do not belong to.
+**Platform admin workspace bypass:** `get_current_workspace` allows **`is_platform_admin`** users to set `X-Workspace-ID` to any valid workspace without membership — required for staff to reply on workspace tickets they do not belong to.
 
 ## Backend
 
@@ -50,7 +50,7 @@ flowchart LR
 - `get_platform_admin` — 403 if `is_platform_admin` is false.
 - `get_current_workspace` — skip membership check when user is platform admin.
 
-### Mill help (`/help/tickets`)
+### Workspace help (`/help/tickets`)
 
 - **List:** filter `created_by = current_user.id` unless workspace role is `owner` or `ground-team-manager`.
 - **Get / PATCH:** same visibility, except **`is_platform_admin`** may access any ticket in the workspace header context.
@@ -73,7 +73,7 @@ flowchart LR
 
 - `User` / `ProfileResponse` expose **`is_platform_admin`** (login, register, `GET /auth/me/`).
 
-### Mill `/help`
+### Workspace `/help`
 
 - **`DiscussionThread`** on detail (`entityType="support_ticket"`).
 - Show **creator name** when present.

@@ -3,6 +3,7 @@ import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUti
 import type { CalendarDayCell } from '@/pages/newpages/calendar/calendarDateUtils';
 import CalendarCategoryDivider from './CalendarCategoryDivider';
 import CalendarEventCard from './CalendarEventCard';
+import { calendarGridShellClass } from './calendarPageStyles';
 
 export interface CalendarDayViewProps {
   day: CalendarDayCell;
@@ -19,7 +20,7 @@ const CalendarDayView: React.FC<CalendarDayViewProps> = ({ day }) => {
           {day.events.length} {day.events.length === 1 ? 'event' : 'events'}
         </p>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-background p-4">
         {day.events.length === 0 ? (
           <div className="rounded-md border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
             No events on this day

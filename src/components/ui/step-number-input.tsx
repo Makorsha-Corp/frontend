@@ -10,9 +10,14 @@ function decimalPlaces(step: number): number {
   return dot === -1 ? 0 : s.length - dot - 1;
 }
 
-function formatStepValue(value: number, step: number): string {
-  const precision = decimalPlaces(step);
-  if (precision === 0) return String(value);
+function decimalPlacesFromRaw(raw: string): number {
+  const dot = raw.indexOf('.');
+  if (dot === -1) return 0;
+  return raw.length - dot - 1;
+}
+
+function formatWithPrecision(value: number, precision: number): string {
+  if (precision <= 0) return String(value);
   const fixed = value.toFixed(precision);
   return fixed.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 }
@@ -27,11 +32,11 @@ function applyStep(
   const parsed = parseFloat(raw);
   const base = Number.isFinite(parsed) ? parsed : 0;
   let next = base + direction * step;
-  const precision = decimalPlaces(step);
+  const precision = Math.max(decimalPlaces(step), decimalPlacesFromRaw(raw));
   next = Number(next.toFixed(precision));
   if (min != null) next = Math.max(min, next);
   if (max != null) next = Math.min(max, next);
-  return formatStepValue(next, step);
+  return formatWithPrecision(next, precision);
 }
 
 function fireChange(
@@ -48,12 +53,15 @@ function fireChange(
 
 export interface StepNumberInputProps extends Omit<InputProps, 'type' | 'step' | 'min' | 'max'> {
   step?: number;
+  /** Chevron, arrow, and wheel change. Defaults to `step`. */
+  buttonStep?: number;
   min?: number;
   max?: number;
 }
 
 const StepNumberInput = React.forwardRef<HTMLInputElement, StepNumberInputProps>(
-  ({ step = 1, min, max, className, onChange, onKeyDown, onWheel, disabled, ...props }, ref) => {
+  ({ step = 1, buttonStep, min, max, className, onChange, onKeyDown, onWheel, disabled, ...props }, ref) => {
+    const increment = buttonStep ?? step;
     const inputRef = React.useRef<HTMLInputElement | null>(null);
 
     const setRefs = React.useCallback(
@@ -69,10 +77,10 @@ const StepNumberInput = React.forwardRef<HTMLInputElement, StepNumberInputProps>
       (direction: 1 | -1) => {
         const el = inputRef.current;
         if (!el || disabled) return;
-        const next = applyStep(el.value, direction, step, min, max);
+        const next = applyStep(el.value, direction, increment, min, max);
         fireChange(el, next, onChange);
       },
-      [step, min, max, onChange, disabled]
+      [increment, min, max, onChange, disabled]
     );
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

@@ -3,6 +3,7 @@ import type { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/types/work
 import {
   isWorkOrderOpen,
   isWorkOrderComplete,
+  isWorkOrderPreStart,
   priorityLabel,
   workOrderStatusLabel,
   workOrderDisplayLabel,
@@ -49,7 +50,7 @@ function reportDateForWorkOrder(order: WorkOrder): Date {
 }
 
 function isFuturePlannedDraft(order: WorkOrder): boolean {
-  if (order.status !== 'DRAFT') return false;
+  if (!isWorkOrderPreStart(order.status)) return false;
   const planned = order.planned_date?.trim();
   if (!planned) return false;
   try {
@@ -131,7 +132,7 @@ export function workOrderSummaryStats(orders: WorkOrder[]): WorkOrderSummaryStat
     if (isWorkOrderOpen(o.status)) {
       openCount += 1;
     }
-    if (o.status === 'DRAFT') {
+    if (isWorkOrderPreStart(o.status)) {
       pendingApprovalCount += 1;
     }
     totalCost += Number(o.cost ?? 0);

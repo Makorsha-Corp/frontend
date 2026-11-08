@@ -3,6 +3,7 @@ import { Copy, Loader2, Smartphone } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -216,9 +217,19 @@ export default function MobileUploadQrDialog({
     }
   };
 
-  const heading =
-    resolvedLabel ??
-    `${ATTACHMENT_ENTITY_TYPE_LABELS[entityType] ?? entityType} #${entityId}`;
+  const entityTypeLabel = ATTACHMENT_ENTITY_TYPE_LABELS[entityType] ?? entityType;
+  const entityTarget = resolvedLabel ? (
+    <ReferenceId tone="inherit" weight="medium">
+      {resolvedLabel}
+    </ReferenceId>
+  ) : (
+    <>
+      {entityTypeLabel}{' '}
+      <ReferenceId tone="inherit" weight="medium">
+        #{entityId}
+      </ReferenceId>
+    </>
+  );
 
   const busy = isPromoting || isRemoving;
 
@@ -231,9 +242,11 @@ export default function MobileUploadQrDialog({
             Upload from phone
           </DialogTitle>
           <DialogDescription>
-            {uploaded
-              ? `Name the file from your phone, then attach it to ${heading}.`
-              : `Scan the QR code or open the link on your phone to send a file to ${heading}.`}
+            {uploaded ? (
+              <>Name the file from your phone, then attach it to {entityTarget}.</>
+            ) : (
+              <>Scan the QR code or open the link on your phone to send a file to {entityTarget}.</>
+            )}
           </DialogDescription>
         </DialogHeader>
 

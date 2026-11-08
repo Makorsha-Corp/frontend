@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Settings, type LucideIcon } from 'lucide-react';
+import { Clock, LogOut, Settings, type LucideIcon } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -14,14 +14,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import GeneralSettingsPanel from '@/components/newcomponents/customui/settings/GeneralSettingsPanel';
+import WorkspaceShiftsSettingsPanel from '@/components/newcomponents/customui/settings/WorkspaceShiftsSettingsPanel';
 import { avatarColor, initialsOf } from '@/components/newcomponents/customui/orders/transferOrderApprovals';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
 import { cn } from '@/lib/utils';
-import {
-  useSettingsModal,
-  type SettingsSectionId,
-} from '@/context/SettingsModalContext';
+import type { SettingsSectionId } from '@/context/SettingsModalContext';
 
 type SettingsNavItem = {
   id: SettingsSectionId;
@@ -32,18 +30,35 @@ type SettingsNavItem = {
 
 const NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', label: 'General', icon: Settings, visible: true },
+  { id: 'shifts', label: 'Shifts', icon: Clock, visible: true },
 ];
 
-const UserSettingsModal: React.FC = () => {
+export interface UserSettingsModalProps {
+  isOpen: boolean;
+  activeSection: SettingsSectionId;
+  closeSettings: () => void;
+  setActiveSection: (section: SettingsSectionId) => void;
+}
+
+const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
+  isOpen,
+  activeSection,
+  closeSettings,
+  setActiveSection,
+}) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
-  const { isOpen, activeSection, closeSettings, setActiveSection } = useSettingsModal();
+  const workspace = useAppSelector((state) => state.auth.workspace);
   const [triggerLogout] = useLogoutMutation();
 
   const visibleNavItems = useMemo(
-    () => NAV_ITEMS.filter((item) => item.visible !== false),
-    []
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (item.id === 'shifts') return workspace?.role === 'owner';
+        return item.visible !== false;
+      }),
+    [workspace?.role],
   );
 
   const handleLogout = async () => {
@@ -112,6 +127,7 @@ const UserSettingsModal: React.FC = () => {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-6">
             {activeSection === 'general' && <GeneralSettingsPanel />}
+            {activeSection === 'shifts' && <WorkspaceShiftsSettingsPanel />}
           </div>
         </div>
 

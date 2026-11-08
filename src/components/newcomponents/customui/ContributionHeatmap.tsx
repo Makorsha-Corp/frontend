@@ -1,5 +1,7 @@
 import React, { useLayoutEffect, useRef } from 'react';
 
+import { toLocalDateKey } from '@/lib/heatmapDateKey';
+
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** w-3 (12px) + gap-0.5 (2px) between week columns */
@@ -7,7 +9,7 @@ const COL_STRIDE_PX = 14;
 
 export interface ContributionHeatmapProps {
   /** Items with a date field (ISO date string or YYYY-MM-DD). Counts are aggregated by date. */
-  items: Array<{ date: string }>;
+  items: Array<{ date: string; count?: number }>;
   /** How many months to show (default 12) */
   monthsBack?: number;
   /** Singular label for tooltip (e.g. "batch", "order", "event"). Default: "item" */
@@ -43,10 +45,12 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
 
     const countByDate: Record<string, number> = {};
     for (const item of items) {
-      const d = new Date(item.date);
+      const key = toLocalDateKey(item.date);
+      const [y, m, day] = key.split('-').map(Number);
+      const d = new Date(y, m - 1, day);
       if (d >= start && d <= end) {
-        const key = d.toISOString().split('T')[0];
-        countByDate[key] = (countByDate[key] ?? 0) + 1;
+        const increment = item.count ?? 1;
+        countByDate[key] = (countByDate[key] ?? 0) + increment;
       }
     }
 
@@ -69,7 +73,7 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({
       }
       const week: { date: string; count: number }[] = [];
       for (let d = 0; d < 7; d++) {
-        const dateKey = current.toISOString().split('T')[0];
+        const dateKey = toLocalDateKey(current);
         week.push({ date: dateKey, count: countByDate[dateKey] ?? 0 });
         current.setDate(current.getDate() + 1);
       }

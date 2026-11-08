@@ -2,6 +2,14 @@ import type { ItemRole } from '@/types/production';
 
 export const ITEM_ROLES: ItemRole[] = ['input', 'output', 'waste', 'byproduct'];
 
+/** Step status chips — same tints as ProductionPage batch list `getStatusBadge`. */
+export const BATCH_STAGE_LOG_STATUS_BADGE: Record<string, string> = {
+  pending: 'bg-muted text-muted-foreground',
+  in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  completed: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  skipped: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 line-through',
+};
+
 export const BATCH_ROLE_BADGE: Record<ItemRole, string> = {
   input: 'border-transparent bg-blue-500/15 text-blue-800 dark:text-blue-200',
   output: 'border-transparent bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',

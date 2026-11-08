@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 import type { CalendarCategory } from '@/types/calendar';
 import { getCategoryStyle } from './calendarCategoryStyles';
 
@@ -16,14 +17,16 @@ const CalendarCategoryDivider: React.FC<CalendarCategoryDividerProps> = ({
   const style = getCategoryStyle(category);
 
   return (
-    <div className={className ?? 'flex items-center gap-2'}>
-      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {style.label}
-      </span>
-      <div className="h-px flex-1 bg-border" />
-      {count != null ? (
-        <span className="shrink-0 text-[10px] text-muted-foreground">{count}</span>
-      ) : null}
+    <div
+      className={cn(
+        'inline-flex w-fit items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1 text-xs font-medium',
+        style.chipActive,
+        className,
+      )}
+      aria-label={count != null ? `${style.label}, ${count} events` : style.label}
+    >
+      <span>{style.label}</span>
+      {count != null ? <span className="opacity-80">{count}</span> : null}
     </div>
   );
 };

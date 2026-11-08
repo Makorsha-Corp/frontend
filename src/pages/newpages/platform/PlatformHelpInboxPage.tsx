@@ -8,11 +8,14 @@ import HelpTicketDetailPanel from '@/components/newcomponents/customui/help/Help
 import HelpTicketListPanel from '@/components/newcomponents/customui/help/HelpTicketListPanel';
 import { STATUS_FILTER_ALL, getHelpCopy, type HelpStatusFilter } from '@/components/newcomponents/customui/help/helpCopy';
 import {
+  getHelpTicketStatusSuccessMessage,
+  getNextHelpTicketStatus,
+} from '@/components/newcomponents/customui/help/helpTicketStatus';
+import {
   useListPlatformHelpTicketsQuery,
   useUpdateHelpTicketMutation,
 } from '@/features/helpTickets/helpTicketsApi';
 import { setWorkspace, setWorkspaceHeaderOnly } from '@/features/auth/authSlice';
-import { useFormatDateTimeFromApi } from '@/hooks/useFormatDateFromApi';
 import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
@@ -27,12 +30,12 @@ const INBOX_META: Record<
   support: {
     icon: LifeBuoy,
     title: 'Support inbox',
-    subtitle: 'All mill workspaces',
+    subtitle: 'All workspaces',
   },
   feedback: {
     icon: MessageSquare,
     title: 'Feedback inbox',
-    subtitle: 'All mill workspaces',
+    subtitle: 'All workspaces',
   },
 };
 
@@ -67,7 +70,6 @@ interface PlatformHelpInboxPageProps {
 }
 
 const PlatformHelpInboxPage: React.FC<PlatformHelpInboxPageProps> = ({ type }) => {
-  const formatDateTime = useFormatDateTimeFromApi();
   const isLgScreen = useIsLgScreen();
   const dispatch = useAppDispatch();
   const workspace = useAppSelector((state) => state.auth.workspace);
@@ -162,17 +164,17 @@ const PlatformHelpInboxPage: React.FC<PlatformHelpInboxPageProps> = ({ type }) =
   const handleToggleStatus = async () => {
     if (!selectedTicket) return;
 
-    const nextStatus: HelpTicketStatus = selectedTicket.status === 'open' ? 'closed' : 'open';
+    const currentStatus = selectedTicket.status;
+    const nextStatus = getNextHelpTicketStatus(currentStatus);
     try {
       await updateTicket({
         ticketId: selectedTicket.id,
         data: { status: nextStatus },
       }).unwrap();
-      appToast.success(
-        nextStatus === 'closed' ? copy.statusCloseSuccess : copy.statusReopenSuccess,
-      );
+      appToast.success(getHelpTicketStatusSuccessMessage(currentStatus, copy));
     } catch {
       appToast.error(copy.statusUpdateError);
+      throw new Error(copy.statusUpdateError);
     }
   };
 
@@ -221,10 +223,10 @@ const PlatformHelpInboxPage: React.FC<PlatformHelpInboxPageProps> = ({ type }) =
             type={type}
             ticket={selectedTicket}
             workspaceName={selectedTicket?.workspace_name}
-            formatDateTime={formatDateTime}
             isUpdating={isUpdating}
             onToggleStatus={handleToggleStatus}
             onCreate={() => {}}
+            canChangeStatus
             hideWelcome
           />
         </main>

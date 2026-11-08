@@ -20,6 +20,7 @@ export function workOrderItemActionLabel(actionType: WorkOrderItemActionType): s
 
 export const WORK_ORDER_STATUSES: WorkOrderStatus[] = [
   'DRAFT',
+  'RECURRING',
   'IN_PROGRESS',
   'COMPLETED',
   'VOIDED',
@@ -29,10 +30,15 @@ export const WORK_ORDER_PRIORITIES: WorkOrderPriority[] = ['LOW', 'MEDIUM', 'HIG
 
 export const WORK_ORDER_STATUS_OPTIONS: { value: WorkOrderStatus; label: string }[] = [
   { value: 'DRAFT', label: 'Draft' },
+  { value: 'RECURRING', label: 'Recurring' },
   { value: 'IN_PROGRESS', label: 'In progress' },
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'VOIDED', label: 'Voided' },
 ];
+
+export function isWorkOrderPreStart(status: WorkOrderStatus): boolean {
+  return status === 'DRAFT' || status === 'RECURRING';
+}
 
 export function workOrderStatusLabel(status: WorkOrderStatus): string {
   return WORK_ORDER_STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status.replace(/_/g, ' ');
@@ -45,6 +51,8 @@ export function workOrderStatusShortLabel(status: WorkOrderStatus): string {
       return 'Active';
     case 'COMPLETED':
       return 'Complete';
+    case 'RECURRING':
+      return 'Rec';
     default:
       return workOrderStatusLabel(status);
   }
@@ -72,8 +80,46 @@ export function workOrderStatusBadgeClass(status: WorkOrderStatus): string {
       return 'status-badge status-badge--unconfirmed';
     case 'DRAFT':
       return 'border-slate-400/45 bg-slate-500/10 text-slate-700 dark:border-slate-500/50 dark:bg-slate-500/15 dark:text-slate-300';
+    case 'RECURRING':
+      return 'border-violet-500/40 bg-violet-500/10 text-violet-800 dark:border-violet-500/45 dark:bg-violet-500/15 dark:text-violet-200';
     default:
       return 'text-muted-foreground';
+  }
+}
+
+/** Week board card left stripe (production schedule style). */
+export function workOrderStatusStripeClass(status: WorkOrderStatus): string {
+  switch (status) {
+    case 'DRAFT':
+      return 'border-l-slate-400 dark:border-l-slate-500';
+    case 'RECURRING':
+      return 'border-l-violet-500 dark:border-l-violet-500';
+    case 'IN_PROGRESS':
+      return 'border-l-amber-500';
+    case 'COMPLETED':
+      return 'border-l-emerald-500';
+    case 'VOIDED':
+      return 'border-l-red-400 dark:border-l-red-500';
+    default:
+      return 'border-l-border';
+  }
+}
+
+/** Week board card status pill (production schedule style). */
+export function workOrderStatusPillClass(status: WorkOrderStatus): string {
+  switch (status) {
+    case 'DRAFT':
+      return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
+    case 'RECURRING':
+      return 'bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200';
+    case 'IN_PROGRESS':
+      return 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200';
+    case 'COMPLETED':
+      return 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200';
+    case 'VOIDED':
+      return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200';
+    default:
+      return 'bg-muted text-muted-foreground';
   }
 }
 

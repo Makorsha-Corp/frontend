@@ -1,13 +1,9 @@
-import React, { useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import CalendarMonthYearJumpPanel from './CalendarMonthYearJumpPanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs } from '@/components/ui/tabs';
 import {
   EmphasisTabsList,
@@ -21,15 +17,11 @@ import {
 } from '@/components/newcomponents/customui/AppShellHeader';
 import type { CalendarView } from '@/types/calendar';
 import {
-  getAnchorDay,
-  getAnchorMonth,
-  getAnchorYear,
-  getDaySelectOptions,
-  getMonthSelectOptions,
-  getYearSelectOptions,
+  formatCalendarDate,
+  formatPeriodLabel,
+  getPeriodStepAriaLabel,
   isViewingCurrentPeriod,
-  setAnchorDay,
-  setAnchorMonthYear,
+  parseCalendarDate,
   shiftAnchorDate,
   todayIso,
 } from '@/pages/newpages/calendar/calendarDateUtils';
@@ -40,11 +32,6 @@ const VIEW_OPTIONS: { value: CalendarView; label: string }[] = [
   { value: 'day', label: 'Day' },
   { value: 'agenda', label: 'Agenda' },
 ];
-
-const MONTH_OPTIONS = getMonthSelectOptions();
-
-const selectTriggerClass =
-  'h-10 border-none bg-transparent px-2 shadow-none hover:bg-muted/50 focus:ring-0 focus:ring-offset-0';
 
 export interface CalendarToolbarProps {
   view: CalendarView;
@@ -65,25 +52,10 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   variant = 'default',
   part = 'all',
 }) => {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const isCurrentPeriod = isViewingCurrentPeriod(view, anchorDate);
-
-  const month = getAnchorMonth(anchorDate);
-  const year = getAnchorYear(anchorDate);
-  const day = getAnchorDay(anchorDate);
-  const yearOptions = useMemo(() => getYearSelectOptions(anchorDate), [anchorDate]);
-  const dayOptions = useMemo(() => getDaySelectOptions(month, year), [month, year]);
-
-  const handleMonthChange = (value: string) => {
-    onAnchorDateChange(setAnchorMonthYear(anchorDate, Number(value), year));
-  };
-
-  const handleYearChange = (value: string) => {
-    onAnchorDateChange(setAnchorMonthYear(anchorDate, month, Number(value)));
-  };
-
-  const handleDayChange = (value: string) => {
-    onAnchorDateChange(setAnchorDay(anchorDate, Number(value)));
-  };
+  const anchor = useMemo(() => parseCalendarDate(anchorDate), [anchorDate]);
+  const periodLabel = useMemo(() => formatPeriodLabel(view, anchorDate), [view, anchorDate]);
 
   const isHeader = variant === 'header';
   const controlHeight = isHeader ? appShellHeaderControlClass : 'h-10';
@@ -94,80 +66,9 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
     'shrink-0 rounded-none text-foreground',
     isHeader ? cn(appShellHeaderControlClass, 'w-9') : 'h-10 w-10',
   );
-  const selectTrigger = cn(
-    selectTriggerClass,
-    isHeader && '!h-9 text-foreground [&_svg]:text-foreground/70',
-  );
 
   const navigationControls = (
     <div className="flex flex-wrap items-center gap-2">
-      <div className={dateShellClass}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(navButtonClass, 'border-r border-border')}
-          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, -1))}
-          aria-label="Previous period"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-
-        <div className="flex items-center gap-1 px-2">
-          <Select value={String(month)} onValueChange={handleMonthChange}>
-            <SelectTrigger className={cn(selectTrigger, 'w-[7.5rem] font-semibold')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTH_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {view === 'day' ? (
-            <Select value={String(day)} onValueChange={handleDayChange}>
-              <SelectTrigger className={cn(selectTrigger, 'w-[3.25rem] font-semibold')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {dayOptions.map((optionDay) => (
-                  <SelectItem key={optionDay} value={String(optionDay)}>
-                    {optionDay}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-
-          <Select value={String(year)} onValueChange={handleYearChange}>
-            <SelectTrigger className={cn(selectTrigger, 'w-[5.5rem] font-semibold')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((optionYear) => (
-                <SelectItem key={optionYear} value={String(optionYear)}>
-                  {optionYear}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(navButtonClass, 'border-l border-border')}
-          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, 1))}
-          aria-label="Next period"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
       <Button
         type="button"
         variant="outline"
@@ -176,19 +77,86 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           'shrink-0 px-3',
           controlHeight,
           isCurrentPeriod
-            ? 'pointer-events-none border-muted/70 bg-muted/40 font-normal text-muted-foreground shadow-none disabled:opacity-100 dark:border-muted dark:bg-muted/25'
+            ? 'border-muted/70 bg-muted/40 font-normal text-muted-foreground shadow-none hover:bg-muted/55 dark:border-muted dark:bg-muted/25'
             : cn(
                 'border-border bg-background font-medium text-foreground hover:bg-muted/60',
                 isHeader && 'shadow-sm',
               ),
         )}
         onClick={() => onAnchorDateChange(todayIso())}
-        disabled={isCurrentPeriod}
         aria-current={isCurrentPeriod ? 'date' : undefined}
-        aria-label={isCurrentPeriod ? 'Currently viewing today' : 'Go to today'}
+        aria-label={isCurrentPeriod ? 'Currently viewing today — jump to today' : 'Go to today'}
       >
         Today
       </Button>
+
+      <div className={dateShellClass}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, -1))}
+          aria-label={getPeriodStepAriaLabel(view, 'previous')}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn(
+                'h-auto min-w-0 shrink rounded-none px-3 font-semibold',
+                isHeader ? 'h-9 max-w-[min(16rem,42vw)]' : 'h-10 max-w-[min(18rem,50vw)]',
+              )}
+              aria-label={
+                view === 'month'
+                  ? `${periodLabel}. Choose month`
+                  : `${periodLabel}. Choose date`
+              }
+            >
+              <CalendarDays className="mr-1.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="truncate">{periodLabel}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            {view === 'month' ? (
+              <CalendarMonthYearJumpPanel
+                anchorDate={anchorDate}
+                onCommit={(iso) => {
+                  onAnchorDateChange(iso);
+                  setPickerOpen(false);
+                }}
+              />
+            ) : (
+              <Calendar
+                mode="single"
+                selected={anchor}
+                defaultMonth={anchor}
+                onSelect={(date) => {
+                  if (!date) return;
+                  onAnchorDateChange(formatCalendarDate(date));
+                  setPickerOpen(false);
+                }}
+                initialFocus
+              />
+            )}
+          </PopoverContent>
+        </Popover>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={navButtonClass}
+          onClick={() => onAnchorDateChange(shiftAnchorDate(view, anchorDate, 1))}
+          aria-label={getPeriodStepAriaLabel(view, 'next')}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 

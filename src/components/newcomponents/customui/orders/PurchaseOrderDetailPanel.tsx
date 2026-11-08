@@ -128,6 +128,20 @@ import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import { useGetWorkspaceMembersQuery } from '@/features/workspaces/workspaceApi';
 import { useAppSelector } from '@/app/hooks';
 import { API_LIMITS } from '@/constants/apiLimits';
+import {
+  HELP_GUIDE_DRIVER_HIGHLIGHT_TARGET_EVENT,
+  HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT,
+  HELP_GUIDE_PO_TOUR_ACTION_EVENT,
+  HELP_GUIDE_PO_TOUR_CLOSE_RECEIVING_EVENT,
+  HELP_GUIDE_PO_TOUR_OPEN_RECEIVING_EVENT,
+  type HelpGuidePoDetailHighlightTarget,
+  type HelpGuidePoTourAction,
+} from '@/features/helpGuides/helpGuideSession';
+
+function emitPoTourActionDoneForSample(isTourSample: boolean, action: HelpGuidePoTourAction): void {
+  if (!isTourSample) return;
+  window.dispatchEvent(new CustomEvent(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, { detail: action }));
+}
 
 const AVATAR_COLORS = [
   'bg-brand-primary',
@@ -230,7 +244,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [voidInvoice, { isLoading: isVoidingInvoice }] = useVoidAccountInvoiceMutation();
   const [voidPurchaseOrder, { isLoading: isVoidingPo }] = useVoidPurchaseOrderMutation();
 
-  const { data: linkedInvoiceQuery } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
+  const {
+    data: linkedInvoiceQuery,
+    isFetching: isFetchingLinkedInvoice,
+    isLoading: isLoadingLinkedInvoice,
+  } = useGetAccountInvoiceByIdQuery(order.invoice_id!, {
     skip: order.invoice_id == null,
   });
   const linkedInvoice =
@@ -238,6 +256,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       ? linkedInvoiceQuery
       : undefined;
   const linkedInvoiceStatus: PoLinkedInvoiceStatus = linkedInvoice?.invoice_status ?? null;
+  const linkedInvoiceQueryPending =
+    order.invoice_id != null &&
+    (isLoadingLinkedInvoice || isFetchingLinkedInvoice) &&
+    linkedInvoice == null;
   const [confirmingSection, setConfirmingSection] = useState<
     'supplier' | 'details' | 'items' | 'invoice' | null
   >(null);
@@ -268,6 +290,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const [scrollHighlightTarget, setScrollHighlightTarget] = useState<
     PoSectionConfirmKey | 'approvals' | 'approve' | 'finalize' | 'receiving' | null
   >(null);
+  /** driver.js step — same po-scroll-target-highlight as checklist pulses; no 3.5s auto-clear */
+  const [helpGuideSpotlightTarget, setHelpGuideSpotlightTarget] =
+    useState<HelpGuidePoDetailHighlightTarget>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollHighlightGenerationRef = useRef(0);
 
@@ -365,6 +390,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         }
         await approveOrder(order.id).unwrap();
         appToast.success('Approved');
+        emitPoTourActionDoneForSample(order.is_tour_sample, 'approve');
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -431,6 +457,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const hasUnsavedSupplier =
     draft.account_id != null && draft.account_id !== order.account_id;
   const confirmationsStatus = getPurchaseOrderConfirmationsStatus(order);
+  const awaitingTourDraftSync =
+    order.is_tour_sample &&
+    confirmationsStatus.allConfirmed &&
+    order.invoice_id == null &&
+    !invoiceLocked;
   const approvalSectionsStatus = getPurchaseOrderApprovalSectionsStatus(order);
   const itemsMissingPriceCount = itemsConfirmed
     ? 0
@@ -467,14 +498,176 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     [order, items]
   );
 
+  const poTourHelpCtxRef = useRef({
+    order,
+    itemsConfirmed,
+    sectionItemsReady: { ok: false as boolean, reason: undefined as string | undefined },
+    approvalSectionsStatus,
+    myApprovalApproved: false,
+    confirmReadiness,
+    linkedInvoiceStatus,
+    manageReceivingBlocked: true,
+    receivingOpen: false,
+    markCompleteReadiness: { ok: false as boolean, reason: undefined as string | undefined },
+    orderComplete: false,
+  });
+  poTourHelpCtxRef.current = {
+    order,
+    itemsConfirmed,
+    sectionItemsReady: sectionConfirmReadiness.items,
+    approvalSectionsStatus,
+    myApprovalApproved: myApproval?.approved ?? false,
+    confirmReadiness,
+    linkedInvoiceStatus,
+    manageReceivingBlocked,
+    markCompleteReadiness,
+    orderComplete,
+  };
+
+  useEffect(() => {
+    if (!order.is_tour_sample) return;
+
+    const onPoTourAction = async (event: Event) => {
+      const action = (event as CustomEvent<HelpGuidePoTourAction>).detail;
+      const c = poTourHelpCtxRef.current;
+      const dispatchDone = () => {
+        window.dispatchEvent(
+          new CustomEvent(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, { detail: action }),
+        );
+      };
+
+      try {
+        if (action === 'confirm_items') {
+          if (c.itemsConfirmed) {
+            dispatchDone();
+            return;
+          }
+          if (!c.sectionItemsReady.ok) {
+            appToast.error(c.sectionItemsReady.reason ?? 'Order items not ready to confirm');
+            return;
+          }
+          await setSectionConfirm({ poId: c.order.id, section: 'items', confirmed: true }).unwrap();
+          appToast.success(`${SECTION_CONFIRM_LABELS.items} confirmed`);
+          onUpdated?.();
+          dispatchDone();
+          return;
+        }
+        if (action === 'approve') {
+          if (c.myApprovalApproved) {
+            dispatchDone();
+            return;
+          }
+          if (!c.approvalSectionsStatus.allConfirmed) {
+            appToast.error(
+              c.approvalSectionsStatus.reason ?? 'Confirm all sections before approving',
+            );
+            return;
+          }
+          await approveOrder(c.order.id).unwrap();
+          appToast.success('Approved');
+          onUpdated?.();
+          dispatchDone();
+          return;
+        }
+        if (action === 'finalize_invoice') {
+          if (c.order.invoice_id == null) {
+            appToast.error('Draft invoice has not synced yet — wait a moment and try again');
+            return;
+          }
+          if (c.linkedInvoiceStatus != null && c.linkedInvoiceStatus !== 'draft') {
+            if (c.linkedInvoiceStatus === 'confirmed') {
+              dispatchDone();
+            }
+            return;
+          }
+          if (!c.confirmReadiness.ok) {
+            appToast.error(c.confirmReadiness.reason ?? 'Cannot finalize invoice yet');
+            return;
+          }
+          await confirmInvoice(c.order.invoice_id).unwrap();
+          appToast.success('Invoice confirmed — payments can now be recorded.');
+          onUpdated?.();
+          dispatchDone();
+          return;
+        }
+        if (action === 'open_receiving') {
+          if (c.receivingOpen) {
+            dispatchDone();
+            return;
+          }
+          if (c.manageReceivingBlocked) {
+            appToast.error(
+              manageReceivingHint?.reason ?? 'Finalize the invoice before recording receiving',
+            );
+            return;
+          }
+          setReceivingOpen(true);
+          dispatchDone();
+          return;
+        }
+        if (action === 'mark_order_complete') {
+          if (c.orderComplete) {
+            dispatchDone();
+            return;
+          }
+          if (!c.markCompleteReadiness.ok) {
+            appToast.error(c.markCompleteReadiness.reason ?? 'Cannot mark order complete yet');
+            return;
+          }
+          await markOrderComplete(c.order.id).unwrap();
+          appToast.success('Purchase order marked complete');
+          onUpdated?.();
+          dispatchDone();
+        }
+      } catch (err: unknown) {
+        const e = err as { data?: { detail?: string } };
+        if (e?.data?.detail) appToast.error(e.data.detail);
+      }
+    };
+
+    window.addEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onPoTourAction);
+    return () => window.removeEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onPoTourAction);
+  }, [
+    order.is_tour_sample,
+    order.id,
+    setSectionConfirm,
+    approveOrder,
+    confirmInvoice,
+    markOrderComplete,
+    onUpdated,
+  ]);
+
   useEffect(() => {
     if (!scrollHighlightTarget) return;
     const timer = window.setTimeout(() => setScrollHighlightTarget(null), 3500);
     return () => window.clearTimeout(timer);
   }, [scrollHighlightTarget]);
 
+  useEffect(() => {
+    if (!awaitingTourDraftSync) return;
+    onUpdated?.();
+    const timer = window.setInterval(() => onUpdated?.(), 2_000);
+    return () => window.clearInterval(timer);
+  }, [awaitingTourDraftSync, onUpdated]);
+
+  useEffect(() => {
+    if (!order.is_tour_sample) return;
+
+    const onDriverHighlight = (e: Event) => {
+      const detail = (e as CustomEvent<HelpGuidePoDetailHighlightTarget>).detail;
+      setHelpGuideSpotlightTarget(detail ?? null);
+    };
+
+    window.addEventListener(HELP_GUIDE_DRIVER_HIGHLIGHT_TARGET_EVENT, onDriverHighlight);
+    return () =>
+      window.removeEventListener(HELP_GUIDE_DRIVER_HIGHLIGHT_TARGET_EVENT, onDriverHighlight);
+  }, [order.is_tour_sample]);
+
+  const visualHighlightTarget = helpGuideSpotlightTarget ?? scrollHighlightTarget;
+
   const clearScrollHighlights = () => {
     setScrollHighlightTarget(null);
+    setHelpGuideSpotlightTarget(null);
   };
 
   const dismissScrollHighlight = clearScrollHighlights;
@@ -635,11 +828,16 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   }, [draft, order, supplierDisabled, structuralDetailsDisabled]);
 
   const handleConfirmInvoice = async () => {
+    if (order.is_tour_sample && linkedInvoiceStatus === 'confirmed') {
+      emitPoTourActionDoneForSample(true, 'finalize_invoice');
+      return;
+    }
     if (!order.invoice_id || !confirmReadiness.ok) return;
     try {
       await confirmInvoice(order.invoice_id).unwrap();
       appToast.success('Invoice confirmed — payments can now be recorded.');
       setConfirmInvoiceOpen(false);
+      emitPoTourActionDoneForSample(order.is_tour_sample, 'finalize_invoice');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -672,6 +870,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           : ' Stays in the open list until the invoice is fully paid.';
       }
       appToast.success(`${baseMessage}${listHint}`);
+      emitPoTourActionDoneForSample(order.is_tour_sample, 'mark_order_complete');
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -779,6 +978,9 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
       await setSectionConfirm({ poId: order.id, section, confirmed: nextConfirmed }).unwrap();
       const label = SECTION_CONFIRM_LABELS[section];
       appToast.success(nextConfirmed ? `${label} confirmed` : `${label} unconfirmed`);
+      if (order.is_tour_sample && nextConfirmed && section === 'items') {
+        emitPoTourActionDoneForSample(true, 'confirm_items');
+      }
       onUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
@@ -818,9 +1020,27 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   const subtotal = Number(order.subtotal ?? 0);
 
   const [receivingOpen, setReceivingOpen] = useState(false);
+
+  useEffect(() => {
+    poTourHelpCtxRef.current.receivingOpen = receivingOpen;
+  }, [receivingOpen]);
+
+  useEffect(() => {
+    if (!order.is_tour_sample) return;
+    const onCloseReceiving = () => setReceivingOpen(false);
+    const onOpenReceiving = () => setReceivingOpen(true);
+    window.addEventListener(HELP_GUIDE_PO_TOUR_CLOSE_RECEIVING_EVENT, onCloseReceiving);
+    window.addEventListener(HELP_GUIDE_PO_TOUR_OPEN_RECEIVING_EVENT, onOpenReceiving);
+    return () => {
+      window.removeEventListener(HELP_GUIDE_PO_TOUR_CLOSE_RECEIVING_EVENT, onCloseReceiving);
+      window.removeEventListener(HELP_GUIDE_PO_TOUR_OPEN_RECEIVING_EVENT, onOpenReceiving);
+    };
+  }, [order.is_tour_sample]);
+
   const openReceiving = () => {
     if (orderComplete) return;
     setReceivingOpen(true);
+    emitPoTourActionDoneForSample(order.is_tour_sample, 'open_receiving');
   };
 
   const openEditItems = (lineId?: number) => {
@@ -881,7 +1101,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-background">
+    <div
+      data-help-tour="purchase.detail"
+      className="flex flex-col h-full min-h-0 overflow-hidden bg-background"
+    >
       <div className="flex flex-1 min-h-0">
         <div
           ref={scrollContainerRef}
@@ -900,7 +1123,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           }
           isApproving={isApproving}
           isUnapproving={isUnapproving}
-          highlighted={isApprovalsBarScrollHighlight(scrollHighlightTarget)}
+          highlighted={isApprovalsBarScrollHighlight(visualHighlightTarget)}
           onHighlightDismiss={dismissScrollHighlight}
           onManage={openManageApprovals}
           onToggleMyApproval={handleToggleMyApproval}
@@ -957,7 +1180,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     onToggle={() => requestSectionConfirmToggle('details', detailsConfirmed)}
                     isLoading={confirmingSection === 'details'}
                     label="order details"
-                    highlighted={scrollHighlightTarget === 'details'}
+                    highlighted={visualHighlightTarget === 'details'}
                     onHighlightDismiss={dismissScrollHighlight}
                   />
                 )}
@@ -1127,7 +1350,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     onToggle={() => requestSectionConfirmToggle('supplier', supplierConfirmed)}
                     isLoading={confirmingSection === 'supplier'}
                     label="supplier"
-                    highlighted={scrollHighlightTarget === 'supplier'}
+                    highlighted={visualHighlightTarget === 'supplier'}
                     onHighlightDismiss={dismissScrollHighlight}
                   />
                 )}
@@ -1242,7 +1465,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                     onToggle={() => requestSectionConfirmToggle('items', itemsConfirmed)}
                     isLoading={confirmingSection === 'items'}
                     label="order items and prices"
-                    highlighted={scrollHighlightTarget === 'items'}
+                    highlighted={visualHighlightTarget === 'items'}
                     onHighlightDismiss={dismissScrollHighlight}
                   />
                 )}
@@ -1250,7 +1473,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
             </div>
           </CardHeader>
           <CardContent className={`pt-0 ${itemsSectionConfirmed ? confirmedSectionContentClass : ''}`}>
-            {items.length === 0 ? (
+            {itemsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : items.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center">
                 <Package className="h-6 w-6 text-muted-foreground/50 mx-auto mb-1" />
                 <p className="text-sm font-medium text-muted-foreground">No items on this order</p>
@@ -1410,7 +1637,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
                   size="sm"
                   className={cn(
                     'h-8 w-fit bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground',
-                    scrollHighlightTarget === 'receiving' && 'po-scroll-target-highlight'
+                    visualHighlightTarget === 'receiving' && 'po-scroll-target-highlight'
                   )}
                   onMouseEnter={dismissScrollHighlight}
                   onAction={openReceiving}
@@ -1467,7 +1694,8 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           hasSupplier={hasSupplier}
           hasUnsavedSupplier={hasUnsavedSupplier}
           baseSectionsConfirmed={confirmationsStatus.allConfirmed}
-          isSyncingDraft={confirmingSection != null}
+          isSyncingDraft={confirmingSection != null || awaitingTourDraftSync}
+          isLoadingLinkedInvoice={linkedInvoiceQueryPending}
           accountName={
             accounts.find((a) => a.id === effectiveAccountId)?.name ?? null
           }
@@ -1478,11 +1706,17 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
           confirmReadiness={confirmReadiness}
           isConfirming={isConfirmingInvoice}
           isVoiding={isVoidingInvoice}
-          onConfirmInvoice={() => setConfirmInvoiceOpen(true)}
+          onConfirmInvoice={() => {
+            if (order.is_tour_sample) {
+              void handleConfirmInvoice();
+            } else {
+              setConfirmInvoiceOpen(true);
+            }
+          }}
           onVoidInvoice={() => setVoidInvoiceOpen(true)}
           onOpenFullView={() => setInvoiceDialogOpen(true)}
           hasActiveReceiving={items.some((i) => Number(i.quantity_received ?? 0) > 0)}
-          highlightedTarget={scrollHighlightTarget}
+          highlightedTarget={visualHighlightTarget}
           onHighlightDismiss={dismissScrollHighlight}
           onFinalizeBlocked={handleFinalizeBlocked}
         />
@@ -1497,7 +1731,10 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         />
 
         {/* Event Log (WIRED) */}
-        <Card className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden">
+        <Card
+          id="po-event-log"
+          className="flex flex-col max-h-[min(32rem,50vh)] overflow-hidden scroll-mt-6"
+        >
           <CardHeader className="p-4 pb-3 shrink-0">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex items-center gap-3 flex-wrap min-w-0">
@@ -1592,7 +1829,11 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
         onOpenChange={setReceivingOpen}
         poId={order.id}
         items={items}
-        onSaved={() => { onUpdated?.(); appToast.success('Receiving updated'); }}
+        isTourSample={order.is_tour_sample}
+        onSaved={() => {
+          onUpdated?.();
+          appToast.success('Receiving updated');
+        }}
       />
 
       {order.invoice_id ? (

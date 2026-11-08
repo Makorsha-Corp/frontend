@@ -117,7 +117,7 @@ const LoginMarketingSections: React.FC<{ className?: string }> = ({ className })
       </h1>
       <p className="max-w-prose text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
         {BRAND_NAME} helps teams run orders, stock, projects, and accounts with clear roles and a single source of
-        truth—built for mills and manufacturing operations like yours.
+        truth—built for manufacturing operations like yours.
       </p>
     </section>
 
