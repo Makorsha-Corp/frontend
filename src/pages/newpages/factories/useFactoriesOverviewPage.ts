@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, subDays } from 'date-fns';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { clearFactory, setFactory } from '@/features/auth/authSlice';
@@ -17,6 +18,7 @@ import { splitUpcomingWorkByDueWindow } from '@/lib/machineUpcomingWork';
 import {
   buildFactoryActivityFeed,
   buildFactoryAttentionItems,
+  type FactoryOverviewCopy,
   buildFactoryCardSnapshots,
   buildProductionCardSnapshot,
   buildStorageCardSnapshot,
@@ -24,6 +26,27 @@ import {
 } from './factoriesOverviewData';
 
 export function useFactoriesOverviewPage() {
+  const { t } = useTranslation('factories');
+  const { t: tMachines } = useTranslation('machines');
+  const overviewCopy = useMemo<FactoryOverviewCopy>(
+    () => ({
+      unassigned: t('attentionUnassigned'),
+      sectionWithId: (id) => t('activitySectionWithId', { id }),
+      noSectionAssigned: t('activityNoSection'),
+      productionLine: t('activityProductionLine'),
+      statusRunning: tMachines('running'),
+      statusMaintenance: tMachines('maintenance'),
+      statusIdle: tMachines('idle'),
+      statusOff: tMachines('off'),
+      statusUpdated: t('activityStatusUpdated'),
+      storageLine: (sign, qty, item) => t('activityStorageLine', { sign, qty, item }),
+      itemFallback: (id) => t('activityItemFallback', { id }),
+      batchStarted: (number) => t('activityBatchStarted', { number }),
+      batchCompleted: (number) => t('activityBatchCompleted', { number }),
+      batchCancelled: (number) => t('activityBatchCancelled', { number }),
+    }),
+    [t, tMachines],
+  );
   const dispatch = useAppDispatch();
   const authFactory = useAppSelector((s) => s.auth.factory);
 
@@ -207,8 +230,16 @@ export function useFactoriesOverviewPage() {
     scopedFactoryId != null ? factoryById.get(scopedFactoryId)?.abbreviation : undefined;
 
   const splitMaintenanceWork = useMemo(
-    () => splitUpcomingWorkByDueWindow(scopedUpcomingWork, sectionById, 7, factoryAbbrev),
-    [scopedUpcomingWork, sectionById, factoryAbbrev]
+    () =>
+      splitUpcomingWorkByDueWindow(scopedUpcomingWork, sectionById, 7, factoryAbbrev, {
+        unassigned: t('attentionUnassigned'),
+        sectionFallback: t('fallbackSection', { ns: 'machines' }),
+        draft: t('workStatusDraft'),
+        recurring: t('workStatusRecurring'),
+        inProgress: t('workStatusInProgress'),
+        workOrder: t('workStatusWorkOrder'),
+      }),
+    [scopedUpcomingWork, sectionById, factoryAbbrev, t]
   );
 
   const maintenanceDueRows = useMemo(
@@ -234,7 +265,8 @@ export function useFactoriesOverviewPage() {
       maintenanceDueRows,
       productionBatches,
       productionLines,
-      sectionById
+      sectionById,
+      overviewCopy,
     );
   }, [
     activeFactory,
@@ -243,6 +275,7 @@ export function useFactoriesOverviewPage() {
     productionBatches,
     productionLines,
     sectionById,
+    overviewCopy,
   ]);
 
   const factoryActivity = useMemo(() => {
@@ -254,7 +287,10 @@ export function useFactoriesOverviewPage() {
       productionBatches,
       productionLines,
       inventory,
-      sectionById
+      sectionById,
+      undefined,
+      undefined,
+      overviewCopy,
     );
   }, [
     activeFactory,
@@ -264,6 +300,7 @@ export function useFactoriesOverviewPage() {
     productionLines,
     inventory,
     sectionById,
+    overviewCopy,
   ]);
 
   const isLoading =
@@ -281,8 +318,8 @@ export function useFactoriesOverviewPage() {
 
   const scopeLabel =
     factoryFilter === 'all'
-      ? 'All factories'
-      : (factoryById.get(Number(factoryFilter))?.name ?? 'Selected factory');
+      ? t('scopeAllFactories')
+      : (factoryById.get(Number(factoryFilter))?.name ?? t('scopeSelectedFactory'));
 
   return {
     factoryFilter,

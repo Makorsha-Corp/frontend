@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import type { SalesOrder } from '@/types/salesOrder';
 import SalesOrderListRow from '@/components/newcomponents/customui/orders/SalesOrderListRow';
@@ -46,6 +47,7 @@ const SalesOrderNavigatorPanel: React.FC<SalesOrderNavigatorPanelProps> = ({
   formatDate,
   className,
 }) => {
+  const { t } = useTranslation('orders');
   return (
     <div
       className={cn(
@@ -57,7 +59,7 @@ const SalesOrderNavigatorPanel: React.FC<SalesOrderNavigatorPanelProps> = ({
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'justify-between gap-2 px-4')}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
-            Orders
+            {t('navigatorOrders')}
             <span className="ml-2 font-normal text-muted-foreground">({ordersTotal})</span>
           </h2>
           <ShowCompleteOrdersSwitchControl

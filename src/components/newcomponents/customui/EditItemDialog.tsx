@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ interface EditItemDialogProps {
 }
 
 const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, item }) => {
+  const { t } = useTranslation(['items', 'common']);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
@@ -49,12 +51,12 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
     if (!item) return;
 
     if (!name.trim()) {
-      appToast.error('Item name is required');
+      appToast.error(t('fieldNameRequired'));
       return;
     }
 
     if (!unit.trim()) {
-      appToast.error('Unit is required');
+      appToast.error(t('fieldUnitRequired'));
       return;
     }
 
@@ -70,11 +72,11 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
         },
       }).unwrap();
 
-      appToast.success('Item updated successfully!');
+      appToast.success(t('itemUpdatedSuccess'));
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update item:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to update item'));
+      appToast.error(apiErrorDetail(error, t('itemUpdateFailed')));
     }
   };
 
@@ -96,19 +98,19 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
       <DialogContent className="w-[min(56rem,94vw)] max-w-none max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-none">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-brand-heading">Edit Item</DialogTitle>
-            <DialogDescription>Update the item details below.</DialogDescription>
+            <DialogTitle className="text-brand-heading">{t('dialogEditTitle')}</DialogTitle>
+            <DialogDescription>{t('dialogEditDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 gap-6 py-4 md:grid-cols-2 md:gap-8 md:items-start">
             <div className="grid gap-4 min-w-0">
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">
-                  Item Name <span className="text-red-500">*</span>
+                  {t('fieldItemName')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="edit-name"
-                  placeholder="Enter item name"
+                  placeholder={t('placeholderItemName')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -117,11 +119,11 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
 
               <div className="grid gap-2">
                 <Label htmlFor="edit-unit">
-                  Unit <span className="text-red-500">*</span>
+                  {t('unit')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="edit-unit"
-                  placeholder="e.g. kg, pcs, meter, box"
+                  placeholder={t('placeholderUnit')}
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   required
@@ -129,20 +131,20 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="edit-sku">SKU</Label>
+                <Label htmlFor="edit-sku">{t('sku')}</Label>
                 <Input
                   id="edit-sku"
-                  placeholder="Optional stock-keeping ID"
+                  placeholder={t('placeholderSku')}
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="edit-description">Description</Label>
+                <Label htmlFor="edit-description">{t('columnDescription')}</Label>
                 <Textarea
                   id="edit-description"
-                  placeholder="Enter item description (optional)"
+                  placeholder={t('placeholderDescription')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
@@ -163,7 +165,7 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isLoading}>
-              Cancel
+              {t('cancel', { ns: 'common' })}
             </Button>
             <Button
               type="submit"
@@ -173,10 +175,10 @@ const EditItemDialog: React.FC<EditItemDialogProps> = ({ open, onOpenChange, ite
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  {t('updatingItem')}
                 </>
               ) : (
-                'Update Item'
+                t('updateItem')
               )}
             </Button>
           </DialogFooter>

@@ -1,0 +1,15 @@
+{
+  "title": "Accounts",
+  "overview": "Overview",
+  "suppliers": "Suppliers",
+  "clients": "Clients",
+  "invoices": "Invoices",
+  "payables": "Payables",
+  "receivables": "Receivables",
+  "addAccount": "Add account",
+  "noAccounts": "No accounts found",
+  "payablesTitle": "Accounts Payable",
+  "payablesSubtitle": "Accounts with open payables",
+  "receivablesTitle": "Accounts Receivable",
+  "receivablesSubtitle": "Accounts with open receivables"
+}

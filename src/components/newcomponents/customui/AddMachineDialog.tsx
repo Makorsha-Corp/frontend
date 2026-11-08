@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,8 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
   sectionId,
   onSuccess,
 }) => {
+  const { t } = useTranslation('machines');
+  const { t: tCommon } = useTranslation('common');
   const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [name, setName] = useState('');
@@ -195,7 +198,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     <div className="grid min-w-0 gap-4">
       <div className="grid gap-2">
         <Label htmlFor="machine-factory">
-          Factory <span className="text-red-500">*</span>
+          {t('fieldFactoryRequired')} <span className="text-red-500">*</span>
         </Label>
         <Select
           value={selectedFactoryId ? String(selectedFactoryId) : '__none__'}
@@ -207,10 +210,14 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
           }}
         >
           <SelectTrigger id="machine-factory" className="bg-background">
-            <SelectValue placeholder={factoriesLoading ? 'Loading factories...' : 'Select a factory'} />
+            <SelectValue
+              placeholder={
+                factoriesLoading ? t('placeholderLoadingFactories') : t('placeholderSelectFactory')
+              }
+            />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Select a factory…</SelectItem>
+            <SelectItem value="__none__">{t('placeholderSelectFactoryEllipsis')}</SelectItem>
             {factories.map((f) => (
               <SelectItem key={f.id} value={String(f.id)}>
                 {f.name} ({f.abbreviation})
@@ -221,7 +228,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="machine-section">Factory Section</Label>
+        <Label htmlFor="machine-section">{t('fieldFactorySection')}</Label>
         <Select
           value={selectedSectionId ? String(selectedSectionId) : '__none__'}
           onValueChange={(v) => {
@@ -234,15 +241,15 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
             <SelectValue
               placeholder={
                 !selectedFactoryId
-                  ? 'Choose a factory first'
+                  ? t('placeholderChooseFactoryFirst')
                   : sectionsLoading
-                    ? 'Loading sections...'
-                    : 'No section (optional)'
+                    ? t('placeholderLoadingSections')
+                    : t('placeholderNoSectionOptional')
               }
             />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">No section</SelectItem>
+            <SelectItem value="__none__">{t('placeholderNoSection')}</SelectItem>
             {sections.map((s) => (
               <SelectItem key={s.id} value={String(s.id)}>
                 {s.name}
@@ -254,46 +261,46 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
       <div className="grid gap-2">
         <Label htmlFor="name">
-          Machine Name <span className="text-red-500">*</span>
+          {t('fieldMachineNameRequired')} <span className="text-red-500">*</span>
         </Label>
         <Input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Spinning Machine 1"
+          placeholder={t('placeholderMachineName')}
           className="bg-background"
         />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="model">Model Number</Label>
+        <Label htmlFor="model">{t('fieldModelNumber')}</Label>
         <Input
           id="model"
           value={modelNumber}
           onChange={(e) => setModelNumber(e.target.value)}
-          placeholder="e.g. SM-2000"
+          placeholder={t('placeholderModelNumber')}
           className="bg-background"
         />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="manufacturer">Manufacturer</Label>
+        <Label htmlFor="manufacturer">{t('fieldManufacturer')}</Label>
         <Input
           id="manufacturer"
           value={manufacturer}
           onChange={(e) => setManufacturer(e.target.value)}
-          placeholder="e.g. Acme Corp"
+          placeholder={t('placeholderManufacturer')}
           className="bg-background"
         />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="note">Note</Label>
+        <Label htmlFor="note">{t('fieldNote')}</Label>
         <Textarea
           id="note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Additional notes"
+          placeholder={t('placeholderNote')}
           rows={3}
           className="min-h-[4.5rem] resize-y bg-background"
         />
@@ -311,10 +318,8 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
     >
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-1 text-left">
-          <DialogTitle className="text-brand-heading">Add New Machine</DialogTitle>
-          <DialogDescription>
-            Choose a factory, then add machine details. Optional catalog lines on the right are saved after the machine is created.
-          </DialogDescription>
+          <DialogTitle className="text-brand-heading">{t('dialogAddTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogAddDescription')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -327,7 +332,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
                 ref={itemsBlockRef}
                 lines={lines}
                 onLinesChange={setLines}
-                hint="Optional. Each line is POSTed to machine-items after the machine exists."
+                hint={t('dialogItemsHintOptional')}
                 addButtonHighlighted={addButtonHighlighted}
                 onAddButtonHighlightDismiss={dismissAddButtonHighlight}
               />
@@ -336,7 +341,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
 
           <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isBusy}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <div className="relative" data-unadded-hint-root>
               {unaddedHintOpen ? (
@@ -344,7 +349,7 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
                   role="tooltip"
                   className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
-                  You have unadded items — click ✓ to add them, or click Create again to continue without them
+                  {t('dialogUnaddedHint')}
                 </div>
               ) : null}
               <Button
@@ -355,10 +360,10 @@ const AddMachineDialog: React.FC<AddMachineDialogProps> = ({
                 {isBusy ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isSavingItems ? 'Saving items…' : 'Creating…'}
+                    {isSavingItems ? t('dialogSavingItems') : t('dialogCreating')}
                   </>
                 ) : (
-                  'Create Machine'
+                  t('dialogCreateMachine')
                 )}
               </Button>
             </div>

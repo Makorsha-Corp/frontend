@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ShoppingCart,
   ArrowLeftRight,
@@ -10,7 +11,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { OverviewOrder, OverviewOrderKind } from '@/pages/newpages/orders/ordersOverviewData';
-import { formatDashboardCurrency, ORDER_TYPE_LABELS, ORDER_TYPE_PATHS } from './dashboardConstants';
+import { formatDashboardCurrency, ORDER_TYPE_PATHS } from './dashboardConstants';
+import { overviewHubLabel } from '@/components/newcomponents/customui/orders/overview/overviewOrderTypeLabels';
+import { displaySystemStatusName } from '@/i18n/systemLabels';
+import { normalizeUiLanguage } from '@/i18n/uiLanguage';
 
 const ORDER_ICONS: Record<OverviewOrderKind, React.ComponentType<{ className?: string }>> = {
   purchase: ShoppingCart,
@@ -27,10 +31,13 @@ const DashboardRecentOrdersPanel: React.FC<DashboardRecentOrdersPanelProps> = ({
   orders,
   isLoading,
 }) => {
+  const { t, i18n } = useTranslation(['dashboard', 'orders', 'misc']);
+  const uiLanguage = normalizeUiLanguage(i18n.language);
+
   return (
     <Card className="border-border">
       <CardHeader>
-        <CardTitle className="text-card-foreground">Recent orders</CardTitle>
+        <CardTitle className="text-card-foreground">{t('recentOrders', { ns: 'dashboard' })}</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -38,7 +45,9 @@ const DashboardRecentOrdersPanel: React.FC<DashboardRecentOrdersPanelProps> = ({
             <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
           </div>
         ) : orders.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground text-sm">No orders yet</p>
+          <p className="py-8 text-center text-muted-foreground text-sm">
+            {t('noOrders', { ns: 'orders' })}
+          </p>
         ) : (
           <>
             <div className="divide-y divide-border">
@@ -56,9 +65,11 @@ const DashboardRecentOrdersPanel: React.FC<DashboardRecentOrdersPanelProps> = ({
                         <div className="font-medium text-card-foreground truncate">{order.ref}</div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                            {ORDER_TYPE_LABELS[order.kind]}
+                            {overviewHubLabel(order.kind, t)}
                           </Badge>
-                          <span className="text-xs text-muted-foreground truncate">{order.statusLabel}</span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {displaySystemStatusName(order.statusLabel, t, uiLanguage)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -78,7 +89,7 @@ const DashboardRecentOrdersPanel: React.FC<DashboardRecentOrdersPanelProps> = ({
               to="/orders"
               className="flex w-full items-center justify-center gap-1 border-t border-border py-3 text-sm font-medium text-brand-primary hover:bg-muted/40 transition-colors"
             >
-              View orders overview
+              {t('viewOrdersOverview', { ns: 'dashboard' })}
               <ChevronRight className="h-4 w-4" />
             </Link>
           </>

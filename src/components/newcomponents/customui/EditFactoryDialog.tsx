@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ interface EditFactoryDialogProps {
 }
 
 const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChange, factory, factories = [] }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const [name, setName] = useState('');
   const [abbreviation, setAbbreviation] = useState('');
 
@@ -42,12 +45,12 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
     if (!factory) return;
 
     if (!name.trim()) {
-      appToast.error('Factory name is required');
+      appToast.error(t('toastFactoryNameRequired'));
       return;
     }
 
     if (!abbreviation.trim()) {
-      appToast.error('Abbreviation is required');
+      appToast.error(t('toastAbbreviationRequired'));
       return;
     }
 
@@ -61,8 +64,8 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
     if (dup) {
       appToast.error(
         dup.name.toLowerCase() === nameLower
-          ? 'A factory with this name already exists'
-          : 'A factory with this abbreviation already exists'
+          ? t('toastFactoryDuplicateName')
+          : t('toastFactoryDuplicateAbbr')
       );
       return;
     }
@@ -76,11 +79,11 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
         },
       }).unwrap();
 
-      appToast.success('Factory updated successfully!');
+      appToast.success(t('toastFactoryUpdateSuccess'));
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update factory:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to update factory'));
+      appToast.error(apiErrorDetail(error, t('toastFactoryUpdateFailed')));
     }
   };
 
@@ -97,35 +100,33 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Edit Factory</DialogTitle>
-            <DialogDescription>
-              Update the factory details below.
-            </DialogDescription>
+            <DialogTitle className="text-card-foreground">{t('editFactoryDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('editFactoryDialogDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="edit-name">
-                Factory Name <span className="text-red-500">*</span>
+                {t('fieldFactoryName')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="edit-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Main Production Plant"
+                placeholder={t('placeholderFactoryName')}
                 className="bg-background"
               />
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="edit-abbreviation">
-                Abbreviation <span className="text-red-500">*</span>
+                {t('fieldAbbreviation')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="edit-abbreviation"
                 value={abbreviation}
                 onChange={(e) => setAbbreviation(e.target.value.toUpperCase())}
-                placeholder="e.g. MP1"
+                placeholder={t('placeholderAbbreviation')}
                 maxLength={10}
                 className="bg-background"
               />
@@ -134,16 +135,16 @@ const EditFactoryDialog: React.FC<EditFactoryDialogProps> = ({ open, onOpenChang
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  {t('updating')}
                 </>
               ) : (
-                'Save Changes'
+                t('saveChanges')
               )}
             </Button>
           </DialogFooter>

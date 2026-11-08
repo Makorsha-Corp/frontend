@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import {
   catalogIncomingHeadClass,
   catalogTypeHeadClass,
 } from './inventoryCatalogLayout';
+import { translateInventoryType } from './inventoryTypeLabel';
 
 interface StorageSectionProps {
   factoryId: number | null;
@@ -90,6 +92,7 @@ const StorageSection: React.FC<StorageSectionProps> = ({
   collapsed = false,
   onExpandRequest,
 }) => {
+  const { t } = useTranslation('inventory');
   const showFactoryColumn = factoryId == null;
 
   return (
@@ -101,7 +104,7 @@ const StorageSection: React.FC<StorageSectionProps> = ({
               <div className={catalogSectionIconTileClass}>
                 <Archive className="h-4 w-4 text-brand-primary" />
               </div>
-              <h2 className={catalogSectionTitleClass}>Storage</h2>
+              <h2 className={catalogSectionTitleClass}>{t('storageTitle')}</h2>
               <Badge variant="secondary" className="tabular-nums">
                 {formatNumber(overview.records)}
               </Badge>
@@ -112,33 +115,36 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                   className="h-7 w-7"
                   blocked={factoryId == null}
                   blockedHint={{
-                    title: 'Select a factory first',
-                    reason: 'To add items, select a factory from the header.',
+                    title: t('selectFactoryFirst'),
+                    reason: t('selectFactoryToAdd'),
                   }}
                   onBlockedClick={onRequireFactory}
                   onAction={onAdd}
                   popoverSide="right"
                   popoverAlign="start"
-                  title={factoryId ? 'Add to inventory' : undefined}
+                  title={factoryId ? t('addToInventory') : undefined}
                 >
                   <Plus className="h-4 w-4" />
                 </BlockedActionButton>
               )}
               <p className={catalogSectionSummaryClass}>
-                {formatNumber(overview.totalQty)} units · {formatCurrency(overview.estimatedValue)} est.
+                {t('summaryUnitsEst', {
+                  qty: formatNumber(overview.totalQty),
+                  value: formatCurrency(overview.estimatedValue),
+                })}
                 {' · '}
-                Finished goods here are stock.{' '}
+                {t('finishedGoodsStockLead')}{' '}
                 <Link to="/products" className="text-brand-primary underline-offset-2 hover:underline">
-                  List them on Products
+                  {t('listOnProducts')}
                 </Link>{' '}
-                to sell.
+                {t('toSell')}
               </p>
             </div>
             {!collapsed && (
               <div className={catalogSectionMetaClass}>
                 {overview.byType.map((row) => (
                   <span key={row.type} className="text-muted-foreground">
-                    {row.type}:{' '}
+                    {translateInventoryType(row.type, t)}:{' '}
                     <span className="font-medium tabular-nums text-card-foreground">
                       {formatNumber(row.uniqueCount)} ({formatNumber(row.totalQty)})
                     </span>
@@ -149,19 +155,19 @@ const StorageSection: React.FC<StorageSectionProps> = ({
           </div>
           {!collapsed ? (
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5" title="Show empty inventory rows">
+              <div className="flex items-center gap-1.5" title={t('showEmptyRows')}>
                 <Switch
                   id="storage-show-zero-qty"
                   checked={showZeroQty}
                   onCheckedChange={onShowZeroQtyChange}
                   className="scale-90"
-                  aria-label="Show empty inventory rows"
+                  aria-label={t('showEmptyRows')}
                 />
                 <Label
                   htmlFor="storage-show-zero-qty"
                   className="cursor-pointer whitespace-nowrap text-xs font-normal text-muted-foreground"
                 >
-                  Empty
+                  {t('empty')}
                 </Label>
               </div>
               <Tabs
@@ -171,11 +177,11 @@ const StorageSection: React.FC<StorageSectionProps> = ({
               >
                 <TabsList className="h-8">
                   <TabsTrigger value="all" className="px-2.5 text-xs">
-                    All
+                    {t('all')}
                   </TabsTrigger>
-                  {INVENTORY_TYPES.map((t) => (
-                    <TabsTrigger key={t.value} value={t.value} className="px-2.5 text-xs">
-                      {t.label}
+                  {INVENTORY_TYPES.map((typeOption) => (
+                    <TabsTrigger key={typeOption.value} value={typeOption.value} className="px-2.5 text-xs">
+                      {translateInventoryType(typeOption.value, t)}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -184,7 +190,7 @@ const StorageSection: React.FC<StorageSectionProps> = ({
           ) : (
             onExpandRequest && (
               <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onExpandRequest}>
-                Expand
+                {t('expand')}
                 <ChevronUp className="h-3.5 w-3.5" />
               </Button>
             )
@@ -197,17 +203,17 @@ const StorageSection: React.FC<StorageSectionProps> = ({
         {incomingSummaryError && (
           <p className="border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
             {incomingSummaryErrorMessage ??
-              'Incoming order quantities unavailable — restart the backend dev server (Ctrl+C, then uvicorn again).'}
+              t('incomingUnavailable')}
           </p>
         )}
         {isLoading ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Loader2 className="mb-3 h-10 w-10 animate-spin text-brand-primary" />
-            <p className="text-muted-foreground">Loading inventory...</p>
+            <p className="text-muted-foreground">{t('loadingInventory')}</p>
           </div>
         ) : hasError ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
-            <p className="text-destructive">Failed to load inventory.</p>
+            <p className="text-destructive">{t('failedInventory')}</p>
           </div>
         ) : (
           <>
@@ -224,17 +230,17 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                 </colgroup>
                 <TableHeader>
                   <TableRow className={catalogTableHeadRowClass}>
-                    <TableHead className={catalogItemHeadClass}>Item</TableHead>
+                    <TableHead className={catalogItemHeadClass}>{t('colItem')}</TableHead>
                     <TableHead data-testid="storage-incoming-header" className={catalogIncomingHeadClass}>
-                      Incoming
+                      {t('colIncoming')}
                     </TableHead>
                     {showFactoryColumn && (
-                      <TableHead className={catalogFactoryHeadClass}>Factory</TableHead>
+                      <TableHead className={catalogFactoryHeadClass}>{t('colFactory')}</TableHead>
                     )}
-                    <TableHead className={catalogTypeHeadClass}>Type</TableHead>
-                    <TableHead className={catalogNumericHeadClass}>Qty</TableHead>
-                    <TableHead className={catalogMoneyHeadClass}>Avg. Price</TableHead>
-                    <TableHead className={catalogActionsHeadClass}>Actions</TableHead>
+                    <TableHead className={catalogTypeHeadClass}>{t('colType')}</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>{t('colQty')}</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>{t('colAvgPrice')}</TableHead>
+                    <TableHead className={catalogActionsHeadClass}>{t('colActions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -244,22 +250,22 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                         <Archive className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                         <p className="mb-4 text-muted-foreground">
                           {searchQuery
-                            ? 'No inventory rows match your search.'
+                            ? t('noMatchSearch')
                             : showZeroQty
-                              ? 'No inventory records yet.'
-                              : 'No items in stock. Turn on Empty to see cleared rows.'}
+                              ? t('noInventoryYet')
+                              : t('noItemsInStock')}
                         </p>
                         {!searchQuery && showZeroQty && factoryId != null && (
                           <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
                             <Plus className="mr-2 h-4 w-4" />
-                            Add to Inventory
+                            {t('addToInventoryBtn')}
                           </Button>
                         )}
                       </TableCell>
                     </TableRow>
                   ) : (
                     inventory.map((inv) => {
-                      const itemLabel = inv.item_name ?? `Item #${inv.item_id}`;
+                      const itemLabel = inv.item_name ?? t('itemNumber', { id: inv.item_id });
                       const itemTitle = inv.item_unit ? `${itemLabel} (${inv.item_unit})` : itemLabel;
                       return (
                       <TableRow key={inv.id} className={catalogTableRowClass}>
@@ -280,12 +286,12 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                         </TableCell>
                         {showFactoryColumn && (
                           <TableCell className={catalogFactoryCellClass}>
-                            {factoryLabels[inv.factory_id] ?? `Factory #${inv.factory_id}`}
+                            {factoryLabels[inv.factory_id] ?? t('factoryNumber', { id: inv.factory_id })}
                           </TableCell>
                         )}
                         <TableCell className={catalogNumericCellClass}>
                           <span className="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
-                            {inv.inventory_type}
+                            {translateInventoryType(inv.inventory_type, t)}
                           </span>
                         </TableCell>
                         <TableCell className={catalogNumericCellClass}>{inv.qty}</TableCell>
@@ -296,10 +302,10 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                              title="View in Items catalog"
+                              title={t('viewInItems')}
                               asChild
                             >
-                              <Link to={buildItemHref(inv.item_id)} aria-label="View in Items catalog">
+                              <Link to={buildItemHref(inv.item_id)} aria-label={t('viewInItems')}>
                                 <ExternalLink className="h-4 w-4" />
                               </Link>
                             </Button>
@@ -308,7 +314,7 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                               size="sm"
                               className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
                               onClick={() => onEdit(inv)}
-                              title="Edit inventory"
+                              title={t('editInventory')}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -318,8 +324,8 @@ const StorageSection: React.FC<StorageSectionProps> = ({
                                 size="sm"
                                 className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                                 onClick={() => onClearStock(inv)}
-                                title="Set quantity to 0"
-                                aria-label="Set quantity to 0"
+                                title={t('setQtyZero')}
+                                aria-label={t('setQtyZero')}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

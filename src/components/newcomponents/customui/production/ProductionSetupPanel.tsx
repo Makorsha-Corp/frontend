@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatMachineStatusSummary } from '@/components/newcomponents/customui/production/StationMachinesField';
 import SetupRecipeWorkspace from '@/components/newcomponents/customui/production/SetupRecipeWorkspace';
-import {
-  PRODUCTION_LINE_NO_MACHINES_TOOLTIP,
-  productionLineHasMachines,
-} from '@/lib/productionLineMachines';
+import { productionLineHasMachines } from '@/lib/productionLineMachines';
 import { cn } from '@/lib/utils';
 import type { ProductionFormula, ProductionLine } from '@/types/production';
 import { ChevronDown, Info, Loader2, Plus } from 'lucide-react';
@@ -76,12 +74,13 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
   showFactoryScopeAll = false,
   factoryNameById,
 }) => {
+  const { t } = useTranslation('production');
   const [linesExpanded, setLinesExpanded] = useState(false);
   const linesCountLabel = useMemo(() => {
     if (loadingLines) return null;
     const count = lines.length;
-    return count === 1 ? '1 Line' : `${count} Lines`;
-  }, [lines.length, loadingLines]);
+    return count === 1 ? t('linesCount_one', { count }) : t('linesCount_other', { count });
+  }, [lines.length, loadingLines, t]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -107,10 +106,9 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                   )}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-0.5">
-                  <span className="text-sm font-semibold text-foreground">Production lines</span>
-                  <SetupHeaderInfo label="About production lines">
-                    Each production line is a named collection of machines on the factory floor. Assign
-                    which machines can run work on each line.
+                  <span className="text-sm font-semibold text-foreground">{t('productionLines')}</span>
+                  <SetupHeaderInfo label={t('aboutLines')}>
+                    {t('aboutLinesBody')}
                   </SetupHeaderInfo>
                   {linesCountLabel ? (
                     <span className="ml-1 shrink-0 text-xs text-muted-foreground tabular-nums">
@@ -124,23 +122,23 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={onAddStation}
-                title="Add production line"
+                title={t('addProductionLine')}
                 className="shrink-0"
               >
                 <Plus className="mr-1 h-4 w-4" />
-                Add production line
+                {t('addProductionLine')}
               </Button>
             </div>
             {linesExpanded ? (
               <div className="max-h-[min(240px,32vh)] overflow-y-auto p-3">
                 {linesError ? (
-                  <p className="text-center text-sm text-destructive">Failed to load production lines</p>
+                  <p className="text-center text-sm text-destructive">{t('failedLines')}</p>
                 ) : loadingLines ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
                   </div>
                 ) : lines.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">No production lines yet.</p>
+                  <p className="py-6 text-center text-sm text-muted-foreground">{t('noProductionLines')}</p>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {lines.map((line) => {
@@ -150,7 +148,7 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                         line.machines && line.machines.length > 0
                           ? line.machines.length <= 2
                             ? line.machines.map((m) => m.name).join(', ')
-                            : `${line.machines.length} machines`
+                            : t('machinesCount', { count: line.machines.length })
                           : null;
                       const card = (
                         <button
@@ -166,7 +164,7 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                           <span className="block truncate">{line.name}</span>
                           {showFactoryScopeAll && factoryNameById ? (
                             <span className="mt-0.5 block truncate text-[10px] font-normal text-muted-foreground">
-                              {factoryNameById.get(line.factory_id) ?? 'Factory'}
+                              {factoryNameById.get(line.factory_id) ?? t('factoryFallback')}
                             </span>
                           ) : null}
                           {machineLabel ? (
@@ -176,7 +174,7 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                             </span>
                           ) : (
                             <span className="mt-0.5 block truncate text-xs font-normal text-amber-800 dark:text-amber-200">
-                              No machines assigned
+                              {t('noMachinesAssigned')}
                             </span>
                           )}
                         </button>
@@ -186,7 +184,7 @@ const ProductionSetupPanel: React.FC<ProductionSetupPanelProps> = ({
                         <Tooltip key={line.id}>
                           <TooltipTrigger asChild>{card}</TooltipTrigger>
                           <TooltipContent side="bottom" className="max-w-xs text-sm">
-                            {PRODUCTION_LINE_NO_MACHINES_TOOLTIP}
+                            {t('noMachinesTooltip')}
                           </TooltipContent>
                         </Tooltip>
                       );

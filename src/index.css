@@ -1,5 +1,9 @@
 @import "../shared/marker-tokens.css";
 
+html.font-bengali-ui {
+  font-family: ui-sans-serif, system-ui, sans-serif, 'Noto Sans Bengali';
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,23 +65,27 @@ export interface MachineDetailBodyProps {
   onMachineUpdated?: () => void;
 }
 
-const STATUS_CONTROLS: {
-  type: MachineEventType;
-  shortLabel: string;
-  icon: React.ReactNode;
-}[] = [
-  { type: 'IDLE', shortLabel: 'Idle', icon: <Pause className="h-3.5 w-3.5 shrink-0" /> },
-  { type: 'RUNNING', shortLabel: 'Running', icon: <Play className="h-3.5 w-3.5 shrink-0" /> },
-  { type: 'OFF', shortLabel: 'Off', icon: <Power className="h-3.5 w-3.5 shrink-0" /> },
-  { type: 'MAINTENANCE', shortLabel: 'Maint.', icon: <Wrench className="h-3.5 w-3.5 shrink-0" /> },
-];
-
 const sectionLabel = 'text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
 
 export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
   machine,
   onMachineUpdated,
 }) => {
+  const { t } = useTranslation('machines');
+  const statusControls = useMemo(
+    () =>
+      [
+        { type: 'IDLE' as const, shortLabel: t('idle'), icon: <Pause className="h-3.5 w-3.5 shrink-0" /> },
+        { type: 'RUNNING' as const, shortLabel: t('running'), icon: <Play className="h-3.5 w-3.5 shrink-0" /> },
+        { type: 'OFF' as const, shortLabel: t('off'), icon: <Power className="h-3.5 w-3.5 shrink-0" /> },
+        {
+          type: 'MAINTENANCE' as const,
+          shortLabel: t('statusMaintShort'),
+          icon: <Wrench className="h-3.5 w-3.5 shrink-0" />,
+        },
+      ] satisfies { type: MachineEventType; shortLabel: string; icon: React.ReactNode }[],
+    [t],
+  );
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState({ qty: '', req_qty: '', defective_qty: '' });
@@ -149,14 +154,14 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
   }, [items]);
 
   const handleDeleteMaintenanceLog = async (maintenanceLogId: number) => {
-    if (!window.confirm('Delete this event?')) return;
+    if (!window.confirm(t('confirmDeleteEvent'))) return;
     try {
       await deleteMaintenanceLog(maintenanceLogId).unwrap();
-      appToast.success('Log deleted');
+      appToast.success(t('toastLogDeleted'));
       onMachineUpdated?.();
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(apiErrorDetail(e, 'Failed to delete'));
+      appToast.error(apiErrorDetail(e, t('toastDeleteFailed')));
     }
   };
 
@@ -169,7 +174,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
       appToast.success(`Status updated to ${eventType.toLowerCase()}`);
       onMachineUpdated?.();
     } catch (error) {
-      appToast.error(apiErrorDetail(error, 'Failed to update status'));
+      appToast.error(apiErrorDetail(error, t('toastStatusUpdateFailed')));
     }
   };
 
@@ -187,7 +192,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
   const handleSaveItemEdit = async (mi: MachineItem) => {
     const qtyNum = parseInt(editDraft.qty, 10);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      appToast.error('Invalid quantity');
+      appToast.error(t('toastInvalidQuantity'));
       return;
     }
     const reqQty = parseOptionalQty(editDraft.req_qty, 'required quantity');
@@ -204,22 +209,22 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
           defective_qty: defectiveQty ?? undefined,
         },
       }).unwrap();
-      appToast.success('Item updated');
+      appToast.success(t('toastItemUpdated'));
       cancelItemEdit();
       onMachineUpdated?.();
     } catch (error) {
-      appToast.error(apiErrorDetail(error, 'Failed to update'));
+      appToast.error(apiErrorDetail(error, t('toastItemUpdateFailed')));
     }
   };
 
   const handleDeleteItem = async (mi: MachineItem) => {
-    if (!window.confirm('Remove this item from the machine?')) return;
+    if (!window.confirm(t('confirmRemoveItem'))) return;
     try {
       await deleteMachineItem(mi.id).unwrap();
-      appToast.success('Item removed');
+      appToast.success(t('toastItemRemoved'));
       onMachineUpdated?.();
     } catch (error) {
-      appToast.error(apiErrorDetail(error, 'Failed to remove'));
+      appToast.error(apiErrorDetail(error, t('toastItemRemoveFailed')));
     }
   };
 
@@ -237,10 +242,10 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
     <>
       <div className="space-y-4 min-w-0">
         <div>
-          <p className={cn(sectionLabel, 'mb-2')}>Status</p>
+          <p className={cn(sectionLabel, 'mb-2')}>{t('detailStatus')}</p>
           <TooltipProvider delayDuration={300}>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
-              {STATUS_CONTROLS.map(({ type, shortLabel, icon }) => {
+              {statusControls.map(({ type, shortLabel, icon }) => {
                 const active = highlightedType === type;
                 return (
                   <Tooltip key={type}>
@@ -274,7 +279,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
 
         {machine.note ? (
           <div className="space-y-2">
-            <p className={sectionLabel}>Machine details</p>
+            <p className={sectionLabel}>{t('detailMachineDetails')}</p>
             <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3 text-sm">
               <p className="text-card-foreground border-l-2 border-brand-primary/35 pl-2.5 leading-relaxed">
                 {machine.note}
@@ -285,7 +290,7 @@ export const MachineDetailBody: React.FC<MachineDetailBodyProps> = ({
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className={sectionLabel}>Items on machine</p>
+            <p className={sectionLabel}>{t('detailItemsOnMachine')}</p>
             <Button
               size="sm"
               className="h-8 bg-brand-primary text-xs hover:bg-brand-primary-hover"

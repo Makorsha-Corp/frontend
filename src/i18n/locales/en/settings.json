@@ -1,0 +1,22 @@
+{
+  "settingsTitle": "Settings",
+  "languageTitle": "Language",
+  "languageDescription": "Choose English or Bangla for buttons, menus, and other app text. Item names and notes stay as you entered them.",
+  "languageLabel": "Display language",
+  "saveLanguage": "Save language",
+  "languageSaved": "Language saved",
+  "languageSaveFailed": "Could not save language",
+  "timezoneTitle": "Timezone",
+  "timezoneDescription": "Event logs, discussions, and notifications display in this timezone. Calendar dates (due dates, planned work) stay as entered.",
+  "timeFormatTitle": "Time format",
+  "timeFormatDescription": "Choose 24-hour clock or 12-hour with AM/PM for time pickers across the app.",
+  "productionMachinePicksTitle": "Production machine picks",
+  "productionMachinePicksDescription": "When assigning a machine to a batch step, choose warn-only or block rules for off, maintenance, and schedule overlap.",
+  "pageGuidesTitle": "Page guides",
+  "pageGuidesDescription": "First-visit walkthroughs on Orders and other pages. Reset to see them again.",
+  "savedStampTitle": "Saved stamp",
+  "savedStampDescription": "Draw or upload a personal stamp to place on attachment markups.",
+  "yourTimezone": "Your timezone",
+  "saveTimezone": "Save timezone",
+  "timezoneSaveFailed": "Could not save timezone"
+}

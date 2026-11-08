@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
   factories,
   onSuccess,
 }) => {
+  const { t } = useTranslation('inventory');
+  const { t: tc } = useTranslation('common');
   const [selectedFactoryId, setSelectedFactoryId] = useState<number | null>(factoryId);
   const [itemId, setItemId] = useState<number | undefined>();
   const [pickedItem, setPickedItem] = useState<{
@@ -87,18 +90,18 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
     e.preventDefault();
 
     if (selectedFactoryId == null) {
-      appToast.error('Pick a factory');
+      appToast.error(t('toastPickFactory'));
       return;
     }
 
     if (!itemId) {
-      appToast.error('Please select an item');
+      appToast.error(t('toastSelectItem'));
       return;
     }
 
     const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      appToast.error('Quantity must be 0 or greater');
+      appToast.error(t('toastQtyNonNeg'));
       return;
     }
 
@@ -114,7 +117,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
         note: note.trim() || undefined,
       }).unwrap();
 
-      appToast.success('Product added');
+      appToast.success(t('toastProductAdded'));
       setItemId(undefined);
       setPickedItem(null);
       setQty('0');
@@ -127,7 +130,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to add product');
+      appToast.error(e?.data?.detail || t('toastFailedAddProduct'));
     }
   };
 
@@ -155,24 +158,24 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-card-foreground">Add Product</DialogTitle>
+              <DialogTitle className="text-card-foreground">{t('dlgAddProduct')}</DialogTitle>
               <DialogDescription>
-                Lists a catalog item for sale at one factory. On-hand stock stays in Storage until you sell it.
+                {t('dlgAddProductHint')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Factory <span className="text-destructive">*</span></Label>
+                <Label>{t('dlgFactory')} <span className="text-destructive">*</span></Label>
                 <Select
                   value={selectedFactoryId != null ? String(selectedFactoryId) : '__none__'}
                   onValueChange={(v) => setSelectedFactoryId(v === '__none__' ? null : parseInt(v, 10))}
                 >
                   <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Pick a factory" />
+                    <SelectValue placeholder={t('dlgPickFactory')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Pick a factory</SelectItem>
+                    <SelectItem value="__none__">{t('dlgPickFactory')}</SelectItem>
                     {factories.map((factory) => (
                       <SelectItem key={factory.id} value={String(factory.id)}>
                         {factory.name}
@@ -182,12 +185,12 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Item <span className="text-destructive">*</span></Label>
+                <Label>{t('dlgItem')} <span className="text-destructive">*</span></Label>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <ItemSelectSummaryButton
-                      ariaLabel="Select item"
-                      emptyLabel="Select item"
+                      ariaLabel={t('dlgSelectItem')}
+                      emptyLabel={t('dlgSelectItem')}
                       selectedLabel={selectedItemLabel}
                       staleNumericId={itemId != null ? String(itemId) : null}
                       onClick={() => setItemPickerOpen(true)}
@@ -195,7 +198,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                     />
                   </div>
                   <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    - or -
+                    {t('dlgOr')}
                   </span>
                   <Button
                     type="button"
@@ -203,14 +206,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                     className="h-10 shrink-0"
                     onClick={() => setIsAddItemOpen(true)}
                   >
-                    Create item +
+                    {t('dlgCreateItemPlus')}
                   </Button>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Quantity <span className="text-destructive">*</span></Label>
+                  <Label>{t('quantity')} <span className="text-destructive">*</span></Label>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
@@ -228,14 +231,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Avg. Cost</Label>
+                  <Label>{t('dlgAvgCost')}</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     value={avgCost}
                     onChange={(e) => setAvgCost(e.target.value)}
-                    placeholder="Optional"
+                    placeholder={t('dlgOptional')}
                     className="bg-background"
                   />
                 </div>
@@ -243,26 +246,26 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Selling Price</Label>
+                  <Label>{t('dlgSellingPrice')}</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(e.target.value)}
-                    placeholder="Optional"
+                    placeholder={t('dlgOptional')}
                     className="bg-background"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Min Order Qty</Label>
+                  <Label>{t('dlgMinOrderQty')}</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       min="0"
                       value={minOrderQty}
                       onChange={(e) => setMinOrderQty(e.target.value)}
-                      placeholder="Optional"
+                      placeholder={t('dlgOptional')}
                       className="flex-1 bg-background"
                     />
                     {pickedItem?.unit && (
@@ -282,20 +285,20 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                 />
                 <div className="grid gap-0.5">
                   <Label htmlFor="available" className="font-normal cursor-pointer">
-                    Available for sale
+                    {t('dlgAvailableForSale')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Off until you want this item on sales orders. Stock in Storage is separate.
+                    {t('dlgAvailableHint')}
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label>Note</Label>
+                <Label>{t('dlgNote')}</Label>
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t('dlgOptional')}
                   rows={2}
                   className="bg-background"
                 />
@@ -304,7 +307,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button
                 type="submit"
@@ -314,10 +317,10 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
+                    {t('dlgAdding')}
                   </>
                 ) : (
-                  'Add'
+                  tc('add')
                 )}
               </Button>
             </DialogFooter>

@@ -1,8 +1,9 @@
-import React, { createContext, useContext } from 'react';
-import { useNotificationCenter, type NotificationCenterState } from './useNotificationCenter';
+import React from 'react';
+import { useNotificationCenter } from './useNotificationCenter';
 import NotificationCenterDialog from './NotificationCenterDialog';
+import { NotificationCenterContext } from './notificationCenterContext';
 
-const NotificationCenterContext = createContext<NotificationCenterState | null>(null);
+export { useNotificationCenterContext } from './notificationCenterContext';
 
 export function NotificationCenterProvider({ children }: { children: React.ReactNode }) {
   const value = useNotificationCenter();
@@ -13,12 +14,4 @@ export function NotificationCenterProvider({ children }: { children: React.React
       <NotificationCenterDialog />
     </NotificationCenterContext.Provider>
   );
-}
-
-export function useNotificationCenterContext(): NotificationCenterState {
-  const ctx = useContext(NotificationCenterContext);
-  if (!ctx) {
-    throw new Error('useNotificationCenterContext must be used within NotificationCenterProvider');
-  }
-  return ctx;
 }

@@ -25,11 +25,18 @@ export interface AppNotification {
   id: string;
   kind: NotificationKind;
   severity: NotificationSeverity;
+  /** English fallback; prefer `titleKey` at display time. */
   title: string;
   body: string;
   href: string;
   createdAt: string;
   entityRef?: string;
+  titleKey?: string;
+  titleParams?: Record<string, string>;
+  bodyKey?: string;
+  bodyParams?: Record<string, string>;
+  /** When true, `body` is API/preview text and must not be replaced by `bodyKey`. */
+  bodyFromPreview?: boolean;
 }
 
 export const APPROVAL_KINDS: NotificationKind[] = [

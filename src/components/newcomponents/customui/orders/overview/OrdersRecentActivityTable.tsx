@@ -1,10 +1,14 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import OrdersOverviewTable from '@/components/newcomponents/customui/orders/OrdersOverviewTable';
 import type { OverviewOrder } from '@/pages/newpages/orders/ordersOverviewData';
-import { ORDER_TYPE_HUB, formatOverviewCurrency } from './ordersOverviewConstants';
+import { formatOverviewCurrency } from './ordersOverviewConstants';
+import { overviewHubLabel } from './overviewOrderTypeLabels';
+import { displaySystemStatusName } from '@/i18n/systemLabels';
+import { normalizeUiLanguage } from '@/i18n/uiLanguage';
 
 interface OrdersRecentActivityTableProps {
   orders: OverviewOrder[];
@@ -15,8 +19,14 @@ const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
   orders,
   isLoading,
 }) => {
+  const { t, i18n } = useTranslation(['orders', 'misc']);
+  const uiLanguage = normalizeUiLanguage(i18n.language);
   const navigate = useNavigate();
-  const pathByKind = Object.fromEntries(ORDER_TYPE_HUB.map((h) => [h.id, h.path]));
+  const pathByKind: Record<string, string> = {
+    purchase: '/orders/purchase',
+    transfer: '/orders/transfer',
+    expense: '/orders/expense',
+  };
 
   return (
     <div data-help-tour="orders-overview.recent-activity">
@@ -26,42 +36,43 @@ const OrdersRecentActivityTable: React.FC<OrdersRecentActivityTableProps> = ({
         </div>
       ) : (
         <OrdersOverviewTable
-          title="Recent activity"
-          subtitle="Latest orders matching your filters"
+          title={t('recentActivityTableTitle')}
+          subtitle={t('recentActivityTableSubtitle')}
           rows={orders.map((o) => ({ ...o, id: `${o.kind}-${o.id}` }))}
-          emptyMessage="No orders match your filters"
+          emptyMessage={t('noOrdersMatchFilters')}
           onRowClick={(row) => navigate(pathByKind[row.kind] ?? '/orders/purchase')}
           columns={[
         {
           id: 'ref',
-          header: 'Order',
+          header: t('overviewTableColOrder'),
           cell: (row) => <span className="font-medium">{row.ref}</span>,
         },
         {
           id: 'type',
-          header: 'Type',
-          cell: (row) => {
-            const label = ORDER_TYPE_HUB.find((h) => h.id === row.kind)?.label ?? row.kind;
-            return (
-              <Badge variant="outline" className="text-[10px] font-normal">
-                {label}
-              </Badge>
-            );
-          },
+          header: t('overviewTableColType'),
+          cell: (row) => (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              {overviewHubLabel(row.kind, t)}
+            </Badge>
+          ),
         },
         {
           id: 'status',
-          header: 'Status',
-          cell: (row) => <span className="text-muted-foreground">{row.statusLabel}</span>,
+          header: t('statusLabel'),
+          cell: (row) => (
+            <span className="text-muted-foreground">
+              {displaySystemStatusName(row.statusLabel, t, uiLanguage)}
+            </span>
+          ),
         },
         {
           id: 'date',
-          header: 'Date',
+          header: t('overviewTableColDate'),
           cell: (row) => row.displayDate,
         },
         {
           id: 'amount',
-          header: 'Amount',
+          header: t('overviewTableColAmount'),
           align: 'right',
           cell: (row) => (
             <span className="font-medium tabular-nums">

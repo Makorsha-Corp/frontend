@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Wrench } from 'lucide-react';
@@ -28,7 +29,9 @@ interface DueStatusListProps {
   rows: DueStatusRow[];
 }
 
-const DueStatusList: React.FC<DueStatusListProps> = ({ rows }) => (
+const DueStatusList: React.FC<DueStatusListProps> = ({ rows }) => {
+  const { t } = useTranslation('factories');
+  return (
   <ul className="space-y-2">
     {rows.map((row) => (
       <li key={row.id}>
@@ -43,7 +46,7 @@ const DueStatusList: React.FC<DueStatusListProps> = ({ rows }) => (
         >
           <span className="font-medium text-card-foreground">{row.name}</span>
           <span className="text-xs text-muted-foreground">
-            {row.isOverdue ? `${row.dateLabel} · overdue` : row.dateLabel}
+            {row.isOverdue ? `${row.dateLabel} · ${t('dueOverdueSuffix')}` : row.dateLabel}
             <span className="mx-1.5 text-border">·</span>
             {row.contextLabel}
           </span>
@@ -51,7 +54,8 @@ const DueStatusList: React.FC<DueStatusListProps> = ({ rows }) => (
       </li>
     ))}
   </ul>
-);
+  );
+};
 
 const DueStatusCard: React.FC<DueStatusCardProps> = ({
   title = 'Upcoming machine work',
@@ -62,6 +66,8 @@ const DueStatusCard: React.FC<DueStatusCardProps> = ({
   emptyMessage = 'No upcoming machine work this week.',
   className,
 }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const resolvedOverdueRows = rows?.filter((row) => row.isOverdue) ?? overdueRows;
   const resolvedUpcomingRows = rows?.filter((row) => !row.isOverdue) ?? upcomingRows;
   const hasSplitSections = rows == null;
@@ -79,7 +85,7 @@ const DueStatusCard: React.FC<DueStatusCardProps> = ({
         {loading ? (
           <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading…
+            {tCommon('loading')}
           </div>
         ) : !hasRows ? (
           <p className="text-sm text-muted-foreground">{emptyMessage}</p>
@@ -88,7 +94,7 @@ const DueStatusCard: React.FC<DueStatusCardProps> = ({
             {resolvedOverdueRows.length > 0 ? (
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Overdue
+                  {t('dueOverdue')}
                 </h3>
                 <DueStatusList rows={resolvedOverdueRows} />
               </div>
@@ -96,7 +102,7 @@ const DueStatusCard: React.FC<DueStatusCardProps> = ({
             {resolvedUpcomingRows.length > 0 ? (
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Due within 7 days
+                  {t('dueWithin7Days')}
                 </h3>
                 <DueStatusList rows={resolvedUpcomingRows} />
               </div>

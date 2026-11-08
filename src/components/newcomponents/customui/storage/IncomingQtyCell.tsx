@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   HoverCard,
@@ -29,6 +30,7 @@ function formatQty(value: number | string): number {
 }
 
 const IncomingQtyCell: React.FC<IncomingQtyCellProps> = ({ summary, itemUnit, showIncoming }) => {
+  const { t } = useTranslation('inventory');
   if (!showIncoming) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -39,7 +41,7 @@ const IncomingQtyCell: React.FC<IncomingQtyCellProps> = ({ summary, itemUnit, sh
   }
 
   const unit = itemUnit?.trim();
-  const orderCountLabel = `${summary.order_count} order${summary.order_count !== 1 ? 's' : ''}`;
+  const orderCountLabel = t('incomingOrders', { count: summary.order_count });
 
   return (
     <HoverCard openDelay={120} closeDelay={80}>
@@ -89,7 +91,7 @@ const IncomingQtyCell: React.FC<IncomingQtyCellProps> = ({ summary, itemUnit, sh
                       {line.order_number}
                     </span>
                     <span className="shrink-0 text-muted-foreground">
-                      {line.status_name ?? 'Open'}
+                      {line.status_name ?? t('incomingOpen')}
                     </span>
                     <span className="shrink-0 tabular-nums font-medium text-foreground">+{qtyLabel}</span>
                   </Link>

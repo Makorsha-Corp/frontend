@@ -1,18 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { CountsByTypeRow } from '@/pages/newpages/orders/ordersOverviewData';
+import type { CountsByTypeRow, OverviewOrderKind } from '@/pages/newpages/orders/ordersOverviewData';
 import { ORDER_TYPE_HUB, formatOverviewCurrency } from '../../ordersOverviewConstants';
 import { hubDraftSearch, hubOpenSearch } from '@/pages/newpages/orders/orderListUrlParams';
+import {
+  OVERVIEW_AGGREGATE_TYPE_BY_KIND,
+  overviewHubLabel,
+} from '../../overviewOrderTypeLabels';
 
 interface HubTypeCardsProps {
   countsByType: CountsByTypeRow[];
 }
 
-const emptyRow = (label: string): CountsByTypeRow => ({
-  type: label,
+const emptyRow = (aggregateType: string): CountsByTypeRow => ({
+  type: aggregateType,
   count: 0,
   value: 0,
   draftCount: 0,
@@ -23,6 +28,7 @@ const hubPillClass =
   'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40';
 
 const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
+  const { t } = useTranslation('orders');
   const countMap = new Map(countsByType.map((r) => [r.type, r]));
 
   return (
@@ -31,13 +37,15 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
       data-help-tour="orders-overview.hub-cards"
     >
       {ORDER_TYPE_HUB.map((hub) => {
-        const row = countMap.get(hub.label) ?? emptyRow(hub.label);
+        const aggregateType = OVERVIEW_AGGREGATE_TYPE_BY_KIND[hub.id as OverviewOrderKind];
+        const row = countMap.get(aggregateType) ?? emptyRow(aggregateType);
         const Icon = hub.icon;
         const hasDraftOrOpen = row.draftCount > 0 || row.openCount > 0;
         const draftSearch = hubDraftSearch(hub.id);
         const openSearch = hubOpenSearch(hub.id);
         const valueLabel =
-          row.value > 0 ? formatOverviewCurrency(row.value) : 'No value tracked';
+          row.value > 0 ? formatOverviewCurrency(row.value) : t('overviewNoValueTracked');
+        const hubTitle = overviewHubLabel(hub.id, t);
 
         return (
           <Card
@@ -65,7 +73,7 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <p className="truncate text-sm font-medium text-card-foreground group-hover:text-brand-primary">
-                    {hub.label}
+                    {hubTitle}
                   </p>
                   <p className="shrink-0 text-lg font-bold tabular-nums leading-none">{row.count}</p>
                 </div>
@@ -85,7 +93,7 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
                         'border-amber-300/60 text-amber-700 dark:border-amber-700/50 dark:text-amber-400'
                       )}
                     >
-                      {row.draftCount} draft
+                      {t('overviewDraftCount', { count: row.draftCount })}
                     </Link>
                   ) : (
                     <span
@@ -94,7 +102,7 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
                         'border-border text-muted-foreground cursor-default'
                       )}
                     >
-                      {row.draftCount} draft
+                      {t('overviewDraftCount', { count: row.draftCount })}
                     </span>
                   )
                 ) : null}
@@ -107,7 +115,7 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
                         'border-amber-400/70 text-amber-800 dark:border-amber-600/50 dark:text-amber-300'
                       )}
                     >
-                      {row.openCount} open
+                      {t('overviewOpenCount', { count: row.openCount })}
                     </Link>
                   ) : (
                     <span
@@ -116,7 +124,7 @@ const HubTypeCards: React.FC<HubTypeCardsProps> = ({ countsByType }) => {
                         'border-border text-muted-foreground cursor-default'
                       )}
                     >
-                      {row.openCount} open
+                      {t('overviewOpenCount', { count: row.openCount })}
                     </span>
                   )
                 ) : null}

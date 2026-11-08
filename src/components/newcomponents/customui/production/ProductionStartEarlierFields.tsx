@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import DateTimePickerField from '@/components/newcomponents/customui/DateTimePickerField';
@@ -19,7 +20,9 @@ const ProductionStartEarlierFields: React.FC<ProductionStartEarlierFieldsProps> 
   onChange,
   idPrefix,
   disabled,
-}) => (
+}) => {
+  const { t } = useTranslation('production');
+  return (
   <div className="space-y-2 rounded-md border border-border/80 bg-muted/20 p-3">
     <div className="flex items-center gap-2">
       <Checkbox
@@ -29,7 +32,7 @@ const ProductionStartEarlierFields: React.FC<ProductionStartEarlierFieldsProps> 
         disabled={disabled}
       />
       <Label htmlFor={`${idPrefix}-started-earlier`} className="cursor-pointer text-sm font-normal">
-        Started earlier
+        {t('startedEarlier')}
       </Label>
     </div>
     {enabled ? (
@@ -40,10 +43,11 @@ const ProductionStartEarlierFields: React.FC<ProductionStartEarlierFieldsProps> 
         disabled={disabled}
         className="w-full max-w-none"
         triggerClassName="w-full"
-        aria-label="Actual start time"
+        aria-label={t('actualStartAria')}
       />
     ) : null}
   </div>
-);
+  );
+};
 
 export default ProductionStartEarlierFields;

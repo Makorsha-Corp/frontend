@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   CalendarClock,
@@ -40,10 +41,12 @@ interface DashboardAttentionPanelProps {
 }
 
 const DashboardAttentionPanel: React.FC<DashboardAttentionPanelProps> = ({ items, isLoading }) => {
+  const { t } = useTranslation('dashboard');
+
   return (
     <Card className="border-border">
       <CardHeader>
-        <CardTitle className="text-card-foreground">Needs attention</CardTitle>
+        <CardTitle className="text-card-foreground">{t('needsAttention')}</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -51,7 +54,7 @@ const DashboardAttentionPanel: React.FC<DashboardAttentionPanelProps> = ({ items
             <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
           </div>
         ) : items.length === 0 ? (
-          <p className="py-8 text-center text-muted-foreground text-sm">Nothing urgent right now</p>
+          <p className="py-8 text-center text-muted-foreground text-sm">{t('nothingUrgent')}</p>
         ) : (
           <div className="divide-y divide-border">
             {items.map((item) => {

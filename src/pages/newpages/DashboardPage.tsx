@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppShellHeader, {
   AppShellHeaderRow,
   appShellHeaderIconTileClass,
@@ -33,6 +34,7 @@ function formatSignedCurrency(value: number): string {
 }
 
 const DashboardPage: React.FC = () => {
+  const { t } = useTranslation('dashboard');
   const {
     isOwner,
     kpis,
@@ -43,153 +45,164 @@ const DashboardPage: React.FC = () => {
     hubOrdersMayTruncate,
   } = useDashboardData();
 
+  const machineWorkFooter = useMemo(() => {
+    if (kpis.overdueMachineWorkCount > 0 || kpis.upcomingMachineWorkItemCount > 0) {
+      return [
+        kpis.overdueMachineWorkCount > 0
+          ? t('machineWorkOverdue', { count: kpis.overdueMachineWorkCount })
+          : null,
+        kpis.upcomingMachineWorkItemCount > 0
+          ? t('machineWorkDueIn7d', { count: kpis.upcomingMachineWorkItemCount })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    return t('machineWorkFooterDefault');
+  }, [kpis.overdueMachineWorkCount, kpis.upcomingMachineWorkItemCount, t]);
+
+  const openOrdersFooter = useMemo(() => {
+    if (kpis.openOrdersPendingValue > 0) {
+      return t('openOrdersFooterPending', {
+        amount: formatDashboardCurrency(kpis.openOrdersPendingValue),
+      });
+    }
+    return t('viewOrderAnalytics');
+  }, [kpis.openOrdersPendingValue, t]);
+
+  const activeProjectsFooter = useMemo(() => {
+    if (kpis.planningProjectsCount > 0) {
+      return t('projectsInPlanning', { count: kpis.planningProjectsCount });
+    }
+    return t('projectsInProgress');
+  }, [kpis.planningProjectsCount, t]);
+
+  const netArApFooter = useMemo(() => {
+    if (kpis.overdueInvoiceCount > 0) {
+      return t('overdueInvoices', { count: kpis.overdueInvoiceCount });
+    }
+    return t('netArApFooterDefault');
+  }, [kpis.overdueInvoiceCount, t]);
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <AppShellHeader sticky>
-          <AppShellHeaderRow className="min-h-9">
-            <div className={appShellHeaderLeftGroupClass}>
-              <div className={appShellHeaderIconTileClass}>
-                <LayoutDashboard className="h-5 w-5 text-brand-primary" />
-              </div>
-              <h1 className={appShellHeaderTitleClass}>Dashboard</h1>
+      <AppShellHeader sticky>
+        <AppShellHeaderRow className="min-h-9">
+          <div className={appShellHeaderLeftGroupClass}>
+            <div className={appShellHeaderIconTileClass}>
+              <LayoutDashboard className="h-5 w-5 text-brand-primary" />
             </div>
-          </AppShellHeaderRow>
-        </AppShellHeader>
+            <h1 className={appShellHeaderTitleClass}>{t('title')}</h1>
+          </div>
+        </AppShellHeaderRow>
+      </AppShellHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
-          {hubOrdersMayTruncate && (
-            <p className="mb-4 text-xs text-muted-foreground">
-              Some order KPIs may be truncated — workspace has more than 1000 rows in one or more
-              order types.
-            </p>
-          )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-8 bg-background">
+        {hubOrdersMayTruncate && (
+          <p className="mb-4 text-xs text-muted-foreground">{t('kpiTruncateWarning')}</p>
+        )}
 
-          <div className="space-y-8">
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-muted-foreground">Operations</h2>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <DashboardStatCard
-                  variant="primary"
-                  title="Open orders"
-                  value={kpis.openOrdersCount}
-                  icon={<ShoppingCart size={24} />}
-                  href="/orders"
-                  footer={
-                    kpis.openOrdersPendingValue > 0
-                      ? `${formatDashboardCurrency(kpis.openOrdersPendingValue)} pending · View analytics`
-                      : 'View order analytics'
-                  }
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="primaryHover"
-                  title="Active projects"
-                  value={kpis.activeProjectsCount}
-                  icon={<FolderKanban size={24} />}
-                  footer={
-                    kpis.planningProjectsCount > 0
-                      ? `${kpis.planningProjectsCount} in planning`
-                      : 'Projects in progress'
-                  }
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="accent"
-                  title="Batches in progress"
-                  value={kpis.batchesInProgressCount}
-                  icon={<Layers size={24} />}
-                  footer="Production batches running now"
-                  href="/production"
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="outlined"
-                  title="Machine work due"
-                  value={kpis.overdueMachineWorkCount + kpis.upcomingMachineWorkItemCount}
-                  icon={<Wrench size={24} />}
-                  footer={
-                    kpis.overdueMachineWorkCount > 0 || kpis.upcomingMachineWorkItemCount > 0
-                      ? [
-                          kpis.overdueMachineWorkCount > 0
-                            ? `${kpis.overdueMachineWorkCount} overdue`
-                            : null,
-                          kpis.upcomingMachineWorkItemCount > 0
-                            ? `${kpis.upcomingMachineWorkItemCount} due in 7d`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')
-                      : 'Open work orders & scheduled drafts'
-                  }
-                  href="/factories"
-                  isLoading={isLoading}
-                />
-              </div>
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground">{t('sectionOperations')}</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <DashboardStatCard
+                variant="primary"
+                title={t('openOrders')}
+                value={kpis.openOrdersCount}
+                icon={<ShoppingCart size={24} />}
+                href="/orders"
+                footer={openOrdersFooter}
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="primaryHover"
+                title={t('activeProjects')}
+                value={kpis.activeProjectsCount}
+                icon={<FolderKanban size={24} />}
+                footer={activeProjectsFooter}
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="accent"
+                title={t('batchesInProgress')}
+                value={kpis.batchesInProgressCount}
+                icon={<Layers size={24} />}
+                footer={t('batchesRunningNow')}
+                href="/production"
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="outlined"
+                title={t('machineWorkDue')}
+                value={kpis.overdueMachineWorkCount + kpis.upcomingMachineWorkItemCount}
+                icon={<Wrench size={24} />}
+                footer={machineWorkFooter}
+                href="/factories"
+                isLoading={isLoading}
+              />
             </div>
+          </div>
 
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-muted-foreground">Finance & inventory</h2>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <DashboardStatCard
-                  variant="outlined"
-                  title="Net AR − AP"
-                  value={formatSignedCurrency(kpis.netArAp)}
-                  icon={<DollarSign size={24} />}
-                  href="/accounts/overview"
-                  footer={
-                    kpis.overdueInvoiceCount > 0
-                      ? `${kpis.overdueInvoiceCount} overdue invoice${kpis.overdueInvoiceCount === 1 ? '' : 's'}`
-                      : 'Open receivables minus payables'
-                  }
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="primaryHover"
-                  title="Pending approvals"
-                  value={kpis.pendingApprovalsCount}
-                  icon={<ClipboardCheck size={24} />}
-                  href="/orders"
-                  footer="Orders awaiting sign-off"
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="accent"
-                  title="Storage value"
-                  value={formatDashboardCurrency(kpis.storageEstimatedValue)}
-                  icon={<Package size={24} />}
-                  href="/storage"
-                  footer="Estimated inventory on hand"
-                  isLoading={isLoading}
-                />
-                <DashboardStatCard
-                  variant="primary"
-                  title="Machines running"
-                  value={kpis.machinesRunningCount}
-                  icon={<Cpu size={24} />}
-                  href="/factories"
-                  footer="Active machines in scope"
-                  isLoading={isLoading}
-                />
-              </div>
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground">{t('sectionFinanceInventory')}</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <DashboardStatCard
+                variant="outlined"
+                title={t('netArAp')}
+                value={formatSignedCurrency(kpis.netArAp)}
+                icon={<DollarSign size={24} />}
+                href="/accounts/overview"
+                footer={netArApFooter}
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="primaryHover"
+                title={t('pendingApprovals')}
+                value={kpis.pendingApprovalsCount}
+                icon={<ClipboardCheck size={24} />}
+                href="/orders"
+                footer={t('pendingApprovalsFooter')}
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="accent"
+                title={t('storageValue')}
+                value={formatDashboardCurrency(kpis.storageEstimatedValue)}
+                icon={<Package size={24} />}
+                href="/storage"
+                footer={t('storageValueFooter')}
+                isLoading={isLoading}
+              />
+              <DashboardStatCard
+                variant="primary"
+                title={t('machinesRunning')}
+                value={kpis.machinesRunningCount}
+                icon={<Cpu size={24} />}
+                href="/factories"
+                footer={t('machinesRunningFooter')}
+                isLoading={isLoading}
+              />
             </div>
+          </div>
 
-            <DashboardQuickActionsStrip isOwner={isOwner} />
+          <DashboardQuickActionsStrip isOwner={isOwner} />
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-6">
-                <DashboardAttentionPanel items={attentionItems} isLoading={isLoading} />
-                <DashboardRecentOrdersPanel orders={recentOrders} isLoading={isLoading} />
-              </div>
-              <div className="space-y-6">
-                <DashboardNotificationsPanel />
-                {isOwner && (
-                  <DashboardWorkspacePanel pulse={workspacePulse} isLoading={isLoading} />
-                )}
-              </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <DashboardAttentionPanel items={attentionItems} isLoading={isLoading} />
+              <DashboardRecentOrdersPanel orders={recentOrders} isLoading={isLoading} />
+            </div>
+            <div className="space-y-6">
+              <DashboardNotificationsPanel />
+              {isOwner && (
+                <DashboardWorkspacePanel pulse={workspacePulse} isLoading={isLoading} />
+              )}
             </div>
           </div>
         </div>
       </div>
+    </div>
   );
 };
 

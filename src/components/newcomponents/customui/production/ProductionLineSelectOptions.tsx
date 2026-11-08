@@ -1,11 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SelectItem } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  PRODUCTION_LINE_NO_MACHINES_TOOLTIP,
-  productionLineHasMachines,
-} from '@/lib/productionLineMachines';
+import { productionLineHasMachines } from '@/lib/productionLineMachines';
 import type { ProductionLine } from '@/types/production';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +22,9 @@ export const ProductionLineSelectOptions: React.FC<ProductionLineSelectOptionsPr
   lines,
   selectedLineId = null,
   showIndicator = true,
-}) => (
+}) => {
+  const { t } = useTranslation('production');
+  return (
   <>
     {lines.map((line) => {
       const value = String(line.id);
@@ -46,7 +46,7 @@ export const ProductionLineSelectOptions: React.FC<ProductionLineSelectOptionsPr
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="max-w-xs text-sm">
-              {PRODUCTION_LINE_NO_MACHINES_TOOLTIP}
+              {t('noMachinesTooltip')}
             </TooltipContent>
           </Tooltip>
         );
@@ -60,9 +60,10 @@ export const ProductionLineSelectOptions: React.FC<ProductionLineSelectOptionsPr
           className={cn(empty && isCurrent && 'bg-amber-500/10 text-amber-900 dark:text-amber-100')}
         >
           {line.name}
-          {empty && isCurrent ? ' (no machines)' : ''}
+          {empty && isCurrent ? ` (${t('noMachinesAssigned')})` : ''}
         </SelectItem>
       );
     })}
   </>
-);
+  );
+};

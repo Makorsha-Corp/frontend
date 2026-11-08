@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, Inbox, MessageSquare } from 'lucide-react';
 import {
   Dialog,
@@ -13,24 +14,37 @@ import {
   EmphasisTabsProvider,
   EmphasisTabsTrigger,
 } from '@/components/newcomponents/customui/EmphasisTabSwitcher';
-import { useNotificationCenterContext } from './NotificationCenterProvider';
+import { useNotificationCenterContext } from './notificationCenterContext';
 import NotificationListItem from './NotificationListItem';
-import {
-  DATE_GROUP_LABELS,
-  getFilterEmptyMessage,
-  groupNotificationsByDate,
-} from './notificationVisuals';
+import { groupNotificationsByDate } from './notificationVisuals';
 import type { NotificationFilter } from './notificationTypes';
 
-const FILTER_TABS: { id: NotificationFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-  { id: 'approvals', label: 'Approvals' },
-  { id: 'alerts', label: 'Alerts' },
-  { id: 'discussions', label: 'Discussions' },
-];
+const FILTER_TAB_IDS: NotificationFilter[] = ['all', 'unread', 'approvals', 'alerts', 'discussions'];
+
+const FILTER_LABEL_KEYS: Record<NotificationFilter, string> = {
+  all: 'filterAll',
+  unread: 'filterUnread',
+  approvals: 'filterApprovals',
+  alerts: 'filterAlerts',
+  discussions: 'filterDiscussions',
+};
+
+const EMPTY_FILTER_KEYS: Record<NotificationFilter, string> = {
+  all: 'emptyAll',
+  unread: 'emptyUnread',
+  approvals: 'emptyApprovals',
+  alerts: 'emptyAlerts',
+  discussions: 'emptyDiscussions',
+};
+
+const DATE_GROUP_KEYS = {
+  today: 'dateToday',
+  yesterday: 'dateYesterday',
+  earlier: 'dateEarlier',
+} as const;
 
 const NotificationCenterDialog: React.FC = () => {
+  const { t } = useTranslation('notifications');
   const {
     dialogOpen,
     setDialogOpen,
@@ -63,15 +77,15 @@ const NotificationCenterDialog: React.FC = () => {
             <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
               <div className="flex min-w-0 items-center gap-2">
                 <Bell className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <DialogTitle className="text-base">Notifications</DialogTitle>
+                <DialogTitle className="text-base">{t('dialogTitle')}</DialogTitle>
               </div>
               <EmphasisTabsList className="mt-3">
-                {FILTER_TABS.map((tab) => {
-                  const tabUnread = filterUnreadCounts[tab.id];
+                {FILTER_TAB_IDS.map((tabId) => {
+                  const tabUnread = filterUnreadCounts[tabId];
                   return (
-                    <EmphasisTabsTrigger key={tab.id} value={tab.id} className="px-2">
+                    <EmphasisTabsTrigger key={tabId} value={tabId} className="px-2">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="truncate">{tab.label}</span>
+                        <span className="truncate">{t(FILTER_LABEL_KEYS[tabId])}</span>
                         {tabUnread > 0 && (
                           <span className="shrink-0 rounded-full bg-brand-primary/10 px-1.5 py-px text-[10px] font-semibold tabular-nums text-brand-primary">
                             {tabUnread > 9 ? '9+' : tabUnread}
@@ -99,13 +113,9 @@ const NotificationCenterDialog: React.FC = () => {
                       <Bell className="h-6 w-6 text-muted-foreground" />
                     )}
                   </div>
-                  <p className="text-sm font-medium text-foreground">
-                    {getFilterEmptyMessage(filter)}
-                  </p>
+                  <p className="text-sm font-medium text-foreground">{t(EMPTY_FILTER_KEYS[filter])}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {filter === 'discussions'
-                      ? 'Mentions and replies from order discussions will appear here.'
-                      : 'New activity will show up here.'}
+                    {filter === 'discussions' ? t('emptyDiscussionsHint') : t('emptyDefaultHint')}
                   </p>
                 </div>
               ) : (
@@ -115,7 +125,7 @@ const NotificationCenterDialog: React.FC = () => {
                     return (
                       <section key={group}>
                         <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {DATE_GROUP_LABELS[group]}
+                          {t(DATE_GROUP_KEYS[group])}
                         </p>
                         <div className="space-y-2">
                           {items.map((n) => (
@@ -136,7 +146,7 @@ const NotificationCenterDialog: React.FC = () => {
                             onClick={() => markManyRead(unreadInGroup.map((n) => n.id))}
                             className="mt-2 w-full rounded-md border border-border py-2 text-xs font-medium text-brand-primary transition-colors hover:bg-muted/40"
                           >
-                            Mark all read
+                            {t('markAllRead')}
                           </button>
                         )}
                       </section>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ const AddDepartmentDialog: React.FC<AddDepartmentDialogProps> = ({
   onOpenChange,
   departments = [],
 }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const [name, setName] = useState('');
 
   const [createDepartment, { isLoading }] = useCreateDepartmentMutation();
@@ -34,27 +37,27 @@ const AddDepartmentDialog: React.FC<AddDepartmentDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      appToast.error('Department name is required');
+      appToast.error(t('toastDepartmentNameRequired'));
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = departments.find((d) => d.name.toLowerCase() === nameLower);
     if (dup) {
-      appToast.error('A department with this name already exists');
+      appToast.error(t('toastDepartmentDuplicate'));
       return;
     }
 
     try {
       await createDepartment({ name: name.trim() }).unwrap();
 
-      appToast.success('Department created successfully');
+      appToast.success(t('toastDepartmentCreateSuccess'));
       setName('');
       onOpenChange(false);
     } catch (error: unknown) {
       console.error('Failed to create department:', error);
       const err = error as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to create department');
+      appToast.error(err?.data?.detail || t('toastDepartmentCreateFailed'));
     }
   };
 
@@ -68,20 +71,20 @@ const AddDepartmentDialog: React.FC<AddDepartmentDialogProps> = ({
       <DialogContent className="sm:max-w-[380px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Add Department</DialogTitle>
-            <DialogDescription>Create a new department.</DialogDescription>
+            <DialogTitle className="text-card-foreground">{t('addDepartmentDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('addDepartmentDialogDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="dept-name">
-                Name <span className="text-destructive">*</span>
+                {t('fieldDepartmentName')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="dept-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Production, Finance"
+                placeholder={t('placeholderDepartmentName')}
                 className="bg-background"
               />
             </div>
@@ -89,16 +92,16 @@ const AddDepartmentDialog: React.FC<AddDepartmentDialogProps> = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {t('dialogCreating')}
                 </>
               ) : (
-                'Add'
+                tCommon('add')
               )}
             </Button>
           </DialogFooter>

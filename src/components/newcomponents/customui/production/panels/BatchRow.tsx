@@ -1,10 +1,13 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useGetAllFormulaStageItemsQuery } from '@/features/production/productionApi';
 import type { ProductionBatch, ProductionFormula } from '@/types/production';
 import { batchCardDate } from '@/lib/millCalendarDate';
 import { productionBatchRowSelectedClass } from '../productionPageUtils';
+import { productionStatusLabel } from '@/components/newcomponents/customui/production/productionStatusLabel';
+import { activeIntlLocale } from '@/utils/datetime';
 
 interface BatchRowProps {
   batch: ProductionBatch;
@@ -17,16 +20,16 @@ interface BatchRowProps {
   plannedShiftLabel?: string | null;
 }
 
-function formatPlannedStart(batch: ProductionBatch): string {
+function formatPlannedStart(batch: ProductionBatch, locale: string): string {
   if (batch.planned_start_at) {
     const date = new Date(batch.planned_start_at);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+    return date.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
   }
   if (!batch.batch_date) return '—';
   const date = batchCardDate(batch.batch_date);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(locale);
 }
 
 const BatchRow: React.FC<BatchRowProps> = ({
@@ -39,6 +42,8 @@ const BatchRow: React.FC<BatchRowProps> = ({
   factoryNameHint,
   plannedShiftLabel,
 }) => {
+  const { t } = useTranslation('production');
+  const locale = activeIntlLocale();
   const formula = batch.formula_id ? formulas.find((f) => f.id === batch.formula_id) : null;
   const { data: stageItems = [] } = useGetAllFormulaStageItemsQuery(batch.formula_id ?? 0, {
     skip: !batch.formula_id,
@@ -54,15 +59,15 @@ const BatchRow: React.FC<BatchRowProps> = ({
     return null;
   }, [stageItems, getItemName]);
 
-  const recipeLabel = formula ? formula.name : 'Simple';
+  const recipeLabel = formula ? formula.name : t('simple');
   const expectedQty =
     batch.expected_output_quantity != null ? String(batch.expected_output_quantity) : '—';
 
   const plannedWhenLine = useMemo(() => {
-    const when = formatPlannedStart(batch);
+    const when = formatPlannedStart(batch, locale);
     if (plannedShiftLabel) return `${when} · ${plannedShiftLabel}`;
     return when;
-  }, [batch, plannedShiftLabel]);
+  }, [batch, plannedShiftLabel, locale]);
 
   return (
     <div
@@ -82,7 +87,7 @@ const BatchRow: React.FC<BatchRowProps> = ({
                 getStatusBadge(batch.status),
               )}
             >
-              {batch.status.replace('_', ' ')}
+              {productionStatusLabel(batch.status, t)}
             </span>
           </div>
           <p className="truncate text-sm text-muted-foreground">

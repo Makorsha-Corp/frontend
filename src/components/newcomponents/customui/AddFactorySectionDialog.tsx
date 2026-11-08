@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
   factoryId,
   sections = [],
 }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const [name, setName] = useState('');
 
   const [createSection, { isLoading }] = useCreateFactorySectionMutation();
@@ -37,14 +40,14 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      appToast.error('Section name is required');
+      appToast.error(t('toastSectionNameRequired'));
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = sections.find((s) => s.name.toLowerCase() === nameLower);
     if (dup) {
-      appToast.error('A section with this name already exists in this factory');
+      appToast.error(t('toastSectionDuplicate'));
       return;
     }
 
@@ -54,12 +57,12 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
         factory_id: factoryId,
       }).unwrap();
 
-      appToast.success('Section created successfully');
+      appToast.success(t('toastSectionCreateSuccess'));
       setName('');
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to create section:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to create section'));
+      appToast.error(apiErrorDetail(error, t('toastSectionCreateFailed')));
     }
   };
 
@@ -73,20 +76,20 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Add Section</DialogTitle>
-            <DialogDescription>Create a new section within this factory.</DialogDescription>
+            <DialogTitle className="text-card-foreground">{t('addSectionDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('addSectionDialogDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="section-name">
-                Section Name <span className="text-red-500">*</span>
+                {t('fieldSectionName')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="section-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Production Floor A"
+                placeholder={t('placeholderSectionName')}
                 className="bg-background"
               />
             </div>
@@ -94,16 +97,16 @@ const AddFactorySectionDialog: React.FC<AddFactorySectionDialogProps> = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {t('dialogCreating')}
                 </>
               ) : (
-                'Create Section'
+                t('createSection')
               )}
             </Button>
           </DialogFooter>

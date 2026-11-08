@@ -10,7 +10,7 @@ module.exports = {
   ignorePatterns: ['dist', '.eslintrc.cjs', 'src/legacy-reference'],
   parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   settings: { react: { version: '18.2' } },
-  plugins: ['react-refresh'],
+  plugins: ['react-refresh', 'i18next'],
   rules: {
     'react/jsx-no-target-blank': 'off',
     'react-refresh/only-export-components': [
@@ -69,6 +69,44 @@ module.exports = {
                 name: 'react-hot-toast',
                 message: 'Use appToast from @/lib/appToast instead.',
               },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: [
+        'src/i18n/**/*.{ts,tsx}',
+        'src/components/newcomponents/customui/settings/**/*.{ts,tsx}',
+        'src/components/newcomponents/customui/UiLanguageToggle.tsx',
+        'src/pages/newpages/LoginPage.tsx',
+        'src/components/newcomponents/customui/DashboardNavbar.tsx',
+        'src/pages/newpages/orders/OrdersOverviewPage.tsx',
+        'src/pages/newpages/ItemsPage.tsx',
+        'src/pages/newpages/StoragePage.tsx',
+        'src/pages/newpages/ProductionPage.tsx',
+        'src/pages/newpages/AccountsLandingPage.tsx',
+      ],
+      rules: {
+        'i18next/no-literal-string': [
+          'warn',
+          {
+            markupOnly: true,
+            ignoreAttribute: [
+              'className',
+              'data-testid',
+              'type',
+              'id',
+              'name',
+              'role',
+              'to',
+              'href',
+              'variant',
+              'size',
+              'value',
+              'mode',
+              'tourId',
+              'aria-hidden',
             ],
           },
         ],

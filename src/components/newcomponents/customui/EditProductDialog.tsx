@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
   product,
   onSuccess,
 }) => {
+  const { t } = useTranslation('inventory');
+  const { t: tc } = useTranslation('common');
   const [qty, setQty] = useState('');
   const [avgCost, setAvgCost] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
@@ -56,7 +59,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
     const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      appToast.error('Quantity must be 0 or greater');
+      appToast.error(t('toastQtyNonNeg'));
       return;
     }
 
@@ -73,31 +76,31 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
         },
       }).unwrap();
 
-      appToast.success('Product updated');
+      appToast.success(t('toastProductUpdated'));
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to update product');
+      appToast.error(e?.data?.detail || t('toastFailedUpdateProduct'));
     }
   };
 
   if (!product) return null;
 
-  const itemLabel = product.item_name ?? `Item #${product.item_id}`;
+  const itemLabel = product.item_name ?? t('itemNumber', { id: product.item_id });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Edit Product</DialogTitle>
+            <DialogTitle className="text-card-foreground">{t('dlgEditProduct')}</DialogTitle>
             <DialogDescription>{itemLabel}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Quantity <span className="text-destructive">*</span></Label>
+              <Label>{t('quantity')} <span className="text-destructive">*</span></Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
@@ -115,7 +118,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Avg. Cost</Label>
+                <Label>{t('dlgAvgCost')}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -126,7 +129,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Selling Price</Label>
+                <Label>{t('dlgSellingPrice')}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -138,14 +141,14 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Min Order Qty</Label>
+              <Label>{t('dlgMinOrderQty')}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="number"
                   min="0"
                   value={minOrderQty}
                   onChange={(e) => setMinOrderQty(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t('dlgOptional')}
                   className="flex-1 bg-background"
                 />
                 {product?.item_unit && (
@@ -162,11 +165,11 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 onCheckedChange={(c) => setIsAvailableForSale(!!c)}
               />
               <Label htmlFor="available" className="font-normal cursor-pointer">
-                Available for sale
+                {t('dlgAvailableForSale')}
               </Label>
             </div>
             <div className="grid gap-2">
-              <Label>Note</Label>
+              <Label>{t('dlgNote')}</Label>
               <Textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -178,7 +181,7 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button
               type="submit"
@@ -188,10 +191,10 @@ const EditProductDialog: React.FC<EditProductDialogProps> = ({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {tc('saving')}
                 </>
               ) : (
-                'Save'
+                tc('save')
               )}
             </Button>
           </DialogFooter>

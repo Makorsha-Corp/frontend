@@ -2,6 +2,11 @@ import { DISCUSSION_URL_HASH } from '@/constants/discussion';
 import { buildWorkOrderHref } from '@/lib/entityLinks';
 import type { BackendNotification } from '@/types/notification';
 import type { AppNotification, NotificationKind, NotificationSeverity } from './notificationTypes';
+import {
+  englishTitleFromKey,
+  resolveNotificationBodyMeta,
+  resolveNotificationTitleKey,
+} from './notificationMessageCatalog';
 
 const ENTITY_ORDER_PREFIX: Record<string, string> = {
   purchase_order: 'PO',
@@ -112,73 +117,25 @@ function defaultSeverity(kind: NotificationKind): NotificationSeverity {
   }
 }
 
-function buildDiscussionTitle(n: BackendNotification): string {
-  const actor = n.actor?.name ?? 'Someone';
-  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label);
-  return `${actor} mentioned you on ${ref}`;
-}
-
-function buildApprovalTitle(n: BackendNotification, kind: NotificationKind): string {
-  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label);
-  switch (kind) {
-    case 'approval_pending':
-      return `${ref} needs your approval`;
-    case 'approval_assigned': {
-      const preview = n.preview ?? '';
-      if (preview.includes('ready for your approval')) {
-        return `You were added as approver on ${ref} — approval needed`;
-      }
-      return `You were added as approver on ${ref}`;
-    }
-    case 'section_confirm':
-      return `Confirm sections on ${ref}`;
-    case 'invoice_action': {
-      const preview = n.preview ?? '';
-      const isConfirmed = preview.startsWith('confirmed|');
-      return isConfirmed
-        ? `Invoice confirmed on ${ref}`
-        : `Draft invoice ready on ${ref}`;
-    }
-    default:
-      return `${n.actor?.name ?? 'Someone'} notified you`;
-  }
-}
-
-function buildNotificationBody(n: BackendNotification, kind: NotificationKind): string {
-  const preview = n.preview?.trim();
-  if (kind === 'invoice_action' && preview?.includes('|')) {
-    return preview.split('|').slice(1).join('|').trim();
-  }
-  if (preview) return preview;
-
-  switch (kind) {
-    case 'approval_pending':
-      return 'This order is ready for your review and sign-off.';
-    case 'approval_assigned':
-      return 'Open the order to review details and approve when ready.';
-    case 'section_confirm':
-      return 'Complete remaining sections before approvals can proceed.';
-    case 'invoice_action':
-      return 'Open the order to review the linked invoice.';
-    case 'mention':
-      return 'Open the discussion to read the full message.';
-    default:
-      return 'Open to view details.';
-  }
-}
-
 export function transformBackendNotification(n: BackendNotification): AppNotification {
   const kind = mapNotificationKind(n);
   const discussion = kind === 'mention';
+  const ref = formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label);
+  const { titleKey, titleParams } = resolveNotificationTitleKey(n, kind, discussion, ref);
+  const bodyMeta = resolveNotificationBodyMeta(n, kind);
 
   return {
     id: `api_${n.id}`,
     kind,
     severity: defaultSeverity(kind),
-    title: discussion ? buildDiscussionTitle(n) : buildApprovalTitle(n, kind),
-    body: buildNotificationBody(n, kind),
+    title: englishTitleFromKey(titleKey, titleParams),
+    body: bodyMeta.body,
     href: entityTypeToHref(n.entity_type, n.entity_id, { scrollToDiscussion: discussion }),
     createdAt: n.created_at,
-    entityRef: formatNotificationEntityRef(n.entity_type, n.entity_id, n.entity_label),
+    entityRef: ref,
+    titleKey,
+    titleParams,
+    bodyKey: bodyMeta.bodyKey,
+    bodyFromPreview: bodyMeta.bodyFromPreview,
   };
 }

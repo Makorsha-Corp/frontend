@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import {
   Dialog,
@@ -64,6 +65,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   onSuccess,
   shortageSeed = null,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [accountId, setAccountId] = useState<string>('');
   const [destinationType, setDestinationType] = useState<'storage' | 'machine' | 'project'>('storage');
   const [destinationId, setDestinationId] = useState<string>('');
@@ -193,7 +196,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
   const handleItemSelect = (selection: ItemSelection) => {
     if (usedItemIds.has(selection.itemId)) {
-      appToast.error('Item already on this order — edit quantity or unit price below');
+      appToast.error(t('dlgItemAlready'));
       return;
     }
     setItemId(String(selection.itemId));
@@ -215,11 +218,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const q = parseFloat(qty);
     const p = unitPrice.trim() ? parseFloat(unitPrice) : null;
     if (p != null && (Number.isNaN(p) || p < 0)) {
-      appToast.error('Enter a valid unit price or leave blank');
+      appToast.error(t('dlgInvalidUnitPrice'));
       return;
     }
     if (usedItemIds.has(iid)) {
-      appToast.error('Item already on this order — edit quantity or unit price below');
+      appToast.error(t('dlgItemAlready'));
       return;
     }
     setItems((prev) => [...prev, { item_id: iid, quantity_ordered: q, unit_price: p }]);
@@ -271,11 +274,11 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     const did = parseInt(destinationId, 10);
     const aid = accountId ? parseInt(accountId, 10) : null;
     if (accountId && (aid == null || isNaN(aid))) {
-      appToast.error('Invalid supplier selection');
+      appToast.error(t('dlgInvalidSupplier'));
       return;
     }
     if (isNaN(did) || !destinationId) {
-      appToast.error('Select a destination');
+      appToast.error(t('dlgSelectDestination'));
       return;
     }
     if (
@@ -294,7 +297,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       return;
     }
     if (items.length === 0) {
-      appToast.error('Add at least one order item');
+      appToast.error(t('dlgAddAtLeastOne'));
       return;
     }
 
@@ -317,31 +320,31 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       const result = await createOrder(orderData).unwrap();
       appToast.success(
         shortageSeed
-          ? 'Purchase order created. This step stays short until the purchase is received.'
-          : 'Purchase order created',
+          ? t('dlgPoCreatedShort')
+          : t('dlgPoCreated'),
       );
       reset();
       onSuccess(result);
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to create order');
+      appToast.error(e?.data?.detail || t('dlgFailedCreate'));
     }
   };
 
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
-        <Label className="text-base">Items *</Label>
-        <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
+        <Label className="text-base">{t('dlgItemsRequired')}</Label>
+        <span className="text-xs text-muted-foreground tabular-nums">{t('dlgAddedCount', { count: items.length })}</span>
       </div>
 
       <div className="space-y-2 shrink-0 rounded-lg border border-border bg-muted/20 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1">
             <ItemSelectSummaryButton
-              ariaLabel="Select item"
-              emptyLabel="Select item"
+              ariaLabel={t('dlgSelectItem')}
+              emptyLabel={t('dlgSelectItem')}
               selectedLabel={selectedItemLabel}
               staleNumericId={itemId || null}
               onClick={() => setItemPickerOpen(true)}
@@ -349,19 +352,19 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             />
           </div>
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            - or -
+            {t('dlgOr')}
           </span>
           <Button
             type="button"
             className="h-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
             onClick={() => setIsCreateItemOpen(true)}
           >
-            Create item +
+            {t('dlgCreateItemPlus')}
           </Button>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid flex-1 min-w-[5rem] gap-1">
-            <Label className="text-xs text-muted-foreground">Qty</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgQty')}</Label>
             <StepNumberInput
               min={1}
               step={1}
@@ -372,13 +375,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             />
           </div>
           <div className="grid flex-1 min-w-[5.5rem] gap-1">
-            <Label className="text-xs text-muted-foreground">Unit price (optional)</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgUnitPriceOptional')}</Label>
             <StepNumberInput
               min={0}
               step={1}
               value={unitPrice}
               onChange={(e) => setUnitPrice(e.target.value)}
-              placeholder="Optional"
+              placeholder={t('dlgOptional')}
               className="bg-background"
             />
           </div>
@@ -388,7 +391,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                 role="tooltip"
                 className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
               >
-                Select item and qty to add (unit price optional)
+                {t('dlgSelectItemQtyHint')}
               </div>
             ) : null}
             <Button
@@ -404,7 +407,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
               onMouseEnter={() => {
                 if (addButtonHighlighted) dismissAddButtonHighlight();
               }}
-              aria-label="Add line item"
+              aria-label={t('dlgAddLineItem')}
               aria-expanded={addHintOpen && !canAddLineItem}
               aria-disabled={!canAddLineItem}
             >
@@ -416,7 +419,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background divide-y">
         {items.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No order items yet</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgNoOrderItems')}</p>
         ) : (
           items.map((it, idx) => {
             const item = itemsList.find((i) => i.id === it.item_id);
@@ -450,7 +453,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                         />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[10px] text-muted-foreground">Unit price</Label>
+                        <Label className="text-[10px] text-muted-foreground">{t('dlgUnitPrice')}</Label>
                         <StepNumberInput
                           min={0}
                           step={1}
@@ -463,12 +466,12 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground tabular-nums">
-                      Quantity {it.quantity_ordered}
+                      {t('dlgQuantityLine', { qty: it.quantity_ordered })}
                       {unitSuffix}
                       <span className="mx-1.5 text-muted-foreground/40" aria-hidden>
                         ·
                       </span>
-                      {priceStr != null ? `${priceStr} per unit` : 'Price not set'}
+                      {priceStr != null ? t('dlgPerUnit', { price: priceStr }) : t('dlgPriceNotSet')}
                     </p>
                   )}
                 </div>
@@ -481,7 +484,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                       className="h-8 px-2 text-xs"
                       onClick={() => setEditingItemId(null)}
                     >
-                      Done
+                      {t('dlgDone')}
                     </Button>
                   ) : (
                     <Button
@@ -490,7 +493,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => setEditingItemId(it.item_id)}
-                      aria-label={`Edit ${item?.name ?? 'item'}`}
+                      aria-label={t('dlgEditNamed', { name: item?.name ?? t('dlgItemFallback') })}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -510,7 +513,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   const orderFieldsBlock = (
     <div className="grid gap-4 min-w-0">
       <div>
-        <Label>Destination type *</Label>
+        <Label>{t('dlgDestTypeRequired')}</Label>
         <Select
           value={destinationType}
           onValueChange={(v) => {
@@ -523,15 +526,15 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="storage">Storage (Factory)</SelectItem>
-            <SelectItem value="machine">Machine</SelectItem>
-            <SelectItem value="project">Project</SelectItem>
+            <SelectItem value="storage">{t('dlgStorageFactory')}</SelectItem>
+            <SelectItem value="machine">{t('dlgMachine')}</SelectItem>
+            <SelectItem value="project">{t('dlgProject')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       {destinationType === 'storage' && (
         <div>
-          <Label>Factory *</Label>
+          <Label>{t('dlgFactoryRequired')}</Label>
           <Select
             value={destinationId || '__none__'}
             onValueChange={(v) => {
@@ -541,10 +544,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
             required
           >
             <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select factory" />
+              <SelectValue placeholder={t('dlgSelectFactory')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">Select factory…</SelectItem>
+              <SelectItem value="__none__">{t('dlgSelectFactoryEllipsis')}</SelectItem>
               {factories.map((f) => (
                 <SelectItem key={f.id} value={f.id.toString()}>
                   {f.name} ({f.abbreviation})
@@ -556,7 +559,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       )}
       {destinationType === 'machine' && (
         <div>
-          <Label>Machine *</Label>
+          <Label>{t('dlgMachineRequired')}</Label>
           <MachineSelectSummaryButton
             onClick={() => setMachinePickerOpen(true)}
             ariaLabel={
@@ -583,18 +586,18 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       )}
       {destinationType === 'project' && (
         <div>
-          <Label>Destination ID *</Label>
+          <Label>{t('dlgDestIdRequired')}</Label>
           <Input
             type="number"
             value={destinationId}
             onChange={(e) => setDestinationId(e.target.value)}
-            placeholder="Project component ID"
+            placeholder={t('dlgProjectComponentId')}
             className="mt-1"
           />
         </div>
       )}
       <div>
-        <Label>Supplier</Label>
+        <Label>{t('dlgSupplier')}</Label>
         <AccountSelectSummaryButton
           onClick={() => setAccountPickerOpen(true)}
           ariaLabel={
@@ -618,8 +621,8 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
         />
       </div>
       <div>
-        <Label>Description</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
+        <Label>{t('dlgDescription')}</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('dlgOptional')} className="mt-1" />
       </div>
       <ProductionBatchPicker value={productionBatchId} onChange={setProductionBatchId} />
     </div>
@@ -630,7 +633,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-0 text-left">
-          <DialogTitle>Add Purchase Order</DialogTitle>
+          <DialogTitle>{t('dlgAddPurchase')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-2 md:gap-8 md:items-stretch">
@@ -644,7 +647,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
           <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <div className="relative" data-unadded-hint-root>
               {unaddedHintOpen ? (
@@ -652,12 +655,12 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                   role="tooltip"
                   className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
-                  You have unadded order items — click ✓ to add them, or click Create again to continue without them
+                  {t('dlgUnaddedHint')}
                 </div>
               ) : null}
               <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create
+                {t('dlgCreate')}
               </Button>
             </div>
           </div>
@@ -670,7 +673,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
         onSelect={handleItemSelect}
         selectedItemId={itemId ? parseInt(itemId, 10) : undefined}
         catalogOnly
-        title="Select item"
+        title={t('dlgSelectItem')}
         description="Search catalog and pick a line item."
       />
       <AddItemDialog

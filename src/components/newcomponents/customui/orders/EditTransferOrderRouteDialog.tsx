@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -28,16 +29,16 @@ import { ArrowDown, Loader2 } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 
 const SOURCE_TYPES = [
-  { value: 'storage', label: 'Storage (Factory)' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'damaged', label: 'Damaged (Factory)' },
+  { value: 'storage', labelKey: 'dlgStorageFactory' },
+  { value: 'machine', labelKey: 'dlgMachine' },
+  { value: 'damaged', labelKey: 'dlgDamagedFactory' },
 ] as const;
 
 const DEST_TYPES = [
-  { value: 'storage', label: 'Storage (Factory)' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'project', label: 'Project' },
-  { value: 'damaged', label: 'Damaged (Factory)' },
+  { value: 'storage', labelKey: 'dlgStorageFactory' },
+  { value: 'machine', labelKey: 'dlgMachine' },
+  { value: 'project', labelKey: 'dlgProject' },
+  { value: 'damaged', labelKey: 'dlgDamagedFactory' },
 ] as const;
 
 type SourceType = (typeof SOURCE_TYPES)[number]['value'];
@@ -62,6 +63,8 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
   projects,
   onSaved,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [sourceType, setSourceType] = useState<SourceType>('storage');
   const [sourceId, setSourceId] = useState('');
   const [destType, setDestType] = useState<DestType>('storage');
@@ -146,7 +149,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
       onOpenChange(false);
     } catch (err: unknown) {
       const error = err as { data?: { detail?: string } };
-      appToast.error(error?.data?.detail || 'Failed to update route');
+      appToast.error(error?.data?.detail || t('dlgFailedUpdateRoute'));
     }
   };
 
@@ -155,12 +158,12 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit route</DialogTitle>
+            <DialogTitle>{t('dlgEditRoute')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <Label>Source type</Label>
+                <Label>{t('dlgSourceType')}</Label>
                 <Select
                   value={sourceType}
                   onValueChange={(v) => {
@@ -173,20 +176,20 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SOURCE_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
+                    {SOURCE_TYPES.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {t(opt.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Source</Label>
+                <Label>{t('dlgSource')}</Label>
                 {sourceType === 'storage' || sourceType === 'damaged' ? (
                   <Select value={sourceId} onValueChange={setSourceId}>
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select factory" />
+                      <SelectValue placeholder={t('dlgSelectFactory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {factoryOptions.map((f) => (
@@ -220,7 +223,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <Label>Destination type</Label>
+                <Label>{t('dlgDestType')}</Label>
                 <Select
                   value={destType}
                   onValueChange={(v) => {
@@ -233,20 +236,20 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEST_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
+                    {DEST_TYPES.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {t(opt.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Destination</Label>
+                <Label>{t('dlgDestination')}</Label>
                 {destType === 'storage' || destType === 'damaged' ? (
                   <Select value={destId} onValueChange={setDestId}>
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select factory" />
+                      <SelectValue placeholder={t('dlgSelectFactory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {destinationFactories.map((f) => (
@@ -271,7 +274,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
                 ) : (
                   <Select value={destId} onValueChange={setDestId}>
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select project" />
+                      <SelectValue placeholder={t('dlgSelectProject')} />
                     </SelectTrigger>
                     <SelectContent>
                       {projectOptions.map((p) => (
@@ -287,7 +290,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button
                 type="submit"
@@ -295,7 +298,7 @@ const EditTransferOrderRouteDialog: React.FC<EditTransferOrderRouteDialogProps> 
                 className="bg-brand-primary hover:bg-brand-primary-hover"
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save
+                {tc('save')}
               </Button>
             </DialogFooter>
           </form>

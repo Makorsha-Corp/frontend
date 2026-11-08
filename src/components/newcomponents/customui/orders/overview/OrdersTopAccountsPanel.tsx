@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TopAccountRow } from '@/types/ordersOverview';
 import OrdersLeaderboardPanel, { type LeaderboardRow } from './OrdersLeaderboardPanel';
 
@@ -7,22 +8,22 @@ interface OrdersTopAccountsPanelProps {
   isLoading?: boolean;
 }
 
-function toRows(accounts: TopAccountRow[]): LeaderboardRow[] {
-  return accounts.map((a) => ({
+const OrdersTopAccountsPanel: React.FC<OrdersTopAccountsPanelProps> = ({ vendors, isLoading }) => {
+  const { t } = useTranslation('orders');
+  const rows: LeaderboardRow[] = vendors.map((a) => ({
     id: a.account_id,
     label: a.account_name,
     value: Number(a.total_spend),
-    primary: `${a.order_count} order${a.order_count === 1 ? '' : 's'}`,
+    primary: t('overviewVendorOrderCount', { count: a.order_count }),
   }));
-}
-
-const OrdersTopAccountsPanel: React.FC<OrdersTopAccountsPanelProps> = ({ vendors, isLoading }) => (
-  <OrdersLeaderboardPanel
-    title="Top vendors"
-    isLoading={isLoading}
-    rows={toRows(vendors)}
-    emptyMessage="No vendor spend in range"
-  />
-);
+  return (
+    <OrdersLeaderboardPanel
+      title={t('topVendors')}
+      isLoading={isLoading}
+      rows={rows}
+      emptyMessage={t('noVendorSpendInRange')}
+    />
+  );
+};
 
 export default OrdersTopAccountsPanel;

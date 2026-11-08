@@ -84,12 +84,16 @@ export const authApi = createApi({
         name: string;
         email: string;
         timezone?: string | null;
+        use_24_hour_time?: boolean;
+        ui_language?: User['ui_language'];
         saved_stamp?: User['saved_stamp'];
       }) => ({
         id: response.id,
         name: response.name,
         email: response.email,
         timezone: response.timezone ?? null,
+        use_24_hour_time: response.use_24_hour_time !== false,
+        ui_language: response.ui_language === 'bn' ? 'bn' : 'en',
         saved_stamp: response.saved_stamp ?? null,
       }),
       invalidatesTags: ['User'],

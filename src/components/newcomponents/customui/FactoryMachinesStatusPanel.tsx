@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import type { Factory } from '@/types/factory';
@@ -33,7 +34,20 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   machinesLoading,
   sections,
 }) => {
+  const { t } = useTranslation('factories');
+  const { t: tMachines } = useTranslation('machines');
   const sectionById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+  const dueLabels = useMemo(
+    () => ({
+      unassigned: t('attentionUnassigned'),
+      sectionFallback: t('fallbackSection', { ns: 'machines' }),
+      draft: t('workStatusDraft'),
+      recurring: t('workStatusRecurring'),
+      inProgress: t('workStatusInProgress'),
+      workOrder: t('workStatusWorkOrder'),
+    }),
+    [t],
+  );
 
   const { data: upcomingWork = [], isLoading: loadUpcomingWork } = useGetUpcomingMachineWorkQuery({
     within_days: 7,
@@ -42,8 +56,8 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
   });
 
   const splitWork = useMemo(
-    () => splitUpcomingWorkByDueWindow(upcomingWork, sectionById, 7, factory.abbreviation),
-    [upcomingWork, sectionById, factory.abbreviation]
+    () => splitUpcomingWorkByDueWindow(upcomingWork, sectionById, 7, factory.abbreviation, dueLabels),
+    [upcomingWork, sectionById, factory.abbreviation, dueLabels]
   );
 
   const counts = useMemo(() => {
@@ -67,10 +81,10 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
     count: number;
     segmentKind: MachineVisualKind;
   }[] = [
-    { key: 'running', label: 'Running', count: counts.running, segmentKind: 'running' },
-    { key: 'idle', label: 'Idle', count: counts.idle, segmentKind: 'idle' },
-    { key: 'off', label: 'Off', count: counts.off, segmentKind: 'off' },
-    { key: 'maintenance', label: 'Maint.', count: counts.maintenance, segmentKind: 'maintenance' },
+    { key: 'running', label: tMachines('running'), count: counts.running, segmentKind: 'running' },
+    { key: 'idle', label: tMachines('idle'), count: counts.idle, segmentKind: 'idle' },
+    { key: 'off', label: tMachines('off'), count: counts.off, segmentKind: 'off' },
+    { key: 'maintenance', label: t('machineMaintShort'), count: counts.maintenance, segmentKind: 'maintenance' },
   ];
 
   const pct = (n: number) => (counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0);
@@ -82,13 +96,13 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3">
             <CardTitle className="min-w-0 text-lg font-semibold tracking-tight text-card-foreground">
-              Machine status
+              {t('machineStatusTitle')}
             </CardTitle>
             {machinesLoading ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
             ) : (
               <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                {counts.total} total
+                {t('machineStatusTotal', { count: counts.total })}
               </span>
             )}
           </div>
@@ -97,10 +111,10 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
           {machinesLoading ? (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading machines…
+              {t('loadingMachines')}
             </div>
           ) : counts.total === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">No machines in this factory.</p>
+            <p className="py-6 text-sm text-muted-foreground">{t('noMachinesInFactory')}</p>
           ) : (
             <>
               <div className="mb-3 flex h-3 overflow-hidden rounded-full bg-muted">
@@ -131,11 +145,11 @@ export const FactoryMachinesStatusPanel: React.FC<FactoryMachinesStatusPanelProp
       </Card>
 
       <DueStatusCard
-        title="Machine work due"
+        title={t('workDue')}
         loading={dueLoading}
         overdueRows={splitWork.overdueRows}
         upcomingRows={splitWork.upcomingRows}
-        emptyMessage="No overdue or upcoming machine work in the next 7 days."
+        emptyMessage={t('noMachineWork7d')}
       />
     </div>
   );

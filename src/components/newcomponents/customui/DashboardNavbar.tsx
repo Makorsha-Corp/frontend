@@ -48,9 +48,16 @@ import NavCollapsibleTriggerRow, {
 } from './NavCollapsibleTriggerRow';
 import NotificationBell from '@/components/newcomponents/customui/notifications/NotificationBell';
 import UserAccountTrigger from '@/components/newcomponents/customui/UserAccountTrigger';
+import { useTranslation } from 'react-i18next';
 
 interface NavItem {
-  name: string;
+  labelKey:
+    | 'help'
+    | 'accounts'
+    | 'businessLens'
+    | 'management'
+    | 'billing'
+    | 'uploads';
   icon: React.ReactNode;
   path: string;
 }
@@ -119,6 +126,8 @@ function useMobileNavViewport() {
 }
 
 const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) => {
+  const { t } = useTranslation('nav');
+  const { t: tc } = useTranslation('common');
   const location = useLocation();
   const navigate = useNavigate();
   const { user, factory, workspace } = useAppSelector((state) => state.auth);
@@ -204,14 +213,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
   }, [isHoveringEdge]);
 
   const navItems: NavItem[] = [
-    { name: 'Help', icon: <LifeBuoy {...navIconProps} />, path: '/help' },
-    { name: 'Accounts', icon: <Building2 {...navIconProps} />, path: '/accounts/overview' },
-    { name: 'BusinessLens', icon: <BarChart3 {...navIconProps} />, path: '/businesslens' },
+    { labelKey: 'help', icon: <LifeBuoy {...navIconProps} />, path: '/help' },
+    { labelKey: 'accounts', icon: <Building2 {...navIconProps} />, path: '/accounts/overview' },
+    { labelKey: 'businessLens', icon: <BarChart3 {...navIconProps} />, path: '/businesslens' },
     ...(workspace?.role === 'owner'
       ? [
-          { name: 'Management', icon: <Settings {...navIconProps} />, path: '/management' },
-          { name: 'Billing', icon: <CreditCard {...navIconProps} />, path: '/billing/trial' },
-          { name: 'Uploads', icon: <Paperclip {...navIconProps} />, path: '/uploads' },
+          { labelKey: 'management', icon: <Settings {...navIconProps} />, path: '/management' },
+          { labelKey: 'billing', icon: <CreditCard {...navIconProps} />, path: '/billing/trial' },
+          { labelKey: 'uploads', icon: <Paperclip {...navIconProps} />, path: '/uploads' },
         ]
       : []),
   ];
@@ -384,7 +393,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 clipPath: 'ellipse(55% 50% at 0% 50%)',
                 filter: 'drop-shadow(0 0 1px hsl(var(--border)))',
               }}
-              title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={isExpanded ? t('collapseSidebar') : t('expandSidebar')}
             >
               <span className="flex items-center justify-center text-white/90">
                 {isExpanded ? <ChevronLeft size={26} /> : <ChevronRight size={26} />}
@@ -430,10 +439,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               <Link
                 to="/dashboard"
                 className={topNavLinkClass(isActive('/dashboard'))}
-                title={!isExpanded ? 'Overview' : ''}
+                title={!isExpanded ? t('overview') : ''}
               >
                 <LayoutDashboard {...navIconProps} />
-                {isExpanded && <span className="font-medium">Overview</span>}
+                {isExpanded && <span className="font-medium">{t('overview')}</span>}
               </Link>
             </li>
 
@@ -441,10 +450,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               <Link
                 to="/calendar"
                 className={topNavLinkClass(isActive('/calendar'))}
-                title={!isExpanded ? 'Calendar' : ''}
+                title={!isExpanded ? t('calendar') : ''}
               >
                 <CalendarDays {...navIconProps} />
-                {isExpanded && <span className="font-medium">Calendar</span>}
+                {isExpanded && <span className="font-medium">{t('calendar')}</span>}
               </Link>
             </li>
 
@@ -453,10 +462,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               <Link
                 to="/items"
                 className={topNavLinkClass(isActive('/items'))}
-                title={!isExpanded ? 'Items' : ''}
+                title={!isExpanded ? t('items') : ''}
               >
                 <Package {...navIconProps} />
-                {isExpanded && <span className="font-medium">Items</span>}
+                {isExpanded && <span className="font-medium">{t('items')}</span>}
               </Link>
             </li>
 
@@ -469,7 +478,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     <button
                       type="button"
                       className={compactSectionTriggerClass(isFactoriesActive)}
-                      title={factory ? `Factory - ${factory.name}` : 'Factory'}
+                      title={factory ? t('factoryWithName', { name: factory.name }) : t('factory')}
                       onPointerDown={handleCompactFactoryTriggerPointerDown}
                       onClick={handleCompactFactoryTriggerClick}
                     >
@@ -482,29 +491,29 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                       className="cursor-pointer"
                     >
                       <ArrowLeftRight size={16} className="mr-2" />
-                      Switch factory
+                      {t('switchFactory')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/factories">Overview</Link>
+                      <Link to="/factories">{t('overview')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/machines">Machines</Link>
+                      <Link to="/machines">{t('machines')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/storage">Storage</Link>
+                      <Link to="/storage">{t('storage')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/products">Products</Link>
+                      <Link to="/products">{t('products')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/production">Production</Link>
+                      <Link to="/production">{t('production')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/project">Project</Link>
+                      <Link to="/project">{t('project')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/ledgers">Ledgers</Link>
+                      <Link to="/ledgers">{t('ledgers')}</Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -513,8 +522,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <NavCollapsibleTriggerRow
                     expanded={factoriesExpanded}
                     isActive={isFactoriesActive}
-                    title={factory ? `Factory - ${factory.name}` : 'Factory'}
-                    label={factory ? factory.abbreviation : 'Factory'}
+                    title={factory ? t('factoryWithName', { name: factory.name }) : t('factory')}
+                    label={factory ? factory.abbreviation : t('factory')}
                     icon={<Factory {...navIconProps} />}
                     onToggle={handleFactoryHeaderClick}
                     inactiveClass={navInactiveClass}
@@ -531,7 +540,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <LayoutDashboard size={18} />
-                          <span className="text-sm font-medium">Overview</span>
+                          <span className="text-sm font-medium">{t('overview')}</span>
                         </Link>
                       </li>
                       <li>
@@ -543,7 +552,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <Cog size={18} />
-                          <span className="text-sm font-medium">Machines</span>
+                          <span className="text-sm font-medium">{t('machines')}</span>
                         </Link>
                       </li>
 
@@ -556,7 +565,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <Archive size={18} />
-                          <span className="text-sm font-medium">Storage</span>
+                          <span className="text-sm font-medium">{t('storage')}</span>
                         </Link>
                       </li>
                       <li>
@@ -568,7 +577,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <Package size={18} />
-                          <span className="text-sm font-medium">Products</span>
+                          <span className="text-sm font-medium">{t('products')}</span>
                         </Link>
                       </li>
                       <li>
@@ -580,7 +589,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <FlaskConical size={18} />
-                          <span className="text-sm font-medium">Production</span>
+                          <span className="text-sm font-medium">{t('production')}</span>
                         </Link>
                       </li>
                       <li>
@@ -592,7 +601,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <FolderKanban size={18} />
-                          <span className="text-sm font-medium">Project</span>
+                          <span className="text-sm font-medium">{t('project')}</span>
                         </Link>
                       </li>
                       <li>
@@ -604,7 +613,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <BookOpen size={18} />
-                          <span className="text-sm font-medium">Ledgers</span>
+                          <span className="text-sm font-medium">{t('ledgers')}</span>
                         </Link>
                       </li>
                     </ul>
@@ -618,7 +627,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className={compactSectionTriggerClass(isOrdersActive)} title="Orders">
+                    <div className={compactSectionTriggerClass(isOrdersActive)} title={t('orders')}>
                       <Layers3 {...navIconProps} />
                     </div>
                   </DropdownMenuTrigger>
@@ -626,25 +635,25 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     <DropdownMenuItem asChild>
                       <Link to="/orders" className="flex items-center gap-2">
                         <LayoutDashboard size={16} />
-                        Overview
+                        {t('overview')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/orders/purchase" className="flex items-center gap-2">
                         <ShoppingCart size={16} />
-                        Purchase Orders
+                        {t('purchaseOrders')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/orders/transfer" className="flex items-center gap-2">
                         <ArrowLeftRight size={16} />
-                        Transfer Orders
+                        {t('transferOrders')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/orders/expense" className="flex items-center gap-2">
                         <Receipt size={16} />
-                        Expense Orders
+                        {t('expenseOrders')}
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -654,8 +663,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <NavCollapsibleTriggerRow
                     expanded={ordersExpanded}
                     isActive={isOrdersActive}
-                    title="Orders"
-                    label="Orders"
+                    title={t('orders')}
+                    label={t('orders')}
                     icon={<Layers3 {...navIconProps} />}
                     onToggle={handleOrdersHeaderClick}
                     inactiveClass={navInactiveClass}
@@ -671,7 +680,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <LayoutDashboard size={18} />
-                          <span className="text-sm font-medium">Overview</span>
+                          <span className="text-sm font-medium">{t('overview')}</span>
                         </Link>
                       </li>
                       <li>
@@ -683,7 +692,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <ShoppingCart size={18} />
-                          <span className="text-sm font-medium">Purchase</span>
+                          <span className="text-sm font-medium">{t('purchase')}</span>
                         </Link>
                       </li>
                       <li>
@@ -695,7 +704,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <ArrowLeftRight size={18} />
-                          <span className="text-sm font-medium">Transfer</span>
+                          <span className="text-sm font-medium">{t('transfer')}</span>
                         </Link>
                       </li>
                       <li>
@@ -707,7 +716,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <Receipt size={18} />
-                          <span className="text-sm font-medium">Expense</span>
+                          <span className="text-sm font-medium">{t('expense')}</span>
                         </Link>
                       </li>
                     </ul>
@@ -721,7 +730,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               {!isExpanded ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className={compactSectionTriggerClass(isSalesActive)} title="Sales">
+                    <div className={compactSectionTriggerClass(isSalesActive)} title={t('sales')}>
                       <TrendingUp {...navIconProps} />
                     </div>
                   </DropdownMenuTrigger>
@@ -729,13 +738,13 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                     <DropdownMenuItem asChild>
                       <Link to="/sales/overview" className="flex items-center gap-2">
                         <ClipboardList size={16} />
-                        Orders
+                        {t('salesOrders')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/sales/team" className="flex items-center gap-2">
                         <Users size={16} />
-                        Team
+                        {tc('team')}
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -745,8 +754,8 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                   <NavCollapsibleTriggerRow
                     expanded={salesExpanded}
                     isActive={isSalesActive}
-                    title="Sales"
-                    label="Sales"
+                    title={t('sales')}
+                    label={t('sales')}
                     icon={<TrendingUp {...navIconProps} />}
                     onToggle={handleSalesHeaderClick}
                     inactiveClass={navInactiveClass}
@@ -762,7 +771,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <ClipboardList size={18} />
-                          <span className="text-sm font-medium">Orders</span>
+                          <span className="text-sm font-medium">{t('salesOrders')}</span>
                         </Link>
                       </li>
                       <li>
@@ -774,7 +783,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                             }`}
                         >
                           <Users size={18} />
-                          <span className="text-sm font-medium">Team</span>
+                          <span className="text-sm font-medium">{tc('team')}</span>
                         </Link>
                       </li>
                     </ul>
@@ -784,14 +793,14 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             </li>
 
             {navItems.map((item) => (
-              <li key={item.name}>
+              <li key={item.path}>
                 <Link
                   to={item.path}
                   className={topNavLinkClass(isActive(item.path))}
-                  title={!isExpanded ? item.name : ''}
+                  title={!isExpanded ? t(item.labelKey) : ''}
                 >
                   {item.icon}
-                  {isExpanded && <span className="font-medium">{item.name}</span>}
+                  {isExpanded && <span className="font-medium">{t(item.labelKey)}</span>}
                 </Link>
               </li>
             ))}
@@ -801,10 +810,10 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
                 <Link
                   to="/platform/support"
                   className={topNavLinkClass(isPlatformActive)}
-                  title={!isExpanded ? 'Platform' : ''}
+                  title={!isExpanded ? tc('platform') : ''}
                 >
                   <Shield {...navIconProps} />
-                  {isExpanded && <span className="font-medium">Platform</span>}
+                  {isExpanded && <span className="font-medium">{tc('platform')}</span>}
                 </Link>
               </li>
             ) : null}
@@ -827,7 +836,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
               navInactiveClass,
               !isExpanded ? 'justify-center' : 'justify-center sm:justify-start'
             )}
-            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={theme === 'light' ? t('switchToDark') : t('switchToLight')}
           >
             {theme === 'light' ? (
               <Moon
@@ -842,7 +851,7 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
             )}
             {isExpanded && (
               <span className="truncate text-left text-sm font-medium">
-                {theme === 'light' ? 'Dark' : 'Light'}
+                {theme === 'light' ? tc('themeDark') : tc('themeLight')}
               </span>
             )}
           </button>

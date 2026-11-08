@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ClipboardPen, LayoutTemplate, Plus, Repeat2, SlidersHorizontal } from 'lucide-react';
 import AppShellHeader, {
   AppShellHeaderIconAction,
@@ -54,6 +55,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
   machinesActions,
   workOrdersActions,
 }) => {
+  const { t } = useTranslation('machines');
   const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
   const isLgScreen = useIsLgScreen();
   const scopeFiltered = isMachinesHubLocationScopeFiltered(locationValue);
@@ -105,10 +107,10 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
             variant="outline"
             className={cn(appShellHeaderControlClass, 'relative shrink-0 border-border bg-background')}
             onClick={() => handleScopeDialogOpenChange(true)}
-            aria-label={scopeFiltered ? 'Location scope filters (active)' : 'Location scope filters'}
+            aria-label={scopeFiltered ? t('hubFiltersActiveAria') : t('hubFiltersAria')}
           >
             <SlidersHorizontal className="mr-1.5 h-4 w-4 shrink-0" />
-            Filters
+            {t('filters')}
             {scopeFiltered ? (
               <span
                 className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-primary"
@@ -121,7 +123,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
               <AppShellHeaderIconAction
                 icon={Plus}
                 onClick={machinesActions.onAddMachine}
-                ariaLabel="Add machine"
+                ariaLabel={t('addMachine')}
               />
             ) : null}
             {activeTab === 'workOrders' && workOrdersActions ? (
@@ -133,7 +135,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                   size="icon"
                   className={appShellHeaderControlClass}
                   onClick={workOrdersActions.onManageRecurringPrograms}
-                  aria-label="Manage recurring programs"
+                  aria-label={t('hubManageRecurringAria')}
                 >
                   <Repeat2 className="h-4 w-4" />
                 </Button>
@@ -143,14 +145,14 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                   size="icon"
                   className={appShellHeaderControlClass}
                   onClick={workOrdersActions.onManagePresetsPrograms}
-                  aria-label="Manage work order templates"
+                  aria-label={t('hubManageTemplatesAria')}
                 >
                   <LayoutTemplate className="h-4 w-4" />
                 </Button>
                 <AppShellHeaderIconAction
                   icon={ClipboardPen}
                   onClick={workOrdersActions.onAddWork}
-                  ariaLabel="Add work"
+                  ariaLabel={t('hubAddWorkAria')}
                   data-help-tour="work-orders.header-add"
                 />
               </>
@@ -185,7 +187,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                   )}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Machine
+                  {t('addMachineTitle')}
                 </Button>
               ) : null}
               {activeTab === 'workOrders' && workOrdersActions ? (
@@ -198,7 +200,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                     onClick={workOrdersActions.onManageRecurringPrograms}
                   >
                     <Repeat2 className="mr-2 h-4 w-4" />
-                    Recurrings
+                    {t('hubRecurrings')}
                   </Button>
                   <Button
                     type="button"
@@ -207,7 +209,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                     onClick={workOrdersActions.onManagePresetsPrograms}
                   >
                     <LayoutTemplate className="mr-2 h-4 w-4" />
-                    Templates
+                    {t('hubTemplates')}
                   </Button>
                   <Button
                     type="button"
@@ -219,7 +221,7 @@ const MachinesHubHeader: React.FC<MachinesHubHeaderProps> = ({
                     data-help-tour="work-orders.header-add"
                   >
                     <ClipboardPen className="mr-2 h-4 w-4" />
-                    Add work
+                    {t('hubAddWork')}
                   </Button>
                 </>
               ) : null}

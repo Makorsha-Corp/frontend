@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Clock, LogOut, Settings, type LucideIcon } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
@@ -28,9 +29,9 @@ type SettingsNavItem = {
   visible?: boolean;
 };
 
-const NAV_ITEMS: SettingsNavItem[] = [
-  { id: 'general', label: 'General', icon: Settings, visible: true },
-  { id: 'shifts', label: 'Shifts', icon: Clock, visible: true },
+const getNavItems = (t: (key: string) => string): SettingsNavItem[] => [
+  { id: 'general', label: t('general'), icon: Settings, visible: true },
+  { id: 'shifts', label: t('shifts'), icon: Clock, visible: true },
 ];
 
 export interface UserSettingsModalProps {
@@ -52,13 +53,15 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const workspace = useAppSelector((state) => state.auth.workspace);
   const [triggerLogout] = useLogoutMutation();
 
+  const { t: tc } = useTranslation('common');
+  const { t: ts } = useTranslation('settings');
   const visibleNavItems = useMemo(
     () =>
-      NAV_ITEMS.filter((item) => {
+      getNavItems(tc).filter((item) => {
         if (item.id === 'shifts') return workspace?.role === 'owner';
         return item.visible !== false;
       }),
-    [workspace?.role],
+    [workspace?.role, tc],
   );
 
   const handleLogout = async () => {
@@ -68,7 +71,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     } catch {
       dispatch(logout());
     }
-    appToast.success('Logged out successfully');
+    appToast.success(tc('loggedOutSuccess'));
     navigate('/login');
   };
 
@@ -90,7 +93,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
               {initialsOf(user.name)}
             </div>
             <div className="min-w-0">
-              <DialogTitle className="text-base">Settings</DialogTitle>
+              <DialogTitle className="text-base">{ts('settingsTitle')}</DialogTitle>
               <DialogDescription className="truncate">
                 {user.name} · {user.email}
               </DialogDescription>
@@ -134,7 +137,7 @@ const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         <DialogFooter className="shrink-0 border-t px-6 py-3 sm:justify-start">
           <Button type="button" variant="destructive" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
-            Log out
+            {tc('logOut')}
           </Button>
         </DialogFooter>
       </DialogContent>

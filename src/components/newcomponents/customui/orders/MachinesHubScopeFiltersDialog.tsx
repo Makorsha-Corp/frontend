@@ -1,5 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import {
+  localizedToolbarFactoryDropdownLabel,
+  localizedToolbarSectionDropdownLabel,
+} from '@/i18n/factoryScopeLabels';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +27,6 @@ import {
 import {
   isFactoryRowChecked,
   isSectionRowChecked,
-  locationFilterLabels,
   selectAllFactories,
   selectAllSections,
   selectSingleFactory,
@@ -56,6 +60,8 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
   factoryPickerHighlight = false,
   onFactoryPickerHighlightDismiss,
 }) => {
+  const { t: tMachines } = useTranslation('machines');
+  const { t: tFactories } = useTranslation('factories');
   const [draft, setDraft] = React.useState<MachinesLocationFilterSlice>(value);
 
   React.useEffect(() => {
@@ -69,12 +75,19 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
     [sections, draft, allFactoryIds],
   );
 
-  const { factoryDropdownLabel, sectionDropdownLabel } = locationFilterLabels(
+  const visibleSectionCount = visibleSections.length;
+  const factoryDropdownLabel = localizedToolbarFactoryDropdownLabel(
     draft,
     allFactoryIds,
-    visibleSections,
     factories,
+    tFactories,
+  );
+  const sectionDropdownLabel = localizedToolbarSectionDropdownLabel(
+    draft,
+    visibleSectionCount,
+    visibleSections,
     sections,
+    tFactories,
   );
 
   const handleApply = () => {
@@ -91,13 +104,13 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex w-[min(28rem,94vw)] max-w-none flex-col gap-4 p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 text-left">
-          <DialogTitle>Location scope</DialogTitle>
-          <DialogDescription>Filter machines and work orders by factory and section.</DialogDescription>
+          <DialogTitle>{tMachines('hubLocationScopeTitle')}</DialogTitle>
+          <DialogDescription>{tMachines('hubLocationScopeDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="grid gap-2">
-            <Label>Factory</Label>
+            <Label>{tFactories('labelFactory')}</Label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -122,7 +135,7 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
                 className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
                 align="start"
               >
-                <DropdownMenuLabel>Factories</DropdownMenuLabel>
+                <DropdownMenuLabel>{tFactories('labelFactories')}</DropdownMenuLabel>
                 <DropdownMenuItem
                   onSelect={(e) => {
                     e.preventDefault();
@@ -130,11 +143,11 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
                   }}
                   className={cn(draft.factory_ids.length === 0 && 'bg-accent/70')}
                 >
-                  All Factories
+                  {tFactories('menuAllFactories')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {factories.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No factories</div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">{tFactories('menuNoFactories')}</div>
                 ) : (
                   factories.map((f) => (
                     <DropdownMenuCheckboxItem
@@ -159,7 +172,7 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
           </div>
 
           <div className="grid gap-2">
-            <Label>Section</Label>
+            <Label>{tFactories('labelSection')}</Label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button" variant="outline" className="h-10 justify-between focus-visible:ring-inset">
@@ -171,7 +184,7 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
                 className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
                 align="start"
               >
-                <DropdownMenuLabel>Sections</DropdownMenuLabel>
+                <DropdownMenuLabel>{tFactories('labelSections')}</DropdownMenuLabel>
                 <DropdownMenuItem
                   onSelect={(e) => {
                     e.preventDefault();
@@ -179,11 +192,11 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
                   }}
                   className={cn(draft.section_ids.length === 0 && 'bg-accent/70')}
                 >
-                  All sections
+                  {tFactories('allSections')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {visibleSections.length === 0 ? (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No sections for this filter</div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">{tFactories('menuNoSectionsForFilter')}</div>
                 ) : (
                   visibleSections.map((s) => (
                     <DropdownMenuCheckboxItem
@@ -206,10 +219,10 @@ const MachinesHubScopeFiltersDialog: React.FC<MachinesHubScopeFiltersDialogProps
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={handleClear}>
-            Clear
+            {tMachines('filterClear')}
           </Button>
           <Button type="button" onClick={handleApply}>
-            Apply
+            {tMachines('filterApply')}
           </Button>
         </DialogFooter>
       </DialogContent>

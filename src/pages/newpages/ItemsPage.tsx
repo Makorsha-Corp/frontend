@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
 import { AppShellHeaderIconAction } from '@/components/newcomponents/customui/AppShellHeader';
@@ -36,6 +37,7 @@ import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 
 const ItemsPage: React.FC = () => {
+  const { t } = useTranslation('items');
   const [searchParams, setSearchParams] = useSearchParams();
   const itemIdParam = searchParams.get('itemId');
   const deepLinkItemId = itemIdParam ? parseInt(itemIdParam, 10) : null;
@@ -191,29 +193,27 @@ const ItemsPage: React.FC = () => {
 
   const handleDelete = async (item: Item) => {
     if (
-      !window.confirm(
-        `Are you sure you want to delete "${item.name}"? This will set it as inactive.`,
-      )
+      !window.confirm(t('deleteConfirm', { name: item.name }))
     ) {
       return;
     }
 
     try {
       await deleteItem(item.id).unwrap();
-      appToast.success(`Item "${item.name}" has been marked as inactive`);
+      appToast.success(t('deleteSuccess', { name: item.name }));
       if (selectedItem?.id === item.id) {
         setSelectedItem(null);
         setIsDetailsDialogOpen(false);
       }
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to delete item');
+      appToast.error(e?.data?.detail || t('deleteFailed'));
     }
   };
 
   const unitSelectContent = (
     <>
-      <SelectItem value="all">All Units</SelectItem>
+      <SelectItem value="all">{t('allUnits')}</SelectItem>
       {unitOptions.map((unit) => (
         <SelectItem key={unit} value={unit}>
           {unit}
@@ -232,10 +232,12 @@ const ItemsPage: React.FC = () => {
       }}
     >
       <SelectTrigger
-        aria-label={filterUnit ? `Filter by ${filterUnit}` : 'Filter by units'}
+        aria-label={
+          filterUnit ? t('unitsFilterAriaWithUnit', { unit: filterUnit }) : t('unitsFilterAria')
+        }
         className="h-9 w-[5rem] shrink-0 border-border bg-background px-2 text-sm [&>svg]:ml-1 [&>svg]:h-3.5 [&>svg]:w-3.5"
       >
-        <span className="truncate">{filterUnit || 'Units'}</span>
+        <span className="truncate">{filterUnit || t('units')}</span>
       </SelectTrigger>
       <SelectContent>{unitSelectContent}</SelectContent>
     </Select>
@@ -251,7 +253,7 @@ const ItemsPage: React.FC = () => {
       }}
     >
       <SelectTrigger className="h-9 w-[140px] border-border bg-background text-sm">
-        <SelectValue placeholder="Units" />
+        <SelectValue placeholder={t('units')} />
       </SelectTrigger>
       <SelectContent>{unitSelectContent}</SelectContent>
     </Select>
@@ -265,7 +267,7 @@ const ItemsPage: React.FC = () => {
       <AppShellHeaderIconAction
         icon={Tag}
         onClick={() => setIsTagsPanelOpen((open) => !open)}
-        ariaLabel="View tags"
+        ariaLabel={t('viewTagsAria')}
         variant="outline"
         className={cn(
           tagsActive &&
@@ -291,7 +293,7 @@ const ItemsPage: React.FC = () => {
       )}
     >
       <Tag className="mr-2 h-4 w-4" />
-      View Tags
+      {t('viewTags')}
       {filterTagIds.length > 0 ? (
         <span className="ml-2 rounded-full bg-brand-primary/20 px-1.5 py-0.5 text-xs tabular-nums">
           {filterTagIds.length}
@@ -308,7 +310,7 @@ const ItemsPage: React.FC = () => {
       className="hidden h-9 text-muted-foreground hover:text-destructive lg:inline-flex"
     >
       <X className="mr-1 h-4 w-4" />
-      Clear filters
+      {t('clearFilters')}
     </Button>
   ) : null;
 
@@ -316,7 +318,7 @@ const ItemsPage: React.FC = () => {
     <AppShellHeaderIconAction
       icon={X}
       onClick={clearFilters}
-      ariaLabel="Clear filters"
+      ariaLabel={t('clearFilters')}
       variant="ghost"
       className="text-muted-foreground hover:text-destructive"
     />
@@ -327,11 +329,11 @@ const ItemsPage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeaderCompactList
           icon={Package2}
-          title="Items Catalog"
+          title={t('catalogTitle')}
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
-          searchPlaceholder="Search items..."
-          searchAriaLabel="Search items"
+          searchPlaceholder={t('searchPlaceholder')}
+          searchAriaLabel={t('searchAriaLabel')}
           mobileActions={
             <>
               {unitSelectMobile}
@@ -346,7 +348,7 @@ const ItemsPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search items..."
+                  placeholder={t('searchPlaceholder')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   className="h-9 bg-background pl-9"
@@ -357,8 +359,8 @@ const ItemsPage: React.FC = () => {
             </>
           }
           onAdd={() => setIsAddDialogOpen(true)}
-          addButtonLabel="Add Item"
-          addAriaLabel="Add item"
+          addButtonLabel={t('addItemButton')}
+          addAriaLabel={t('addItemAria')}
         />
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -387,7 +389,7 @@ const ItemsPage: React.FC = () => {
                     className="bg-brand-primary hover:bg-brand-primary-hover"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add your first item
+                    {t('addFirstItem')}
                   </Button>
                 ) : undefined
               }
@@ -399,7 +401,7 @@ const ItemsPage: React.FC = () => {
               <button
                 type="button"
                 className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-                aria-label="Close tags panel"
+                aria-label={t('closeTagsPanelAria')}
                 onClick={() => setIsTagsPanelOpen(false)}
               />
               <ItemTagsFilterPanel

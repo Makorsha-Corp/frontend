@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Pencil,
@@ -43,7 +44,9 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
   onEdit,
   onDelete,
   isDeleting,
-}) => (
+}) => {
+  const { t } = useTranslation('factories');
+  return (
   <Card
     className={cn(
       'group flex h-full cursor-pointer flex-col transition-all',
@@ -78,15 +81,15 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
       <div className="flex flex-wrap gap-1.5">
         <Badge variant="outline" className="gap-1 border-border bg-muted/30 text-xs font-normal">
           <Cog className="h-3 w-3 shrink-0" aria-hidden />
-          {snapshot.running}/{snapshot.totalMachines} running
+          {t('cardRunning', { running: snapshot.running, total: snapshot.totalMachines })}
         </Badge>
         <Badge variant="outline" className="gap-1 border-border bg-muted/30 text-xs font-normal">
           <Warehouse className="h-3 w-3 shrink-0" aria-hidden />
-          {snapshot.storageSkus} SKUs
+          {t('cardSkus', { count: snapshot.storageSkus })}
         </Badge>
         <Badge variant="outline" className="gap-1 border-border bg-muted/30 text-xs font-normal">
           <Package className="h-3 w-3 shrink-0" aria-hidden />
-          {snapshot.productionInProgress} in progress
+          {t('cardInProgress', { count: snapshot.productionInProgress })}
         </Badge>
         {snapshot.overdueCount > 0 ? (
           <Badge
@@ -94,7 +97,7 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
             className="gap-1 border-red-400/50 bg-red-400/10 text-xs font-normal text-red-800 dark:text-red-300"
           >
             <Wrench className="h-3 w-3 shrink-0" aria-hidden />
-            {snapshot.overdueCount} overdue
+            {t('cardOverdue', { count: snapshot.overdueCount })}
           </Badge>
         ) : null}
         {snapshot.upcomingCount > 0 ? (
@@ -103,7 +106,7 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
             className="gap-1 border-amber-400/50 bg-amber-400/10 text-xs font-normal text-amber-800 dark:text-amber-300"
           >
             <Wrench className="h-3 w-3 shrink-0" aria-hidden />
-            {snapshot.upcomingCount} due (7d)
+            {t('cardDue7d', { count: snapshot.upcomingCount })}
           </Badge>
         ) : null}
       </div>
@@ -127,7 +130,7 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
                   <Pencil className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Edit factory</TooltipContent>
+              <TooltipContent>{t('editFactoryTooltip')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -144,14 +147,15 @@ export const FactoryOverviewCard: React.FC<FactoryOverviewCardProps> = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Deactivate factory</TooltipContent>
+              <TooltipContent>{t('deactivateFactoryTooltip')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
       </div>
     </CardContent>
   </Card>
-);
+  );
+};
 
 interface FactoriesShrunkGridProps {
   factories: Factory[];
@@ -186,14 +190,17 @@ const FactoriesShrunkGrid: React.FC<FactoriesShrunkGridProps> = ({
   onDelete,
   isDeleting,
   isLoading,
-}) => (
+}) => {
+  const { t } = useTranslation('factories');
+  return (
   <Card className="flex h-auto flex-col overflow-hidden border-border bg-card shadow-sm lg:h-full lg:min-h-0">
     <CardContent className="flex flex-col p-0 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="text-sm text-muted-foreground">
           {!isLoading && (
             <span className="font-medium">
-              {factories.length} {factories.length === 1 ? 'factory' : 'factories'}
+              {factories.length}{' '}
+              {factories.length === 1 ? t('gridFactoryOne') : t('gridFactoryMany')}
             </span>
           )}
         </div>
@@ -201,7 +208,7 @@ const FactoriesShrunkGrid: React.FC<FactoriesShrunkGridProps> = ({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search factories..."
+            placeholder={t('searchFactoriesPlaceholder')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="h-9 bg-background pl-9"
@@ -226,6 +233,7 @@ const FactoriesShrunkGrid: React.FC<FactoriesShrunkGridProps> = ({
       </div>
     </CardContent>
   </Card>
-);
+  );
+};
 
 export default FactoriesShrunkGrid;

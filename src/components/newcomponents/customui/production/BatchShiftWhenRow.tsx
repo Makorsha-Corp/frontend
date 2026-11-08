@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { WorkspaceShift } from '@/types/workspaceShift';
@@ -49,6 +50,7 @@ const BatchShiftWhenRow: React.FC<BatchShiftWhenRowProps> = ({
   onShiftPicked,
   embedShiftsInPicker = false,
 }) => {
+  const { t } = useTranslation('production');
   const { use24Hour } = useUserTimeFormat();
   const activeShifts = shifts.filter((s) => s.is_active);
   const showShiftChipsOutside = !embedShiftsInPicker;
@@ -88,7 +90,7 @@ const BatchShiftWhenRow: React.FC<BatchShiftWhenRowProps> = ({
           singleLine ? 'shrink-0 flex-nowrap' : 'flex-wrap',
         )}
         role="group"
-        aria-label="Workspace shift"
+        aria-label={t('workspaceShiftAria')}
       >
         {activeShifts.map((shift) => (
           <button
@@ -122,7 +124,7 @@ const BatchShiftWhenRow: React.FC<BatchShiftWhenRowProps> = ({
         htmlFor="batch-planned-start"
         className={cn(inlineLabels && 'sr-only')}
       >
-        Planned start
+        {t('plannedStart')}
       </Label>
       <DateTimePickerField
         id="batch-planned-start"
@@ -145,7 +147,7 @@ const BatchShiftWhenRow: React.FC<BatchShiftWhenRowProps> = ({
         defaultMinute={selectedShiftMinutes == null ? undefined : selectedShiftMinutes % 60}
         onChange={handlePlannedChange}
         onPopoverClosed={onPlannedStartCommit}
-        aria-label="Planned start date and time"
+        aria-label={t('plannedStartAria')}
         shifts={embedShiftsInPicker ? activeShifts : undefined}
         selectedShiftId={embedShiftsInPicker ? selectedShiftId : undefined}
         onSelectedShiftIdChange={embedShiftsInPicker ? onSelectedShiftIdChange : undefined}
@@ -167,7 +169,7 @@ const BatchShiftWhenRow: React.FC<BatchShiftWhenRowProps> = ({
           id="batch-when-section-title"
           className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
         >
-          When
+          {t('when')}
         </p>
         {shiftChips}
         {plannedStartField}

@@ -11,6 +11,7 @@ export interface User {
   name: string;
   timezone?: string | null;
   use_24_hour_time?: boolean;
+  ui_language?: 'en' | 'bn';
   is_platform_admin?: boolean;
   saved_stamp?: SavedStamp | null;
   help_guides_seen?: HelpGuidesSeen | null;
@@ -21,6 +22,7 @@ export interface ProfileMeUpdate {
   name?: string;
   timezone?: string | null;
   use_24_hour_time?: boolean;
+  ui_language?: 'en' | 'bn';
   saved_stamp?: SavedStamp | null;
 }
 

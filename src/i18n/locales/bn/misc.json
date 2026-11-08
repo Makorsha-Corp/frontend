@@ -1,0 +1,21 @@
+{
+  "status": {
+    "pending": "অমীমাংসিত",
+    "complete": "সম্পন্ন",
+    "receiving": "গ্রহণ চলছে",
+    "cancelled": "বাতিল",
+    "draft": "খসড়া"
+  },
+  "tags": {
+    "supplier": "সরবরাহকারী",
+    "client": "ক্লায়েন্ট",
+    "utility": "ইউটিলিটি",
+    "payroll": "বেতন",
+    "rawMaterial": "কাঁচামাল",
+    "machinePart": "মেশিন পার্ট",
+    "projectItem": "প্রকল্প আইটেম",
+    "consumable": "ভোগ্যপণ্য",
+    "tool": "সরঞ্জাম",
+    "finishedGood": "তৈরি পণ্য"
+  }
+}

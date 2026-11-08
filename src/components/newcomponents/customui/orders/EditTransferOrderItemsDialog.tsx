@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,8 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
   items,
   onSaved,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [existingLines, setExistingLines] = useState<ExistingLineDraft[]>(() => linesFromItems(items));
   const [pendingNewLines, setPendingNewLines] = useState<PendingNewLine[]>([]);
   const [itemId, setItemId] = useState('');
@@ -234,7 +237,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to save items');
+      appToast.error(e?.data?.detail || t('dlgFailedSaveItems'));
     } finally {
       setIsSaving(false);
     }
@@ -247,15 +250,15 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
           <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
             <DialogTitle className="flex items-center gap-2 text-base">
               <Package className="h-4 w-4 text-muted-foreground" />
-              Edit transfer items
+              {t('dlgEditTransferItems')}
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-6 py-4">
             <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Add line</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">{t('dlgAddLine')}</Label>
               <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Item *</Label>
+                <Label className="text-xs text-muted-foreground">{t('dlgItemRequired')}</Label>
                 <Select value={itemId} onValueChange={setItemId}>
                   <SelectTrigger className="h-9 bg-background">
                     <SelectValue placeholder="Select item..." />
@@ -297,7 +300,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                       if (addButtonHighlighted) dismissAddButtonHighlight();
                     }}
                     disabled={!canAddLineItem}
-                    aria-label="Add line item"
+                    aria-label={t('dlgAddLineItem')}
                   >
                     <Check className="h-4 w-4" />
                   </Button>
@@ -358,7 +361,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead className="py-2">Item</TableHead>
-                        <TableHead className="py-2 w-28 text-right">Qty</TableHead>
+                        <TableHead className="py-2 w-28 text-right">{t('dlgQty')}</TableHead>
                         <TableHead className="py-2 w-10" />
                       </TableRow>
                     </TableHeader>
@@ -428,7 +431,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                 onClick={() => onOpenChange(false)}
                 disabled={isSaving}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <div className="relative" data-unadded-hint-root>
                 {unaddedHintOpen ? (
@@ -436,7 +439,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                     role="tooltip"
                     className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                   >
-                    You have unadded order items — click ✓ to add them, or click Save again to continue without them
+                    {t('dlgUnaddedSaveHint')}
                   </div>
                 ) : null}
                 <Button
@@ -447,7 +450,7 @@ const EditTransferOrderItemsDialog: React.FC<EditTransferOrderItemsDialogProps> 
                   className="bg-brand-primary hover:bg-brand-primary-hover"
                 >
                   {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                  Save items
+                  {t('dlgSaveItems')}
                 </Button>
               </div>
             </div>

@@ -1,0 +1,21 @@
+{
+  "status": {
+    "pending": "Pending",
+    "complete": "Complete",
+    "receiving": "Receiving",
+    "cancelled": "Cancelled",
+    "draft": "Draft"
+  },
+  "tags": {
+    "supplier": "Supplier",
+    "client": "Client",
+    "utility": "Utility",
+    "payroll": "Payroll",
+    "rawMaterial": "Raw Material",
+    "machinePart": "Machine Part",
+    "projectItem": "Project Item",
+    "consumable": "Consumable",
+    "tool": "Tool",
+    "finishedGood": "Finished Good"
+  }
+}

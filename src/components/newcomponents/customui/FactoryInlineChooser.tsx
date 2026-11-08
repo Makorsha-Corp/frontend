@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -57,13 +58,17 @@ const FactoryInlineChooser: React.FC<FactoryInlineChooserProps> = ({
   factories,
   onSelect,
   isLoading = false,
-  title = 'Choose a factory',
-  description = 'Pick where this view applies.',
-  emptyMessage = 'No factories yet.',
+  title,
+  description,
+  emptyMessage,
   align = 'top',
   classNames,
   className,
 }) => {
+  const { t } = useTranslation('factories');
+  const resolvedTitle = title ?? t('chooseFactoryTitle');
+  const resolvedDescription = description ?? t('chooseFactoryDescription');
+  const resolvedEmpty = emptyMessage ?? t('noFactoriesYet');
   const c = {
     root: cn(factoryInlineChooserDefaults.root, classNames?.root, className),
     panel: cn(factoryInlineChooserDefaults.panel, classNames?.panel),
@@ -91,18 +96,18 @@ const FactoryInlineChooser: React.FC<FactoryInlineChooserProps> = ({
     >
       <div className={cn(c.panel, align === 'center' && 'text-center')}>
         <header className={c.header}>
-          <p className={c.title}>{title}</p>
-          {description ? <p className={c.description}>{description}</p> : null}
+          <p className={c.title}>{resolvedTitle}</p>
+          {resolvedDescription ? <p className={c.description}>{resolvedDescription}</p> : null}
         </header>
 
         <div className={c.body}>
           {isLoading ? (
             <Loader2
               className="h-8 w-8 animate-spin text-brand-primary"
-              aria-label="Loading factories"
+              aria-label={t('loadingFactoriesAria')}
             />
           ) : factories.length === 0 ? (
-            <p className={c.description}>{emptyMessage}</p>
+            <p className={c.description}>{resolvedEmpty}</p>
           ) : (
             <div className={c.list} role="list">
               {factories.map((factory) => (

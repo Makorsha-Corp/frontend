@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
   section,
   sections = [],
 }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const [name, setName] = useState('');
 
   const [updateSection, { isLoading }] = useUpdateFactorySectionMutation();
@@ -45,14 +48,14 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
     if (!section) return;
 
     if (!name.trim()) {
-      appToast.error('Section name is required');
+      appToast.error(t('toastSectionNameRequired'));
       return;
     }
 
     const nameLower = name.trim().toLowerCase();
     const dup = sections.find((s) => s.id !== section.id && s.name.toLowerCase() === nameLower);
     if (dup) {
-      appToast.error('A section with this name already exists in this factory');
+      appToast.error(t('toastSectionDuplicate'));
       return;
     }
 
@@ -62,11 +65,11 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
         data: { name: name.trim() },
       }).unwrap();
 
-      appToast.success('Section updated successfully');
+      appToast.success(t('toastSectionUpdateSuccess'));
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to update section:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to update section'));
+      appToast.error(apiErrorDetail(error, t('toastSectionUpdateFailed')));
     }
   };
 
@@ -82,20 +85,20 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Edit Section</DialogTitle>
-            <DialogDescription>Update the section name.</DialogDescription>
+            <DialogTitle className="text-card-foreground">{t('editSectionDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('editSectionDialogDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="edit-section-name">
-                Section Name <span className="text-red-500">*</span>
+                {t('fieldSectionName')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="edit-section-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Production Floor A"
+                placeholder={t('placeholderSectionName')}
                 className="bg-background"
               />
             </div>
@@ -103,16 +106,16 @@ const EditFactorySectionDialog: React.FC<EditFactorySectionDialogProps> = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" className="bg-brand-primary hover:bg-brand-primary-hover" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
+                  {t('updating')}
                 </>
               ) : (
-                'Save Changes'
+                t('saveChanges')
               )}
             </Button>
           </DialogFooter>

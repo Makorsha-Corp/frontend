@@ -2,6 +2,8 @@ import { createElement } from 'react';
 import type { Toast } from 'react-hot-toast';
 
 import type { AppNotification } from '@/components/newcomponents/customui/notifications/notificationTypes';
+import { localizedNotificationTitle } from '@/components/newcomponents/customui/notifications/notificationI18n';
+import i18n from '@/i18n';
 import { appToast } from '@/lib/appToast';
 
 const NOTIFICATION_POPUP_DURATION_MS = 8_000;
@@ -11,25 +13,28 @@ export function showNotificationPopup(
   notification: AppNotification,
   onOpen: () => void,
 ): string {
+  const t = i18n.getFixedT(i18n.language, 'notifications');
+  const title = localizedNotificationTitle(notification, t);
+
   return appToast.custom(
-    (t: Toast) =>
+    (toast: Toast) =>
       createElement(
         'button',
         {
           type: 'button',
           onClick: () => {
-            appToast.dismiss(t.id);
+            appToast.dismiss(toast.id);
             onOpen();
           },
           className:
             'w-full text-left text-sm leading-snug text-card-foreground transition-opacity hover:opacity-90',
           style: {
-            opacity: t.visible ? 1 : 0,
-            transform: t.visible ? 'scale(1)' : 'scale(0.98)',
+            opacity: toast.visible ? 1 : 0,
+            transform: toast.visible ? 'scale(1)' : 'scale(0.98)',
             transition: 'opacity 150ms ease, transform 150ms ease',
           },
         },
-        notification.title,
+        title,
       ),
     {
       id: `notification-${notification.id}`,

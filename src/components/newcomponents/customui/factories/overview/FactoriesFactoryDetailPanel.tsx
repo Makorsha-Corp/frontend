@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   Check,
@@ -101,6 +102,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
   onBack,
   onEditFactory,
 }) => {
+  const { t } = useTranslation(['factories', 'common']);
   const [sectionsOpen, setSectionsOpen] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
@@ -159,7 +161,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
 
   const handleDeleteSection = async (section: FactorySection) => {
     if (
-      !window.confirm(`Are you sure you want to deactivate "${section.name}"? This is a soft delete.`)
+      !window.confirm(t('deactivateSectionConfirm', { name: section.name }))
     ) {
       return;
     }
@@ -168,19 +170,25 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
       if (selectedSectionId === section.id) {
         setSelectedSectionId(null);
       }
-      appToast.success(`Section "${section.name}" has been deactivated`);
+      appToast.success(t('deactivateSectionSuccess', { name: section.name }));
     } catch (error: unknown) {
       const detail =
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      appToast.error(detail || 'Failed to deactivate section');
+      appToast.error(detail || t('deactivateSectionFailed'));
     }
   };
 
-  const sectionLabel = sections.length === 1 ? '1 section' : `${sections.length} sections`;
-  const machineLabel = machines.length === 1 ? '1 machine' : `${machines.length} machines`;
-  const sectionsButtonLabel = selectedSection?.name ?? 'Sections';
+  const sectionLabel =
+    sections.length === 1
+      ? t('sectionCountOne')
+      : t('sectionCountMany', { count: sections.length });
+  const machineLabel =
+    machines.length === 1
+      ? t('machineCountOne')
+      : t('machineCountMany', { count: machines.length });
+  const sectionsButtonLabel = selectedSection?.name ?? t('sectionsButton');
 
   return (
     <>
@@ -194,7 +202,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
               onClick={onBack}
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Back
+              {t('back', { ns: 'common' })}
             </Button>
             <div className={brandIconTileClass} aria-hidden>
               <FactoryIcon className={brandIconGlyphClass} strokeWidth={2} />
@@ -228,7 +236,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
               <PopoverContent align="end" side="bottom" className="w-[min(320px,94vw)] p-0">
                 <div className="border-b border-border px-3 py-2.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-card-foreground">Factory sections</p>
+                    <p className="text-sm font-medium text-card-foreground">{t('factorySectionsTitle')}</p>
                     <Button
                       size="sm"
                       className="h-8 bg-brand-primary hover:bg-brand-primary-hover"
@@ -238,13 +246,13 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
                       }}
                     >
                       <Plus className="mr-1 h-4 w-4" />
-                      Add
+                      {t('add', { ns: 'common' })}
                     </Button>
                   </div>
                   <Input
                     value={sectionSearch}
                     onChange={(e) => setSectionSearch(e.target.value)}
-                    placeholder="Search sections..."
+                    placeholder={t('searchSectionsPlaceholder')}
                     className="h-8 bg-background"
                   />
                 </div>
@@ -264,10 +272,10 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
                       )}
                       aria-hidden
                     />
-                    <span className="font-medium text-card-foreground">All sections</span>
+                    <span className="font-medium text-card-foreground">{t('allSections')}</span>
                   </button>
                   {filteredSections.length === 0 ? (
-                    <p className="px-2.5 py-3 text-sm text-muted-foreground">No sections found.</p>
+                    <p className="px-2.5 py-3 text-sm text-muted-foreground">{t('noSectionsFound')}</p>
                   ) : (
                     filteredSections.map((section) => {
                       const isSelected = selectedSectionId === section.id;
@@ -298,7 +306,10 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
                               {section.name}
                             </span>
                             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                              {sectionMachines} {sectionMachines === 1 ? 'machine' : 'machines'}
+                              {sectionMachines}{' '}
+                              {sectionMachines === 1
+                                ? t('sectionMachineOne')
+                                : t('sectionMachineMany')}
                             </span>
                           </button>
                           <TooltipProvider>
@@ -318,7 +329,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Edit section</TooltipContent>
+                              <TooltipContent>{t('editSectionTooltip')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -335,7 +346,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Deactivate section</TooltipContent>
+                              <TooltipContent>{t('deactivateSectionTooltip')}</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
@@ -352,7 +363,7 @@ const FactoriesFactoryDetailPanel: React.FC<FactoriesFactoryDetailPanelProps> = 
               onClick={onEditFactory}
             >
               <Pencil className="mr-2 h-4 w-4" />
-              Edit factory
+              {t('editFactory')}
             </Button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   Dialog,
@@ -12,6 +13,7 @@ import { ArrowLeftRight, ArrowUpRight, ClipboardList, Loader2, ShoppingCart } fr
 import { useStorageActiveOrders } from '@/hooks/useStorageActiveOrders';
 import type { ActiveOrderRow } from '@/types/purchaseOrder';
 import { cn } from '@/lib/utils';
+import { activeIntlLocale } from '@/utils/datetime';
 
 type OrderFilter = 'all' | 'purchase' | 'transfer';
 
@@ -42,10 +44,10 @@ function orderHref(row: ActiveOrderRow): string {
   return `/orders/transfer?orderId=${row.id}`;
 }
 
-const FILTER_OPTIONS: { id: OrderFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'purchase', label: 'Purchase' },
-  { id: 'transfer', label: 'Transfer' },
+const FILTER_OPTIONS: { id: OrderFilter; labelKey: 'all' | 'filterPurchase' | 'filterTransfer' }[] = [
+  { id: 'all', labelKey: 'all' },
+  { id: 'purchase', labelKey: 'filterPurchase' },
+  { id: 'transfer', labelKey: 'filterTransfer' },
 ];
 
 const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
@@ -55,6 +57,7 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
   factoryIds,
   factoryLabel,
 }) => {
+  const { t } = useTranslation('inventory');
   const [filter, setFilter] = useState<OrderFilter>('all');
 
   const { rows: data, isLoading, isError, error } = useStorageActiveOrders(factoryId, factoryIds, {
@@ -76,7 +79,7 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
   }, [data, filter]);
 
   const contextLabel =
-    factoryId == null ? 'all factories' : factoryLabel?.trim() || 'this factory';
+    factoryId == null ? t('ordersContextAll') : factoryLabel?.trim() || t('ordersContextThis');
 
   return (
     <Dialog
@@ -93,25 +96,25 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-primary/10 ring-1 ring-brand-primary/20">
                 <ClipboardList className="h-4 w-4 text-brand-primary" />
               </span>
-              Active orders
+              {t('ordersTitle')}
             </DialogTitle>
             <DialogDescription>
-              Open purchase and transfer orders affecting storage at {contextLabel}.
+              {t('ordersDescription', { where: contextLabel })}
             </DialogDescription>
           </DialogHeader>
 
           {!isLoading && !isError ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium tabular-nums text-card-foreground">
-                {data.length} total
+                {t('ordersTotal', { count: data.length })}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/5 px-3 py-1 text-xs font-medium tabular-nums text-blue-700 dark:text-blue-300">
                 <ShoppingCart className="h-3 w-3" />
-                {purchaseCount} purchase
+                {t('ordersPurchaseCount', { count: purchaseCount })}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 px-3 py-1 text-xs font-medium tabular-nums text-amber-700 dark:text-amber-300">
                 <ArrowLeftRight className="h-3 w-3" />
-                {transferCount} transfer
+                {t('ordersTransferCount', { count: transferCount })}
               </span>
             </div>
           ) : null}
@@ -139,7 +142,7 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-card-foreground'
                 )}
               >
-                {option.label}
+                {t(option.labelKey)}
                 {!isLoading && !isError ? (
                   <span
                     className={cn(
@@ -159,22 +162,26 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-14 text-muted-foreground">
               <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-              <p className="text-sm">Loading orders…</p>
+              <p className="text-sm">{t('loadingOrders')}</p>
             </div>
           ) : isError ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {(error as { data?: { detail?: string } })?.data?.detail ?? 'Failed to load orders.'}
+              {(error as { data?: { detail?: string } })?.data?.detail ?? t('failedOrders')}
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
               <ClipboardList className="h-10 w-10 text-muted-foreground/35" />
               <p className="text-sm font-medium text-card-foreground">
-                {filter === 'all' ? 'No active orders' : `No active ${filter} orders`}
+                {filter === 'all'
+                  ? t('noActiveOrders')
+                  : t('noActiveFilter', {
+                      kind: t(filter === 'purchase' ? 'filterPurchase' : 'filterTransfer'),
+                    })}
               </p>
               <p className="max-w-xs text-xs text-muted-foreground">
                 {filter === 'all'
-                  ? 'Completed orders are hidden from this view.'
-                  : 'Try another filter or check back when new orders are created.'}
+                  ? t('completedHidden')
+                  : t('tryAnotherFilter')}
               </p>
             </div>
           ) : (
@@ -224,7 +231,7 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
 
                         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
                           <span className="tabular-nums">
-                            {new Date(row.created_at).toLocaleDateString(undefined, {
+                            {new Date(row.created_at).toLocaleDateString(activeIntlLocale(), {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
@@ -258,7 +265,7 @@ const StorageActiveOrdersDialog: React.FC<StorageActiveOrdersDialogProps> = ({
 
         <div className="border-t border-border bg-muted/15 px-4 py-2.5">
           <p className="text-center text-[11px] text-muted-foreground">
-            Select an order to open its detail page
+            {t('selectOrderHint')}
           </p>
         </div>
       </DialogContent>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useNotificationCenterContext } from './NotificationCenterProvider';
+import { useNotificationCenterContext } from './notificationCenterContext';
 
 interface NotificationBellProps {
   collapsed?: boolean;

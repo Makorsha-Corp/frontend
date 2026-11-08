@@ -1,5 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import {
+  localizedToolbarFactoryDropdownLabel,
+  localizedToolbarSectionDropdownLabel,
+} from '@/i18n/factoryScopeLabels';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -20,7 +25,6 @@ import {
   computeToggleSection,
   isFactoryRowChecked,
   isSectionRowChecked,
-  locationFilterLabels,
   selectAllFactories,
   selectAllSections,
   visibleSectionsForSlice,
@@ -100,6 +104,8 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
   onClear,
   showLocationFilters = true,
 }) => {
+  const { t } = useTranslation('machines');
+  const { t: tFactories } = useTranslation('factories');
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<MachinesFiltersValue>(value);
 
@@ -127,12 +133,19 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
     setDraft((p) => ({ ...p, ...computeToggleSection(p, id, allFactoryIds, sections) }));
   };
 
-  const { factoryDropdownLabel, sectionDropdownLabel } = locationFilterLabels(
-    draft,
+  const visibleSectionCount = visibleSections.length;
+  const factoryDropdownLabel = localizedToolbarFactoryDropdownLabel(
+    { factory_ids: draft.factory_ids, section_ids: draft.section_ids },
     allFactoryIds,
-    visibleSections,
     factories,
+    tFactories,
+  );
+  const sectionDropdownLabel = localizedToolbarSectionDropdownLabel(
+    { factory_ids: draft.factory_ids, section_ids: draft.section_ids },
+    visibleSectionCount,
+    visibleSections,
     sections,
+    tFactories,
   );
 
   const applyDraft = () => {
@@ -158,7 +171,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
           )}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {t('filters')}
           {filterCount > 0 ? (
             <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
               {filterCount}
@@ -175,7 +188,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
           {showLocationFilters ? (
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label>Factories</Label>
+                <Label>{tFactories('labelFactories')}</Label>
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" variant="outline" className="h-9 justify-between">
@@ -187,7 +200,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                     className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
                     align="start"
                   >
-                    <DropdownMenuLabel>Factories</DropdownMenuLabel>
+                    <DropdownMenuLabel>{tFactories('labelFactories')}</DropdownMenuLabel>
                     <DropdownMenuItem
                       onSelect={(e) => {
                         e.preventDefault();
@@ -195,11 +208,11 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                       }}
                       className={cn(draft.factory_ids.length === 0 && 'bg-accent/70')}
                     >
-                      All factories
+                      {tFactories('menuAllFactories')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {factories.length === 0 ? (
-                      <div className="px-2 py-1.5 text-xs text-muted-foreground">No factories</div>
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">{tFactories('menuNoFactories')}</div>
                     ) : (
                       factories.map((f) => (
                         <DropdownMenuCheckboxItem
@@ -218,7 +231,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
               </div>
 
               <div className="grid gap-2">
-                <Label>Sections</Label>
+                <Label>{tFactories('labelSections')}</Label>
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" variant="outline" className="h-9 justify-between">
@@ -230,7 +243,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                     className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
                     align="start"
                   >
-                    <DropdownMenuLabel>Sections</DropdownMenuLabel>
+                    <DropdownMenuLabel>{tFactories('labelSections')}</DropdownMenuLabel>
                     <DropdownMenuItem
                       onSelect={(e) => {
                         e.preventDefault();
@@ -238,12 +251,12 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                       }}
                       className={cn(draft.section_ids.length === 0 && 'bg-accent/70')}
                     >
-                      All sections
+                      {tFactories('allSections')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {visibleSections.length === 0 ? (
                       <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                        No sections for this filter
+                        {tFactories('menuNoSectionsForFilter')}
                       </div>
                     ) : (
                       visibleSections.map((s) => (
@@ -265,7 +278,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Running status</Label>
+              <Label>{t('filterRunningStatus')}</Label>
               <Select
                 value={draft.running_status}
                 onValueChange={(v: MachinesFiltersValue['running_status']) =>
@@ -276,15 +289,15 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="running">Running</SelectItem>
-                  <SelectItem value="not_running">Not running</SelectItem>
+                  <SelectItem value="all">{t('filterAll')}</SelectItem>
+                  <SelectItem value="running">{t('running')}</SelectItem>
+                  <SelectItem value="not_running">{t('notRunning')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label>Upcoming work</Label>
+              <Label>{t('filterUpcomingWork')}</Label>
               <Select
                 value={draft.maintenance_window}
                 onValueChange={(v: MachinesFiltersValue['maintenance_window']) =>
@@ -295,17 +308,17 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="next_7_days">Next 7 days</SelectItem>
-                  <SelectItem value="next_30_days">Next 30 days</SelectItem>
-                  <SelectItem value="none_scheduled">No upcoming work</SelectItem>
+                  <SelectItem value="all">{t('filterAll')}</SelectItem>
+                  <SelectItem value="overdue">{t('filterOverdue')}</SelectItem>
+                  <SelectItem value="next_7_days">{t('filterNext7Days')}</SelectItem>
+                  <SelectItem value="next_30_days">{t('filterNext30Days')}</SelectItem>
+                  <SelectItem value="none_scheduled">{t('filterNoUpcomingWork')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label>Latest event type</Label>
+              <Label>{t('filterLatestEventType')}</Label>
               <Select
                 value={draft.latest_event_type}
                 onValueChange={(v: MachinesFiltersValue['latest_event_type']) =>
@@ -316,17 +329,17 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="RUNNING">Running</SelectItem>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                  <SelectItem value="IDLE">Idle</SelectItem>
-                  <SelectItem value="OFF">Off</SelectItem>
+                  <SelectItem value="all">{t('filterAll')}</SelectItem>
+                  <SelectItem value="RUNNING">{t('running')}</SelectItem>
+                  <SelectItem value="MAINTENANCE">{t('maintenance')}</SelectItem>
+                  <SelectItem value="IDLE">{t('idle')}</SelectItem>
+                  <SelectItem value="OFF">{t('off')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label>Has model number</Label>
+              <Label>{t('filterHasModelNumber')}</Label>
               <Select
                 value={draft.has_model_number}
                 onValueChange={(v: MachinesFiltersValue['has_model_number']) =>
@@ -337,15 +350,15 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="yes">Yes</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="all">{t('filterAll')}</SelectItem>
+                  <SelectItem value="yes">{t('filterYes')}</SelectItem>
+                  <SelectItem value="no">{t('filterNo')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label>Has manufacturer</Label>
+              <Label>{t('filterHasManufacturer')}</Label>
               <Select
                 value={draft.has_manufacturer}
                 onValueChange={(v: MachinesFiltersValue['has_manufacturer']) =>
@@ -356,15 +369,15 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="yes">Yes</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="all">{t('filterAll')}</SelectItem>
+                  <SelectItem value="yes">{t('filterYes')}</SelectItem>
+                  <SelectItem value="no">{t('filterNo')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label>Sort by</Label>
+              <Label>{t('filterSortBy')}</Label>
               <Select
                 value={draft.sort_by}
                 onValueChange={(v: MachinesFiltersValue['sort_by']) =>
@@ -375,15 +388,15 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="created_at">Created date</SelectItem>
-                  <SelectItem value="maintenance_date">Next work date</SelectItem>
+                  <SelectItem value="name">{t('filterSortName')}</SelectItem>
+                  <SelectItem value="created_at">{t('filterSortCreated')}</SelectItem>
+                  <SelectItem value="maintenance_date">{t('filterSortNextWork')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2 sm:col-span-2">
-              <Label>Sort direction</Label>
+              <Label>{t('filterSortDirection')}</Label>
               <Select
                 value={draft.sort_dir}
                 onValueChange={(v: MachinesFiltersValue['sort_dir']) =>
@@ -394,8 +407,8 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent onCloseAutoFocus={preventRadixCloseAutoFocus}>
-                  <SelectItem value="asc">Ascending</SelectItem>
-                  <SelectItem value="desc">Descending</SelectItem>
+                  <SelectItem value="asc">{t('filterSortAsc')}</SelectItem>
+                  <SelectItem value="desc">{t('filterSortDesc')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -404,7 +417,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
 
         <div className="flex gap-2 border-t border-border p-2">
           <Button type="button" variant="outline" size="sm" className="flex-1" onClick={handleClear}>
-            Reset
+            {t('filterReset')}
           </Button>
           <Button
             type="button"
@@ -412,7 +425,7 @@ const MachinesFiltersPopover: React.FC<MachinesFiltersPopoverProps> = ({
             className="flex-1 bg-brand-primary hover:bg-brand-primary-hover"
             onClick={applyDraft}
           >
-            Apply
+            {t('filterApply')}
           </Button>
         </div>
       </PopoverContent>

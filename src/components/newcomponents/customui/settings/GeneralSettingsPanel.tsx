@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Accordion,
   AccordionContent,
@@ -10,18 +11,28 @@ import TimeFormatSettingsPanel from './TimeFormatSettingsPanel';
 import SavedStampSettingsPanel from './SavedStampSettingsPanel';
 import ProductionMachinePickPolicyPanel from './ProductionMachinePickPolicyPanel';
 import HelpGuidesSettingsPanel from './HelpGuidesSettingsPanel';
+import LanguageSettingsPanel from './LanguageSettingsPanel';
 
 const GeneralSettingsPanel: React.FC = () => {
+  const { t } = useTranslation('settings');
   return (
-    <Accordion type="single" collapsible defaultValue="timezone" className="w-full">
+    <Accordion type="single" collapsible defaultValue="language" className="w-full">
+      <AccordionItem value="language" className="border-border">
+        <AccordionTrigger className="py-4 hover:no-underline">
+          <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
+            <span className="text-base font-semibold text-card-foreground">{t('languageTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('languageDescription')}</span>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="pb-6">
+          <LanguageSettingsPanel />
+        </AccordionContent>
+      </AccordionItem>
       <AccordionItem value="timezone" className="border-border">
         <AccordionTrigger className="py-4 hover:no-underline">
           <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
-            <span className="text-base font-semibold text-card-foreground">Timezone</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              Event logs, discussions, and notifications display in this timezone. Calendar dates
-              (due dates, planned work) stay as entered.
-            </span>
+            <span className="text-base font-semibold text-card-foreground">{t('timezoneTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('timezoneDescription')}</span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">
@@ -31,10 +42,8 @@ const GeneralSettingsPanel: React.FC = () => {
       <AccordionItem value="time-format" className="border-border">
         <AccordionTrigger className="py-4 hover:no-underline">
           <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
-            <span className="text-base font-semibold text-card-foreground">Time format</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              Choose 24-hour clock or 12-hour with AM/PM for time pickers across the app.
-            </span>
+            <span className="text-base font-semibold text-card-foreground">{t('timeFormatTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('timeFormatDescription')}</span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">
@@ -44,11 +53,8 @@ const GeneralSettingsPanel: React.FC = () => {
       <AccordionItem value="production-machine-pick" className="border-border">
         <AccordionTrigger className="py-4 hover:no-underline">
           <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
-            <span className="text-base font-semibold text-card-foreground">Production machine picks</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              When assigning a machine to a batch step, choose warn-only or block rules for off,
-              maintenance, and schedule overlap.
-            </span>
+            <span className="text-base font-semibold text-card-foreground">{t('productionMachinePicksTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('productionMachinePicksDescription')}</span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">
@@ -58,10 +64,8 @@ const GeneralSettingsPanel: React.FC = () => {
       <AccordionItem value="page-guides" className="border-border">
         <AccordionTrigger className="py-4 hover:no-underline">
           <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
-            <span className="text-base font-semibold text-card-foreground">Page guides</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              First-visit walkthroughs on Orders and other pages. Reset to see them again.
-            </span>
+            <span className="text-base font-semibold text-card-foreground">{t('pageGuidesTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('pageGuidesDescription')}</span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">
@@ -71,10 +75,8 @@ const GeneralSettingsPanel: React.FC = () => {
       <AccordionItem value="saved-stamp" className="border-border">
         <AccordionTrigger className="py-4 hover:no-underline">
           <div className="flex flex-1 flex-col items-start gap-1 pr-2 text-left">
-            <span className="text-base font-semibold text-card-foreground">Saved stamp</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              Draw or upload a personal stamp to place on attachment markups.
-            </span>
+            <span className="text-base font-semibold text-card-foreground">{t('savedStampTitle')}</span>
+            <span className="text-sm font-normal text-muted-foreground">{t('savedStampDescription')}</span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">

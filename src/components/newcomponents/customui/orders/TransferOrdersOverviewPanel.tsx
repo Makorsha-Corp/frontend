@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TransferOrder } from '@/types/transferOrder';
 import type { TransferOrderHubStatsResponse } from '@/types/transferOrder';
 import type { TransferOrderSummaryStats } from '@/pages/newpages/orders/transferOrdersOverviewData';
@@ -27,6 +28,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
   onSelectOrder,
   hideOrderLists = false,
 }) => {
+  const { t } = useTranslation('orders');
   const activityOrders = useMemo(() => {
     if (hideOrderLists) return [];
     if (hubStats?.recent_orders?.length) {
@@ -38,7 +40,7 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
         <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-        <p className="text-sm">Loading overview…</p>
+        <p className="text-sm">{t('loadingOverview')}</p>
       </div>
     );
   }
@@ -50,24 +52,24 @@ const TransferOrdersOverviewPanel: React.FC<TransferOrdersOverviewPanelProps> = 
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <OrderOverviewKpiCard
-          title="Total transfers"
+          title={t('kpiTotalTransfers')}
           value={stats.totalCount}
-          footer="In current filter scope"
+          footer={t('kpiInFilterScope')}
         />
         <OrderOverviewKpiCard
-          title="Open pipeline"
+          title={t('kpiOpenPipeline')}
           value={stats.openCount}
-          footer="Not completed yet"
+          footer={t('kpiNotCompletedYet')}
         />
         <OrderOverviewKpiCard
-          title="Completed"
+          title={t('kpiCompleted')}
           value={stats.completedCount}
-          footer="Finished transfers"
+          footer={t('kpiFinishedTransfers')}
         />
         <OrderOverviewKpiCard
-          title="Machine legs"
+          title={t('kpiMachineLegs')}
           value={stats.machineInvolvedCount}
-          footer="In current filter scope"
+          footer={t('kpiInFilterScope')}
         />
       </div>
 

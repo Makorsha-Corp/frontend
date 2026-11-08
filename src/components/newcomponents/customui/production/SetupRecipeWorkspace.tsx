@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useTranslation } from 'react-i18next';
+
 import { Button } from '@/components/ui/button';
 
 import FormulaStageMaterialsBlock, {
@@ -115,6 +117,8 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
   onFocusFormulaHandled,
 
 }) => {
+
+  const { t } = useTranslation('production');
 
   const [selectedFormulaId, setSelectedFormulaId] = useState<number | null>(null);
 
@@ -394,7 +398,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
       const stepsOk = (await stepsRef.current?.save()) ?? true;
 
-      if (materialsOk && stepsOk) appToast.success('Recipe saved');
+      if (materialsOk && stepsOk) appToast.success(t('recipeSaved'));
 
     } finally {
 
@@ -416,7 +420,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
           <div className="flex min-w-0 items-center gap-0.5">
 
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recipes</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('recipes')}</span>
 
             <Tooltip>
 
@@ -432,7 +436,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
                   className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
 
-                  aria-label="About recipes"
+                  aria-label={t('aboutRecipes')}
 
                 >
 
@@ -444,7 +448,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
               <TooltipContent side="bottom" align="start" className="max-w-xs text-sm">
 
-                Each recipe has its own path and materials. Copy a recipe to reuse a path.
+                {t('aboutRecipesBody')}
 
               </TooltipContent>
 
@@ -464,7 +468,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
           {formulasError ? (
 
-            <p className="px-1 text-sm text-destructive">Failed to load recipes</p>
+            <p className="px-1 text-sm text-destructive">{t('failedRecipes')}</p>
 
           ) : loadingFormulas ? (
 
@@ -476,7 +480,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
           ) : formulas.length === 0 ? (
 
-            <p className="px-1 text-sm text-muted-foreground">No recipes yet.</p>
+            <p className="px-1 text-sm text-muted-foreground">{t('noRecipesYet')}</p>
 
           ) : (
 
@@ -522,7 +526,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
         {!formula ? (
 
-          <p className="p-4 text-sm text-muted-foreground">Add a recipe to define steps, inputs, and outputs.</p>
+          <p className="p-4 text-sm text-muted-foreground">{t('addRecipeHint')}</p>
 
         ) : (
 
@@ -546,12 +550,12 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
                   disabled={!recipeDirty || savingRecipe}
                   onClick={() => void saveRecipeEdits()}
                 >
-                  {savingRecipe ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                  {savingRecipe ? <Loader2 className="h-4 w-4 animate-spin" /> : t('save')}
                 </Button>
 
                 <Button type="button" size="sm" variant="outline" onClick={() => onEditRecipe(formula.id)}>
 
-                  Edit recipe
+                  {t('editRecipe')}
 
                 </Button>
 
@@ -671,7 +675,7 @@ const SetupRecipeWorkspace: React.FC<SetupRecipeWorkspaceProps> = ({
 
                 ) : (
 
-                  <p className="text-sm text-muted-foreground">Select a step to edit inputs and outputs.</p>
+                  <p className="text-sm text-muted-foreground">{t('selectStepHint')}</p>
 
                 )}
 

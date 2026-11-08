@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
-import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
+import SalesOrdersPageHeader from '@/components/newcomponents/customui/orders/SalesOrdersPageHeader';
 import { useGetSalesOrdersQuery, useGetSalesOrderByIdQuery } from '@/features/salesOrders/salesOrdersApi';
 import { useGetAccountsQuery } from '@/features/accounts/accountsApi';
 import { ClipboardList } from 'lucide-react';
@@ -92,20 +92,12 @@ const SalesOrdersPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <OrderHubShellHeader
-          icon={ClipboardList}
-          title="Sales Orders"
-          selectedOrderLabel={selectedOrder?.sales_order_number ?? null}
+        <SalesOrdersPageHeader
+          selectedOrderNumber={selectedOrder?.sales_order_number ?? null}
           onClearSelection={() => setSelectedOrder(null)}
-          backAriaLabel="Back to sales orders"
-          closeSelectionAriaLabel="Close sales order"
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
-          searchPlaceholder="Search by SO# or customer..."
-          searchAriaLabel="Search sales orders"
           onAdd={() => setIsAddOpen(true)}
-          addButtonLabel="Add Sales Order"
-          addAriaLabel="Add sales order"
         />
 
         <div className="flex-1 min-h-0 flex overflow-hidden bg-background">

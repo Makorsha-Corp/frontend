@@ -1,4 +1,21 @@
 import { formatDistanceToNow } from 'date-fns';
+import { bn, enUS } from 'date-fns/locale';
+import type { Locale } from 'date-fns';
+import i18n from '@/i18n';
+
+export function dateFnsLocale(): Locale {
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
+  return lang.startsWith('bn') ? bn : enUS;
+}
+
+export function activeIntlLocale(): string {
+  const lang = i18n.resolvedLanguage || i18n.language || 'en';
+  return lang.startsWith('bn') ? 'bn-BD' : 'en-US';
+}
+
+export function formatDistanceToNowLocalized(date: Date): string {
+  return formatDistanceToNow(date, { addSuffix: true, locale: dateFnsLocale() });
+}
 
 export interface DateTimeFormatOptions {
   timeZone?: string;
@@ -51,7 +68,7 @@ export function formatRelativeFromApi(
   try {
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return value;
-    return formatDistanceToNow(date, { addSuffix: true });
+    return formatDistanceToNow(date, { addSuffix: true, locale: dateFnsLocale() });
   } catch {
     return value;
   }
@@ -65,13 +82,13 @@ export function formatAbsoluteFromApi(
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return value;
     const tz = resolveTimeZone(timeZone);
-    const datePart = new Intl.DateTimeFormat(undefined, {
+    const datePart = new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: tz,
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     }).format(date);
-    const timePart = new Intl.DateTimeFormat(undefined, {
+    const timePart = new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: tz,
       hour: 'numeric',
       minute: '2-digit',
@@ -103,9 +120,9 @@ export function formatDiscussionDayLabelFromApi(
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return value;
     const tz = resolveTimeZone(timeZone);
-    if (isTodayInZone(date, tz)) return 'Today';
-    if (isYesterdayInZone(date, tz)) return 'Yesterday';
-    return new Intl.DateTimeFormat(undefined, {
+    if (isTodayInZone(date, tz)) return i18n.t('today');
+    if (isYesterdayInZone(date, tz)) return i18n.t('yesterday');
+    return new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: tz,
       weekday: 'long',
       month: 'long',
@@ -121,7 +138,7 @@ export function formatTimeFromApi(value: string, timeZone?: string): string {
   try {
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: resolveTimeZone(timeZone),
       hour: 'numeric',
       minute: '2-digit',
@@ -141,7 +158,7 @@ export function formatDateTimeFromApi(
   try {
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return '—';
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: resolveTimeZone(timeZone),
       month: 'short',
       day: 'numeric',
@@ -162,7 +179,7 @@ export function formatDateFromApi(
   if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
     const [year, month, day] = value.trim().split('-').map(Number);
     if (!year || !month || !day) return '—';
-    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    return new Date(year, month - 1, day).toLocaleDateString(activeIntlLocale(), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -171,7 +188,7 @@ export function formatDateFromApi(
   try {
     const date = parseApiDateTime(value);
     if (!date || Number.isNaN(date.getTime())) return '—';
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(activeIntlLocale(), {
       timeZone: resolveTimeZone(timeZone),
       year: 'numeric',
       month: 'short',

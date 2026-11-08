@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import AppShellHeader, {
   AppShellHeaderIconAction,
@@ -56,6 +57,7 @@ const hubSectionFromPath = (path: AccountsHubSectionPath): AccountsHubSection =>
 const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }> = ({
   initialSection,
 }) => {
+  const { t } = useTranslation('accounts');
   const [selectedSection, setSelectedSection] = useState<AccountsHubSectionPath>(
     initialSection ?? 'overview'
   );
@@ -223,7 +225,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               <div className={appShellHeaderIconTileClass}>
                 <Building2 className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className={appShellHeaderTitleClass}>Accounts</h1>
+              <h1 className={appShellHeaderTitleClass}>{t('title')}</h1>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <AppShellHeaderIconAction
@@ -280,14 +282,14 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               onClick={() => handleSectionSelect('overview')}
             />
             <AccountsHubSectionCard
-              title="Accounts Payable"
+              title={t('payablesTitle')}
               compactTitle="Payable"
               icon={ArrowDownLeft}
               iconContainerClassName="bg-amber-500/10"
               iconClassName="text-amber-600 dark:text-amber-400"
               tintClassName="bg-amber-500/[0.03] dark:bg-amber-500/[0.06]"
               value={formatCurrency(payableSectionMetrics.outstanding)}
-              subtitle="Accounts with open payables"
+              subtitle={t('payablesSubtitle')}
               compactSubtitle="Open payables"
               details={[
                 { label: 'Accounts in list', value: payableSectionMetrics.accountsInList },
@@ -298,14 +300,14 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
               onClick={() => handleSectionSelect('payable')}
             />
             <AccountsHubSectionCard
-              title="Accounts Receivable"
+              title={t('receivablesTitle')}
               compactTitle="Receivable"
               icon={ArrowUpRight}
               iconContainerClassName="bg-emerald-500/10"
               iconClassName="text-emerald-600 dark:text-emerald-400"
               tintClassName="bg-emerald-500/[0.03] dark:bg-emerald-500/[0.06]"
               value={formatCurrency(receivableSectionMetrics.outstanding)}
-              subtitle="Accounts with open receivables"
+              subtitle={t('receivablesSubtitle')}
               compactSubtitle="Open receivables"
               details={[
                 { label: 'Accounts in list', value: receivableSectionMetrics.accountsInList },

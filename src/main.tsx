@@ -1,3 +1,4 @@
+import '@/i18n';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import React from 'react'

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
   isFetching = false,
   onPageChange,
 }) => {
+  const { t } = useTranslation('common');
   const totalPages = pageCount(total, pageSize);
   const usePageSelect = totalPages <= MAX_PAGE_SELECT_OPTIONS;
   const [pageInput, setPageInput] = useState(String(page));
@@ -58,14 +60,14 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
 
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3 text-sm">
-      <span className="text-muted-foreground">Page</span>
+      <span className="text-muted-foreground">{t('paginationPage')}</span>
       {usePageSelect ? (
           <Select
             value={String(page)}
             onValueChange={(value) => onPageChange(Number(value))}
             disabled={isFetching || totalPages <= 1}
           >
-            <SelectTrigger className="h-8 w-[4.5rem]" aria-label="Go to page">
+            <SelectTrigger className="h-8 w-[4.5rem]" aria-label={t('paginationGoToPageAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -89,7 +91,7 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
               }}
               disabled={isFetching || totalPages <= 1}
               className="h-8 w-[4.5rem] px-2 tabular-nums"
-              aria-label="Go to page"
+              aria-label={t('paginationGoToPageAria')}
             />
             <Button
               type="button"
@@ -99,11 +101,13 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
               disabled={isFetching || totalPages <= 1}
               onClick={commitPageInput}
             >
-              Go
+              {t('paginationGo')}
             </Button>
           </>
         )}
-      <span className="text-muted-foreground">of {totalPages}</span>
+      <span className="text-muted-foreground">
+        {t('paginationOf')} {totalPages}
+      </span>
       <Button
         type="button"
         variant="outline"
@@ -111,7 +115,7 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
         className="h-8 w-8"
         disabled={page <= 1 || isFetching}
         onClick={() => onPageChange(page - 1)}
-        aria-label="Previous page"
+        aria-label={t('paginationPreviousAria')}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -122,7 +126,7 @@ const ListPagePagination: React.FC<ListPagePaginationProps> = ({
         className="h-8 w-8"
         disabled={page >= totalPages || isFetching}
         onClick={() => onPageChange(page + 1)}
-        aria-label="Next page"
+        aria-label={t('paginationNextAria')}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

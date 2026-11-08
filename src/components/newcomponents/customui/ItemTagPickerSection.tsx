@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { displayItemTagName } from '@/i18n/itemTagLabels';
+import type { UiLanguage } from '@/i18n/uiLanguage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +28,8 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
   tagListClassName,
   className,
 }) => {
+  const { t, i18n } = useTranslation(['items', 'misc']);
+  const language = i18n.language as UiLanguage;
   const [tagSearch, setTagSearch] = useState('');
   const [isTagsManagerOpen, setIsTagsManagerOpen] = useState(false);
   const { data: tags = [], isLoading: isTagsLoading, isError: isTagsError } = useGetTagsQuery();
@@ -72,7 +77,7 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
     <>
       <div className={cn('grid gap-2', className)}>
         <div className="flex items-center justify-between gap-2">
-          <Label>Tags (Optional)</Label>
+          <Label>{t('tagsOptionalLabel')}</Label>
           <Button
             type="button"
             variant="outline"
@@ -81,25 +86,23 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
             onClick={() => setIsTagsManagerOpen(true)}
           >
             <Tags className="h-3.5 w-3.5 mr-1.5" />
-            Manage Tags
+            {t('manageTags')}
           </Button>
         </div>
 
         {isTagsLoading && tags.length === 0 ? (
           <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-            Loading tags…
+            {t('loadingTags')}
           </div>
         ) : isTagsError ? (
           <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-sm text-destructive">
-            Could not load tags. Check your connection and workspace, or use Manage Tags after saving.
+            {t('tagsLoadErrorPicker')}
           </p>
         ) : (
           <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
             {tags.length === 0 && (
-              <div className="text-xs text-muted-foreground">
-                No tags yet — use Manage Tags to create some, then pick them here.
-              </div>
+              <div className="text-xs text-muted-foreground">{t('noTagsYetPickerHint')}</div>
             )}
 
             <div
@@ -108,7 +111,7 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
               }`}
             >
               {selectedTags.length === 0 ? (
-                <span className="text-xs text-muted-foreground px-1">No tags selected</span>
+                <span className="text-xs text-muted-foreground px-1">{t('noTagsSelected')}</span>
               ) : (
                 selectedTags.map((tag) => (
                   <span
@@ -119,12 +122,12 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: tag.color || '#9067c6' }}
                     />
-                    <span className="truncate">{tag.name}</span>
+                    <span className="truncate">{displayItemTagName(tag, t, language)}</span>
                     <button
                       type="button"
                       onClick={() => removeTag(tag.id)}
                       className="shrink-0 rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                      aria-label={`Remove ${tag.name}`}
+                      aria-label={t('removeTagAria', { name: displayItemTagName(tag, t, language) })}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -137,7 +140,7 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
                 type="search"
-                placeholder="Search tags by name, code, or description…"
+                placeholder={t('searchTagsDetailedPlaceholder')}
                 value={tagSearch}
                 onChange={(e) => setTagSearch(e.target.value)}
                 className="pl-9 h-9 bg-background"
@@ -155,12 +158,12 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
               {unselectedFilteredTags.length === 0 ? (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                   {tags.length > 0 && selectedTagIds.length === tags.length
-                    ? 'All tags are selected'
+                    ? t('allTagsSelected')
                     : tagSearch.trim()
-                      ? 'No tags match your search'
+                      ? t('noTagsMatchSearchShort')
                       : tags.length === 0
-                        ? 'Create tags with Manage Tags above'
-                        : 'No tags to show'}
+                        ? t('createTagsWithManage')
+                        : t('noTagsToShow')}
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
@@ -175,10 +178,12 @@ const ItemTagPickerSection: React.FC<ItemTagPickerSectionProps> = ({
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: tag.color || '#9067c6' }}
                         />
-                        <span className="min-w-0 flex-1 truncate font-medium">{tag.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {displayItemTagName(tag, t, language)}
+                        </span>
                         {tag.is_system_tag && (
                           <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                            System
+                            {t('systemTagBadge')}
                           </span>
                         )}
                       </button>

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useLoginMutation, useRegisterMutation } from '@/features/auth/authApi';
+import { useLoginMutation, useRegisterMutation, useUpdateMeMutation } from '@/features/auth/authApi';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { setCredentials } from '@/features/auth/authSlice';
+import { setCredentials, updateUser } from '@/features/auth/authSlice';
+import { useTranslation } from 'react-i18next';
+import UiLanguageToggle from '@/components/newcomponents/customui/UiLanguageToggle';
+import { mergeUserUiLanguage, syncLanguageAfterAuth } from '@/i18n/syncLanguageAfterAuth';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +68,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
       <nav
         className={cn(
           'flex items-center gap-0.5 sm:gap-1',
-          compact ? 'shrink-0 flex-nowrap justify-end' : 'flex-wrap justify-end sm:gap-2'
+          compact ? 'shrink-0 flex-nowrap justify-end' : 'flex-wrap justify-end sm:gap-2 lg:flex-nowrap'
         )}
         aria-label="Marketing"
       >
@@ -87,6 +90,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
         >
           About
         </a>
+        <UiLanguageToggle size="sm" className="shrink-0" />
         <Button
           variant="outline"
           size="icon"
@@ -192,8 +196,10 @@ const Login2Page: React.FC = () => {
   const isLgScreen = useIsLgScreen();
   const loginTheme = theme === 'dark' ? 'dark' : 'light';
 
+  const { t } = useTranslation('auth');
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
+  const [updateMe] = useUpdateMeMutation();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -236,9 +242,21 @@ const Login2Page: React.FC = () => {
   const performLogin = async (email: string, password: string) => {
     const response = await login({ email, password }).unwrap();
 
+    const langSync = await syncLanguageAfterAuth(response.user);
+    let user = langSync.user;
+    if (langSync.shouldPatchAccount && langSync.patchLanguage) {
+      try {
+        const patched = await updateMe({ ui_language: langSync.patchLanguage }).unwrap();
+        user = mergeUserUiLanguage(response.user, patched.ui_language);
+        dispatch(updateUser({ ui_language: user.ui_language }));
+      } catch {
+        /* keep local preference in i18n even if PATCH fails */
+      }
+    }
+
     dispatch(
       setCredentials({
-        user: response.user,
+        user,
         token: response.access_token,
         refreshToken: response.refresh_token,
       })
@@ -254,7 +272,7 @@ const Login2Page: React.FC = () => {
         }
       });
     } else {
-      appToast.success('Login successful!', {
+      appToast.success(t('loginSuccess'), {
         id: APP_TOAST_IDS.loginSuccess,
         duration: APP_TOAST_DURATIONS.auth,
       });
@@ -267,7 +285,7 @@ const Login2Page: React.FC = () => {
     e.preventDefault();
 
     if (!loginEmail || !loginPassword) {
-      appToast.error('Email and password are required');
+      appToast.error(t('emailPasswordRequired'));
       return;
     }
 
@@ -276,7 +294,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Login error:', error);
       const err = error as { data?: { detail?: string } };
-      appToast.error(apiErrorDetail(err, 'Login failed. Please check your credentials.'));
+      appToast.error(apiErrorDetail(err, t('loginFailed')));
     }
   };
 
@@ -286,7 +304,7 @@ const Login2Page: React.FC = () => {
     } catch (error: unknown) {
       console.error('Dev login error:', error);
       const err = error as { data?: { detail?: string } };
-      appToast.error(apiErrorDetail(err, 'Dev quick login failed.'));
+      appToast.error(apiErrorDetail(err, t('devQuickLoginFailed')));
     }
   };
 
@@ -294,12 +312,12 @@ const Login2Page: React.FC = () => {
     e.preventDefault();
 
     if (!registerName || !registerEmail || !registerPassword) {
-      appToast.error('All fields are required');
+      appToast.error(t('allFieldsRequired'));
       return;
     }
 
     if (registerPassword.length < 8) {
-      appToast.error('Password must be at least 8 characters');
+      appToast.error(t('passwordMinLength'));
       return;
     }
 
@@ -312,19 +330,30 @@ const Login2Page: React.FC = () => {
         timezone: registerTimezone,
       }).unwrap();
 
+      const langSync = await syncLanguageAfterAuth(response.user);
+      let user = langSync.user;
+      if (langSync.shouldPatchAccount && langSync.patchLanguage) {
+        try {
+          const patched = await updateMe({ ui_language: langSync.patchLanguage }).unwrap();
+          user = mergeUserUiLanguage(response.user, patched.ui_language);
+        } catch {
+          /* local preference already applied */
+        }
+      }
+
       dispatch(
         setCredentials({
-          user: response.user,
+          user,
           token: response.access_token,
           refreshToken: response.refresh_token,
         })
       );
 
-      appToast.success('Account created! Now set up your workspace.');
+      appToast.success(t('registerSuccess'));
       navigate('/workspace-selector');
     } catch (error) {
       console.error('Registration error:', error);
-      appToast.error(apiErrorDetail(error, 'Registration failed. Please try again.'));
+      appToast.error(apiErrorDetail(error, t('registerFailed')));
     }
   };
 
@@ -347,7 +376,7 @@ const Login2Page: React.FC = () => {
           className={cn('pointer-events-none absolute inset-0', loginAsideWashClass(loginTheme))}
           aria-hidden
         />
-        <header className="relative z-10 hidden flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background px-5 py-4 sm:px-8 lg:flex">
+        <header className="relative z-10 hidden flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-background px-5 py-4 sm:px-8 lg:flex lg:flex-nowrap">
           <LoginPageChrome theme={theme} toggleTheme={toggleTheme} />
         </header>
 
@@ -375,7 +404,7 @@ const Login2Page: React.FC = () => {
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 )}
               >
-                Sign In
+                {t('signInTab')}
               </button>
               <button
                 type="button"
@@ -387,26 +416,24 @@ const Login2Page: React.FC = () => {
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 )}
               >
-                Create Account
+                {t('createAccountTab')}
               </button>
             </div>
 
             {mode === 'login' && (
               <>
                 <CardHeader className="space-y-1 px-8 pb-4 pt-6 sm:px-10">
-                  <CardTitle className="text-2xl font-bold text-center text-card-foreground">Welcome Back</CardTitle>
-                  <CardDescription className="text-center">
-                    Sign in to access your workspace
-                  </CardDescription>
+                  <CardTitle className="text-2xl font-bold text-center text-card-foreground">{t('welcomeBack')}</CardTitle>
+                  <CardDescription className="text-center">{t('signInDescription')}</CardDescription>
                 </CardHeader>
                 <form onSubmit={handleLogin}>
                   <CardContent className="space-y-4 px-8 pb-6 pt-0 sm:px-10">
                     <div className="space-y-2">
-                      <Label htmlFor="login-email">Email Address</Label>
+                      <Label htmlFor="login-email">{t('emailLabel')}</Label>
                       <Input
                         id="login-email"
                         type="email"
-                        placeholder="email@example.com"
+                        placeholder={t('emailPlaceholder')}
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
                         required
@@ -414,11 +441,11 @@ const Login2Page: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
+                      <Label htmlFor="login-password">{t('passwordLabel')}</Label>
                       <Input
                         id="login-password"
                         type="password"
-                        placeholder="Enter your password"
+                        placeholder={t('passwordPlaceholder')}
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         required
@@ -431,10 +458,10 @@ const Login2Page: React.FC = () => {
                       {isLoggingIn ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Signing In...
+                          {t('signingIn')}
                         </>
                       ) : (
-                        'Sign In'
+                        t('signInButton')
                       )}
                     </Button>
                     {import.meta.env.DEV ? (

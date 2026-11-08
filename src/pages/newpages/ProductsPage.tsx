@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ function parseProductsDeepLink(params: URLSearchParams): {
 }
 
 const ProductsPage: React.FC = () => {
+  const { t } = useTranslation('inventory');
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLink = useMemo(() => parseProductsDeepLink(searchParams), [searchParams]);
   const { factoryId, setFactoryId } = usePageFactoryScopeId({
@@ -168,13 +170,13 @@ const ProductsPage: React.FC = () => {
   }, [factories]);
 
   const handleDeleteProduct = async (prod: Product) => {
-    if (!window.confirm(`Deactivate "${prod.item_name ?? `Item #${prod.item_id}`}" product?`)) return;
+    if (!window.confirm(t('deactivateProduct', { name: prod.item_name ?? t('itemNumber', { id: prod.item_id }) }))) return;
     try {
       await deleteProduct(prod.id).unwrap();
-      appToast.success('Product deactivated');
+      appToast.success(t('productDeactivated'));
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to deactivate');
+      appToast.error(e?.data?.detail || t('failedDeactivate'));
     }
   };
 
@@ -184,16 +186,16 @@ const ProductsPage: React.FC = () => {
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Package className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">{t('noFactoriesTitle')}</h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can access products. Set up a factory to start tracking finished goods.
+            {t('noFactoriesProductsBody')}
           </p>
           <Button
             size="lg"
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
-            Create Your First Factory
+            {t('createFirstFactory')}
           </Button>
 
           <AddFactoryDialog
@@ -214,7 +216,7 @@ const ProductsPage: React.FC = () => {
               <div className={appShellHeaderIconTileClass} aria-hidden>
                 <Package className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className={appShellHeaderTitleClass}>Products</h1>
+              <h1 className={appShellHeaderTitleClass}>{t('productsTitle')}</h1>
               <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
               <MachinesInlineLocationFilters
                 which="factories"
@@ -236,7 +238,7 @@ const ProductsPage: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder={t('searchProducts')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`pl-9 ${appShellHeaderControlClass} bg-background`}

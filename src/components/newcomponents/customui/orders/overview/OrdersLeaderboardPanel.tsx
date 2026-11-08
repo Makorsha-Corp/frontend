@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,8 @@ const OrdersLeaderboardPanel: React.FC<OrdersLeaderboardPanelProps> = ({
   embedded = false,
   onRowClick,
 }) => {
+  const { t } = useTranslation('orders');
+  const resolvedEmpty = emptyMessage ?? t('noDataInRange');
   const maxValue = rows.length > 0 ? Math.max(...rows.map((r) => r.value), 1) : 1;
 
   const body = isLoading ? (
@@ -38,7 +41,7 @@ const OrdersLeaderboardPanel: React.FC<OrdersLeaderboardPanelProps> = ({
             <Loader2 className="h-7 w-7 animate-spin text-brand-primary" />
           </div>
         ) : rows.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{resolvedEmpty}</p>
         ) : (
           <div className="space-y-3">
             {rows.map((row, index) => {

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
   sections,
   factoryFilter,
 }) => {
+  const { t } = useTranslation('production');
   const filterCount = useMemo(
     () =>
       countProductionHeaderFilters({
@@ -104,7 +106,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
           className={cn('shrink-0 gap-1.5', appShellHeaderControlClass)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {t('filters')}
           {filterCount > 0 ? (
             <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
               {filterCount}
@@ -120,7 +122,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
         <div className="max-h-[min(70vh,32rem)] space-y-4 overflow-y-auto p-3">
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Production lines
+              {t('productionLines')}
             </p>
             <ProductionRunsLineFilter
               lines={lines}
@@ -134,7 +136,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
             <>
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Date range
+                  {t('dateRange')}
                 </p>
                 <ProductionOverviewDateRangeFilter
                   batchDateFrom={batchDateFrom}
@@ -145,7 +147,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Status
+                  {t('status')}
                 </p>
                 <ProductionBatchStatusFilter
                   batchStatusFilter={batchStatusFilter}
@@ -157,7 +159,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Activity recipes
+                  {t('activityRecipes')}
                 </p>
                 <ProductionActivityRecipeFilter
                   formulas={formulas}
@@ -173,7 +175,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
             <>
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Status
+                  {t('status')}
                 </p>
                 <ProductionBatchStatusFilter
                   batchStatusFilter={batchStatusFilter}
@@ -185,7 +187,7 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Machine
+                  {t('machine')}
                 </p>
                 <WorkOrdersMachineFilter
                   machineFilter={runsMachine}
@@ -207,3 +209,4 @@ const ProductionHeaderFilters: React.FC<ProductionHeaderFiltersProps> = ({
 };
 
 export default ProductionHeaderFilters;
+

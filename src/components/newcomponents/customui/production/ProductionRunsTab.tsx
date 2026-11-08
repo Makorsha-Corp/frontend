@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { endOfDay, format, parseISO, startOfDay, startOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import ProductionRunsToolbar from '@/components/newcomponents/customui/production/ProductionRunsToolbar';
@@ -141,6 +142,7 @@ const ProductionRunsTab: React.FC<ProductionRunsTabProps> = ({
   selectedBatchId,
   onSelectedBatchChange,
 }) => {
+  const { t } = useTranslation('production');
   const [programsOpen, setProgramsOpen] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(() => startOfMonth(parseISO(dayIso)));
   const { data: workspaceShifts = [] } = useGetWorkspaceShiftsQuery({ activeOnly: true });
@@ -254,15 +256,15 @@ const ProductionRunsTab: React.FC<ProductionRunsTabProps> = ({
     onHeaderControls?.(
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => setProgramsOpen(true)}>
-          Recurring programs
+          {t('recurringPrograms')}
         </Button>
         <Button type="button" size="sm" onClick={() => onNewRun(mode === 'day' ? parseISO(dayIso) : null)}>
-          New batch
+          {t('newBatch')}
         </Button>
       </div>,
     );
     return () => onHeaderControls?.(null);
-  }, [onHeaderControls, onNewRun, mode, dayIso]);
+  }, [onHeaderControls, onNewRun, mode, dayIso, t]);
 
   const openDayView = (day: Date, batchId?: number | null) => {
     setPickerMonth(startOfMonth(day));
@@ -333,16 +335,16 @@ const ProductionRunsTab: React.FC<ProductionRunsTabProps> = ({
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
               <h2 className="min-w-0 truncate text-base font-semibold text-card-foreground">
-                Batches
+                {t('batches')}
                 <span className="ml-1.5 font-normal text-muted-foreground">({listBatches.length})</span>
               </h2>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {listBatches.length === 0 ? (
                 <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 px-4 text-center text-sm text-muted-foreground">
-                  <p>No batches match.</p>
+                  <p>{t('noBatchesMatch')}</p>
                   <Button size="sm" onClick={() => onNewRun(mode === 'day' ? parseISO(dayIso) : null)}>
-                    New batch
+                    {t('newBatch')}
                   </Button>
                 </div>
               ) : (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +54,7 @@ const FactoriesFactoryAttentionPanel: React.FC<FactoriesFactoryAttentionPanelPro
   loading,
   className,
 }) => {
+  const { t } = useTranslation(['factories', 'machines', 'common']);
   const hasItems = factoryAttentionHasItems(attention);
 
   return (
@@ -60,24 +62,24 @@ const FactoriesFactoryAttentionPanel: React.FC<FactoriesFactoryAttentionPanelPro
       <CardHeader className="shrink-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-card-foreground">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-          Needs attention
+          {t('needsAttention')}
         </CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 overflow-y-auto pt-0">
         {loading ? (
           <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading…
+            {t('loading', { ns: 'common' })}
           </div>
         ) : !hasItems ? (
-          <p className="py-4 text-sm text-muted-foreground">Nothing needs attention.</p>
+          <p className="py-4 text-sm text-muted-foreground">{t('nothingNeedsAttention')}</p>
         ) : (
           <div className="space-y-4">
-            <AttentionSection title="Machine work due" rows={attention.maintenanceDue} />
-            <AttentionSection title="Idle" rows={attention.idle} />
-            <AttentionSection title="Off" rows={attention.off} />
-            <AttentionSection title="Unassigned machines" rows={attention.unassigned} />
-            <AttentionSection title="Draft batches" rows={attention.draftBatches} />
+            <AttentionSection title={t('attentionMachineWork')} rows={attention.maintenanceDue} />
+            <AttentionSection title={t('idle', { ns: 'machines' })} rows={attention.idle} />
+            <AttentionSection title={t('off', { ns: 'machines' })} rows={attention.off} />
+            <AttentionSection title={t('attentionUnassigned')} rows={attention.unassigned} />
+            <AttentionSection title={t('attentionDraftBatches')} rows={attention.draftBatches} />
           </div>
         )}
       </CardContent>

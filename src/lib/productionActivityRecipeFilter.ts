@@ -66,14 +66,22 @@ export function isDefaultActivityRecipeFilter(selectedIds: number[]): boolean {
   return selectedIds.length === 0;
 }
 
+export type ActivityRecipeFilterCopy = {
+  noRecipes?: string;
+  allRecipes?: string;
+  oneRecipe?: string;
+  recipeCount?: (count: number) => string;
+};
+
 export function productionActivityRecipeFilterLabel(
   formulas: { id: number; name: string }[],
   selectedIds: number[],
+  copy?: ActivityRecipeFilterCopy,
 ): string {
-  if (isNoActivityRecipesSelected(selectedIds)) return 'No recipes';
-  if (isDefaultActivityRecipeFilter(selectedIds)) return 'All recipes';
+  if (isNoActivityRecipesSelected(selectedIds)) return copy?.noRecipes ?? 'No recipes';
+  if (isDefaultActivityRecipeFilter(selectedIds)) return copy?.allRecipes ?? 'All recipes';
   if (selectedIds.length === 1) {
-    return formulas.find((f) => f.id === selectedIds[0])?.name ?? '1 recipe';
+    return formulas.find((f) => f.id === selectedIds[0])?.name ?? copy?.oneRecipe ?? '1 recipe';
   }
-  return `${selectedIds.length} recipes`;
+  return copy?.recipeCount?.(selectedIds.length) ?? `${selectedIds.length} recipes`;
 }

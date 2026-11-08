@@ -1,6 +1,7 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNowLocalized } from '@/utils/datetime';
 import { Activity, ChevronRight, Cog, Loader2, Package, Warehouse } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { FactoryActivityItem } from '@/pages/newpages/factories/factoriesOverviewData';
@@ -29,22 +30,24 @@ const FactoriesFactoryActivityFeed: React.FC<FactoriesFactoryActivityFeedProps> 
   activities,
   loading,
   className,
-}) => (
+}) => {
+  const { t } = useTranslation(['factories', 'common']);
+  return (
   <Card className={cn('flex h-full min-h-0 flex-col border-border bg-card shadow-sm', className)}>
     <CardHeader className="shrink-0 pb-3">
       <CardTitle className="flex items-center gap-2 text-base font-semibold">
         <Activity className="h-4 w-4 text-muted-foreground" />
-        Recent activity (7d)
+        {t('recentActivityTitle')}
       </CardTitle>
     </CardHeader>
     <CardContent className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0">
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading activity…
+          {t('loadingActivity')}
         </div>
       ) : activities.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No recent activity.</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">{t('noRecentActivity')}</p>
       ) : (
         <div className="space-y-2">
           {activities.map((item) => {
@@ -58,7 +61,7 @@ const FactoriesFactoryActivityFeed: React.FC<FactoriesFactoryActivityFeedProps> 
                   <p className="truncate text-xs text-muted-foreground">{item.subtext}</p>
                 </div>
                 <span className="mt-0.5 shrink-0 text-[11px] text-muted-foreground">
-                  {formatDistanceToNow(item.timestamp, { addSuffix: true })}
+                  {formatDistanceToNowLocalized(item.timestamp)}
                 </span>
                 {item.href ? (
                   <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -88,6 +91,7 @@ const FactoriesFactoryActivityFeed: React.FC<FactoriesFactoryActivityFeedProps> 
       )}
     </CardContent>
   </Card>
-);
+  );
+};
 
 export default FactoriesFactoryActivityFeed;

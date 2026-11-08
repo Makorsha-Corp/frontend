@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Machine } from '@/types/machine';
@@ -29,6 +30,7 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
   onSelect,
   onExpandDetails,
 }) => {
+  const { t } = useTranslation('machines');
   const kind = getMachineVisualKind(machine);
   const expand = onExpandDetails ?? onSelect;
   const showExpandButton = onExpandDetails != null;
@@ -78,8 +80,8 @@ export const MachineListCard: React.FC<MachineListCardProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 shrink-0 text-muted-foreground hover:text-brand-primary"
-              aria-label="Open full details"
-              title="Full details"
+              aria-label={t('openFullDetailsAria')}
+              title={t('fullDetailsTooltip')}
               onClick={(e) => {
                 e.stopPropagation();
                 onExpandDetails!();

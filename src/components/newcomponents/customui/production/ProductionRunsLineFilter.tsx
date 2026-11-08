@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,7 +17,7 @@ import {
   productionRunsLineFilterLabel,
 } from '@/components/newcomponents/customui/production/productionRunsLineFilterUtils';
 import type { ProductionLine } from '@/types/production';
-import { preventRadixCloseAutoFocus } from '@/lib/radixFloatingLayer';
+import { productionFilterCopy } from '@/components/newcomponents/customui/production/productionStatusLabel';
 import { cn } from '@/lib/utils';
 
 export interface ProductionRunsLineFilterProps {
@@ -34,6 +35,8 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
   onSelectedLineIdsChange,
   className,
 }) => {
+  const { t } = useTranslation('production');
+  const copy = useMemo(() => productionFilterCopy(t), [t]);
   const [open, setOpen] = useState(false);
   const [draftLineIds, setDraftLineIds] = useState<number[]>(selectedLineIds);
 
@@ -43,8 +46,8 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
   }, [open, selectedLineIds]);
 
   const displayLine = useMemo(
-    () => productionRunsLineFilterLabel(lines, selectedLineIds),
-    [lines, selectedLineIds],
+    () => productionRunsLineFilterLabel(lines, selectedLineIds, copy),
+    [lines, selectedLineIds, copy],
   );
   const showClear = !isProductionRunsLineFilterDefault(selectedLineIds, lines);
   const allLineIds = useMemo(() => allProductionLineIds(lines), [lines]);
@@ -67,8 +70,8 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
           <MachineSelectSummaryButton
             ariaLabel={
               isAllProductionLinesSelected(selectedLineIds, lines)
-                ? 'Filter by production line. Currently showing all lines.'
-                : `Filter by production line. Current: ${displayLine}`
+                ? t('filterLinesAllAria')
+                : t('filterLinesCurrentAria', { label: displayLine })
             }
             selectedLine={displayLine}
             compactLabel
@@ -81,14 +84,14 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
         </PopoverTrigger>
         <PopoverContent align="end" className="w-[min(18rem,94vw)] p-0">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-foreground">Production lines</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('productionLines')}</h3>
             <Button type="button" size="sm" className="h-8 shrink-0" onClick={applyDraft}>
-              Apply
+              {t('apply')}
             </Button>
           </div>
           <div className="max-h-[min(16rem,50vh)] overflow-y-auto p-3">
             {lines.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No lines in this factory.</p>
+              <p className="text-sm text-muted-foreground">{t('noLinesInFactory')}</p>
             ) : (
               <ul className="space-y-2">
                 {lines.map((line) => (
@@ -114,7 +117,7 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
               className="flex-1"
               onClick={() => setDraftLineIds(allLineIds)}
             >
-              All
+              {t('all')}
             </Button>
             <Button
               type="button"
@@ -123,7 +126,7 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
               className="flex-1"
               onClick={() => setDraftLineIds([])}
             >
-              None
+              {t('none')}
             </Button>
           </div>
         </PopoverContent>
@@ -135,7 +138,7 @@ const ProductionRunsLineFilter: React.FC<ProductionRunsLineFilterProps> = ({
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground"
-          aria-label="Reset line filter to all lines"
+          aria-label={t('resetLinesAria')}
           onClick={() => onSelectedLineIdsChange(allLineIds)}
         >
           <X className="h-4 w-4" />

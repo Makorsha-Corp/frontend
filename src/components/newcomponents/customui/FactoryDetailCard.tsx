@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -72,7 +73,10 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
   onEdit,
   onDelete,
   isDeleting,
-}) => (
+}) => {
+  const { t } = useTranslation('factories');
+  const { t: tMachines } = useTranslation('machines');
+  return (
   <Card
     className="group flex h-full min-w-[380px] max-w-[460px] shrink-0 cursor-pointer flex-col border-border transition-all hover:border-brand-primary/30 hover:shadow-md snap-start relative overflow-hidden"
     onClick={onOpen}
@@ -84,12 +88,12 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
             <Layers className={brandIconGlyphClass} strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Section</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">{t('sectionLabelOne')}</p>
             <CardTitle className="truncate text-base font-semibold leading-tight text-card-foreground">
               {section.name}
             </CardTitle>
             <p className="truncate text-xs text-muted-foreground mt-1">
-              {factoryName} · ID {section.id}
+              {t('sectionIdLine', { factory: factoryName, id: section.id })}
             </p>
           </div>
         </div>
@@ -103,7 +107,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
         <div className="flex items-center gap-2">
           <Cog className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">Total</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{t('metricTotal')}</span>
             <span className="text-sm font-semibold tabular-nums text-card-foreground leading-none">{stats.total}</span>
           </div>
         </div>
@@ -111,7 +115,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
         <div className="flex items-center gap-2">
           <Play className="h-4 w-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">Running</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{tMachines('running')}</span>
             <span className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 leading-none">
               {stats.running}
             </span>
@@ -121,7 +125,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
         <div className="flex items-center gap-2">
           <Pause className="h-4 w-4 text-red-600 dark:text-red-400" strokeWidth={2} />
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">Stopped</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{t('metricStopped')}</span>
             <span className="text-sm font-semibold tabular-nums text-red-700 dark:text-red-400 leading-none">
               {stats.notRunning}
             </span>
@@ -131,7 +135,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
         <div className="flex items-center gap-2">
           <Wrench className={cn("h-4 w-4", stats.maintDue > 0 ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground")} strokeWidth={2} />
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">Maint</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{t('metricMaint')}</span>
             <span className={cn("text-sm font-semibold tabular-nums leading-none", stats.maintDue > 0 ? 'text-amber-800 dark:text-amber-400' : 'text-card-foreground')}>
               {stats.maintDue}
             </span>
@@ -141,7 +145,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
         <div className="flex items-center gap-2 min-w-0 col-span-2 pt-2 border-t border-border/50">
           <ClipboardList className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">Orders</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">{t('metricOrders')}</span>
             <span className="text-sm font-semibold tabular-nums text-muted-foreground leading-none">—</span>
           </div>
         </div>
@@ -168,7 +172,7 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
                   <Pencil className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Edit section</TooltipContent>
+              <TooltipContent>{t('editSectionTooltip')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -185,14 +189,15 @@ const FactorySectionCard: React.FC<FactorySectionCardProps> = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Deactivate section</TooltipContent>
+              <TooltipContent>{t('deactivateSectionTooltip')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
       </div>
     </CardContent>
   </Card>
-);
+  );
+};
 
 interface FactoryDetailCardProps {
   factoryId: number;
@@ -200,6 +205,8 @@ interface FactoryDetailCardProps {
 }
 
 const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClose }) => {
+  const { t } = useTranslation('factories');
+  const { t: tCommon } = useTranslation('common');
   const navigate = useNavigate();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddSectionDialogOpen, setIsAddSectionDialogOpen] = useState(false);
@@ -248,10 +255,18 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
       upcomingWork,
       sectionById,
       7,
-      factory.abbreviation
+      factory.abbreviation,
+      {
+        unassigned: t('attentionUnassigned'),
+        sectionFallback: t('fallbackSection', { ns: 'machines' }),
+        draft: t('workStatusDraft'),
+        recurring: t('workStatusRecurring'),
+        inProgress: t('workStatusInProgress'),
+        workOrder: t('workStatusWorkOrder'),
+      },
     );
     return [...split.overdueRows, ...split.upcomingRows];
-  }, [factory, upcomingWork, sectionById]);
+  }, [factory, upcomingWork, sectionById, t]);
 
   const sectionStats = React.useMemo(() => {
     const statsMap = new Map<number, SectionMachineStats>();
@@ -297,15 +312,15 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
   };
 
   const handleDeleteSection = async (section: FactorySection) => {
-    if (!window.confirm(`Are you sure you want to deactivate "${section.name}"? This is a soft delete.`)) {
+    if (!window.confirm(t('deactivateSectionConfirm', { name: section.name }))) {
       return;
     }
     try {
       await deleteSection(section.id).unwrap();
-      appToast.success(`Section "${section.name}" has been deactivated`);
+      appToast.success(t('deactivateSectionSuccess', { name: section.name }));
     } catch (error) {
       console.error('Failed to deactivate section:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to deactivate section'));
+      appToast.error(apiErrorDetail(error, t('deactivateSectionFailed')));
     }
   };
 
@@ -313,9 +328,9 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     return (
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="min-h-[400px] flex flex-col items-center justify-center p-0">
-          <DialogTitle className="sr-only">Loading Factory</DialogTitle>
+          <DialogTitle className="sr-only">{t('detailLoadingTitle')}</DialogTitle>
           <Loader2 className="h-12 w-12 animate-spin text-brand-primary mb-4" />
-          <p className="text-muted-foreground">Loading factory details...</p>
+          <p className="text-muted-foreground">{t('detailLoading')}</p>
         </DialogContent>
       </Dialog>
     );
@@ -325,10 +340,10 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
     return (
       <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="min-h-[400px] flex flex-col items-center justify-center p-0">
-          <DialogTitle className="sr-only">Error Loading Factory</DialogTitle>
-          <p className="text-destructive mb-4">Factory not found.</p>
+          <DialogTitle className="sr-only">{t('detailErrorTitle')}</DialogTitle>
+          <p className="text-destructive mb-4">{t('factoryNotFound')}</p>
           <Button onClick={onClose} variant="outline">
-            Close
+            {tCommon('close')}
           </Button>
         </DialogContent>
       </Dialog>
@@ -338,8 +353,8 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[95vw] md:max-w-4xl p-0 overflow-hidden border-border bg-background max-h-[90vh] flex flex-col gap-0">
-        <DialogTitle className="sr-only">Factory Details - {factory.name}</DialogTitle>
-        <DialogDescription className="sr-only">Details, machines and sections for {factory.name}.</DialogDescription>
+        <DialogTitle className="sr-only">{t('detailDialogTitle', { name: factory.name })}</DialogTitle>
+        <DialogDescription className="sr-only">{t('detailDialogDescription', { name: factory.name })}</DialogDescription>
         
         {/* Scrollable Container inside Dialog */}
         <div className="flex-1 overflow-y-auto min-h-[60vh]">
@@ -358,7 +373,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                        {factory.abbreviation}
                      </span>
                    </div>
-                   <p className="text-sm text-muted-foreground mt-1 tabular-nums">Factory ID: #{factory.id}</p>
+                   <p className="text-sm text-muted-foreground mt-1 tabular-nums">{t('factoryIdLabel', { id: factory.id })}</p>
                 </div>
               </div>
 
@@ -370,7 +385,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                       onClick={() => setIsEditDialogOpen(true)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
-                      Edit Factory
+                      {t('editFactoryButton')}
                   </Button>
                   <Button
                       size="sm"
@@ -378,7 +393,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                       onClick={() => setIsAddSectionDialogOpen(true)}
                     >
                       <Plus className="mr-1 h-4 w-4" />
-                      Add Section
+                      {t('addSection')}
                   </Button>
               </div>
             </div>
@@ -389,7 +404,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
              {/* At a Glance Section */}
              <div className="rounded-xl border border-border/70 bg-card px-5 py-4 shadow-sm">
                 <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  At a glance
+                  {t('atAGlance')}
                 </p>
                 <div className="grid grid-cols-2 gap-5 sm:grid-cols-2">
                   <div className="flex min-w-0 items-start gap-4">
@@ -401,7 +416,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                         {sections.length}
                       </p>
                       <p className="mt-2 text-sm font-medium text-muted-foreground">
-                        {sections.length === 1 ? 'Section' : 'Sections'}
+                        {sections.length === 1 ? t('sectionLabelOne') : t('sectionLabelMany')}
                       </p>
                     </div>
                   </div>
@@ -414,7 +429,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                         {factoryMachines.length}
                       </p>
                       <p className="mt-2 text-sm font-medium text-muted-foreground">
-                        {factoryMachines.length === 1 ? 'Machine' : 'Machines'}
+                        {factoryMachines.length === 1 ? t('machineLabelOne') : t('machineLabelMany')}
                       </p>
                     </div>
                   </div>
@@ -446,14 +461,14 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                     size="icon"
                     onClick={() => setActiveSectionId(null)}
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    aria-label="Back to sections"
-                    title="Back to sections"
+                    aria-label={t('backToSections')}
+                    title={t('backToSections')}
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                   <Layers className="h-5 w-5 text-brand-primary" />
                   <h3 className="text-lg font-semibold">{activeSection?.name}</h3>
-                  <span className="text-sm text-muted-foreground tabular-nums px-2 py-0.5 bg-muted rounded-md">{activeSectionMachines.length} machines</span>
+                  <span className="text-sm text-muted-foreground tabular-nums px-2 py-0.5 bg-muted rounded-md">{t('machinesInSection', { count: activeSectionMachines.length })}</span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -464,14 +479,14 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                     }}
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
-                    Visit in Machine Page
+                    {t('visitMachinePage')}
                   </Button>
                 </div>
                 
                 {activeSectionMachines.length === 0 ? (
                   <div className="text-center py-12 text-sm text-muted-foreground border border-dashed border-border rounded-lg bg-card/30">
                     <Cog className="mb-3 h-8 w-8 opacity-40 mx-auto" />
-                    No machines assigned to this section.
+                    {t('noMachinesInSection')}
                   </div>
                 ) : (
                   <div className="relative w-full overflow-hidden">
@@ -503,7 +518,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Layers className="h-5 w-5 text-brand-primary" />
-                  <h3 className="text-lg font-semibold">Sections ({filteredSections.length})</h3>
+                  <h3 className="text-lg font-semibold">{t('sectionsHeading', { count: filteredSections.length })}</h3>
                 </div>
                 
                 <div className="relative w-[min(200px,36vw)] min-w-[140px] shrink-0">
@@ -513,7 +528,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                     />
                     <Input
                       type="text"
-                      placeholder="Search sections..."
+                      placeholder={t('searchSectionsPlaceholder')}
                       value={sectionSearchQuery}
                       onChange={(e) => setSectionSearchQuery(e.target.value)}
                       className="h-9 bg-background pl-10"
@@ -531,8 +546,8 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                         <Layers className="mb-3 h-10 w-10 opacity-50" />
                         <p>
                           {sectionSearchQuery
-                            ? 'No sections match your search.'
-                            : 'No sections yet. Add your first section.'}
+                            ? t('noSectionsMatch')
+                            : t('noSectionsYet')}
                         </p>
                         {!sectionSearchQuery && (
                           <Button
@@ -541,7 +556,7 @@ const FactoryDetailCard: React.FC<FactoryDetailCardProps> = ({ factoryId, onClos
                             onClick={() => setIsAddSectionDialogOpen(true)}
                           >
                             <Plus className="mr-1 h-4 w-4" />
-                            Add Section
+                            {t('addSection')}
                           </Button>
                         )}
                       </div>

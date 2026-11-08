@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
   collapsed = false,
   onExpandRequest,
 }) => {
+  const { t } = useTranslation('inventory');
   const marginHint =
     overview.totalSalesValue > 0 && overview.totalCostValue >= 0
       ? overview.totalSalesValue - overview.totalCostValue
@@ -86,7 +88,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
               <div className={catalogSectionIconTileClass}>
                 <Package className="h-4 w-4 text-brand-primary" />
               </div>
-              <h2 className={catalogSectionTitleClass}>Products</h2>
+              <h2 className={catalogSectionTitleClass}>{t('productsTitle')}</h2>
               <Badge variant="secondary" className="tabular-nums">
                 {formatNumber(overview.records)}
               </Badge>
@@ -97,32 +99,35 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                   variant="outline"
                   className="h-9 w-9"
                   onClick={onAdd}
-                  aria-label="Add product"
-                  title="Add product"
+                  aria-label={t('addProduct')}
+                  title={t('addProduct')}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               )}
               <p className={catalogSectionSummaryClass}>
-                {formatNumber(overview.totalQty)} units · {formatCurrency(overview.totalCostValue)} cost ·{' '}
-                {formatCurrency(overview.totalSalesValue)} sales
+                {t('summaryProducts', {
+                  qty: formatNumber(overview.totalQty),
+                  cost: formatCurrency(overview.totalCostValue),
+                  sales: formatCurrency(overview.totalSalesValue),
+                })}
               </p>
             </div>
             {!collapsed && (
               <div className={catalogSectionMetaClass}>
                 <span>
-                  Unique items:{' '}
+                  {t('uniqueItemsLabel')}{' '}
                   <span className="font-medium tabular-nums text-card-foreground">{formatNumber(overview.uniqueCount)}</span>
                 </span>
                 <span>
-                  For sale:{' '}
+                  {t('forSaleLabel')}{' '}
                   <span className="font-medium tabular-nums text-card-foreground">
                     {formatNumber(overview.availableForSale)}
                   </span>
                 </span>
                 {marginHint != null && (
                   <span>
-                    Margin hint:{' '}
+                    {t('marginHintLabel')}{' '}
                     <span className="font-medium tabular-nums text-card-foreground">{formatCurrency(marginHint)}</span>
                   </span>
                 )}
@@ -130,25 +135,25 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
             )}
           </div>
           {!collapsed ? (
-            <div className="flex items-center gap-1.5" title="Show only products available for sale">
+            <div className="flex items-center gap-1.5" title={t('forSaleOnlyTitle')}>
               <Switch
                 id="products-for-sale-only"
                 checked={forSaleOnly}
                 onCheckedChange={onForSaleOnlyChange}
                 className="scale-90"
-                aria-label="For sale only"
+                aria-label={t('forSaleOnly')}
               />
               <Label
                 htmlFor="products-for-sale-only"
                 className="cursor-pointer whitespace-nowrap text-xs font-normal text-muted-foreground"
               >
-                For sale only
+                {t('forSaleOnly')}
               </Label>
             </div>
           ) : (
             onExpandRequest && (
               <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={onExpandRequest}>
-                Expand
+                {t('expand')}
                 <ChevronUp className="h-3.5 w-3.5" />
               </Button>
             )
@@ -161,32 +166,32 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
         {isLoading ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Loader2 className="mb-3 h-10 w-10 animate-spin text-brand-primary" />
-            <p className="text-muted-foreground">Loading products...</p>
+            <p className="text-muted-foreground">{t('loadingProducts')}</p>
           </div>
         ) : hasError ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
-            <p className="text-destructive">Failed to load products.</p>
+            <p className="text-destructive">{t('failedProducts')}</p>
           </div>
         ) : products.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-12">
             <Package className="mb-3 h-10 w-10 text-muted-foreground" />
             <p className="mb-1 max-w-sm text-center text-muted-foreground">
               {searchQuery
-                ? 'No products match your search.'
+                ? t('noProductsSearch')
                 : forSaleOnly
-                  ? 'No products marked for sale. Available for sale stays off until you turn it on.'
+                  ? t('noProductsForSale')
                   : factoryId == null
-                    ? 'No products yet. Add one and pick its factory. Stock in Storage is not for sale until you list it here.'
-                    : 'No products yet. Stock in Storage is not for sale until you list it here.'}
+                    ? t('noProductsPickFactory')
+                    : t('noProductsYet')}
             </p>
             {!searchQuery && !forSaleOnly && (
               <div className="mt-4 flex flex-col items-center gap-2">
                 <Button onClick={onAdd} className="bg-brand-primary hover:bg-brand-primary-hover">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Product
+                  {t('addProductBtn')}
                 </Button>
                 <Link to="/storage" className="text-xs text-brand-primary underline-offset-2 hover:underline">
-                  Open Storage
+                  {t('openStorage')}
                 </Link>
               </div>
             )}
@@ -207,21 +212,21 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                 </colgroup>
                 <TableHeader>
                   <TableRow className={catalogTableHeadRowClass}>
-                    <TableHead className={catalogItemHeadClass}>Item</TableHead>
+                    <TableHead className={catalogItemHeadClass}>{t('colItem')}</TableHead>
                     {showFactoryColumn && (
-                      <TableHead className={catalogFactoryHeadClass}>Factory</TableHead>
+                      <TableHead className={catalogFactoryHeadClass}>{t('colFactory')}</TableHead>
                     )}
-                    <TableHead className={catalogNumericHeadClass}>Qty</TableHead>
-                    <TableHead className={catalogNumericHeadClass}>Min. Order Qty</TableHead>
-                    <TableHead className={catalogMoneyHeadClass}>Avg. Cost</TableHead>
-                    <TableHead className={catalogMoneyHeadClass}>Selling Price</TableHead>
-                    <TableHead className={catalogNumericHeadClass}>For Sale</TableHead>
-                    <TableHead className={catalogActionsHeadClass}>Actions</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>{t('colQty')}</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>{t('colMinOrderQty')}</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>{t('colAvgCost')}</TableHead>
+                    <TableHead className={catalogMoneyHeadClass}>{t('colSellingPrice')}</TableHead>
+                    <TableHead className={catalogNumericHeadClass}>{t('colForSale')}</TableHead>
+                    <TableHead className={catalogActionsHeadClass}>{t('colActions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {products.map((prod) => {
-                    const itemLabel = prod.item_name ?? `Item #${prod.item_id}`;
+                    const itemLabel = prod.item_name ?? t('itemNumber', { id: prod.item_id });
                     const itemTitle = prod.item_unit ? `${itemLabel} (${prod.item_unit})` : itemLabel;
                     return (
                     <TableRow key={prod.id} className={catalogTableRowClass}>
@@ -235,7 +240,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                       </TableCell>
                       {showFactoryColumn && (
                         <TableCell className={catalogFactoryCellClass}>
-                          {factoryLabels[prod.factory_id] ?? `Factory #${prod.factory_id}`}
+                          {factoryLabels[prod.factory_id] ?? t('factoryNumber', { id: prod.factory_id })}
                         </TableCell>
                       )}
                       <TableCell className={catalogNumericCellClass}>{prod.qty}</TableCell>
@@ -252,7 +257,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                               : 'bg-muted text-muted-foreground'
                           }`}
                         >
-                          {prod.is_available_for_sale ? 'Yes' : 'No'}
+                          {prod.is_available_for_sale ? t('yes') : t('no')}
                         </span>
                       </TableCell>
                       <TableCell className={catalogActionsCellClass}>
@@ -261,10 +266,10 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                          title="View in Items catalog"
+                          title={t('viewInItems')}
                           asChild
                         >
-                          <Link to={buildItemHref(prod.item_id)} aria-label="View in Items catalog">
+                          <Link to={buildItemHref(prod.item_id)} aria-label={t('viewInItems')}>
                             <ExternalLink className="h-4 w-4" />
                           </Link>
                         </Button>
@@ -273,7 +278,7 @@ const ProductsSection: React.FC<ProductsSectionProps> = ({
                           size="sm"
                           className="h-8 w-8 p-0 text-brand-primary hover:bg-brand-primary/10"
                           onClick={() => onEdit(prod)}
-                          title="Edit product"
+                          title={t('editProduct')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>

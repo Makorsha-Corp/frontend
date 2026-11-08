@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -25,13 +26,9 @@ import type { InventoryType } from '@/types/inventory';
 import { appToast } from '@/lib/appToast';
 import { Loader2, Plus } from 'lucide-react';
 import AddItemDialog from './AddItemDialog';
+import { translateInventoryType } from './storage/inventoryTypeLabel';
 
-const INVENTORY_TYPES: { value: InventoryType; label: string }[] = [
-  { value: 'STORAGE', label: 'Storage' },
-  { value: 'DAMAGED', label: 'Damaged' },
-  { value: 'WASTE', label: 'Waste' },
-  { value: 'SCRAP', label: 'Scrap' },
-];
+const INVENTORY_TYPE_VALUES: InventoryType[] = ['STORAGE', 'DAMAGED', 'WASTE', 'SCRAP'];
 
 interface AddInventoryDialogProps {
   open: boolean;
@@ -58,6 +55,8 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   initialQty,
   existingQty = null,
 }) => {
+  const { t } = useTranslation('inventory');
+  const { t: tc } = useTranslation('common');
   const [itemId, setItemId] = useState<number | undefined>();
   const [inventoryType, setInventoryType] = useState<InventoryType>(defaultType);
   const [qty, setQty] = useState('0');
@@ -86,19 +85,19 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     e.preventDefault();
 
     if (!itemId) {
-      appToast.error('Please select an item');
+      appToast.error(t('toastSelectItem'));
       return;
     }
 
     const qtyNum = parseFloat(qty);
     if (isNaN(qtyNum) || qtyNum < 0) {
-      appToast.error('Quantity must be 0 or greater');
+      appToast.error(t('toastQtyNonNeg'));
       return;
     }
 
     const priceNum = avgPrice ? parseFloat(avgPrice) : undefined;
     if (avgPrice && (isNaN(priceNum!) || priceNum! < 0)) {
-      appToast.error('Average price must be 0 or greater');
+      appToast.error(t('toastPriceNonNeg'));
       return;
     }
 
@@ -123,7 +122,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
         }).unwrap();
       }
 
-      appToast.success('Stock added');
+      appToast.success(t('toastStockAdded'));
       setItemId(undefined);
       setQty('0');
       setAvgPrice('');
@@ -132,7 +131,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to add inventory');
+      appToast.error(e?.data?.detail || t('toastFailedAdd'));
     }
   };
 
@@ -156,17 +155,17 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
         <DialogContent className="sm:max-w-[500px]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle className="text-card-foreground">Add to Inventory</DialogTitle>
+              <DialogTitle className="text-card-foreground">{t('dlgAddInventory')}</DialogTitle>
               <DialogDescription>
                 {existingQty
-                  ? `Adds onto the ${existingQty.qty} already in storage. Quantity is the amount to add.`
-                  : 'Add an item to storage. Select from catalog or create a new item.'}
+                  ? t('dlgAddOnto', { qty: existingQty.qty })
+                  : t('dlgAddItemHint')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Type <span className="text-destructive">*</span></Label>
+                <Label>{t('dlgType')} <span className="text-destructive">*</span></Label>
                 <Select
                   value={inventoryType}
                   onValueChange={(v) => setInventoryType(v as InventoryType)}
@@ -175,9 +174,9 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {INVENTORY_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
+                    {INVENTORY_TYPE_VALUES.map((typeValue) => (
+                      <SelectItem key={typeValue} value={typeValue}>
+                        {translateInventoryType(typeValue, t)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -185,7 +184,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               </div>
 
               <div className="grid gap-2">
-                <Label>Item <span className="text-destructive">*</span></Label>
+                <Label>{t('dlgItem')} <span className="text-destructive">*</span></Label>
                 <div className="flex gap-2">
                   <Select
                     value={itemId?.toString() ?? '__none__'}
@@ -195,16 +194,16 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                     }}
                   >
                     <SelectTrigger className="flex-1 bg-background">
-                      <SelectValue placeholder="Select item" />
+                      <SelectValue placeholder={t('dlgSelectItem')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Select item</SelectItem>
+                      <SelectItem value="__none__">{t('dlgSelectItem')}</SelectItem>
                       {loadingItems ? (
-                        <SelectItem value="__loading__" disabled>Loading items...</SelectItem>
+                        <SelectItem value="__loading__" disabled>{t('dlgLoadingItems')}</SelectItem>
                       ) : itemsError ? (
-                        <SelectItem value="__error__" disabled>Failed to load items</SelectItem>
+                        <SelectItem value="__error__" disabled>{t('dlgFailedItems')}</SelectItem>
                       ) : (items ?? []).length === 0 && itemId == null ? (
-                        <SelectItem value="__empty__" disabled>No items in catalog</SelectItem>
+                        <SelectItem value="__empty__" disabled>{t('dlgNoCatalogItems')}</SelectItem>
                       ) : (
                         <>
                         {itemId != null &&
@@ -226,7 +225,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                     variant="outline"
                     size="icon"
                     onClick={() => setIsAddItemOpen(true)}
-                    title="Create new item"
+                    title={t('dlgCreateItem')}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -235,7 +234,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Quantity <span className="text-destructive">*</span></Label>
+                  <Label>{t('quantity')} <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     min="0"
@@ -246,25 +245,25 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Avg. Price</Label>
+                  <Label>{t('dlgAvgPrice')}</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     value={avgPrice}
                     onChange={(e) => setAvgPrice(e.target.value)}
-                    placeholder="Optional"
+                    placeholder={t('dlgOptional')}
                     className="bg-background"
                   />
                 </div>
               </div>
 
               <div className="grid gap-2">
-                <Label>Note</Label>
+                <Label>{t('dlgNote')}</Label>
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t('dlgOptional')}
                   rows={2}
                   className="bg-background"
                 />
@@ -273,7 +272,7 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <Button
                 type="submit"
@@ -283,10 +282,10 @@ const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
+                    {t('dlgAdding')}
                   </>
                 ) : (
-                  'Add'
+                  tc('add')
                 )}
               </Button>
             </DialogFooter>

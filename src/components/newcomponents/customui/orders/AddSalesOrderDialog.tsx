@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -55,6 +56,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   accounts,
   onSuccess,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const { data: factories = [] } = useGetFactoriesQuery({ skip: 0, limit: API_LIMITS.STRICT_100 }, { skip: !open });
   const [accountId, setAccountId] = useState<string>('');
   const [factoryId, setFactoryId] = useState<string>('');
@@ -262,7 +265,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const salesItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
-        <Label className="text-base">Sales items *</Label>
+        <Label className="text-base">{t('dlgSalesItems')}</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
       </div>
 
@@ -295,11 +298,11 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           ) : (
             <Select value={productId} onValueChange={handleSelectProduct}>
               <SelectTrigger className="w-full bg-background">
-                <SelectValue placeholder="Select product" />
+                <SelectValue placeholder={t('dlgSelectProduct')} />
               </SelectTrigger>
               <SelectContent>
                 {availableProducts.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">No products available to sell at this factory</div>
+                  <div className="px-3 py-2 text-xs text-muted-foreground">{t('dlgNoProductsToSell')}</div>
                 ) : (
                   availableProducts.map((p) => (
                     <SelectItem key={p.item_id} value={p.item_id.toString()}>
@@ -315,14 +318,14 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           <Input
             value={miscDescription}
             onChange={(e) => setMiscDescription(e.target.value)}
-            placeholder="e.g. Installation fee, Inspection fee"
+            placeholder={t('dlgFeePlaceholder')}
             className="bg-background"
           />
         )}
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">
-              Qty{selectedProductMinQty != null && ` (min ${selectedProductMinQty})`}
+              {t('dlgQty')}{selectedProductMinQty != null && ` (${t('dlgMin', { qty: selectedProductMinQty })})`}
             </Label>
             <StepNumberInput
               min={selectedProductMinQty ?? 1}
@@ -334,7 +337,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
             />
           </div>
           <div className="grid min-w-[5.5rem] flex-1 gap-1">
-            <Label className="text-xs text-muted-foreground">Unit price</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgUnitPrice')}</Label>
             <StepNumberInput
               min={0}
               step={1}
@@ -362,7 +365,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
 
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
         {items.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No sales items yet</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgNoSalesItems')}</p>
         ) : (
           items.map((it, idx) => {
             const product = it.item_id != null ? productsList.find((p) => p.item_id === it.item_id) : undefined;
@@ -380,16 +383,16 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                     {lineLabel}
                     {it.item_id == null && (
                       <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
-                        Misc
+                        {t('dlgMisc')}
                       </span>
                     )}
                     {it.requires_delivery ? (
                       <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
-                        <Truck className="h-2.5 w-2.5" />Delivery
+                        <Truck className="h-2.5 w-2.5" />{t('dlgDelivery')}
                       </span>
                     ) : (
                       <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground align-middle">
-                        No delivery
+                        {t('dlgNoDelivery')}
                       </span>
                     )}
                   </p>
@@ -398,8 +401,8 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                       <div className="grid max-w-xs grid-cols-2 gap-2">
                         <div className="grid gap-1">
                           <Label className="text-[10px] text-muted-foreground">
-                            Qty{unitSuffix}
-                            {product?.min_order_qty != null && ` (min ${product.min_order_qty})`}
+                            {t('dlgQty')}{unitSuffix}
+                            {product?.min_order_qty != null && ` (${t('dlgMin', { qty: product.min_order_qty })})`}
                           </Label>
                           <StepNumberInput
                             min={1}
@@ -413,7 +416,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
                           />
                         </div>
                         <div className="grid gap-1">
-                          <Label className="text-[10px] text-muted-foreground">Unit price</Label>
+                          <Label className="text-[10px] text-muted-foreground">{t('dlgUnitPrice')}</Label>
                           <StepNumberInput
                             min={0}
                             step={1}
@@ -483,7 +486,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
   const orderFieldsBlock = (
     <div className="grid min-w-0 gap-4">
       <div>
-        <Label>Customer *</Label>
+        <Label>{t('dlgCustomerRequired')}</Label>
         <AccountSelectSummaryButton
           onClick={() => setAccountPickerOpen(true)}
           ariaLabel={
@@ -507,7 +510,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
         />
       </div>
       <div>
-        <Label>Factory *</Label>
+        <Label>{t('dlgFactoryRequired')}</Label>
         <Select
           value={factoryId || '__none__'}
           onValueChange={(v) => {
@@ -517,10 +520,10 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           required
         >
           <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Select factory" />
+            <SelectValue placeholder={t('dlgSelectFactory')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Select factory…</SelectItem>
+            <SelectItem value="__none__">{t('dlgSelectFactoryEllipsis')}</SelectItem>
             {factories.map((f) => (
               <SelectItem key={f.id} value={f.id.toString()}>
                 {f.name} {f.abbreviation && `(${f.abbreviation})`}
@@ -531,7 +534,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Order date *</Label>
+          <Label>{t('dlgOrderDateRequired')}</Label>
           <DatePickerField
             value={orderDate}
             onChange={setOrderDate}
@@ -540,11 +543,11 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           />
         </div>
         <div>
-          <Label>Expected delivery date</Label>
+          <Label>{t('dlgExpectedDelivery')}</Label>
           <DatePickerField
             value={expectedDeliveryDate}
             onChange={setExpectedDeliveryDate}
-            placeholder="Optional"
+            placeholder={t('dlgOptional')}
             recurrenceStartDate={orderDate}
             triggerClassName="mt-1 h-10 w-full px-3 text-sm"
             aria-label="Expected delivery date"
@@ -553,27 +556,27 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Customer name</Label>
+          <Label>{t('dlgCustomerName')}</Label>
           <Input
             value={contactName}
             onChange={(e) => setContactName(e.target.value)}
-            placeholder="Point of contact"
+            placeholder={t('dlgPointOfContact')}
             className="mt-1"
           />
         </div>
         <div>
-          <Label>Phone number</Label>
+          <Label>{t('dlgPhone')}</Label>
           <Input
             value={contactPhone}
             onChange={(e) => setContactPhone(e.target.value)}
-            placeholder="Contact phone number"
+            placeholder={t('dlgContactPhone')}
             className="mt-1"
           />
         </div>
       </div>
       <div>
-        <Label>Description</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
+        <Label>{t('dlgDescription')}</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('dlgOptional')} className="mt-1" />
       </div>
     </div>
   );
@@ -585,7 +588,7 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto pb-4 pt-0 md:grid-cols-2 md:gap-8 md:items-stretch md:overflow-hidden">
             <div className="flex min-h-0 min-w-0 flex-col self-stretch md:overflow-hidden">
               <div className="shrink-0 pb-4 text-left">
-                <DialogTitle className="text-brand-heading">Add Sales Order</DialogTitle>
+                <DialogTitle className="text-brand-heading">{t('dlgAddSales')}</DialogTitle>
               </div>
               <div className="min-h-0 flex-1 py-2 pl-2 pr-4 md:overflow-y-auto">
                 {orderFieldsBlock}
@@ -598,11 +601,11 @@ const AddSalesOrderDialog: React.FC<AddSalesOrderDialogProps> = ({
 
           <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
+              {t('dlgCreate')}
             </Button>
           </div>
         </form>

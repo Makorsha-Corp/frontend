@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -38,16 +39,16 @@ import {
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
 
 const SOURCE_TYPES = [
-  { value: 'storage', label: 'Storage (Factory)' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'damaged', label: 'Damaged (Factory)' },
+  { value: 'storage', labelKey: 'dlgStorageFactory' },
+  { value: 'machine', labelKey: 'dlgMachine' },
+  { value: 'damaged', labelKey: 'dlgDamagedFactory' },
 ] as const;
 
 const DEST_TYPES = [
-  { value: 'storage', label: 'Storage (Factory)' },
-  { value: 'machine', label: 'Machine' },
-  { value: 'project', label: 'Project' },
-  { value: 'damaged', label: 'Damaged (Factory)' },
+  { value: 'storage', labelKey: 'dlgStorageFactory' },
+  { value: 'machine', labelKey: 'dlgMachine' },
+  { value: 'project', labelKey: 'dlgProject' },
+  { value: 'damaged', labelKey: 'dlgDamagedFactory' },
 ] as const;
 
 interface SourceAvailableItem {
@@ -68,6 +69,8 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   onOpenChange,
   onSuccess,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [sourceType, setSourceType] = useState<'storage' | 'machine' | 'damaged'>('storage');
   const [sourceId, setSourceId] = useState<string>('');
   const [destType, setDestType] = useState<'storage' | 'machine' | 'project' | 'damaged'>('storage');
@@ -373,7 +376,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
   const lineItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
-        <Label className="text-base">Items *</Label>
+        <Label className="text-base">{t('dlgItemsRequired')}</Label>
         <span className="text-xs tabular-nums text-muted-foreground">{items.length} added</span>
       </div>
 
@@ -387,22 +390,22 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
             <SelectValue
               placeholder={
                 !hasValidSource
-                  ? 'Select source first'
+                  ? t('dlgSelectSourceFirst')
                   : loadingSourceItems
-                    ? 'Loading available items…'
+                    ? t('dlgLoadingAvailable')
                     : selectableSourceItems.length === 0
-                      ? 'No items at source'
-                      : 'Select item'
+                      ? t('dlgNoItemsAtSource')
+                      : t('dlgSelectItem')
               }
             />
           </SelectTrigger>
           <SelectContent>
             {selectableSourceItems.map((row) => (
               <SelectItem key={row.item_id} value={row.item_id.toString()}>
-                {row.item_name ?? `Item #${row.item_id}`}
+                {row.item_name ?? `#${row.item_id}`}
                 {row.item_unit ? ` (${row.item_unit})` : ''}
                 {' · '}
-                {getRemainingQty(row.item_id)} avail
+                {getRemainingQty(row.item_id)} {t('dlgAvail')}
               </SelectItem>
             ))}
           </SelectContent>
@@ -410,10 +413,10 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[5rem] flex-1 gap-1">
             <Label className="text-xs text-muted-foreground">
-              Qty
+              {t('dlgQty')}
               {selectedItemRemainingQty != null ? (
                 <span className="ml-1 font-normal text-muted-foreground/80">
-                  (max {selectedItemRemainingQty})
+                  ({t('dlgMax', { qty: selectedItemRemainingQty })})
                 </span>
               ) : null}
             </Label>
@@ -434,7 +437,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
                 role="tooltip"
                 className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] animate-in fade-in-0 zoom-in-95 rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md"
               >
-                Select item and qty to add
+                {t('dlgSelectItemQty')}
               </div>
             ) : null}
             <Button
@@ -463,7 +466,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
         {items.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No order items yet</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgNoOrderItems')}</p>
         ) : (
           items.map((it, idx) => {
             const item = sourceAvailableItems.find((row) => row.item_id === it.item_id);
@@ -542,7 +545,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       <div className="grid gap-1">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Source type</Label>
+          <Label>{t('dlgSourceType')}</Label>
           <Select
             value={sourceType}
             onValueChange={(v) => {
@@ -555,16 +558,16 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SOURCE_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
+              {SOURCE_TYPES.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label>Source</Label>
+          <Label>{t('dlgSource')}</Label>
           {sourceType === 'storage' || sourceType === 'damaged' ? (
             <Select
               value={sourceId || '__none__'}
@@ -575,10 +578,10 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
               required
             >
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select factory" />
+                <SelectValue placeholder={t('dlgSelectFactory')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Select factory…</SelectItem>
+                <SelectItem value="__none__">{t('dlgSelectFactoryEllipsis')}</SelectItem>
                 {factories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name}
@@ -610,7 +613,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Destination type</Label>
+          <Label>{t('dlgDestType')}</Label>
           <Select
             value={destType}
             onValueChange={(v) => {
@@ -623,16 +626,16 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {DEST_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
+              {DEST_TYPES.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {t(opt.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label>Destination</Label>
+          <Label>{t('dlgDestination')}</Label>
           {destType === 'storage' || destType === 'damaged' ? (
             <Select
               value={destId || '__none__'}
@@ -643,10 +646,10 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
               required
             >
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select factory" />
+                <SelectValue placeholder={t('dlgSelectFactory')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Select factory…</SelectItem>
+                <SelectItem value="__none__">{t('dlgSelectFactoryEllipsis')}</SelectItem>
                 {destinationFactories.map((f) => (
                   <SelectItem key={f.id} value={f.id.toString()}>
                     {f.name}
@@ -669,7 +672,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
           ) : (
             <Select value={destId} onValueChange={setDestId} required>
               <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select project" />
+                <SelectValue placeholder={t('dlgSelectProject')} />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((p) => (
@@ -685,8 +688,8 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       </div>
 
       <div>
-        <Label>Description</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
+        <Label>{t('dlgDescription')}</Label>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('dlgOptional')} className="mt-1" />
       </div>
     </div>
   );
@@ -696,7 +699,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
           <DialogHeader className="shrink-0 space-y-0 text-left">
-            <DialogTitle>Add Transfer Order</DialogTitle>
+            <DialogTitle>{t('dlgAddTransfer')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden md:grid-cols-2 md:gap-8 md:items-stretch">
@@ -710,7 +713,7 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
 
             <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {tc('cancel')}
               </Button>
               <div className="relative" data-unadded-hint-root>
                 {unaddedHintOpen ? (
@@ -718,12 +721,12 @@ const AddTransferOrderDialog: React.FC<AddTransferOrderDialogProps> = ({
                     role="tooltip"
                     className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] animate-in fade-in-0 zoom-in-95 rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md"
                   >
-                    You have unadded items — click ✓ to add them, or click Create again to continue without them
+                    {t('dlgUnaddedHint')}
                   </div>
                 ) : null}
                 <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create
+                  {t('dlgCreate')}
                 </Button>
               </div>
             </div>

@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { displaySystemStatusName } from '@/i18n/systemLabels';
+import { normalizeUiLanguage, type UiLanguage } from '@/i18n/uiLanguage';
 import { startOfDay, parseISO } from 'date-fns';
 import { useAppSelector } from '@/app/hooks';
 import { useGetUpcomingMachineWorkQuery } from '@/features/machines/machinesApi';
@@ -28,6 +32,7 @@ import { mapUpcomingWorkToAttentionRows, splitUpcomingWorkByDueWindow } from '@/
 import type { FactorySection } from '@/types/factorySection';
 import type { ProductionBatch } from '@/types/production';
 import { ORDER_TYPE_PATHS } from './dashboardConstants';
+import { formatOverviewCurrency } from '@/components/newcomponents/customui/orders/overview/ordersOverviewConstants';
 
 export type DashboardAttentionKind =
   | 'overdue_order'
@@ -110,9 +115,12 @@ function buildAttentionItems(
   overduePayableCount: number,
   notInvoicedCount: number,
   batches: ProductionBatch[],
-  now: Date
+  now: Date,
+  t: TFunction,
+  uiLanguage: UiLanguage,
 ): DashboardAttentionItem[] {
   const items: DashboardAttentionItem[] = [];
+  const statusLabel = (name: string) => displaySystemStatusName(name, t, uiLanguage);
 
   for (const order of orders) {
     if (!isOrderOverdue(order, now)) continue;
@@ -120,8 +128,12 @@ function buildAttentionItems(
     items.push({
       id: `order-${order.kind}-${order.id}`,
       kind: 'overdue_order',
-      title: `${order.ref} overdue`,
-      subtitle: `${order.statusLabel} · due ${order.dueOrExpectedDate ?? '—'}`,
+      title: t('attentionOrderOverdueTitle', { ref: order.ref, ns: 'dashboard' }),
+      subtitle: t('attentionOrderOverdueSubtitle', {
+        ns: 'dashboard',
+        status: statusLabel(order.statusLabel),
+        date: order.dueOrExpectedDate ?? '—',
+      }),
       sortKey: due.getTime(),
       href: ORDER_TYPE_PATHS[order.kind],
     });
@@ -129,11 +141,19 @@ function buildAttentionItems(
 
   for (const order of orders) {
     if (!isPendingApprovalOrder(order)) continue;
+    const detail =
+      order.amount > 0
+        ? formatOverviewCurrency(order.amount)
+        : t('attentionReviewRequired', { ns: 'dashboard' });
     items.push({
       id: `approval-${order.kind}-${order.id}`,
       kind: 'pending_approval',
-      title: `${order.ref} awaiting approval`,
-      subtitle: `${order.statusLabel} · ${order.amount > 0 ? `$${order.amount.toLocaleString()}` : 'Review required'}`,
+      title: t('attentionAwaitingApprovalTitle', { ref: order.ref, ns: 'dashboard' }),
+      subtitle: t('attentionAwaitingApprovalSubtitle', {
+        ns: 'dashboard',
+        status: statusLabel(order.statusLabel),
+        detail,
+      }),
       sortKey: order.createdAt.getTime(),
       href: ORDER_TYPE_PATHS[order.kind],
     });
@@ -143,11 +163,8 @@ function buildAttentionItems(
     items.push({
       id: 'overdue-payable-summary',
       kind: 'overdue_payable',
-      title:
-        overduePayableCount === 1
-          ? '1 overdue payable invoice'
-          : `${overduePayableCount} overdue payable invoices`,
-      subtitle: 'Review accounts payable',
+      title: t('attentionOverduePayable', { count: overduePayableCount, ns: 'dashboard' }),
+      subtitle: t('attentionOverduePayableSubtitle', { ns: 'dashboard' }),
       sortKey: now.getTime(),
       href: '/accounts/payable',
     });
@@ -157,11 +174,8 @@ function buildAttentionItems(
     items.push({
       id: 'not-invoiced-summary',
       kind: 'not_invoiced',
-      title:
-        notInvoicedCount === 1
-          ? '1 completed order not invoiced'
-          : `${notInvoicedCount} completed orders not invoiced`,
-      subtitle: 'Purchase and expense orders missing invoices',
+      title: t('attentionNotInvoiced', { count: notInvoicedCount, ns: 'dashboard' }),
+      subtitle: t('attentionNotInvoicedSubtitle', { ns: 'dashboard' }),
       sortKey: now.getTime(),
       href: '/orders/purchase',
     });
@@ -178,13 +192,21 @@ function buildAttentionItems(
       id: `project-${project.id}`,
       kind: 'project_deadline',
       title: project.name,
-      subtitle: d < startOfDay(now) ? 'Deadline passed' : `Deadline ${project.deadline.slice(0, 10)}`,
+      subtitle:
+        d < startOfDay(now)
+          ? t('attentionDeadlinePassed', { ns: 'dashboard' })
+          : t('attentionDeadlineOn', { date: project.deadline.slice(0, 10), ns: 'dashboard' }),
       sortKey: d.getTime(),
       href: '/project',
     });
   }
 
-  for (const row of mapUpcomingWorkToAttentionRows(upcomingMachineWork, sectionById)) {
+  const machineLabels = {
+    overdueWord: t('attentionMachineOverdue', { ns: 'dashboard' }),
+    itemsLabel: (count: number) => t('attentionMachineItems', { count, ns: 'dashboard' }),
+  };
+
+  for (const row of mapUpcomingWorkToAttentionRows(upcomingMachineWork, sectionById, machineLabels)) {
     items.push({
       id: row.id,
       kind: 'maintenance',
@@ -202,8 +224,15 @@ function buildAttentionItems(
     items.push({
       id: `batch-${batch.id}`,
       kind: 'batch_variance',
-      title: `Batch ${batch.batch_number ?? batch.id} · ${variancePct.toFixed(1)}% output`,
-      subtitle: batch.status === 'in_progress' ? 'In progress · below expected output' : 'Completed below target',
+      title: t('attentionBatchTitle', {
+        ns: 'dashboard',
+        batch: batch.batch_number ?? batch.id,
+        pct: variancePct.toFixed(1),
+      }),
+      subtitle:
+        batch.status === 'in_progress'
+          ? t('attentionBatchInProgress', { ns: 'dashboard' })
+          : t('attentionBatchCompleted', { ns: 'dashboard' }),
       sortKey: batch.updated_at ? new Date(batch.updated_at).getTime() : now.getTime(),
       href: '/production',
     });
@@ -213,6 +242,8 @@ function buildAttentionItems(
 }
 
 export function useDashboardData() {
+  const { t, i18n } = useTranslation(['dashboard', 'misc']);
+  const uiLanguage = normalizeUiLanguage(i18n.language);
   const factory = useAppSelector((state) => state.auth.factory);
   const workspace = useAppSelector((state) => state.auth.workspace);
   const factoryId = factory?.id ?? null;
@@ -401,7 +432,9 @@ export function useDashboardData() {
         invoicesHubSummary?.payable.overdueCount ?? 0,
         notInvoicedCount,
         batchesInProgressRaw,
-        new Date()
+        new Date(),
+        t,
+        uiLanguage,
       ),
     [
       scopedOrders,
@@ -411,6 +444,8 @@ export function useDashboardData() {
       invoicesHubSummary?.payable.overdueCount,
       notInvoicedCount,
       batchesInProgressRaw,
+      t,
+      uiLanguage,
     ]
   );
 

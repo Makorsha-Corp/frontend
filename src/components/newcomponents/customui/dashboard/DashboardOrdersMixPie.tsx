@@ -9,22 +9,33 @@ interface DashboardOrdersMixPieProps {
   data: CountsByTypeRow[];
   totalCount: number;
   isLoading?: boolean;
+  title?: string;
+  emptyMessage?: string;
+  centerCaption?: string;
+  resolveTypeLabel?: (englishType: string) => string;
 }
 
 const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
   data,
   totalCount,
   isLoading,
+  title = 'Orders by type',
+  emptyMessage = 'No orders in scope',
+  centerCaption = 'ORDERS',
+  resolveTypeLabel = (englishType) => englishType,
 }) => {
   const pieData = useMemo(
-    () => data.filter((row) => row.count > 0).map((row) => ({ name: row.type, value: row.count })),
-    [data]
+    () =>
+      data
+        .filter((row) => row.count > 0)
+        .map((row) => ({ name: resolveTypeLabel(row.type), value: row.count })),
+    [data, resolveTypeLabel]
   );
 
   return (
     <Card className="border-border">
       <CardHeader>
-        <CardTitle className="text-card-foreground">Orders by type</CardTitle>
+        <CardTitle className="text-card-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -33,7 +44,7 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
           </div>
         ) : pieData.length === 0 ? (
           <p className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-            No orders in scope
+            {emptyMessage}
           </p>
         ) : (
           <>
@@ -62,7 +73,7 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-card-foreground">{totalCount}</div>
-                  <div className="text-xs text-muted-foreground">ORDERS</div>
+                  <div className="text-xs text-muted-foreground">{centerCaption}</div>
                 </div>
               </div>
             </div>
@@ -74,7 +85,7 @@ const DashboardOrdersMixPie: React.FC<DashboardOrdersMixPieProps> = ({
                     style={{ backgroundColor: PASTEL_CHART_FILLS[i % PASTEL_CHART_FILLS.length] }}
                   />
                   <span className="truncate text-muted-foreground">
-                    {row.type} ({row.count})
+                    {resolveTypeLabel(row.type)} ({row.count})
                   </span>
                 </div>
               ))}

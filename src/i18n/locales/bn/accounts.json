@@ -1,0 +1,15 @@
+{
+  "title": "হিসাব",
+  "overview": "সংক্ষিপ্ত বিবরণ",
+  "suppliers": "সরবরাহকারী",
+  "clients": "ক্লায়েন্ট",
+  "invoices": "ইনভয়েস",
+  "payables": "প্রদেয়",
+  "receivables": "প্রাপ্য",
+  "addAccount": "হিসাব যোগ",
+  "noAccounts": "কোনো হিসাব নেই",
+  "payablesTitle": "প্রদেয় হিসাব",
+  "payablesSubtitle": "খোলা প্রদেয় থাকা হিসাব",
+  "receivablesTitle": "প্রাপ্য হিসাব",
+  "receivablesSubtitle": "খোলা প্রাপ্য থাকা হিসাব"
+}

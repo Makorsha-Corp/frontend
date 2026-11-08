@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Archive, Hash, Layers, DollarSign, ClipboardList } from 'lucide-react';
 import StorageActiveOrdersDialog from './StorageActiveOrdersDialog';
 import { useStorageActiveOrders } from '@/hooks/useStorageActiveOrders';
@@ -9,6 +10,7 @@ import {
   INVENTORY_TYPES,
   type StorageOverviewStats,
 } from './storageConstants';
+import { translateInventoryType } from './inventoryTypeLabel';
 
 interface StorageKpiStripProps {
   factoryId: number | null;
@@ -28,6 +30,7 @@ const StorageKpiStrip: React.FC<StorageKpiStripProps> = ({
   storageOverview,
   isLoading,
 }) => {
+  const { t } = useTranslation('inventory');
   const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -43,8 +46,10 @@ const StorageKpiStrip: React.FC<StorageKpiStripProps> = ({
     const sorted = [...storageOverview.byType].sort((a, b) => b.totalQty - a.totalQty);
     const top = sorted[0];
     if (!top || top.totalQty <= 0) return null;
-    return `${top.type}: ${formatNumber(top.totalQty)} units`;
-  }, [storageOverview.byType]);
+    return t('unitsSuffix', {
+      qty: `${translateInventoryType(top.type, t)}: ${formatNumber(top.totalQty)}`,
+    });
+  }, [storageOverview.byType, t]);
 
   const factoryLabel = factoryId != null ? factoryLabels[factoryId] : null;
   const { count, isLoading: ordersLoading, isError: ordersError } = useStorageActiveOrders(
@@ -55,45 +60,45 @@ const StorageKpiStrip: React.FC<StorageKpiStripProps> = ({
   const activeOrdersFooter =
     count === 0
       ? factoryId == null
-        ? 'No active orders workspace-wide'
-        : 'No active orders'
+        ? t('noActiveOrdersWorkspace')
+        : t('noActiveOrders')
       : factoryId == null
-        ? 'All factories — click to view'
-        : 'Click to view orders';
+        ? t('allFactoriesClick')
+        : t('clickToViewOrders');
 
   return (
     <>
       <div className={storageKpiGridClass}>
         <InventoryKpiCard
-          title="Line items"
+          title={t('lineItems')}
           value={formatNumber(storageOverview.records)}
           icon={<Archive className="h-4 w-4" />}
-          footer="Inventory rows in current view"
+          footer={t('lineItemsFooter')}
           isLoading={isLoading}
         />
         <InventoryKpiCard
-          title="Total units"
+          title={t('totalUnits')}
           value={formatNumber(storageOverview.totalQty)}
           icon={<Layers className="h-4 w-4" />}
-          footer={topStorageType ?? 'Across all inventory types'}
+          footer={topStorageType ?? t('acrossTypes')}
           isLoading={isLoading}
         />
         <InventoryKpiCard
-          title="Estimated value"
+          title={t('estimatedValue')}
           value={formatCurrency(storageOverview.estimatedValue)}
           icon={<DollarSign className="h-4 w-4" />}
-          footer="Qty × average price"
+          footer={t('qtyTimesAvgPrice')}
           isLoading={isLoading}
         />
         <InventoryKpiCard
-          title="Unique items"
+          title={t('uniqueItems')}
           value={formatNumber(uniqueStorageItems)}
           icon={<Hash className="h-4 w-4" />}
-          footer={`${INVENTORY_TYPES.length} inventory types tracked`}
+          footer={t('typesTracked', { count: INVENTORY_TYPES.length })}
           isLoading={isLoading}
         />
         <InventoryKpiCard
-          title="Active orders"
+          title={t('activeOrders')}
           value={ordersError ? '—' : formatNumber(count)}
           icon={<ClipboardList className="h-4 w-4" />}
           footer={activeOrdersFooter}

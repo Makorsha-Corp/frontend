@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Layers, LayoutDashboard, Settings2 } from 'lucide-react';
 
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
@@ -11,9 +12,9 @@ import { cn } from '@/lib/utils';
 export type ProductionPageTab = 'overview' | 'setup' | 'batches';
 
 export const PRODUCTION_PAGE_TABS = [
-  { value: 'overview' as const, label: 'Production', icon: LayoutDashboard },
-  { value: 'setup' as const, label: 'Setup', icon: Settings2 },
-  { value: 'batches' as const, label: 'Batches', icon: Layers },
+  { value: 'overview' as const, labelKey: 'tabProduction', icon: LayoutDashboard },
+  { value: 'setup' as const, labelKey: 'tabSetup', icon: Settings2 },
+  { value: 'batches' as const, labelKey: 'tabBatches', icon: Layers },
 ];
 
 export interface ProductionPageHeaderTabListProps {
@@ -26,6 +27,7 @@ export const ProductionPageHeaderTabList: React.FC<ProductionPageHeaderTabListPr
   compact = false,
   className,
 }) => {
+  const { t } = useTranslation('production');
   const minWidth = compact ? 'min-w-[5.5rem]' : 'min-w-[7.25rem]';
 
   return (
@@ -54,7 +56,7 @@ export const ProductionPageHeaderTabList: React.FC<ProductionPageHeaderTabListPr
             )}
           >
             <Icon className={cn('shrink-0', compact ? 'h-4 w-4' : 'h-5 w-5')} aria-hidden />
-            {tab.label}
+            {t(tab.labelKey)}
           </EmphasisTabsTrigger>
         );
       })}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, isValid, parseISO } from 'date-fns';
 import { Search } from 'lucide-react';
 import DateRangeFilterTrigger from '@/components/newcomponents/customui/DateRangeFilterTrigger';
@@ -131,22 +132,30 @@ export function batchStatusCheckboxChecked(
   return resolveEffectiveBatchStatusFilter(filter, dateViewMode).includes(status);
 }
 
+export type BatchStatusHintCopy = {
+  week?: string;
+  day?: string;
+  all?: string;
+  generic?: string;
+};
+
 /** Hover hint for status rows in the runs filter popover. */
 export function batchStatusFilterRowHint(
   status: ProductionBatchStatus,
   dateViewMode?: WorkOrdersDateViewMode,
+  copy?: BatchStatusHintCopy,
 ): string | undefined {
   if (status !== 'recurring') return undefined;
   if (dateViewMode === 'week') {
-    return 'Default on in week view (includes recurring program runs). Reset status filters to restore defaults for this view.';
+    return copy?.week ?? 'Default on in week view (includes recurring program runs). Reset status filters to restore defaults for this view.';
   }
   if (dateViewMode === 'day') {
-    return 'Default on in day view. Reset status filters to restore defaults for this view.';
+    return copy?.day ?? 'Default on in day view. Reset status filters to restore defaults for this view.';
   }
   if (dateViewMode === 'all') {
-    return 'Default off on All dates. Recurring is on by default in week and day views.';
+    return copy?.all ?? 'Default off on All dates. Recurring is on by default in week and day views.';
   }
-  return 'Default on in week and day views; off on All dates when status filters are reset.';
+  return copy?.generic ?? 'Default on in week and day views; off on All dates when status filters are reset.';
 }
 
 export function isDefaultBatchStatusFilter(
@@ -390,17 +399,20 @@ export const ProductionBatchSearchBar: React.FC<ProductionBatchSearchBarProps> =
   searchQuery,
   onSearchQueryChange,
   className,
-}) => (
+}) => {
+  const { t } = useTranslation('production');
+  return (
   <div className={cn('relative', className)}>
     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
     <Input
-      placeholder="Search batches..."
+      placeholder={t('searchBatches')}
       value={searchQuery}
       onChange={(e) => onSearchQueryChange(e.target.value)}
       className={cn(appShellHeaderControlClass, 'border-border bg-background pl-9')}
     />
   </div>
-);
+  );
+};
 
 export interface ProductionSetupSearchBarProps {
   searchQuery: string;
@@ -412,14 +424,17 @@ export const ProductionSetupSearchBar: React.FC<ProductionSetupSearchBarProps> =
   searchQuery,
   onSearchQueryChange,
   className,
-}) => (
+}) => {
+  const { t } = useTranslation('production');
+  return (
   <div className={cn('relative w-full min-w-[140px]', className)}>
     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
     <Input
-      placeholder="Search lines and recipes..."
+      placeholder={t('searchLinesRecipes')}
       value={searchQuery}
       onChange={(e) => onSearchQueryChange(e.target.value)}
       className={cn(appShellHeaderControlClass, 'border-border bg-background pl-9')}
     />
   </div>
-);
+  );
+};

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,7 @@ function parseStorageDeepLink(params: URLSearchParams): {
 }
 
 const StoragePage: React.FC = () => {
+  const { t } = useTranslation('inventory');
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLink = useMemo(() => parseStorageDeepLink(searchParams), [searchParams]);
   const catalogFiltersFromUrl = useMemo(() => parseStorageCatalogFilters(searchParams), [searchParams]);
@@ -356,7 +358,7 @@ const StoragePage: React.FC = () => {
       appToast.success('Stock cleared');
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to clear stock');
+      appToast.error(e?.data?.detail || t('toastFailedClear'));
     }
   };
 
@@ -376,16 +378,16 @@ const StoragePage: React.FC = () => {
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Archive className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">{t('noFactoriesTitle')}</h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can access storage. Set up a factory to start tracking your inventory.
+            {t('noFactoriesStorageBody')}
           </p>
           <Button
             size="lg"
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
-            Create Your First Factory
+            {t('createFirstFactory')}
           </Button>
 
           <AddFactoryDialog
@@ -402,7 +404,7 @@ const StoragePage: React.FC = () => {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AppShellHeaderCompactList
           icon={Archive}
-          title="Storage"
+          title={t('storageTitle')}
           leftExtras={
             <>
               <div className={cn(appShellHeaderScopeSeparatorClass, 'hidden lg:block')} aria-hidden />
@@ -423,14 +425,14 @@ const StoragePage: React.FC = () => {
           }
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
-          searchPlaceholder="Search inventory..."
-          searchAriaLabel="Search inventory"
+          searchPlaceholder={t('searchInventory')}
+          searchAriaLabel={t('searchInventoryAria')}
           desktopActions={
             <div className="relative w-[200px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search inventory..."
+                placeholder={t('searchInventory')}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className={`pl-9 ${appShellHeaderControlClass} bg-background`}

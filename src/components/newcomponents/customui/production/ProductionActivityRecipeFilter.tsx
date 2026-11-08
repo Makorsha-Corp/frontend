@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +25,7 @@ import {
   toggleAllActivityRecipes,
 } from '@/lib/productionActivityRecipeFilter';
 import type { ProductionFormula } from '@/types/production';
+import { productionFilterCopy } from '@/components/newcomponents/customui/production/productionStatusLabel';
 import { preventRadixCloseAutoFocus } from '@/lib/radixFloatingLayer';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +42,8 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
   onSelectedFormulaIdsChange,
   className,
 }) => {
+  const { t } = useTranslation('production');
+  const copy = useMemo(() => productionFilterCopy(t), [t]);
   const [open, setOpen] = useState(false);
   const [draftFormulaIds, setDraftFormulaIds] = useState<number[]>(selectedFormulaIds);
 
@@ -52,8 +56,8 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
   }, [open, selectedFormulaIds]);
 
   const displayLabel = useMemo(
-    () => productionActivityRecipeFilterLabel(activeFormulas, selectedFormulaIds),
-    [activeFormulas, selectedFormulaIds],
+    () => productionActivityRecipeFilterLabel(activeFormulas, selectedFormulaIds, copy),
+    [activeFormulas, selectedFormulaIds, copy],
   );
 
   const showClear = !isDefaultActivityRecipeFilter(selectedFormulaIds);
@@ -78,8 +82,8 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
           <MachineSelectSummaryButton
             ariaLabel={
               isDefaultActivityRecipeFilter(selectedFormulaIds)
-                ? 'Filter activity by recipe. Currently showing all recipes.'
-                : `Filter activity by recipe. Current: ${displayLabel}`
+                ? t('filterRecipesAllAria')
+                : t('filterRecipesCurrentAria', { label: displayLabel })
             }
             selectedLine={displayLabel}
             compactLabel
@@ -102,7 +106,7 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
                 className="truncate text-sm font-semibold text-foreground hover:underline"
                 onClick={toggleAllDraft}
               >
-                Activity recipes
+                {t('activityRecipes')}
               </button>
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
@@ -110,25 +114,24 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
                     <button
                       type="button"
                       className="inline-flex shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
-                      aria-label="Activity recipes help"
+                      aria-label={t('activityRecipesHelpAria')}
                     >
                       <Info className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[14rem] text-xs leading-snug">
-                    Click Activity recipes to select or deselect all. Use Apply to update the
-                    chart. All and None set the draft before Apply.
+                    {t('activityRecipesHelp')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             <Button type="button" size="sm" className="h-8 shrink-0" onClick={applyDraft}>
-              Apply
+              {t('apply')}
             </Button>
           </div>
           <div className="max-h-[min(16rem,50vh)] overflow-y-auto p-3">
             {activeFormulas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active recipes.</p>
+              <p className="text-sm text-muted-foreground">{t('noActiveRecipes')}</p>
             ) : (
               <ul className="space-y-2">
                 {activeFormulas.map((formula) => (
@@ -157,7 +160,7 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
               className="flex-1"
               onClick={() => setDraftFormulaIds([])}
             >
-              All
+              {t('all')}
             </Button>
             <Button
               type="button"
@@ -166,7 +169,7 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
               className="flex-1"
               onClick={() => setDraftFormulaIds([ACTIVITY_RECIPE_FILTER_NONE])}
             >
-              None
+              {t('none')}
             </Button>
           </div>
         </PopoverContent>
@@ -178,7 +181,7 @@ const ProductionActivityRecipeFilter: React.FC<ProductionActivityRecipeFilterPro
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground"
-          aria-label="Reset recipe filter to all recipes"
+          aria-label={t('resetRecipesAria')}
           onClick={() => onSelectedFormulaIdsChange([])}
         >
           <X className="h-4 w-4" />

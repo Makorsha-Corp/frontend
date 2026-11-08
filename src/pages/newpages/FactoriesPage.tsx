@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import FactoriesPageHeader from '@/components/newcomponents/customui/factories/FactoriesPageHeader';
 import FactoriesOverviewDashboard from '@/components/newcomponents/customui/factories/overview/FactoriesOverviewDashboard';
@@ -20,6 +21,7 @@ import { appToast } from '@/lib/appToast';
 import { cn } from '@/lib/utils';
 
 const FactoriesPage: React.FC = () => {
+  const { t } = useTranslation('factories');
   const overview = useFactoriesOverviewPage();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -38,15 +40,13 @@ const FactoriesPage: React.FC = () => {
 
   const handleDelete = async (factory: Factory) => {
     if (
-      !window.confirm(
-        `Are you sure you want to deactivate "${factory.name}"? This is a soft delete.`
-      )
+      !window.confirm(t('deactivateConfirm', { name: factory.name }))
     ) {
       return;
     }
     try {
       await deleteFactory(factory.id).unwrap();
-      appToast.success(`Factory "${factory.name}" has been deactivated`);
+      appToast.success(t('deactivateSuccess', { name: factory.name }));
       if (overview.activeFactory?.id === factory.id) {
         overview.clearFactorySelection();
       }
@@ -55,7 +55,7 @@ const FactoriesPage: React.FC = () => {
         error && typeof error === 'object' && 'data' in error
           ? (error as { data?: { detail?: string } }).data?.detail
           : undefined;
-      appToast.error(detail || 'Failed to deactivate factory');
+      appToast.error(detail || t('deactivateFailed'));
     }
   };
 
@@ -78,12 +78,12 @@ const FactoriesPage: React.FC = () => {
         >
           {overview.loadError ? (
             <div className="flex flex-1 items-center justify-center">
-              <p className="text-destructive">Failed to load factory overview. Please try again.</p>
+              <p className="text-destructive">{t('loadError')}</p>
             </div>
           ) : overview.isLoading && overview.factories.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center">
               <Loader2 className="mb-4 h-12 w-12 animate-spin text-brand-primary" />
-              <p className="text-muted-foreground">Loading overview…</p>
+              <p className="text-muted-foreground">{t('loadingOverview')}</p>
             </div>
           ) : (
             <>
@@ -139,7 +139,7 @@ const FactoriesPage: React.FC = () => {
                   />
                 ) : (
                   <div className="flex min-h-[12rem] items-center justify-center text-sm text-muted-foreground lg:h-full">
-                    Factory not found.
+                    {t('factoryNotFound')}
                   </div>
                 )}
               </div>
@@ -168,8 +168,8 @@ const FactoriesPage: React.FC = () => {
         loading={overview.loadMaintenanceDue}
         overdueRows={overview.overdueRows}
         upcomingRows={overview.upcomingRows}
-        description={`Overdue and upcoming machine work for ${overview.scopeLabel}.`}
-        emptyMessage={`No overdue or upcoming machine work for ${overview.scopeLabel}.`}
+        description={t('maintenanceDialogDescription', { scope: overview.scopeLabel })}
+        emptyMessage={t('maintenanceDialogEmpty', { scope: overview.scopeLabel })}
       />
     </>
   );

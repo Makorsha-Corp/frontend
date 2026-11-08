@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -116,6 +117,8 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
   focusLineId = null,
   onSaved,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [existingLines, setExistingLines] = useState<ExistingLineDraft[]>(() => linesFromItems(items));
   const [pendingNewLines, setPendingNewLines] = useState<PendingNewLine[]>([]);
   const [itemId, setItemId] = useState('');
@@ -462,21 +465,21 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
           <DialogHeader className="shrink-0 space-y-1 border-b border-border px-6 py-4 text-left">
             <DialogTitle className="flex items-center gap-2 text-brand-heading">
               <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
-              Edit Items and Prices
+              {t('dlgEditItemsPrices')}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Update quantities and prices, add lines, or remove items.
+              {t('dlgEditItemsPricesHint')}
             </p>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-              <Label className="text-sm font-medium">Add order item</Label>
+              <Label className="text-sm font-medium">{t('dlgAddOrderItem')}</Label>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <ItemSelectSummaryButton
-                    ariaLabel="Select item"
-                    emptyLabel="Select item"
+                    ariaLabel={t('dlgSelectItem')}
+                    emptyLabel={t('dlgSelectItem')}
                     selectedLabel={selectedItemLabel}
                     staleNumericId={itemId || null}
                     onClick={() => setItemPickerOpen(true)}
@@ -539,7 +542,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                     onMouseEnter={() => {
                       if (addButtonHighlighted) dismissAddButtonHighlight();
                     }}
-                    aria-label="Add line item"
+                    aria-label={t('dlgAddLineItem')}
                   >
                     <Check className="h-4 w-4" />
                   </Button>
@@ -724,7 +727,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                 onClick={() => onOpenChange(false)}
                 disabled={isSaving}
               >
-                Cancel
+                {tc('cancel')}
               </Button>
               <div className="relative" data-unadded-hint-root>
                 {unaddedHintOpen ? (
@@ -732,7 +735,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                     role="tooltip"
                     className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[16rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                   >
-                    You have unadded order items — click ✓ to add them, or click Save again to continue without them
+                    {t('dlgUnaddedSaveHint')}
                   </div>
                 ) : null}
                 <Button
@@ -747,7 +750,7 @@ const EditPurchaseOrderItemsDialog: React.FC<EditPurchaseOrderItemsDialogProps> 
                   ) : (
                     <Check className="mr-1 h-4 w-4" />
                   )}
-                  Save changes
+                  {t('dlgSaveChanges')}
                 </Button>
               </div>
             </div>

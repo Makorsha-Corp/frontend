@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -31,11 +32,12 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
   isDeactivating = false,
   className = '',
 }) => {
+  const { t } = useTranslation('machines');
   if (!machine) {
     return (
       <Card className={cn('flex flex-col min-h-0', className)}>
         <CardContent className="flex-1 flex items-center justify-center py-16 text-muted-foreground text-sm">
-          Select a machine to view details
+          {t('selectForDetails')}
         </CardContent>
       </Card>
     );
@@ -59,7 +61,7 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                 {metaLine ? (
                   <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{metaLine}</p>
                 ) : (
-                  <p className="text-xs text-muted-foreground/70 italic">No model / manufacturer</p>
+                  <p className="text-xs text-muted-foreground/70 italic">{t('noModelManufacturer')}</p>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
@@ -67,10 +69,10 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditRequest?.()}>
                       <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit machine</span>
+                      <span className="sr-only">{t('editMachine')}</span>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Edit machine</TooltipContent>
+                  <TooltipContent side="bottom">{t('editMachine')}</TooltipContent>
                 </Tooltip>
                 {onDeactivateRequest && (
                   <Tooltip>
@@ -83,10 +85,10 @@ const MachineDetailCard: React.FC<MachineDetailCardProps> = ({
                         disabled={isDeactivating}
                       >
                         <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Deactivate machine</span>
+                        <span className="sr-only">{t('deactivateMachineAria')}</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Deactivate</TooltipContent>
+                    <TooltipContent side="bottom">{t('deactivate')}</TooltipContent>
                   </Tooltip>
                 )}
               </div>

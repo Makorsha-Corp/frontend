@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, isSameDay, startOfMonth } from 'date-fns';
 import { endOfDay } from 'date-fns';
 import { ChevronRight, Loader2 } from 'lucide-react';
@@ -27,6 +28,7 @@ import {
   productionScheduleTodayWeekAnchor,
 } from '@/components/newcomponents/customui/production/productionScheduleWeek';
 import { useUserTimeFormat } from '@/hooks/useUserTimeFormat';
+import { dateFnsLocale } from '@/utils/datetime';
 import { sheetCalendarGridBounds } from '@/pages/newpages/orders/workOrderSheetData';
 const scheduleToolbarClass =
   'flex shrink-0 flex-wrap items-center justify-end gap-2';
@@ -71,6 +73,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
   hideChrome = false,
   weekBatchGrid = 'lines',
 }) => {
+  const { t } = useTranslation('production');
   const scheduleQueryFactoryId = factoryId ?? undefined;
   const { data: workspaceShifts = [] } = useGetWorkspaceShiftsQuery({ activeOnly: true });
   const { use24Hour } = useUserTimeFormat();
@@ -207,7 +210,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
     onHeaderControls?.(
       <div className={scheduleToolbarClass}>
         <Button type="button" variant="outline" size="sm" onClick={() => setProgramsOpen(true)}>
-          Recurring programs
+          {t('recurringPrograms')}
         </Button>
         <ProductionScheduleWeekPicker
           weekAnchorIso={weekAnchorIso}
@@ -219,7 +222,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
       </div>,
     );
     return () => onHeaderControls?.(null);
-  }, [hideChrome, onHeaderControls, weekAnchorIso, planCountByDate, pickerMonth]);
+  }, [hideChrome, onHeaderControls, weekAnchorIso, planCountByDate, pickerMonth, t]);
 
   return (
     <>
@@ -227,7 +230,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
         {hideChrome ? null : (
         <div className={cn(scheduleToolbarClass, 'border-b border-border bg-card/50 px-4 py-2.5 lg:hidden')}>
           <Button type="button" variant="outline" size="sm" onClick={() => setProgramsOpen(true)}>
-            Recurring programs
+            {t('recurringPrograms')}
           </Button>
           <ProductionScheduleWeekPicker
             weekAnchorIso={weekAnchorIso}
@@ -255,7 +258,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
               'text-xs font-medium text-muted-foreground',
             )}
           >
-            {useHourGrid ? 'Time' : 'Lines'}
+            {useHourGrid ? t('time') : t('lines')}
           </div>
           {range.days.map((day) => {
             const dayIso = format(day, 'yyyy-MM-dd');
@@ -265,7 +268,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
               <button
                 key={dayIso}
                 type="button"
-                title="View day"
+                title={t('viewDay')}
                 onClick={() => onPickDay?.(day)}
                 className={cn(
                   'sticky top-0 z-20 flex min-h-[3.25rem] items-center gap-1.5 border-b border-l border-border bg-background px-2 py-1.5 text-left transition-colors',
@@ -275,12 +278,12 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold text-foreground">
-                    {format(day, 'EEE')}
+                    {format(day, 'EEE', { locale: dateFnsLocale() })}
                     {isToday ? (
-                      <span className="ml-1 text-[10px] font-normal text-brand-primary">Today</span>
+                      <span className="ml-1 text-[10px] font-normal text-brand-primary">{t('today')}</span>
                     ) : null}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">{format(day, 'd MMM')}</div>
+                  <div className="text-[11px] text-muted-foreground">{format(day, 'd MMM', { locale: dateFnsLocale() })}</div>
                 </div>
                 {stepCount > 0 ? (
                   <Badge
@@ -437,7 +440,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
           )}
         </div>
         {!hasPlannedStepsThisWeek && lines.length > 0 && weekBatchGrid === 'lines' ? (
-          <p className="px-4 pt-4 text-sm text-muted-foreground">No planned batches this week.</p>
+          <p className="px-4 pt-4 text-sm text-muted-foreground">{t('noPlannedWeek')}</p>
         ) : null}
         {weekBatchGrid === 'hours' && displayHours.length === 0 && lines.length > 0 ? (
           <p className="px-4 pt-4 text-sm text-muted-foreground">

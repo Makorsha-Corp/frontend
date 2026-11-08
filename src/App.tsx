@@ -30,7 +30,7 @@ import LedgersPage from "./pages/newpages/LedgersPage";
 import CalendarPage from "./pages/newpages/calendar/CalendarPage";
 
 import { ThemeProvider } from "./context/ThemeContext";
-import { SettingsModalProvider } from "./context/SettingsModalContext";
+import { UiLanguageProvider } from "@/i18n/UiLanguageProvider";
 import BusinessLensPage from "./pages/newpages/BusinessLensPage";
 import BusinessLensWizardPage from "./pages/newpages/BusinessLensWizardPage";
 import ManagementPage from "./pages/newpages/ManagementPage";
@@ -57,7 +57,7 @@ const App: React.FC = () => {
             v7_relativeSplatPath: true,
           }}
         >
-          <SettingsModalProvider>
+          <UiLanguageProvider>
           <Routes>
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
@@ -123,7 +123,7 @@ const App: React.FC = () => {
               </Route>
             </Route>
           </Routes>
-          </SettingsModalProvider>
+          </UiLanguageProvider>
         </Router>
       </ThemeProvider>
     </Provider>

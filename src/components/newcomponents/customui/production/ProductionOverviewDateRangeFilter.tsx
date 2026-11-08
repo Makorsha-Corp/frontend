@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { addMonths, startOfDay } from 'date-fns';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import {
   type DateRangeValue,
 } from '@/components/newcomponents/customui/DateRangeFilterTrigger';
 import { parseOptionalBatchFilterDate } from '@/components/newcomponents/customui/production/ProductionContextFilters';
+import { dateFnsLocale } from '@/utils/datetime';
 import { preventRadixCloseAutoFocus } from '@/lib/radixFloatingLayer';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +47,8 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
   onBatchDateRangeApply,
   className,
 }) => {
+  const { t } = useTranslation('production');
+  const locale = dateFnsLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRangeValue>(() =>
     committedToDraft(batchDateFrom, batchDateTo),
@@ -56,8 +60,13 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
   }, [open, batchDateFrom, batchDateTo]);
 
   const displayLabel = useMemo(
-    () => formatDateRangeFilterLabel(committedToDraft(batchDateFrom, batchDateTo)),
-    [batchDateFrom, batchDateTo],
+    () =>
+      formatDateRangeFilterLabel(
+        committedToDraft(batchDateFrom, batchDateTo),
+        t('allDates'),
+        locale,
+      ),
+    [batchDateFrom, batchDateTo, t, locale],
   );
 
   const showClear = Boolean(batchDateFrom || batchDateTo);
@@ -77,7 +86,7 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
       <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <MachineSelectSummaryButton
-            ariaLabel={`Filter overview by date range. Current: ${displayLabel}`}
+            ariaLabel={t('filterDateAria', { label: displayLabel })}
             selectedLine={displayLabel}
             compactLabel
             className={cn(
@@ -94,15 +103,15 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
           onCloseAutoFocus={preventRadixCloseAutoFocus}
         >
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-foreground">Date range</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('dateRange')}</h3>
             <Button type="button" size="sm" className="h-8 shrink-0" onClick={applyDraft}>
-              Apply
+              {t('apply')}
             </Button>
           </div>
           <div className="flex flex-col gap-3 p-2 sm:flex-row sm:items-start">
             <div className="min-w-0 shrink-0">
               <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Start
+                {t('dateStart')}
               </p>
               <Calendar
                 mode="single"
@@ -122,7 +131,7 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
             </div>
             <div className="min-w-0 shrink-0">
               <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                End
+                {t('dateEnd')}
               </p>
               <Calendar
                 mode="single"
@@ -144,7 +153,7 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
               className="w-full"
               onClick={() => setDraft({})}
             >
-              All dates
+              {t('allDates')}
             </Button>
           </div>
         </PopoverContent>
@@ -156,7 +165,7 @@ const ProductionOverviewDateRangeFilter: React.FC<ProductionOverviewDateRangeFil
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground"
-          aria-label="Clear date range filter"
+          aria-label={t('clearDateAria')}
           onClick={() => onBatchDateRangeApply(null, null)}
         >
           <X className="h-4 w-4" />

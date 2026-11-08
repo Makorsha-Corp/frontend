@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Cog, Package, Warehouse } from 'lucide-react';
 
@@ -87,44 +88,45 @@ const FactoriesModuleKpiStrip: React.FC<FactoriesModuleKpiStripProps> = ({
   storageLoading,
   productionLoading,
 }) => {
+  const { t } = useTranslation(['factories', 'machines', 'inventory', 'production', 'common']);
   const maintenanceAlert = overdueCount + upcomingCount > 0;
   const productionAlert = productionSnapshot.inProgressCount > 0;
 
   const storageUnitLabel =
     storageSnapshot.totalUnits === 1
-      ? '1 unit'
-      : `${storageSnapshot.totalUnits.toLocaleString()} units`;
+      ? t('oneUnit')
+      : t('unitsCount', { count: storageSnapshot.totalUnits.toLocaleString() });
 
   const productionLineLabel =
     productionSnapshot.activeLineCount === 1
-      ? '1 active line'
-      : `${productionSnapshot.activeLineCount} active lines`;
+      ? t('oneActiveLine')
+      : t('activeLinesCount', { count: productionSnapshot.activeLineCount });
 
   return (
     <div className="grid grid-cols-3 gap-2 lg:hidden">
       <KpiCell
         to={factoryHubLink('/machines', factoryFilter)}
-        label="Machines"
+        label={t('title', { ns: 'machines' })}
         icon={<Cog className="h-3.5 w-3.5 shrink-0" aria-hidden />}
         value={machinesLoading ? '—' : machineStatus.total}
-        subLabel="in scope"
+        subLabel={t('inScope')}
         hasAlert={maintenanceAlert}
         variant="primary"
       />
       <KpiCell
         to={factoryHubLink('/storage', factoryFilter)}
-        label="Storage"
+        label={t('storageTitle', { ns: 'inventory' })}
         icon={<Warehouse className="h-3.5 w-3.5 shrink-0" aria-hidden />}
         value={storageLoading ? '—' : storageSnapshot.skusWithStock}
-        subLabel={storageLoading ? 'Loading…' : storageUnitLabel}
+        subLabel={storageLoading ? t('loading', { ns: 'common' }) : storageUnitLabel}
         variant="primaryHover"
       />
       <KpiCell
         to={factoryHubLink('/production', factoryFilter)}
-        label="Production"
+        label={t('title', { ns: 'production' })}
         icon={<Package className="h-3.5 w-3.5 shrink-0" aria-hidden />}
         value={productionLoading ? '—' : productionSnapshot.inProgressCount}
-        subLabel={productionLoading ? 'Loading…' : productionLineLabel}
+        subLabel={productionLoading ? t('loading', { ns: 'common' }) : productionLineLabel}
         hasAlert={productionAlert}
         variant="accent"
       />

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
   onSuccess,
   defaultTagCodes,
 }) => {
+  const { t } = useTranslation(['items', 'common']);
   const dispatch = useAppDispatch();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -92,7 +94,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     }).unwrap();
 
-    appToast.success('Item created successfully!');
+    appToast.success(t('itemCreatedSuccess'));
     resetForm();
     onOpenChange(false);
     onSuccess?.(created);
@@ -102,12 +104,12 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
     e.preventDefault();
 
     if (!name.trim()) {
-      appToast.error('Item name is required');
+      appToast.error(t('fieldNameRequired'));
       return;
     }
 
     if (!unit.trim()) {
-      appToast.error('Unit is required');
+      appToast.error(t('fieldUnitRequired'));
       return;
     }
 
@@ -134,7 +136,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       await performCreate();
     } catch (error: unknown) {
       console.error('Failed to create item:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to create item'));
+      appToast.error(apiErrorDetail(error, t('itemCreateFailed')));
     }
   };
 
@@ -162,7 +164,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
       await performCreate();
     } catch (error: unknown) {
       console.error('Failed to create item:', error);
-      appToast.error(apiErrorDetail(error, 'Failed to create item'));
+      appToast.error(apiErrorDetail(error, t('itemCreateFailed')));
     }
   };
 
@@ -179,21 +181,19 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
         <DialogContent className="w-[min(56rem,94vw)] max-w-none max-h-[min(90dvh,720px)] overflow-y-auto sm:max-w-none">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <DialogHeader>
-              <DialogTitle className="text-brand-heading">Add New Item</DialogTitle>
-              <DialogDescription>
-                Create a new item in your catalog. Fill in the details below.
-              </DialogDescription>
+              <DialogTitle className="text-brand-heading">{t('dialogAddTitle')}</DialogTitle>
+              <DialogDescription>{t('dialogAddDescription')}</DialogDescription>
             </DialogHeader>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 md:items-center pt-1">
               <div className="grid gap-4 min-w-0">
                 <div className="grid gap-2">
                   <Label htmlFor="name">
-                    Item Name <span className="text-red-500">*</span>
+                    {t('fieldItemName')} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="name"
-                    placeholder="Enter item name"
+                    placeholder={t('placeholderItemName')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
@@ -202,11 +202,11 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
 
                 <div className="grid gap-2">
                   <Label htmlFor="unit">
-                    Unit <span className="text-red-500">*</span>
+                    {t('unit')} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="unit"
-                    placeholder="e.g. kg, pcs, meter, box"
+                    placeholder={t('placeholderUnit')}
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                     required
@@ -214,20 +214,20 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="sku">SKU</Label>
+                  <Label htmlFor="sku">{t('sku')}</Label>
                   <Input
                     id="sku"
-                    placeholder="Optional stock-keeping ID"
+                    placeholder={t('placeholderSku')}
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('columnDescription')}</Label>
                   <Textarea
                     id="description"
-                    placeholder="Enter item description (optional)"
+                    placeholder={t('placeholderDescription')}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2}
@@ -248,7 +248,7 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleCancel} disabled={isBusy}>
-                Cancel
+                {t('cancel', { ns: 'common' })}
               </Button>
               <Button
                 type="submit"
@@ -258,10 +258,10 @@ const AddItemDialog: React.FC<AddItemDialogProps> = ({
                 {isBusy ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isCheckingSimilar ? 'Checking name…' : 'Creating...'}
+                    {isCheckingSimilar ? t('checkingName') : t('creatingItem')}
                   </>
                 ) : (
-                  'Create Item'
+                  t('createItem')
                 )}
               </Button>
             </DialogFooter>

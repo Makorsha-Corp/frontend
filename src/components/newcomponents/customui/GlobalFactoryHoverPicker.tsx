@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeftRight, Loader2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setFactory, clearFactory } from '@/features/auth/authSlice';
@@ -7,9 +8,6 @@ import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardPortal, HoverCardTrigger } from '@/components/ui/hover-card';
 import { cn } from '@/lib/utils';
 import type { Factory } from '@/types/factory';
-
-const GLOBAL_FACTORY_HINT =
-  'Default factory for Machines, Storage, Projects, Production, and new orders. Items and Accounts stay workspace-wide.';
 
 export interface GlobalFactoryHoverPickerProps {
   className?: string;
@@ -22,6 +20,7 @@ const GlobalFactoryHoverPicker: React.FC<GlobalFactoryHoverPickerProps> = ({
   side = 'right',
   align = 'start',
 }) => {
+  const { t } = useTranslation('factories');
   const dispatch = useAppDispatch();
   const selectedFactory = useAppSelector((state) => state.auth.factory);
   const [open, setOpen] = useState(false);
@@ -45,8 +44,8 @@ const GlobalFactoryHoverPicker: React.FC<GlobalFactoryHoverPickerProps> = ({
       <HoverCardTrigger asChild>
         <button
           type="button"
-          title="Change global factory"
-          aria-label="Change global factory"
+          title={t('globalFactoryChangeAria')}
+          aria-label={t('globalFactoryChangeAria')}
           className={cn(
             'p-1.5 rounded-md shrink-0 hover:bg-white/10 dark:hover:bg-white/10 transition-colors',
             className,
@@ -65,17 +64,17 @@ const GlobalFactoryHoverPicker: React.FC<GlobalFactoryHoverPickerProps> = ({
           className="z-[200] w-72 border-border bg-popover p-0 text-popover-foreground shadow-lg"
         >
           <div className="space-y-2 border-b border-border px-3 py-3">
-            <p className="text-sm font-semibold text-foreground">Global factory</p>
-            <p className="text-xs leading-snug text-muted-foreground">{GLOBAL_FACTORY_HINT}</p>
+            <p className="text-sm font-semibold text-foreground">{t('globalFactoryTitle')}</p>
+            <p className="text-xs leading-snug text-muted-foreground">{t('globalFactoryHint')}</p>
             {selectedFactory ? (
               <p className="text-xs text-foreground">
-                Current:{' '}
-                <span className="font-medium">
-                  {selectedFactory.name} ({selectedFactory.abbreviation})
-                </span>
+                {t('globalFactoryCurrent', {
+                  name: selectedFactory.name,
+                  abbr: selectedFactory.abbreviation,
+                })}
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">No factory selected — pages show all factories.</p>
+              <p className="text-xs text-muted-foreground">{t('globalFactoryNone')}</p>
             )}
           </div>
           <div className="max-h-56 overflow-y-auto p-2">
@@ -93,7 +92,7 @@ const GlobalFactoryHoverPicker: React.FC<GlobalFactoryHoverPickerProps> = ({
                     className="h-8 w-full justify-start text-muted-foreground"
                     onClick={handleClear}
                   >
-                    Clear selection
+                    {t('globalFactoryClear')}
                   </Button>
                 ) : null}
                 {factories.map((factory) => (
@@ -112,7 +111,7 @@ const GlobalFactoryHoverPicker: React.FC<GlobalFactoryHoverPickerProps> = ({
               </div>
             ) : (
               <p className="px-1 py-3 text-center text-xs text-muted-foreground">
-                No factories yet. Create one from the Factories page.
+                {t('globalFactoryEmpty')}
               </p>
             )}
           </div>

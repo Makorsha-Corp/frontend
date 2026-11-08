@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, ChevronRight, Check } from 'lucide-react';
@@ -30,14 +31,18 @@ export interface OrderPendingActionsProps {
 }
 
 const OrderPendingActions: React.FC<OrderPendingActionsProps> = ({
-  title = 'Needs Attention',
+  title,
   titleIcon,
   sections,
   onSelectItem,
-  emptyTitle = 'All clear!',
-  emptyMessage = 'No pending actions at the moment',
+  emptyTitle,
+  emptyMessage,
   className,
 }) => {
+  const { t } = useTranslation('orders');
+  const resolvedTitle = title ?? t('needsAttention');
+  const resolvedEmptyTitle = emptyTitle ?? t('allClearTitle');
+  const resolvedEmptyMessage = emptyMessage ?? t('noPendingActions');
   const visibleSections = sections.filter((s) => s.count > 0);
   const allClear = visibleSections.length === 0;
 
@@ -46,7 +51,7 @@ const OrderPendingActions: React.FC<OrderPendingActionsProps> = ({
       <CardHeader className="pb-3 shrink-0">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           {titleIcon ?? <AlertCircle className="h-4 w-4 text-muted-foreground" />}
-          {title}
+          {resolvedTitle}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
@@ -55,8 +60,8 @@ const OrderPendingActions: React.FC<OrderPendingActionsProps> = ({
             <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-3">
               <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
-            <p className="text-sm font-medium text-card-foreground">{emptyTitle}</p>
-            <p className="text-xs text-muted-foreground mt-1">{emptyMessage}</p>
+            <p className="text-sm font-medium text-card-foreground">{resolvedEmptyTitle}</p>
+            <p className="text-xs text-muted-foreground mt-1">{resolvedEmptyMessage}</p>
           </div>
         ) : (
           <div className="space-y-4">

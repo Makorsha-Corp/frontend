@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { useProductionPageNavigation } from '@/pages/newpages/production/useProductionPageNavigation';
 import { normalizeProductionScheduleWeekAnchor } from '@/components/newcomponents/customui/production/productionScheduleWeek';
@@ -77,6 +78,7 @@ import {
   linesInLineScope,
 } from '@/components/newcomponents/customui/production/productionHeaderFilterHelpers';
 import { productionActivityFilterSummary } from '@/lib/productionActivityFilterSummary';
+import { productionFilterCopy, productionStatusLabel } from '@/components/newcomponents/customui/production/productionStatusLabel';
 import {
   activityFormulaIdsForQuery,
   isNoActivityRecipesSelected,
@@ -239,6 +241,8 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 const ProductionPage: React.FC = () => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const isLgScreen = useIsLgScreen();
   const [catalogLineIds, setCatalogLineIds] = useState<number[] | null>(null);
   const [catalogMachineIds, setCatalogMachineIds] = useState<number[] | null>(null);
@@ -812,8 +816,9 @@ const ProductionPage: React.FC = () => {
         setupFormulas,
         effectiveActivityLineIds,
         activityFormulaIds,
+        productionFilterCopy(t),
       ),
-    [linesForFactory, setupFormulas, effectiveActivityLineIds, activityFormulaIds],
+    [linesForFactory, setupFormulas, effectiveActivityLineIds, activityFormulaIds, t],
   );
 
   const factoryLocationValue = useMemo(() => singleFactoryToSlice(factoryId), [factoryId]);
@@ -888,11 +893,11 @@ const ProductionPage: React.FC = () => {
     if (!window.confirm(`Deactivate "${line.name}"?`)) return;
     try {
       await deleteLine(line.id).unwrap();
-      appToast.success('Line deactivated');
+      appToast.success(t('lineDeactivated'));
       setLineActionTarget(null);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to deactivate');
+      appToast.error(err?.data?.detail || t('failedDeactivate'));
     }
   };
 
@@ -906,11 +911,11 @@ const ProductionPage: React.FC = () => {
     }
     try {
       await deleteFormula(formula.id).unwrap();
-      appToast.success('Recipe deactivated');
+      appToast.success(t('recipeDeactivated'));
       setFormulaActionTarget(null);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to deactivate recipe');
+      appToast.error(err?.data?.detail || t('failedDeactivateRecipe'));
     }
   };
 
@@ -929,21 +934,21 @@ const ProductionPage: React.FC = () => {
           machine_ids: payload.machineIds,
         },
       }).unwrap();
-      appToast.success('Line updated');
+      appToast.success(t('lineUpdated'));
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to update line');
+      appToast.error(err?.data?.detail || t('failedUpdateLine'));
     }
   };
 
   const handleSaveFormulaFromPopup = async () => {
     if (!formulaActionTarget) return;
     if (!formulaDraftName.trim()) {
-      appToast.error('Formula name is required');
+      appToast.error(t('formulaNameRequired'));
       return;
     }
     if (!formulaDraftCode.trim()) {
-      appToast.error('Formula code is required');
+      appToast.error(t('formulaCodeRequired'));
       return;
     }
     const duplicate = formulas.find(
@@ -953,7 +958,7 @@ const ProductionPage: React.FC = () => {
           f.name.toLowerCase() === formulaDraftName.trim().toLowerCase())
     );
     if (duplicate) {
-      appToast.error('Formula code or name already exists');
+      appToast.error(t('formulaCodeOrNameExists'));
       return;
     }
     try {
@@ -964,7 +969,7 @@ const ProductionPage: React.FC = () => {
           description: formulaDraftDescription.trim() || undefined,
         },
       }).unwrap();
-      appToast.success('Formula updated');
+      appToast.success(t('formulaUpdated'));
       setIsFormulaEditMode(false);
       setFormulaActionTarget((prev) =>
         prev
@@ -978,7 +983,7 @@ const ProductionPage: React.FC = () => {
       );
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to update formula');
+      appToast.error(err?.data?.detail || t('failedUpdateFormula'));
     }
   };
 
@@ -988,16 +993,16 @@ const ProductionPage: React.FC = () => {
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <FlaskConical className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">{t('noFactoriesTitle')}</h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can manage production lines, formulas, and batches.
+            {t('noFactoriesBody')}
           </p>
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
-            Create Your First Factory
+            {t('createFirstFactory')}
           </Button>
 
           <AddFactoryDialog
@@ -1020,7 +1025,7 @@ const ProductionPage: React.FC = () => {
           <AppShellHeaderCompactList
             sticky
             icon={FlaskConical}
-            title="Production"
+            title={t('title')}
             headerNav={<ProductionPageHeaderTabList />}
             headerNavMobile={<ProductionPageHeaderTabList compact />}
             leftExtras={
@@ -1081,7 +1086,7 @@ const ProductionPage: React.FC = () => {
                 </div>
               ) : null
             }
-            addAriaLabel="Start new production run"
+            addAriaLabel={t('startNewRunAria')}
           />
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1092,7 +1097,7 @@ const ProductionPage: React.FC = () => {
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
             <Card className="border-border xl:col-span-1">
               <CardHeader>
-                <CardTitle className="text-base">Batches by Status</CardTitle>
+                <CardTitle className="text-base">{t('batchesByStatus')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <BatchStatusPieChart batches={filteredBatches} />
@@ -1101,11 +1106,11 @@ const ProductionPage: React.FC = () => {
 
             <Card className="border-border xl:col-span-1">
               <CardHeader>
-                <CardTitle className="text-base">Avg Efficiency</CardTitle>
+                <CardTitle className="text-base">{t('avgEfficiency')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="rounded-md border border-border p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Average</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('average')}</p>
                   <p className="mt-1 text-2xl font-semibold text-foreground">
                     {metrics.avgEfficiency != null ? `${metrics.avgEfficiency.toFixed(1)}%` : '—'}
                   </p>
@@ -1113,13 +1118,13 @@ const ProductionPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-emerald-500/25 bg-emerald-500/[0.08] p-3">
                     <p className="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                      Above target
+                      {t('aboveTarget')}
                     </p>
                     <p className="mt-1 text-xl font-semibold text-card-foreground">{metrics.aboveTargetCount}</p>
                   </div>
                   <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] p-3">
                     <p className="text-[11px] uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                      Below target
+                      {t('belowTarget')}
                     </p>
                     <p className="mt-1 text-xl font-semibold text-card-foreground">{metrics.belowTargetCount}</p>
                   </div>
@@ -1130,7 +1135,7 @@ const ProductionPage: React.FC = () => {
             <Card className="border-border xl:col-span-2">
               <CardHeader>
                 <div>
-                  <CardTitle className="text-base">Batch activity (last 12 months)</CardTitle>
+                  <CardTitle className="text-base">{t('batchActivity')}</CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">{activityFilterSummary}</p>
                 </div>
               </CardHeader>
@@ -1143,13 +1148,13 @@ const ProductionPage: React.FC = () => {
                   <div className="space-y-2">
                     {activityStatsError ? (
                       <p className="text-xs text-amber-700 dark:text-amber-400">
-                        Activity totals could not be loaded from the server
+                        {t('activityLoadFailed')}
                         {activityHeatmapFallbackItems.length > 0
-                          ? ' — showing counts from loaded batches (last 100 max).'
+                          ? t('activityFallback')
                           : '.'}
                       </p>
                     ) : null}
-                    <ContributionHeatmap items={activityHeatmapItems} itemLabel="batch" />
+                    <ContributionHeatmap items={activityHeatmapItems} itemLabel={t('heatmapItem')} />
                   </div>
                 )}
               </CardContent>
@@ -1294,24 +1299,24 @@ const ProductionPage: React.FC = () => {
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>
-              {formulaActionTarget ? `${formulaActionTarget.name} (${formulaActionTarget.formula_code})` : 'Formula'}
+              {formulaActionTarget ? `${formulaActionTarget.name} (${formulaActionTarget.formula_code})` : t('formulaFallback')}
             </DialogTitle>
             <DialogDescription>
-              Manage this formula from one place.
+              {t('manageFormula')}
             </DialogDescription>
           </DialogHeader>
           {isFormulaEditMode ? (
             <div className="space-y-3">
               <div className="grid gap-1.5">
-                <Label>Formula code</Label>
+                <Label>{t('formulaCode')}</Label>
                 <Input value={formulaDraftCode} disabled />
               </div>
               <div className="grid gap-1.5">
-                <Label>Name</Label>
+                <Label>{t('name')}</Label>
                 <Input value={formulaDraftName} onChange={(e) => setFormulaDraftName(e.target.value)} />
               </div>
               <div className="grid gap-1.5">
-                <Label>Description</Label>
+                <Label>{t('description')}</Label>
                 <Textarea
                   value={formulaDraftDescription}
                   onChange={(e) => setFormulaDraftDescription(e.target.value)}
@@ -1327,7 +1332,7 @@ const ProductionPage: React.FC = () => {
                 </p>
               ) : (
                 <p className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-                  No description added.
+                  {t('noDescription')}
                 </p>
               )}
             </div>
@@ -1347,11 +1352,11 @@ const ProductionPage: React.FC = () => {
                 }
               }}
             >
-              {isFormulaEditMode ? 'Cancel edit' : 'Edit'}
+              {isFormulaEditMode ? t('cancelEdit') : t('edit')}
             </Button>
             {isFormulaEditMode ? (
               <Button onClick={handleSaveFormulaFromPopup} disabled={isUpdatingFormula}>
-                {isUpdatingFormula ? 'Saving...' : 'Save'}
+                {isUpdatingFormula ? tc('saving') : t('save')}
               </Button>
             ) : null}
             <Button
@@ -1359,7 +1364,7 @@ const ProductionPage: React.FC = () => {
               onClick={() => formulaActionTarget && handleDeactivateFormula(formulaActionTarget)}
               disabled={isDeletingFormula}
             >
-              {isDeletingFormula ? 'Deactivating...' : 'Deactivate formula'}
+              {isDeletingFormula ? t('deactivating') : t('deactivateFormula')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1507,6 +1512,8 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
   isUpdating,
   onSuccess,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const [name, setName] = useState(line?.name ?? '');
   const [description, setDescription] = useState(line?.description ?? '');
   const [machineIds, setMachineIds] = useState<number[]>(line ? lineMachineIds(line) : []);
@@ -1532,12 +1539,12 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      appToast.error('Name is required');
+      appToast.error(t('nameRequired'));
       return;
     }
     const fid = parseInt(selectedFactoryId, 10);
     if (!fid) {
-      appToast.error('Factory is required');
+      appToast.error(t('factoryRequired'));
       return;
     }
     try {
@@ -1546,7 +1553,7 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
           id: line.id,
           data: { name: name.trim(), description: description.trim() || undefined, machine_ids: machineIds },
         }).unwrap();
-        appToast.success('Line updated');
+        appToast.success(t('lineUpdated'));
       } else {
         await createLine({
           factory_id: fid,
@@ -1554,13 +1561,13 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
           description: description.trim() || undefined,
           machine_ids: machineIds,
         }).unwrap();
-        appToast.success('Line created');
+        appToast.success(t('lineCreated'));
       }
       onSuccess();
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || t('failedSave'));
     }
   };
 
@@ -1569,18 +1576,18 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
       <DialogContent className="flex max-h-[90vh] w-[min(32rem,94vw)] max-w-none flex-col overflow-hidden sm:max-w-none">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle>{line ? 'Edit Production Line' : 'Add Production Line'}</DialogTitle>
+            <DialogTitle>{line ? t('editLine') : t('addLine')}</DialogTitle>
             <DialogDescription>
-              {line ? 'Update the production line details.' : 'Create a new production line.'}
+              {line ? t('editLineHint') : t('addLineHint')}
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4">
             {!line && (
               <div className="grid gap-2">
-                <Label>Factory</Label>
+                <Label>{t('factory')}</Label>
                 <Select value={selectedFactoryId} onValueChange={setSelectedFactoryId} required>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select factory" />
+                    <SelectValue placeholder={t('selectFactory')} />
                   </SelectTrigger>
                   <SelectContent>
                     {factories.map((f) => (
@@ -1593,23 +1600,23 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
               </div>
             )}
             <div className="grid gap-2">
-              <Label>Name</Label>
+              <Label>{t('name')}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Line A"
+                placeholder={t('lineNamePh')}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Description (optional)</Label>
+              <Label>{t('descriptionOptional')}</Label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description"
+                placeholder={t('briefDescription')}
               />
             </div>
             <div className="space-y-2">
-              <Label>Machines</Label>
+              <Label>{t('machines')}</Label>
               <ProductionLineMachinesSelector
                 factoryId={effectiveFactoryId}
                 machines={factoryMachines}
@@ -1620,11 +1627,11 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
           </div>
           <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={isCreating || isUpdating}>
               {(isCreating || isUpdating) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {line ? 'Update' : 'Create'}
+              {line ? t('update') : t('create')}
             </Button>
           </DialogFooter>
         </form>
@@ -1664,6 +1671,8 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
   isUpdating,
   onSuccess,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const [formulaCode, setFormulaCode] = useState(formula?.formula_code ?? '');
   const [name, setName] = useState(formula?.name ?? '');
   const [description, setDescription] = useState(formula?.description ?? '');
@@ -1681,11 +1690,11 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      appToast.error('Name is required');
+      appToast.error(t('nameRequired'));
       return;
     }
     if (!formulaCode.trim()) {
-      appToast.error('Formula code is required');
+      appToast.error(t('formulaCodeRequired'));
       return;
     }
     const dup = formulas.find(
@@ -1695,7 +1704,7 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
           f.name.toLowerCase() === name.trim().toLowerCase())
     );
     if (dup) {
-      appToast.error('A formula with this code or name already exists');
+      appToast.error(t('formulaDuplicate'));
       return;
     }
     try {
@@ -1707,10 +1716,10 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
             description: description.trim() || undefined,
           },
         }).unwrap();
-        appToast.success('Formula updated');
+        appToast.success(t('formulaUpdated'));
       } else {
         if (!factoryId) {
-          appToast.error('Select a factory first');
+          appToast.error(t('selectFactoryFirst'));
           return;
         }
         const created =
@@ -1730,7 +1739,7 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
                 description: description.trim() || undefined,
                 factory_id: factoryId,
               }).unwrap();
-        appToast.success('Recipe created');
+        appToast.success(t('recipeCreated'));
         onSuccess(created.id);
         onOpenChange(false);
         return;
@@ -1739,7 +1748,7 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to save');
+      appToast.error(err?.data?.detail || t('failedSave'));
     }
   };
 
@@ -1748,32 +1757,30 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
       <DialogContent className="sm:max-w-[440px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{formula ? 'Edit product recipe' : 'Add product recipe'}</DialogTitle>
+            <DialogTitle>{formula ? t('editProductRecipe') : t('addProductRecipe')}</DialogTitle>
             <DialogDescription>
-              {formula
-                ? 'Update the recipe details.'
-                : 'Create a blank recipe or copy path and materials from another recipe.'}
+              {formula ? t('editRecipeHint') : t('addRecipeDialogHint')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Formula Code</Label>
+              <Label>{t('formulaCodeLabel')}</Label>
               <Input
                 value={formulaCode}
                 onChange={(e) => setFormulaCode(e.target.value)}
-                placeholder="e.g. YARN-001"
+                placeholder={t('formulaCodePh')}
                 disabled={!!formula}
               />
             </div>
             {!formula ? (
               <div className="grid gap-2">
-                <Label>Copy from (optional)</Label>
+                <Label>{t('copyFrom')}</Label>
                 <Select value={copyFromId} onValueChange={setCopyFromId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Blank recipe" />
+                    <SelectValue placeholder={t('blankRecipe')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Blank recipe</SelectItem>
+                    <SelectItem value="__none__">{t('blankRecipe')}</SelectItem>
                     {formulas.filter((f) => f.is_active).map((f) => (
                       <SelectItem key={f.id} value={String(f.id)}>
                         {f.name} ({f.formula_code})
@@ -1784,29 +1791,29 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
               </div>
             ) : null}
             <div className="grid gap-2">
-              <Label>Name</Label>
+              <Label>{t('name')}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Cotton Yarn Production"
+                placeholder={t('recipeNamePh')}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Description (optional)</Label>
+              <Label>{t('descriptionOptional')}</Label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description"
+                placeholder={t('briefDescription')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={isCreating || isCopying || isUpdating}>
               {(isCreating || isCopying || isUpdating) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {formula ? 'Update' : 'Create'}
+              {formula ? t('update') : t('create')}
             </Button>
           </DialogFooter>
         </form>
@@ -1820,16 +1827,20 @@ const AddEditFormulaDialog: React.FC<AddEditFormulaDialogProps> = ({
 const CHART_COLORS = ['#9067c6', '#8d86c9', '#7c6bb8', '#6b5aa7', '#5a4996'];
 
 const BatchStatusPieChart: React.FC<{ batches: ProductionBatch[] }> = ({ batches }) => {
+  const { t } = useTranslation('production');
   const byStatus = React.useMemo(() => {
     const map: Record<string, number> = {};
     for (const b of batches) {
       map[b.status] = (map[b.status] ?? 0) + 1;
     }
-    return Object.entries(map).map(([name, value]) => ({ name: name.replace('_', ' '), value }));
-  }, [batches]);
+    return Object.entries(map).map(([name, value]) => ({
+      name: productionStatusLabel(name, t),
+      value,
+    }));
+  }, [batches, t]);
 
   if (byStatus.length === 0) {
-    return <p className="text-sm text-muted-foreground py-8 text-center">No batch data</p>;
+    return <p className="text-sm text-muted-foreground py-8 text-center">{t('noBatchData')}</p>;
   }
   return (
     <div style={{ height: 200 }}>
@@ -1879,6 +1890,8 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
   isCreating,
   onSuccess,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const millTimezone = useMillTimezone();
   const [batchMode, setBatchMode] = useState<'recipe' | 'simple' | 'recurring'>('recipe');
   const [lineId, setLineId] = useState('');
@@ -2244,20 +2257,20 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     e?.preventDefault();
     if (batchMode === 'recurring') {
       if (!selectedFormulaId) {
-        appToast.error('Pick a recipe for this run');
+        appToast.error(t('pickRecipe'));
         return;
       }
       if (factoryId == null) {
-        appToast.error('Pick a factory first');
+        appToast.error(t('pickFactory'));
         return;
       }
       if (!plannedStart.trim()) {
-        appToast.error('Set a planned start');
+        appToast.error(t('setPlannedStart'));
         return;
       }
       const start = new Date(plannedStart);
       if (Number.isNaN(start.getTime())) {
-        appToast.error('Planned start is not a valid date');
+        appToast.error(t('plannedStartInvalid'));
         return;
       }
       const startDate = plannedStart.slice(0, 10);
@@ -2277,15 +2290,15 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
             : {}),
           end_date: recurrenceEnd,
         }).unwrap();
-        appToast.success('Recurring program created');
+        appToast.success(t('recurringCreated'));
         onOpenChange(false);
       } catch (error) {
-        appToast.error(apiErrorDetail(error, 'Failed to create program'));
+        appToast.error(apiErrorDetail(error, t('failedCreateProgram')));
       }
       return;
     }
     if (usesRecipe && !selectedFormulaId) {
-      appToast.error('Pick a recipe for this run');
+      appToast.error(t('pickRecipe'));
       return;
     }
     const lid = resolveBatchProductionLineId();
@@ -2301,7 +2314,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       expectedOutput.trim() !== '' &&
       (parsedExpectedOutput == null || Number.isNaN(parsedExpectedOutput) || parsedExpectedOutput < 1)
     ) {
-      appToast.error('Enter a positive integer for target products, or leave blank for the formula default');
+      appToast.error(t('targetQtyInvalid'));
       return;
     }
 
@@ -2427,12 +2440,12 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
         parameter_seeds: parameterSeeds,
       }).unwrap();
 
-      appToast.success('Batch created');
+      appToast.success(t('batchCreated'));
       onSuccess(created.id);
       onOpenChange(false);
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to create');
+      appToast.error(err?.data?.detail || t('failedCreate'));
     }
   };
 
@@ -2446,7 +2459,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(76rem,96vw)] max-w-none flex-col overflow-hidden">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <DialogHeader className="shrink-0 pb-2">
-            <DialogTitle>New production run</DialogTitle>
+            <DialogTitle>{t('newRun')}</DialogTitle>
           </DialogHeader>
 
           <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:grid-cols-[22rem_minmax(0,1fr)]">
@@ -2454,7 +2467,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
               <div
                 className="grid grid-cols-3 gap-0.5 rounded-md border border-border/60 bg-muted/30 p-0.5"
                 role="group"
-                aria-label="Run mode"
+                aria-label={t('runModeAria')}
               >
                 <button
                   type="button"
@@ -2466,7 +2479,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                   )}
                   onClick={() => setBatchMode('recipe')}
                 >
-                  Recipe
+                  {t('recipe')}
                 </button>
                 <button
                   type="button"
@@ -2481,7 +2494,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                     setFormulaId('');
                   }}
                 >
-                  Simple
+                  {t('simple')}
                 </button>
                 <button
                   type="button"
@@ -2493,14 +2506,14 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                   )}
                   onClick={() => setBatchMode('recurring')}
                 >
-                  Recurring
+                  {t('recurring')}
                 </button>
               </div>
 
               {usesRecipe ? (
                 <>
                   <div className="grid gap-1.5">
-                    <Label>Recipe *</Label>
+                    <Label>{t('recipeRequired')}</Label>
                     <button
                       type="button"
                       className={cn(
@@ -2515,12 +2528,12 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                           <span className="text-xs text-muted-foreground">{selectedFormula.formula_code}</span>
                         </>
                       ) : (
-                        <span className="text-muted-foreground">Select recipe…</span>
+                        <span className="text-muted-foreground">{t('selectRecipe')}</span>
                       )}
                     </button>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Target qty</Label>
+                    <Label>{t('targetQty')}</Label>
                     <Input
                       className="h-9"
                       type="text"
@@ -2529,15 +2542,19 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                       value={expectedOutput}
                       onChange={(e) => setExpectedOutput(e.target.value)}
                       placeholder={
-                        formulaDefaultOutput > 0 ? `Default ${formulaDefaultOutput}` : 'Optional'
+                        formulaDefaultOutput > 0
+                          ? t('defaultQty', { qty: formulaDefaultOutput })
+                          : t('optional')
                       }
                     />
                     {recipeMaterialScale.baseOutput > 0 &&
                     Math.abs(recipeMaterialScale.multiplier - 1) > 0.000_1 ? (
                       <p className="text-xs text-muted-foreground tabular-nums">
-                        Recipe output {formatProductionQuantity(recipeMaterialScale.baseOutput)} →
-                        target {formatProductionQuantity(recipeMaterialScale.targetOutput)} (×{' '}
-                        {formatProductionScaleFactor(recipeMaterialScale.multiplier)})
+                        {t('recipeScale', {
+                          base: formatProductionQuantity(recipeMaterialScale.baseOutput),
+                          target: formatProductionQuantity(recipeMaterialScale.targetOutput),
+                          factor: formatProductionScaleFactor(recipeMaterialScale.multiplier),
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -2545,10 +2562,10 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
               ) : (
                 <>
                   <div className="grid gap-1.5">
-                    <Label>Production line *</Label>
+                    <Label>{t('lineRequired')}</Label>
                     <Select value={lineId} onValueChange={setLineId}>
                       <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select line" />
+                        <SelectValue placeholder={t('selectLine')} />
                       </SelectTrigger>
                       <SelectContent>
                         {filteredLines.map((l) => (
@@ -2560,14 +2577,14 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                     </Select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Expected qty</Label>
+                    <Label>{t('expectedQty')}</Label>
                     <Input
                       className="h-9"
                       type="text"
                       inputMode="numeric"
                       value={expectedOutput}
                       onChange={(e) => setExpectedOutput(e.target.value)}
-                      placeholder="Optional"
+                      placeholder={t('optional')}
                     />
                   </div>
                 </>
@@ -2605,12 +2622,12 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
               ) : null}
 
               <div className="grid gap-1.5">
-                <Label>Notes (optional)</Label>
+                <Label>{t('notesOptional')}</Label>
                 <Input
                   className="h-9"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notes"
+                  placeholder={t('notes')}
                 />
               </div>
 
@@ -2626,12 +2643,12 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                       <ChevronDown
                         className={`h-4 w-4 shrink-0 transition-transform ${recipeMoreOpen ? 'rotate-180' : ''}`}
                       />
-                      More options
+                      {t('moreOptions')}
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2 pt-1">
                     <div className="grid gap-1.5">
-                      <Label>Sales order</Label>
+                      <Label>{t('salesOrder')}</Label>
                       <Select
                         value={salesOrderId || 'none'}
                         onValueChange={(value) => {
@@ -2640,10 +2657,10 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                         }}
                       >
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Make-to-stock" />
+                          <SelectValue placeholder={t('makeToStock')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Make-to-stock</SelectItem>
+                          <SelectItem value="none">{t('makeToStock')}</SelectItem>
                           {salesOrders.filter((order) => !order.is_fully_delivered).map((order) => (
                             <SelectItem key={order.id} value={String(order.id)}>
                               {order.sales_order_number}
@@ -2654,16 +2671,16 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                     </div>
                     {salesOrderId ? (
                       <div className="grid gap-1.5">
-                        <Label>Order line</Label>
+                        <Label>{t('orderLine')}</Label>
                         <Select
                           value={salesItemId || 'none'}
                           onValueChange={(value) => setSalesItemId(value === 'none' ? '' : value)}
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Pick a line" />
+                            <SelectValue placeholder={t('pickALine')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Pick a line</SelectItem>
+                            <SelectItem value="none">{t('pickALine')}</SelectItem>
                             {salesItems
                               .filter((item) => {
                                 if (lastStepOutputItemIds.length === 0) return true;
@@ -2671,7 +2688,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                               })
                               .map((item) => (
                                 <SelectItem key={item.id} value={String(item.id)}>
-                                  {item.item_name || item.description || `Line #${item.id}`}
+                                  {item.item_name || item.description || t('lineItemFallback', { id: item.id })}
                                 </SelectItem>
                               ))}
                           </SelectContent>
@@ -2686,13 +2703,13 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
             <div className="min-h-0 overflow-y-auto md:pl-1">
               {batchMode === 'simple' ? (
                 <div className="flex min-h-[12rem] items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
-                  Simple run uses the line and qty on the left. No path or materials.
+                  {t('simpleRunHint')}
                 </div>
               ) : usesRecipe && selectedFormulaId && formulaStages.length > 0 ? (
                 <div className="space-y-4 pb-2">
                   <section>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Path for this run
+                      {t('pathForRun')}
                     </p>
                     <AddBatchRecipePathList
                       stages={formulaStages}
@@ -2748,18 +2765,18 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
                 </div>
               ) : (
                 <div className="flex min-h-[12rem] items-center justify-center px-4 py-8 text-center text-sm text-muted-foreground">
-                  Select a recipe to preview the path and materials.
+                  {t('selectRecipePreview')}
                 </div>
               )}
             </div>
           </div>
           <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={isCreating || isCreatingProgram}>
               {(isCreating || isCreatingProgram) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {batchMode === 'recurring' ? 'Create program' : 'Create'}
+              {batchMode === 'recurring' ? t('createProgram') : t('create')}
             </Button>
           </DialogFooter>
         </form>
@@ -2802,6 +2819,8 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
   completeBatch,
   onSuccess,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const [actualOutput, setActualOutput] = useState(
     batch.expected_output_quantity?.toString() ?? ''
   );
@@ -2821,12 +2840,12 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
           notes: notes.trim() || undefined,
         },
       }).unwrap();
-      appToast.success('Batch completed — products and waste posted to inventory');
+      appToast.success(t('batchCompleted'));
       onSuccess();
       onClose();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to complete');
+      appToast.error(err?.data?.detail || t('failedComplete'));
     } finally {
       setIsSubmitting(false);
     }
@@ -2837,14 +2856,14 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Complete Batch {batch.batch_number}</DialogTitle>
+            <DialogTitle>{t('completeBatch', { number: batch.batch_number })}</DialogTitle>
             <DialogDescription>
-              Enter actual products and duration. Variance will be calculated automatically.
+              {t('completeHint')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Actual Output Quantity</Label>
+              <Label>{t('actualOutput')}</Label>
               <Input
                 type="number"
                 min={0}
@@ -2854,34 +2873,34 @@ const CompleteBatchDialog: React.FC<CompleteBatchDialogProps> = ({
               />
             </div>
             <div className="grid gap-2">
-              <Label>Actual Duration (minutes)</Label>
+              <Label>{t('actualDuration')}</Label>
               <Input
                 type="number"
                 min={0}
                 value={actualDuration}
                 onChange={(e) => setActualDuration(e.target.value)}
-                placeholder="e.g. 55"
+                placeholder={t('durationPh')}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Notes</Label>
+              <Label>{t('notes')}</Label>
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Completion notes"
+                placeholder={t('completionNotes')}
               />
             </div>
             <p className="text-xs text-muted-foreground rounded-lg border border-border/60 bg-muted/20 p-3">
-              Completing will automatically post product and byproduct quantities to finished goods and waste to the damaged ledger.
+              {t('completePostHint')}
             </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Complete
+              {t('complete')}
             </Button>
           </DialogFooter>
         </form>
@@ -2905,6 +2924,8 @@ const CancelBatchDialog: React.FC<CancelBatchDialogProps> = ({
   cancelBatch,
   onSuccess,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -2916,12 +2937,12 @@ const CancelBatchDialog: React.FC<CancelBatchDialogProps> = ({
         id: batch.id,
         data: { notes: notes.trim() || undefined },
       }).unwrap();
-      appToast.success('Batch cancelled');
+      appToast.success(t('batchCancelled'));
       onSuccess();
       onClose();
     } catch (e: unknown) {
       const err = e as { data?: { detail?: string } };
-      appToast.error(err?.data?.detail || 'Failed to cancel');
+      appToast.error(err?.data?.detail || t('failedCancel'));
     } finally {
       setIsSubmitting(false);
     }
@@ -2932,28 +2953,28 @@ const CancelBatchDialog: React.FC<CancelBatchDialogProps> = ({
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Cancel Batch {batch.batch_number}</DialogTitle>
+            <DialogTitle>{t('cancelBatch', { number: batch.batch_number })}</DialogTitle>
             <DialogDescription>
-              This will mark the batch as cancelled. Optionally provide a reason.
+              {t('cancelHint')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Reason (optional)</Label>
+              <Label>{t('reasonOptional')}</Label>
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Cancellation reason"
+                placeholder={t('cancelReasonPh')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Back
+              {tc('back')}
             </Button>
             <Button type="submit" variant="destructive" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Cancel Batch
+              {t('cancelBatchBtn')}
             </Button>
           </DialogFooter>
         </form>
@@ -2981,6 +3002,8 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
   isStarting,
   onClose,
 }) => {
+  const { t } = useTranslation('production');
+  const { t: tc } = useTranslation('common');
   const { data: batch, isLoading: loadingBatch, error: batchErr } = useGetProductionBatchByIdQuery(batchId);
   const line = batch ? lines.find((l) => l.id === batch.production_line_id) : undefined;
 
@@ -3039,11 +3062,11 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
         id: batch.id,
         data: started_at ? { started_at } : {},
       }).unwrap();
-      appToast.success('Batch started — inputs deducted from storage');
+      appToast.success(t('batchStarted'));
       onClose();
     } catch (err: unknown) {
       const e2 = err as { data?: { detail?: string } };
-      appToast.error(e2?.data?.detail || 'Failed to start batch');
+      appToast.error(e2?.data?.detail || t('failedStart'));
     }
   };
 
@@ -3053,9 +3076,9 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Start batch</DialogTitle>
+            <DialogTitle>{t('startBatch')}</DialogTitle>
             <DialogDescription>
-              Input items will be deducted from storage. Starting will be blocked if storage is insufficient.
+              {t('startHint')}
             </DialogDescription>
           </DialogHeader>
 
@@ -3066,7 +3089,7 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
           )}
 
           {batchErr && (
-            <p className="text-sm text-destructive py-4">Could not load batch.</p>
+            <p className="text-sm text-destructive py-4">{t('couldNotLoadBatch')}</p>
           )}
 
           {batch && !loadingBatch && !loadingItems && (
@@ -3088,7 +3111,7 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
               />
 
               {batch.status !== 'draft' && batch.status !== 'recurring' && (
-                <p className="text-sm text-destructive">This batch cannot be started.</p>
+                <p className="text-sm text-destructive">{t('cannotStart')}</p>
               )}
 
               {canSubmit || (!noItems && (batch.status === 'draft' || batch.status === 'recurring')) ? (
@@ -3109,11 +3132,11 @@ const StartBatchDialog: React.FC<StartBatchDialogProps> = ({
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={onClose}>
-              Back
+              {tc('back')}
             </Button>
             <Button type="submit" disabled={!canSubmit || isStarting}>
               {isStarting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Start
+              {t('start')}
             </Button>
           </DialogFooter>
         </form>

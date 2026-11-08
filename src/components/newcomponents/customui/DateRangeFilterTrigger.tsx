@@ -1,5 +1,5 @@
 import React from 'react';
-import { format } from 'date-fns';
+import { format, type Locale } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
@@ -16,11 +16,13 @@ export interface DateRangeValue {
 export function formatDateRangeFilterLabel(
   value: DateRangeValue,
   emptyLabel = 'All dates',
+  locale?: Locale,
 ): string {
   const { from, to } = value;
   if (!from) return emptyLabel;
-  if (to) return `${format(from, 'MMM d')} – ${format(to, 'MMM d')}`;
-  return format(from, 'MMM d');
+  const opts = locale ? { locale } : undefined;
+  if (to) return `${format(from, 'MMM d', opts)} – ${format(to, 'MMM d', opts)}`;
+  return format(from, 'MMM d', opts);
 }
 
 export interface DateRangeFilterTriggerProps {

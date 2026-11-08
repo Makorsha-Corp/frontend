@@ -23,6 +23,8 @@ import type { WorkOrderSheetBundle } from '@/types/workOrderSheet';
 import type { WorkOrderTemplate } from '@/types/workOrderTemplate';
 import type { SheetDateScope } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import { formatRecurrenceCadence } from '@/pages/newpages/orders/workOrderTemplateLabels';
+import i18n from '@/i18n';
+import { dateFnsLocale } from '@/utils/datetime';
 import { getWorkOrderCalendarDateString } from '@/pages/newpages/orders/workOrderDateUtils';
 import { workOrderStatusShortLabel } from '@/pages/newpages/orders/workOrderConstants';
 
@@ -413,7 +415,8 @@ export function sheetCalendarGridBounds(month: Date): SheetWeekBounds {
 }
 
 function formatWeekLabel(from: Date, to: Date): string {
-  return `${format(from, 'EEE dd.MM')} – ${format(to, 'EEE dd.MM.yyyy')}`;
+  const locale = dateFnsLocale();
+  return `${format(from, 'EEE dd.MM', { locale })} – ${format(to, 'EEE dd.MM.yyyy', { locale })}`;
 }
 
 type CompactWeekRangeYearMode = 'always' | 'if-not-current' | 'never';
@@ -431,15 +434,16 @@ export function formatCompactWeekRangeLabel(
     yearMode === 'always' ||
     (yearMode === 'if-not-current' && (fromYear !== todayYear || toYear !== todayYear));
 
-  const sameMonth = format(from, 'MMM yyyy') === format(to, 'MMM yyyy');
+  const locale = dateFnsLocale();
+  const sameMonth = format(from, 'MMM yyyy', { locale }) === format(to, 'MMM yyyy', { locale });
 
   if (sameMonth) {
-    const core = `${format(from, 'd')} – ${format(to, 'd')} ${format(from, 'MMM')}`;
+    const core = `${format(from, 'd', { locale })} – ${format(to, 'd', { locale })} ${format(from, 'MMM', { locale })}`;
     return includeYear ? `${core} ${fromYear}` : core;
   }
 
-  const fromPart = `${format(from, 'd')} ${format(from, 'MMM')}`;
-  const toPart = `${format(to, 'd')} ${format(to, 'MMM')}`;
+  const fromPart = `${format(from, 'd', { locale })} ${format(from, 'MMM', { locale })}`;
+  const toPart = `${format(to, 'd', { locale })} ${format(to, 'MMM', { locale })}`;
   const core = `${fromPart} – ${toPart}`;
 
   if (!includeYear) return core;
@@ -448,7 +452,7 @@ export function formatCompactWeekRangeLabel(
     return `${core} ${fromYear}`;
   }
 
-  return `${format(from, 'd MMM yyyy')} – ${format(to, 'd MMM yyyy')}`;
+  return `${format(from, 'd MMM yyyy', { locale })} – ${format(to, 'd MMM yyyy', { locale })}`;
 }
 
 /** Toolbar week trigger: This week / Last week / Next week / compact range. */
@@ -458,9 +462,9 @@ export function formatRelativeWeekTriggerLabel(sheetDate: string): string {
     weekStartsOn: SHEET_WEEK_STARTS_ON,
   });
 
-  if (weekDiff === 0) return 'This week';
-  if (weekDiff === -1) return 'Last week';
-  if (weekDiff === 1) return 'Next week';
+  if (weekDiff === 0) return i18n.t('thisWeek');
+  if (weekDiff === -1) return i18n.t('lastWeek');
+  if (weekDiff === 1) return i18n.t('nextWeek');
 
   const { from, to } = sheetPeriodBounds('week', sheetDate);
   return formatCompactWeekRangeLabel(from, to, 'if-not-current');

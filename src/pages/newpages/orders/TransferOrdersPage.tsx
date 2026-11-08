@@ -5,7 +5,7 @@ import {
   parsePageFactoryFilterParam,
   usePageFactoryScope,
 } from '@/hooks/usePageFactoryScope';
-import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
+import TransferOrdersPageHeader from '@/components/newcomponents/customui/orders/TransferOrdersPageHeader';
 import TransferOrderHeaderFilters from '@/components/newcomponents/customui/orders/TransferOrderHeaderFilters';
 import {
   useGetTransferOrdersPageQuery,
@@ -18,7 +18,6 @@ import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
 import { useGetMachinesQuery } from '@/features/machines/machinesApi';
 import { useGetProjectsQuery } from '@/features/projects/projectsApi';
 import type { TransferOrder } from '@/types/transferOrder';
-import { ArrowLeftRight } from 'lucide-react';
 import { appToast } from '@/lib/appToast';
 import TransferOrderDetailPanel from '@/components/newcomponents/customui/orders/TransferOrderDetailPanel';
 import { TransferRouteDisplay } from '@/components/newcomponents/customui/orders/TransferRouteDisplay';
@@ -330,21 +329,12 @@ const TransferOrdersPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <OrderHubShellHeader
-          icon={ArrowLeftRight}
-          title="Transfer Orders"
-          selectedOrderLabel={selectedOrder?.transfer_number ?? null}
+        <TransferOrdersPageHeader
+          selectedOrderNumber={selectedOrder?.transfer_number ?? null}
           onClearSelection={() => setSelectedOrder(null)}
-          backAriaLabel="Back to transfer orders"
-          closeSelectionAriaLabel="Close transfer order"
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
-          searchPlaceholder="Search by TR# or route..."
-          searchAriaLabel="Search transfer orders"
           onAdd={() => setIsAddOpen(true)}
-          addButtonLabel="Add Transfer Order"
-          addAriaLabel="Add transfer order"
-          helpGuideKind="transfer"
           headerToolbarExtras={
             <TransferOrderHeaderFilters
               open={filtersPopoverOpen}

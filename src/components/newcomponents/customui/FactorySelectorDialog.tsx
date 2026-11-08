@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { setFactory, clearFactory } from '@/features/auth/authSlice';
 import { useGetFactoriesQuery } from '@/features/factories/factoriesApi';
@@ -19,6 +20,7 @@ interface FactorySelectorDialogProps {
 }
 
 const FactorySelectorDialog: React.FC<FactorySelectorDialogProps> = ({ open, onOpenChange }) => {
+  const { t } = useTranslation('factories');
   const dispatch = useAppDispatch();
   const { factory: selectedFactory } = useAppSelector((state) => state.auth);
   const { data: factories, isLoading } = useGetFactoriesQuery(
@@ -40,10 +42,8 @@ const FactorySelectorDialog: React.FC<FactorySelectorDialogProps> = ({ open, onO
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Select Factory</DialogTitle>
-          <DialogDescription>
-            Choose a factory to use as the default for Sections, Machines, Orders, and Projects. Items and Accounts are not tied to a factory.
-          </DialogDescription>
+          <DialogTitle>{t('selectFactoryTitle')}</DialogTitle>
+          <DialogDescription>{t('selectFactoryDescription')}</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {isLoading ? (
@@ -58,7 +58,7 @@ const FactorySelectorDialog: React.FC<FactorySelectorDialogProps> = ({ open, onO
                   className="w-full justify-start text-muted-foreground"
                   onClick={handleClear}
                 >
-                  Clear selection (show all)
+                  {t('clearFactorySelection')}
                 </Button>
               )}
               {factories.map((factory) => (
@@ -75,7 +75,7 @@ const FactorySelectorDialog: React.FC<FactorySelectorDialogProps> = ({ open, onO
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No factories found. Create a factory first from the Factories page.
+              {t('noFactoriesFound')}
             </p>
           )}
         </div>

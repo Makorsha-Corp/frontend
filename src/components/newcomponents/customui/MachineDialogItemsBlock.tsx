@@ -1,4 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,6 +64,7 @@ const MachineDialogItemsBlock = forwardRef<
   { lines, onLinesChange, hint, addButtonHighlighted = false, onAddButtonHighlightDismiss },
   ref
 ) {
+  const { t } = useTranslation('machines');
   const [itemId, setItemId] = useState('');
   const [qty, setQty] = useState('');
   const [reqQty, setReqQty] = useState('');
@@ -178,7 +180,8 @@ const MachineDialogItemsBlock = forwardRef<
     onLinesChange((prev) => prev.filter((l) => l.key !== key));
   };
 
-  const resolveName = (id: number) => itemsList.find((i) => i.id === id)?.name ?? `Item #${id}`;
+  const resolveName = (id: number) =>
+    itemsList.find((i) => i.id === id)?.name ?? t('machineItemsItemFallback', { id });
 
   const addFormItemIdNum = parseInt(itemId, 10);
   const addFormUnit =
@@ -191,8 +194,12 @@ const MachineDialogItemsBlock = forwardRef<
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
         <div className="flex shrink-0 flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            <Label className="text-base">Machine items</Label>
-            <span className="text-xs text-muted-foreground tabular-nums">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
+            <Label className="text-base">{t('machineItemsTitle')}</Label>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {lines.length === 1
+                ? t('machineItemsLinesOne')
+                : t('machineItemsLinesMany', { count: lines.length })}
+            </span>
           </div>
           {hint?.trim() ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
         </div>
@@ -206,10 +213,10 @@ const MachineDialogItemsBlock = forwardRef<
                   onValueChange={(v) => setItemId(v === '__none__' ? '' : v)}
                 >
                   <SelectTrigger className="w-full bg-background">
-                    <SelectValue placeholder="Select item" />
+                    <SelectValue placeholder={t('selectItem')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Select item</SelectItem>
+                    <SelectItem value="__none__">{t('selectItem')}</SelectItem>
                     {availableItems.map((i) => (
                       <SelectItem key={i.id} value={i.id.toString()}>
                         {i.name}
@@ -220,20 +227,22 @@ const MachineDialogItemsBlock = forwardRef<
                 </Select>
               </div>
               <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                - or -
+                {t('orDivider')}
               </span>
               <Button
                 type="button"
                 className="h-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground"
                 onClick={() => setIsAddItemOpen(true)}
               >
-                Create item +
+                {t('createItemPlus')}
               </Button>
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="grid min-w-[5rem] flex-1 gap-1">
                 <Label className="text-xs text-muted-foreground">
-                  Qty *{addFormUnit ? ` (${addFormUnit})` : ''}
+                  {addFormUnit
+                    ? t('machineItemsQtyRequiredUnit', { unit: addFormUnit })
+                    : t('machineItemsQtyRequired')}
                 </Label>
                 <Input
                   type="number"
@@ -249,11 +258,11 @@ const MachineDialogItemsBlock = forwardRef<
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Label className="w-fit cursor-help text-xs text-muted-foreground underline decoration-dotted underline-offset-2">
-                      Required
+                      {t('machineItemsRequiredLabel')}
                     </Label>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[14rem]">
-                    Optional minimum quantity to keep on this machine.
+                    {t('machineItemsRequiredTooltip')}
                   </TooltipContent>
                 </Tooltip>
                 <Input
@@ -270,11 +279,11 @@ const MachineDialogItemsBlock = forwardRef<
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Label className="w-fit cursor-help text-xs text-muted-foreground underline decoration-dotted underline-offset-2">
-                      Defective
+                      {t('machineItemsDefectiveLabel')}
                     </Label>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[14rem]">
-                    Optional count of defective units tracked separately from on-hand qty.
+                    {t('machineItemsDefectiveTooltip')}
                   </TooltipContent>
                 </Tooltip>
                 <Input
@@ -293,7 +302,7 @@ const MachineDialogItemsBlock = forwardRef<
                     role="tooltip"
                     className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-max max-w-[14rem] rounded-md border border-border bg-popover px-3 py-2 text-xs leading-snug text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                   >
-                    Select item and qty
+                    {t('machineItemsAddHint')}
                   </div>
                 ) : null}
                 <Button
@@ -309,7 +318,7 @@ const MachineDialogItemsBlock = forwardRef<
                   onMouseEnter={() => {
                     if (addButtonHighlighted) onAddButtonHighlightDismiss?.();
                   }}
-                  aria-label="Add line item"
+                  aria-label={t('machineItemsAddLineAria')}
                   aria-expanded={addHintOpen && !canAddLineItem}
                   aria-disabled={!canAddLineItem}
                 >
@@ -322,7 +331,7 @@ const MachineDialogItemsBlock = forwardRef<
 
         <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-background">
           {lines.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">No items yet — add from the catalog above.</p>
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('machineItemsEmpty')}</p>
           ) : (
             <ul className="divide-y divide-border">
               {lines.map((line, idx) => {
@@ -347,7 +356,9 @@ const MachineDialogItemsBlock = forwardRef<
                       <div className="grid w-full grid-cols-3 gap-2 sm:max-w-[14rem]">
                         <div className="grid gap-0.5">
                           <Label className="text-[10px] text-muted-foreground">
-                            Qty{unit ? ` (${unit})` : ''}
+                            {unit
+                              ? t('machineItemsQtyShortUnit', { unit })
+                              : t('machineItemsQtyShort')}
                           </Label>
                           <Input
                             type="number"
@@ -362,7 +373,7 @@ const MachineDialogItemsBlock = forwardRef<
                           />
                         </div>
                         <div className="grid gap-0.5">
-                          <Label className="text-[10px] text-muted-foreground">Req</Label>
+                          <Label className="text-[10px] text-muted-foreground">{t('machineItemsReqShort')}</Label>
                           <Input
                             type="number"
                             min={0}
@@ -379,7 +390,7 @@ const MachineDialogItemsBlock = forwardRef<
                           />
                         </div>
                         <div className="grid gap-0.5">
-                          <Label className="text-[10px] text-muted-foreground">Def.</Label>
+                          <Label className="text-[10px] text-muted-foreground">{t('machineItemsDefShort')}</Label>
                           <Input
                             type="number"
                             min={0}
@@ -402,7 +413,7 @@ const MachineDialogItemsBlock = forwardRef<
                         size="icon"
                         className="h-8 w-8 shrink-0 self-end sm:self-center text-destructive hover:text-destructive"
                         onClick={() => removeLine(line.key)}
-                        aria-label="Remove line"
+                        aria-label={t('machineItemsRemoveLineAria')}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

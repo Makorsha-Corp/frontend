@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,9 +25,9 @@ function fmtPct(value: number | null | undefined): string {
   return `${value.toFixed(1)}%`;
 }
 
-function fmtMinutes(value: number | null | undefined): string {
+function fmtMinutes(value: number | null | undefined, unit: string): string {
   if (value == null || Number.isNaN(value)) return '—';
-  return `${Math.round(value)} min`;
+  return `${Math.round(value)} ${unit}`;
 }
 
 function fmtQty(value: number | null | undefined): string {
@@ -39,7 +40,11 @@ const metricHeaderClass =
 
 type StatsRow = ProductionLineStatsRow | ProductionRecipeStatsRow;
 
-function formatKpiCell(id: ProductionOverviewKpiColumnId, row: StatsRow): React.ReactNode {
+function formatKpiCell(
+  id: ProductionOverviewKpiColumnId,
+  row: StatsRow,
+  minuteUnit: string,
+): React.ReactNode {
   switch (id) {
     case 'batch_count':
       return row.batch_count ?? 0;
@@ -52,22 +57,26 @@ function formatKpiCell(id: ProductionOverviewKpiColumnId, row: StatsRow): React.
     case 'time_vs_plan_pct':
       return fmtPct(row.time_vs_plan_pct);
     case 'avg_start_lag_minutes':
-      return fmtMinutes(row.avg_start_lag_minutes);
+      return fmtMinutes(row.avg_start_lag_minutes, minuteUnit);
     case 'avg_step_gap_minutes':
-      return fmtMinutes(row.avg_step_gap_minutes);
+      return fmtMinutes(row.avg_step_gap_minutes, minuteUnit);
     default:
       return '—';
   }
 }
 
-function renderStartLagCell(row: StatsRow): React.ReactNode {
-  const base = fmtMinutes(row.avg_start_lag_minutes);
+function renderStartLagCell(
+  row: StatsRow,
+  minuteUnit: string,
+  lateLabel: (count: number) => string,
+): React.ReactNode {
+  const base = fmtMinutes(row.avg_start_lag_minutes, minuteUnit);
   const late = 'late_start_count' in row ? row.late_start_count : 0;
   if (late > 0) {
     return (
       <>
         {base}
-        <span className="ml-1 text-xs text-amber-700 dark:text-amber-400">({late} late)</span>
+        <span className="ml-1 text-xs text-amber-700 dark:text-amber-400">{lateLabel(late)}</span>
       </>
     );
   }
@@ -85,6 +94,9 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
   loading,
   className,
 }) => {
+  const { t } = useTranslation('production');
+  const minuteUnit = t('minutesShort');
+  const kpiLabel = (id: ProductionOverviewKpiColumnId) => t(`kpi_${id}`);
   const [expandedLineIds, setExpandedLineIds] = useState<Set<number>>(new Set());
   const [visibleColumns, setVisibleColumns] = useState<ProductionOverviewKpiColumnId[]>(() =>
     readOverviewKpiColumnIds(),
@@ -112,7 +124,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
     });
   };
 
-  const subtitleMetrics = columnMeta.map((c) => c.label.toLowerCase()).join(', ');
+  const subtitleMetrics = columnMeta.map((c) => kpiLabel(c.id)).join(', ');
 
   return (
     <div className={cn('grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)]', className)}>
@@ -120,7 +132,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <CardTitle className="text-base">By line</CardTitle>
+              <CardTitle className="text-base">{t('byLine')}</CardTitle>
               {stats ? (
                 <p className="text-xs text-muted-foreground">
                   {stats.date_from} → {stats.date_to}
@@ -132,12 +144,12 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
               <PopoverTrigger asChild>
                 <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5">
                   <Columns3 className="h-4 w-4" />
-                  Columns
+                  {t('columns')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-56 p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Visible metrics
+                  {t('visibleMetrics')}
                 </p>
                 <ul className="space-y-2">
                   {PRODUCTION_OVERVIEW_KPI_COLUMNS.map((col) => (
@@ -150,7 +162,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                         }}
                       />
                       <Label htmlFor={`overview-kpi-${col.id}`} className="cursor-pointer font-normal">
-                        {col.label}
+                        {kpiLabel(col.id)}
                       </Label>
                     </li>
                   ))}
@@ -166,14 +178,14 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
             </div>
           ) : !stats || stats.lines.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              No batch data in this window for the current filters.
+              {t('noBatchWindow')}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[480px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    <th className="pb-2 pr-2 font-medium">Line</th>
+                    <th className="pb-2 pr-2 font-medium">{t('line')}</th>
                     {columnMeta.map((col, idx) => (
                       <th
                         key={col.id}
@@ -183,7 +195,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                           idx === columnMeta.length - 1 && 'pl-2',
                         )}
                       >
-                        {col.label}
+                        {kpiLabel(col.id)}
                       </th>
                     ))}
                   </tr>
@@ -220,8 +232,8 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                               )}
                             >
                               {col.id === 'avg_start_lag_minutes'
-                                ? renderStartLagCell(line)
-                                : formatKpiCell(col.id, line)}
+                                ? renderStartLagCell(line, minuteUnit, (count) => t('lateCount', { count }))
+                                : formatKpiCell(col.id, line, minuteUnit)}
                             </td>
                           ))}
                         </tr>
@@ -241,8 +253,8 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                                     )}
                                   >
                                     {col.id === 'avg_start_lag_minutes'
-                                      ? renderStartLagCell(recipe)
-                                      : formatKpiCell(col.id, recipe)}
+                                      ? renderStartLagCell(recipe, minuteUnit, (count) => t('lateCount', { count }))
+                                      : formatKpiCell(col.id, recipe, minuteUnit)}
                                   </td>
                                 ))}
                               </tr>
@@ -284,9 +296,9 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
 
       <Card className="border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Outliers</CardTitle>
+          <CardTitle className="text-base">{t('outliers')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Yield ±10 pts or time ±15 pts vs line + recipe average
+            {t('outliersHint')}
           </p>
         </CardHeader>
         <CardContent>
@@ -295,7 +307,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
               <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />
             </div>
           ) : !stats?.outliers.length ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">None in this window.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('noneInWindow')}</p>
           ) : (
             <ul className="space-y-2">
               {stats.outliers.map((row) => (
@@ -308,7 +320,7 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                     {row.line_name} · {row.recipe_name}
                   </p>
                   <p className="mt-1 text-xs tabular-nums">
-                    {row.metric === 'yield' ? 'Yield' : 'Time vs plan'}{' '}
+                    {row.metric === 'yield' ? t('yield') : t('kpi_time_vs_plan_pct')}{' '}
                     <span
                       className={
                         row.delta_from_group >= 0
@@ -317,9 +329,8 @@ const ProductionOverviewByLine: React.FC<ProductionOverviewByLineProps> = ({
                       }
                     >
                       {row.delta_from_group > 0 ? '+' : ''}
-                      {row.delta_from_group.toFixed(1)} pts
-                    </span>{' '}
-                    vs group avg
+                      {row.delta_from_group.toFixed(1)} {t('vsGroupAvg')}
+                    </span>
                   </p>
                 </li>
               ))}

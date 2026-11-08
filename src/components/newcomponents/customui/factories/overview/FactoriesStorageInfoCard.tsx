@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Warehouse } from 'lucide-react';
 import FactoryModuleInfoCard, {
   factoryModuleInfoCardBodyClasses,
@@ -23,25 +24,28 @@ const FactoriesStorageInfoCard: React.FC<FactoriesStorageInfoCardProps> = ({
   snapshot,
   loading,
 }) => {
+  const { t } = useTranslation(['factories', 'inventory', 'common']);
   const href = factoryHubLink('/storage', factoryFilter);
   const unitLabel =
-    snapshot.totalUnits === 1 ? '1 unit in storage' : `${snapshot.totalUnits.toLocaleString()} units in storage`;
+    snapshot.totalUnits === 1
+      ? t('oneUnitInStorage')
+      : t('unitsInStorage', { count: snapshot.totalUnits.toLocaleString() });
   const body = factoryModuleInfoCardBodyClasses(CARD_VARIANT);
 
   return (
     <FactoryModuleInfoCard
-      title="Storage"
+      title={t('storageTitle', { ns: 'inventory' })}
       icon={Warehouse}
       href={href}
       scopeLabel={scopeLabel}
       headline={loading ? '—' : snapshot.skusWithStock}
-      subtitle={loading ? 'Loading…' : unitLabel}
+      subtitle={loading ? t('loading', { ns: 'common' }) : unitLabel}
       variant={CARD_VARIANT}
       compactHeader
     >
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between gap-2">
-          <span className={body.bodyLabel}>Est. value</span>
+          <span className={body.bodyLabel}>{t('estValue')}</span>
           <span className={cn('font-semibold tabular-nums', body.bodyValue)}>
             {loading ? '—' : formatOverviewCurrency(snapshot.estimatedValue)}
           </span>
@@ -49,7 +53,7 @@ const FactoriesStorageInfoCard: React.FC<FactoriesStorageInfoCardProps> = ({
         {snapshot.topItems.length > 0 ? (
           <div>
             <p className={cn('mb-1.5 text-[11px] font-medium uppercase tracking-wide', body.bodySectionLabel)}>
-              Top stocked
+              {t('topStocked')}
             </p>
             <ul className="space-y-1">
               {snapshot.topItems.map((item, index) => (
@@ -67,7 +71,7 @@ const FactoriesStorageInfoCard: React.FC<FactoriesStorageInfoCardProps> = ({
             </ul>
           </div>
         ) : (
-          <p className={cn('text-xs', body.bodyMuted)}>No stocked SKUs in this scope.</p>
+          <p className={cn('text-xs', body.bodyMuted)}>{t('noStockedSkus')}</p>
         )}
       </div>
     </FactoryModuleInfoCard>

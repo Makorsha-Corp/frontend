@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CirclePause, CirclePlay, Cog, Loader2, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import FactoryModuleInfoCard, {
@@ -234,6 +235,7 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
   onMaintenanceClick,
   className,
 }) => {
+  const { t } = useTranslation(['factories', 'machines', 'common']);
   const body = factoryModuleInfoCardBodyClasses(CARD_VARIANT);
   const machinesHref = factoryHubLink('/machines', factoryFilter);
   const previewRows = [...overdueRows, ...upcomingRows];
@@ -246,12 +248,12 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
 
   return (
     <FactoryModuleInfoCard
-      title="Machines"
+      title={t('title', { ns: 'machines' })}
       icon={Cog}
       href={machinesHref}
       scopeLabel={scopeLabel}
       headline={machineStatus.total}
-      subtitle="Total in scope"
+      subtitle={t('totalInScope')}
       variant={CARD_VARIANT}
       hasAlert={hasAlert}
       compactHeader
@@ -260,28 +262,28 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
       <div className="grid grid-cols-4 gap-1 text-sm">
         <MachineStatusCell
           count={machineStatus.running}
-          label="Running"
+          label={t('running', { ns: 'machines' })}
           segmentKind="running"
           icon={<CirclePlay className={cn('h-3.5 w-3.5', statusAccentClass.running)} aria-hidden />}
           labelClassName={body.bodyMuted}
         />
         <MachineStatusCell
           count={machineStatus.idle}
-          label="Idle"
+          label={t('idle', { ns: 'machines' })}
           segmentKind="idle"
           icon={<CirclePause className={cn('h-3.5 w-3.5', statusAccentClass.idle)} aria-hidden />}
           labelClassName={body.bodyMuted}
         />
         <MachineStatusCell
           count={machineStatus.off}
-          label="Off"
+          label={t('off', { ns: 'machines' })}
           segmentKind="off"
           icon={<CirclePause className={cn('h-3.5 w-3.5', statusAccentClass.off)} aria-hidden />}
           labelClassName={body.bodyMuted}
         />
         <MachineStatusCell
           count={machineStatus.maintenance}
-          label="Maint."
+          label={t('machineMaintShort')}
           segmentKind="maintenance"
           icon={<Wrench className={cn('h-3.5 w-3.5', statusAccentClass.maintenance)} aria-hidden />}
           labelClassName={body.bodyMuted}
@@ -291,7 +293,7 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
       <div
         role="button"
         tabIndex={0}
-        aria-label="View overdue and upcoming machine work"
+        aria-label={t('workDueAria')}
         onClick={handleMaintenanceClick}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -307,18 +309,18 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
               <Wrench className="h-3.5 w-3.5 text-white/90" />
             </span>
             <span className={cn('text-[11px] font-medium uppercase tracking-wide', body.bodySectionLabel)}>
-              Work due
+              {t('workDue')}
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1">
             {overdueCount > 0 ? (
               <Badge variant="outline" className={maintenanceOverdueBadgeClass}>
-                {overdueCount} overdue
+                {t('overdueBadge', { count: overdueCount })}
               </Badge>
             ) : null}
             {upcomingCount > 0 ? (
               <Badge variant="outline" className={maintenanceDueBadgeClass}>
-                {upcomingCount} due (7d)
+                {t('due7dBadge', { count: upcomingCount })}
               </Badge>
             ) : null}
           </div>
@@ -327,12 +329,10 @@ const FactoriesUnifiedMachineCard: React.FC<FactoriesUnifiedMachineCardProps> = 
         {machinesLoading ? (
           <div className={cn('flex items-center gap-2 text-xs', body.bodyMuted)}>
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading…
+            {t('loading', { ns: 'common' })}
           </div>
         ) : previewRows.length === 0 ? (
-          <p className={cn('text-xs', body.bodyMuted)}>
-            No overdue or upcoming machine work in the next 7 days.
-          </p>
+          <p className={cn('text-xs', body.bodyMuted)}>{t('noMachineWork7d')}</p>
         ) : (
           <MaintenanceDueChipRow rows={previewRows} />
         )}

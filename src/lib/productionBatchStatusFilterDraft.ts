@@ -47,26 +47,35 @@ export function draftCheckedToBatchStatusFilter(
   return { filter: statuses, showCompleted };
 }
 
+export type BatchStatusFilterLabelCopy = {
+  defaultStatuses?: string;
+  allStatuses?: string;
+  noStatuses?: string;
+  statusCount?: (count: number) => string;
+  completed?: string;
+};
+
 export function productionBatchStatusFilterLabel(
   filter: ProductionBatchStatus[],
   showCompleted: boolean,
   dateViewMode?: WorkOrdersDateViewMode,
+  copy?: BatchStatusFilterLabelCopy,
 ): string {
   if (isDefaultBatchStatusFilter(filter, dateViewMode) && !showCompleted) {
-    return 'Default statuses';
+    return copy?.defaultStatuses ?? 'Default statuses';
   }
   const parts: string[] = [];
   const nonCompleted = BATCH_STATUS_POPOVER_ORDER.filter(
     (s) => s !== 'completed' && batchStatusCheckboxChecked(filter, s, dateViewMode),
   );
   if (nonCompleted.length === BATCH_STATUS_POPOVER_ORDER.length - 1) {
-    parts.push('All statuses');
+    parts.push(copy?.allStatuses ?? 'All statuses');
   } else if (nonCompleted.length === 0) {
-    parts.push('No statuses');
+    parts.push(copy?.noStatuses ?? 'No statuses');
   } else {
-    parts.push(`${nonCompleted.length} statuses`);
+    parts.push(copy?.statusCount?.(nonCompleted.length) ?? `${nonCompleted.length} statuses`);
   }
-  if (showCompleted) parts.push('completed');
+  if (showCompleted) parts.push(copy?.completed ?? 'completed');
   return parts.join(' · ');
 }
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LayoutGroup } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { usePageFactoryScopeId } from '@/hooks/usePageFactoryScope';
@@ -57,13 +58,15 @@ const MachineListToolbarControls: React.FC<MachineListToolbarControlsProps> = ({
   search,
   onSearchChange,
   filtersControl,
-}) => (
+}) => {
+  const { t } = useTranslation('machines');
+  return (
   <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
     <div className="relative min-w-[140px] w-[min(200px,36vw)] shrink-0">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="text"
-        placeholder="Search machines..."
+        placeholder={t('searchPlaceholder')}
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         className={cn(
@@ -74,7 +77,8 @@ const MachineListToolbarControls: React.FC<MachineListToolbarControlsProps> = ({
     </div>
     {filtersControl}
   </div>
-);
+  );
+};
 
 interface MachineSectionHeaderRowProps {
   label: string;
@@ -87,18 +91,21 @@ interface MachineSectionHeaderRowProps {
   filtersControl: React.ReactNode;
 }
 
-const defaultFormatCount = (count: number) => `${count} machine${count === 1 ? '' : 's'}`;
-
 const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
   label,
   count,
-  formatCount = defaultFormatCount,
+  formatCount: formatCountProp,
   showListToolbar = false,
   atTop = false,
   search,
   onSearchChange,
   filtersControl,
-}) => (
+}) => {
+  const { t } = useTranslation('machines');
+  const formatCount =
+    formatCountProp ??
+    ((c: number) => (c === 1 ? t('machineCountOne') : t('machineCountMany', { count: c })));
+  return (
   <div className={machineSectionHeaderClass(atTop || showListToolbar)}>
     <div className="flex min-w-0 flex-wrap items-center gap-2.5">
       <Layers className="h-5 w-5 shrink-0 text-brand-primary" />
@@ -115,7 +122,8 @@ const MachineSectionHeaderRow: React.FC<MachineSectionHeaderRowProps> = ({
       />
     ) : null}
   </div>
-);
+  );
+};
 
 const machineKpiStripCellClass = 'flex min-h-[3.5rem] items-center gap-3';
 
@@ -178,6 +186,8 @@ const parseMachineFiltersFromParams = (params: URLSearchParams): MachinesFilters
 };
 
 const MachinesPage: React.FC = () => {
+  const { t } = useTranslation('machines');
+  const { t: tFactories } = useTranslation('factories');
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: factories = [], isLoading: isLoadingFactories } = useGetFactoriesQuery({ skip: 0, limit: 200 });
   const factoryIdParam = searchParams.get('factoryId');
@@ -441,10 +451,10 @@ const MachinesPage: React.FC = () => {
       .filter((g) => g.machines.length > 0);
     const unassignedMachines = (grouped.get('unassigned') ?? []).sort((a, b) => a.id - b.id);
     if (unassignedMachines.length > 0) {
-      groups.push({ key: 'unassigned', label: 'Unassigned', machines: unassignedMachines });
+      groups.push({ key: 'unassigned', label: t('unassignedSection'), machines: unassignedMachines });
     }
     return groups;
-  }, [factory, location.sectionId, effectiveFilteredMachines, sections]);
+  }, [factory, location.sectionId, effectiveFilteredMachines, sections, t]);
 
   const machinesGroupedByFactorySection = React.useMemo(() => {
     if (factory || location.sectionId != null) return [];
@@ -471,14 +481,14 @@ const MachinesPage: React.FC = () => {
         const sectionsData = Array.from(entry.bySection.entries())
           .map(([sectionKey, machinesInSection]) => ({
             key: sectionKey as number | 'unassigned',
-            label: sectionById.get(sectionKey)?.name ?? 'Unknown section',
+            label: sectionById.get(sectionKey)?.name ?? t('unknownSection'),
             machines: machinesInSection.sort((a, b) => a.id - b.id),
           }))
           .sort((a, b) => a.label.localeCompare(b.label));
         if (entry.unassigned.length > 0) {
           sectionsData.push({
             key: 'unassigned',
-            label: 'Unassigned',
+            label: t('unassignedSection'),
             machines: entry.unassigned.sort((a, b) => a.id - b.id),
           });
         }
@@ -486,7 +496,7 @@ const MachinesPage: React.FC = () => {
       })
       .filter((g) => g.factory && g.sections.length > 0)
       .sort((a, b) => (a.factory?.name ?? '').localeCompare(b.factory?.name ?? ''));
-  }, [factory, location.sectionId, allSections, factories, effectiveFilteredMachines]);
+  }, [factory, location.sectionId, allSections, factories, effectiveFilteredMachines, t]);
 
   const selectedMachine = effectiveFilteredMachines.find((m) => m.id === selectedMachineId) ?? null;
 
@@ -497,19 +507,22 @@ const MachinesPage: React.FC = () => {
 
   const kpiScopeFactoryName =
     location.factoryId != null
-      ? factories.find((f) => f.id === location.factoryId)?.name ?? 'Factory'
+      ? factories.find((f) => f.id === location.factoryId)?.name ?? t('fallbackFactory')
       : null;
   const kpiScopeSectionName =
     location.sectionId != null
-      ? allSections.find((s) => s.id === location.sectionId)?.name ?? 'Section'
+      ? allSections.find((s) => s.id === location.sectionId)?.name ?? t('fallbackSection')
       : null;
 
-  const kpiContextLabel =
-    location.sectionId != null
-      ? kpiScopeSectionName ?? 'Section'
-      : location.factoryId != null
-        ? kpiScopeFactoryName ?? 'Factory'
-        : 'All factories';
+  const kpiContextLabel = useMemo(() => {
+    if (location.sectionId != null) {
+      return kpiScopeSectionName ?? t('fallbackSection');
+    }
+    if (location.factoryId != null) {
+      return kpiScopeFactoryName ?? t('fallbackFactory');
+    }
+    return tFactories('scopeAllFactories');
+  }, [location.sectionId, location.factoryId, kpiScopeSectionName, kpiScopeFactoryName, t, tFactories]);
 
   const handleSearchChange = (value: string) => {
     commitMachineFilters({ ...activeFilters, search: value });
@@ -559,13 +572,13 @@ const MachinesPage: React.FC = () => {
   ]);
 
   const handleDeleteMachine = async (machine: Machine) => {
-    if (!window.confirm(`Deactivate "${machine.name}"? This will soft-delete the machine.`)) return;
+    if (!window.confirm(t('deactivateConfirm', { name: machine.name }))) return;
     try {
       await deleteMachine(machine.id).unwrap();
-      appToast.success('Machine deactivated');
+      appToast.success(t('deactivateSuccess'));
       if (selectedMachineId === machine.id) handleSelectMachine(null);
     } catch (err) {
-      appToast.error(apiErrorDetail(err, 'Failed to deactivate machine'));
+      appToast.error(apiErrorDetail(err, t('deactivateFailed')));
     }
   };
 
@@ -575,16 +588,16 @@ const MachinesPage: React.FC = () => {
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-6 shadow-sm">
             <Cog className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-bold mb-3 text-foreground">No Factories Set Up</h2>
+          <h2 className="text-2xl font-bold mb-3 text-foreground">{t('emptyNoFactoriesTitle')}</h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
-            You need to create a factory before you can use the machines page. Set up a factory to start tracking your machines and their maintenance schedules.
+            {t('emptyNoFactoriesBody')}
           </p>
           <Button 
             size="lg" 
             className="bg-brand-primary hover:bg-brand-primary-hover shadow-md transition-all"
             onClick={() => setIsAddFactoryOpen(true)}
           >
-            Create Your First Factory
+            {t('createFirstFactory')}
           </Button>
 
           <AddFactoryDialog
@@ -625,7 +638,7 @@ const MachinesPage: React.FC = () => {
         {isLoadingFactories ? (
           <div className="flex-1 flex flex-col items-center justify-center py-16">
             <Loader2 className="h-12 w-12 animate-spin text-brand-primary mb-4" />
-            <p className="text-muted-foreground">Loading workspace machines...</p>
+            <p className="text-muted-foreground">{t('loadingWorkspace')}</p>
           </div>
         ) : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-hidden p-8">
@@ -643,7 +656,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Scope
+                        {t('kpiScope')}
                       </p>
                       {location.sectionId != null && kpiScopeFactoryName ? (
                         <>
@@ -666,7 +679,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Total machines
+                        {t('kpiTotalMachines')}
                       </p>
                       <p className="text-base font-semibold tabular-nums text-card-foreground">
                         {machinesLoading ? '—' : effectiveFilteredMachines.length}
@@ -684,7 +697,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Running
+                        {t('running')}
                       </p>
                       <p
                         className={cn(
@@ -707,7 +720,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Not running
+                        {t('notRunning')}
                       </p>
                       <p
                         className={cn(
@@ -730,7 +743,7 @@ const MachinesPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Upcoming work (7d)
+                        {t('kpiUpcomingWork7d')}
                       </p>
                       <p
                         className={cn(
@@ -754,7 +767,7 @@ const MachinesPage: React.FC = () => {
                 <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
                   {machinesError ? (
                     <div className="text-center py-16 text-destructive">
-                      Failed to load machines. Please try again.
+                      {t('loadError')}
                     </div>
                   ) : effectiveFilteredMachines.length === 0 ? (
                     <div className="space-y-3">
@@ -767,13 +780,13 @@ const MachinesPage: React.FC = () => {
                       />
                       <div className="text-center py-16">
                         <Cog className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground mb-4">No machines found.</p>
+                        <p className="text-muted-foreground mb-4">{t('noMachinesFound')}</p>
                         <Button
                           onClick={() => setIsAddMachineOpen(true)}
                           className="bg-brand-primary hover:bg-brand-primary-hover"
                         >
                           <Plus className="mr-2 h-4 w-4" />
-                          Add Machine
+                          {t('addMachineTitle')}
                         </Button>
                       </div>
                     </div>

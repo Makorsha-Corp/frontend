@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -131,6 +132,7 @@ const FactoryModuleInfoCard: React.FC<FactoryModuleInfoCardProps> = ({
   children,
   compactHeader = false,
 }) => {
+  const { t } = useTranslation('factories');
   const navigate = useNavigate();
   const s = variantStyles[variant];
 
@@ -149,7 +151,7 @@ const FactoryModuleInfoCard: React.FC<FactoryModuleInfoCardProps> = ({
     <Card
       role="link"
       tabIndex={0}
-      aria-label={`${title}, open ${title.toLowerCase()} page`}
+      aria-label={t('moduleCardOpenAria', { title, titleLower: title })}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       className={cn(

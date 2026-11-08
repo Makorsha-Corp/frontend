@@ -29,18 +29,28 @@ export interface SplitUpcomingWorkResult {
   upcomingCount: number;
 }
 
+export interface DueWorkRowLabels {
+  unassigned: string;
+  sectionFallback: string;
+  draft: string;
+  recurring: string;
+  inProgress: string;
+  workOrder: string;
+}
+
 /** Split mapped due rows into overdue vs due within horizon (inclusive). */
 export function splitUpcomingWorkByDueWindow(
   rows: MachineUpcomingWorkRow[],
   sectionById: Map<number, FactorySection>,
   withinDays = 7,
-  factoryAbbrev?: string
+  factoryAbbrev?: string,
+  labels?: DueWorkRowLabels,
 ): SplitUpcomingWorkResult {
   const today = startOfLocalDay(new Date());
   const horizonEnd = new Date(today);
   horizonEnd.setDate(horizonEnd.getDate() + withinDays);
 
-  const allRows = mapUpcomingWorkToDueRowsWithMeta(rows, sectionById, factoryAbbrev, today);
+  const allRows = mapUpcomingWorkToDueRowsWithMeta(rows, sectionById, factoryAbbrev, today, labels);
 
   const overdueRows = allRows
     .filter((row) => row.isOverdue)
@@ -70,7 +80,8 @@ function mapUpcomingWorkToDueRowsWithMeta(
   rows: MachineUpcomingWorkRow[],
   sectionById: Map<number, FactorySection>,
   factoryAbbrev?: string,
-  referenceDate: Date = startOfLocalDay(new Date())
+  referenceDate: Date = startOfLocalDay(new Date()),
+  labels?: DueWorkRowLabels,
 ): Array<DueStatusRow & { dueDateIso: string }> {
   const out: Array<DueStatusRow & { dueDateIso: string }> = [];
 
@@ -78,20 +89,20 @@ function mapUpcomingWorkToDueRowsWithMeta(
     const sectionLabel =
       machineRow.section_name ??
       (machineRow.factory_section_id != null
-        ? sectionById.get(machineRow.factory_section_id)?.name ?? 'Section'
-        : 'Unassigned');
+        ? sectionById.get(machineRow.factory_section_id)?.name ?? labels?.sectionFallback ?? 'Section'
+        : labels?.unassigned ?? 'Unassigned');
     const factoryPrefix = factoryAbbrev ? `${factoryAbbrev} · ` : '';
 
     for (const item of machineRow.items) {
       const statusLabel =
         item.status === 'DRAFT'
-          ? 'Draft'
+          ? labels?.draft ?? 'Draft'
           : item.status === 'RECURRING'
-            ? 'Recurring'
+            ? labels?.recurring ?? 'Recurring'
             : item.status === 'IN_PROGRESS'
-              ? 'In progress'
-              : (item.status ?? 'Draft');
-      const typeLabel = item.work_order_type_name ?? 'Work order';
+              ? labels?.inProgress ?? 'In progress'
+              : (item.status ?? labels?.draft ?? 'Draft');
+      const typeLabel = item.work_order_type_name ?? labels?.workOrder ?? 'Work order';
       const dueDateIso = item.date.slice(0, 10);
       const itemDate = parseItemDate(dueDateIso);
       const isOverdue =
@@ -127,9 +138,15 @@ export function mapUpcomingWorkToDueRows(
 }
 
 /** Attention-feed rows (one per machine, earliest date). */
+export interface MachineAttentionRowLabels {
+  overdueWord: string;
+  itemsLabel: (count: number) => string;
+}
+
 export function mapUpcomingWorkToAttentionRows(
   rows: MachineUpcomingWorkRow[],
-  sectionById: Map<number, FactorySection>
+  sectionById: Map<number, FactorySection>,
+  labels?: MachineAttentionRowLabels,
 ): Array<{ id: string; title: string; subtitle: string; sortKey: number; href: string }> {
   const today = startOfLocalDay(new Date());
 
@@ -138,10 +155,14 @@ export function mapUpcomingWorkToAttentionRows(
       row.factory_section_id != null ? sectionById.get(row.factory_section_id) : undefined;
     const sectionLabel = row.section_name ?? section?.name;
     const dateLabel = row.earliest_date.slice(0, 10);
-    const countLabel = row.count > 1 ? ` · ${row.count} items` : '';
+    const countLabel =
+      row.count > 1
+        ? ` · ${labels ? labels.itemsLabel(row.count) : `${row.count} items`}`
+        : '';
     const earliestDate = parseItemDate(dateLabel);
+    const overdueWord = labels?.overdueWord ?? 'overdue';
     const overdueSuffix =
-      earliestDate != null && earliestDate < today ? ' · overdue' : '';
+      earliestDate != null && earliestDate < today ? ` · ${overdueWord}` : '';
     return {
       id: `machine-work-${row.machine_id}`,
       title: row.name,

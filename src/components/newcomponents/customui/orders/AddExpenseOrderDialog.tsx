@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import {
   Dialog,
@@ -54,6 +55,8 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   onOpenChange,
   onSuccess,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [accountId, setAccountId] = useState<string>('none');
   const [allocationType, setAllocationType] = useState<AllocationTypeValue>('factory');
   const [costCenterId, setCostCenterId] = useState<string>('none');
@@ -254,23 +257,23 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const expensesBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
-        <Label className="text-base">Expenses *</Label>
+        <Label className="text-base">{t('dlgExpensesRequired')}</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
       </div>
 
       <div className="shrink-0 space-y-2 rounded-lg border border-border bg-muted/20 p-3">
         <div className="grid gap-1">
-          <Label className="text-xs text-muted-foreground">Description</Label>
+          <Label className="text-xs text-muted-foreground">{t('dlgDescription')}</Label>
           <Input
             value={lineDescription}
             onChange={(e) => setLineDescription(e.target.value)}
-            placeholder="What was purchased or billed"
+            placeholder={t('dlgWhatBilled')}
             className="bg-background"
           />
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid min-w-[4.5rem] flex-1 gap-1">
-            <Label className="text-xs text-muted-foreground">Qty</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgQty')}</Label>
             <StepNumberInput
               min={1}
               step={1}
@@ -280,16 +283,16 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
             />
           </div>
           <div className="grid w-[5.5rem] gap-1">
-            <Label className="text-xs text-muted-foreground">Unit</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgUnit')}</Label>
             <Input
               value={lineUnit}
               onChange={(e) => setLineUnit(e.target.value)}
-              placeholder="e.g. hr"
+              placeholder={t('dlgUnitEg')}
               className="bg-background"
             />
           </div>
           <div className="grid min-w-[5.5rem] flex-1 gap-1">
-            <Label className="text-xs text-muted-foreground">Unit price</Label>
+            <Label className="text-xs text-muted-foreground">{t('dlgUnitPrice')}</Label>
             <StepNumberInput
               min={0}
               step={1}
@@ -307,7 +310,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
         {items.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">No expenses yet</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgNoExpenses')}</p>
         ) : (
           items.map((it, idx) => {
             const unitSuffix = it.unit && it.unit !== 'none' ? ` ${it.unit}` : '';
@@ -352,7 +355,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     <div className="grid min-w-0 gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Account</Label>
+          <Label>{t('dlgAccount')}</Label>
           <AccountSelectSummaryButton
             onClick={() => setAccountPickerOpen(true)}
             ariaLabel={
@@ -381,7 +384,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           />
         </div>
         <div>
-          <Label>Attribute to *</Label>
+          <Label>{t('dlgAttributeTo')}</Label>
           <Select
             value={allocationType}
             onValueChange={(v) => {
@@ -409,7 +412,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           <Label>{allocationType === 'factory' ? 'Factory *' : 'Department *'}</Label>
           <Select value={costCenterId} onValueChange={setCostCenterId} required>
             <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Select…" />
+              <SelectValue placeholder={t('dlgSelectEllipsis')} />
             </SelectTrigger>
             <SelectContent>
               {costCenterOptions.length === 0 ? (
@@ -430,7 +433,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Expense date *</Label>
+          <Label>{t('dlgExpenseDateRequired')}</Label>
           <DatePickerField
             value={expenseDate}
             onChange={setExpenseDate}
@@ -439,11 +442,11 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           />
         </div>
         <div>
-          <Label>Due date</Label>
+          <Label>{t('dlgDueDate')}</Label>
           <DatePickerField
             value={dueDate}
             onChange={setDueDate}
-            placeholder="Optional"
+            placeholder={t('dlgOptional')}
             recurrenceStartDate={expenseDate}
             triggerClassName="mt-1 h-10 w-full px-3 text-sm"
             aria-label="Due date"
@@ -452,11 +455,11 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       </div>
 
       <div>
-        <Label>Description *</Label>
+        <Label>{t('dlgDescriptionRequired')}</Label>
         <Input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g. PC fix"
+          placeholder={t('dlgEgPcFix')}
           className="mt-1"
         />
       </div>
@@ -467,14 +470,14 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const templateFieldsBlock = (
     <div className="grid min-w-0 gap-4">
       <div>
-        <Label>Template *</Label>
+        <Label>{t('dlgTemplateRequired')}</Label>
         <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} required>
           <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Select a template" />
+            <SelectValue placeholder={t('dlgSelectTemplate')} />
           </SelectTrigger>
           <SelectContent>
             {templates.length === 0 ? (
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">No active templates</div>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">{t('dlgNoActiveTemplates')}</div>
             ) : (
               templates.map((t) => (
                 <SelectItem key={t.id} value={String(t.id)}>
@@ -489,7 +492,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       {selectedTemplate && (
         <div className="grid grid-cols-1 gap-2 rounded-lg border border-border bg-muted/20 p-3 text-sm sm:grid-cols-2">
           <div>
-            <span className="text-xs text-muted-foreground">Account</span>
+            <span className="text-xs text-muted-foreground">{t('dlgAccount')}</span>
             <p className="font-medium text-foreground">
               {selectedTemplate.account_id
                 ? accounts.find((a) => a.id === selectedTemplate.account_id)?.name ?? `#${selectedTemplate.account_id}`
@@ -497,7 +500,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
             </p>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground">Attributed to</span>
+            <span className="text-xs text-muted-foreground">{t('dlgAttributedTo')}</span>
             <p className="font-medium text-foreground">
               {selectedTemplate.expense_category ? expenseCategoryLabel(selectedTemplate.expense_category) : 'Other'}
               {templateCostCenterName ? ` · ${templateCostCenterName}` : ''}
@@ -508,7 +511,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <Label>Expense date</Label>
+          <Label>{t('dlgExpenseDate')}</Label>
           <DatePickerField
             value={expenseDate}
             onChange={setExpenseDate}
@@ -517,11 +520,11 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           />
         </div>
         <div>
-          <Label>Due date</Label>
+          <Label>{t('dlgDueDate')}</Label>
           <DatePickerField
             value={dueDate}
             onChange={setDueDate}
-            placeholder="Optional"
+            placeholder={t('dlgOptional')}
             recurrenceStartDate={expenseDate}
             triggerClassName="mt-1 h-10 w-full px-3 text-sm"
             aria-label="Due date"
@@ -530,7 +533,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       </div>
 
       <div>
-        <Label>Description</Label>
+        <Label>{t('dlgDescription')}</Label>
         <Input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -544,7 +547,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const templateItemsBlock = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
-        <Label className="text-base">Expenses</Label>
+        <Label className="text-base">{t('dlgExpenses')}</Label>
         <span className="text-xs text-muted-foreground tabular-nums">
           {templateItems.length} from template
         </span>
@@ -554,9 +557,9 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       </p>
       <div className="min-h-0 flex-1 divide-y overflow-y-auto rounded-lg border border-border bg-background">
         {selectedTemplate == null ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">Select a template to preview its expenses</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgSelectTemplatePreview')}</p>
         ) : templateItems.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted-foreground">This template has no expense lines</p>
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t('dlgTemplateNoLines')}</p>
         ) : (
           templateItems.map((it) => {
             const price = it.unit_price ?? 0;
@@ -592,7 +595,7 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-4 overflow-hidden p-6 sm:max-w-none">
         <DialogHeader className="shrink-0 space-y-3 text-left">
-          <DialogTitle>Add Expense Order</DialogTitle>
+          <DialogTitle>{t('dlgAddExpense')}</DialogTitle>
           <div className="inline-flex w-fit rounded-lg border border-border bg-muted/30 p-0.5">
             <button
               type="button"
@@ -628,11 +631,11 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
 
           <div className="flex shrink-0 justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
+              {t('dlgCreate')}
             </Button>
           </div>
         </form>

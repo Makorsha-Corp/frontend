@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Package } from 'lucide-react';
 import FactoryModuleInfoCard, {
   factoryModuleInfoCardBodyClasses,
@@ -22,33 +23,34 @@ const FactoriesProductionInfoCard: React.FC<FactoriesProductionInfoCardProps> = 
   snapshot,
   loading,
 }) => {
+  const { t } = useTranslation(['factories', 'production', 'common']);
   const href = factoryProductionHubLink(factoryFilter, {
     batchesTab: snapshot.inProgressCount > 0,
   });
   const hasAlert = snapshot.inProgressCount > 0;
   const lineLabel =
     snapshot.activeLineCount === 1
-      ? '1 active line'
-      : `${snapshot.activeLineCount} active lines`;
+      ? t('oneActiveLine')
+      : t('activeLinesCount', { count: snapshot.activeLineCount });
   const body = factoryModuleInfoCardBodyClasses(CARD_VARIANT);
 
   return (
     <FactoryModuleInfoCard
-      title="Production"
+      title={t('title', { ns: 'production' })}
       icon={Package}
       href={href}
       scopeLabel={scopeLabel}
       headline={loading ? '—' : snapshot.inProgressCount}
-      subtitle={loading ? 'Loading…' : lineLabel}
+      subtitle={loading ? t('loading', { ns: 'common' }) : lineLabel}
       variant={CARD_VARIANT}
       hasAlert={hasAlert}
-      alertHint={hasAlert ? `${snapshot.inProgressCount} in progress` : undefined}
+      alertHint={hasAlert ? t('inProgressBadge', { count: snapshot.inProgressCount }) : undefined}
       compactHeader
     >
       <div className="space-y-2 text-sm">
         {snapshot.draftCount > 0 ? (
           <div className="flex items-center justify-between gap-2">
-            <span className={body.bodyLabel}>Draft batches</span>
+            <span className={body.bodyLabel}>{t('draftBatches')}</span>
             <span className={cn('font-semibold tabular-nums', body.bodyValue)}>
               {snapshot.draftCount}
             </span>
@@ -58,7 +60,7 @@ const FactoriesProductionInfoCard: React.FC<FactoriesProductionInfoCardProps> = 
         {snapshot.inProgressBatches.length > 0 ? (
           <div>
             <p className={cn('mb-1.5 text-[11px] font-medium uppercase tracking-wide', body.bodySectionLabel)}>
-              In progress
+              {t('inProgressSection')}
             </p>
             <ul className="space-y-1">
               {snapshot.inProgressBatches.map((batch) => (
@@ -77,7 +79,7 @@ const FactoriesProductionInfoCard: React.FC<FactoriesProductionInfoCardProps> = 
             </ul>
           </div>
         ) : (
-          <p className={cn('text-xs', body.bodyMuted)}>No batches in progress.</p>
+          <p className={cn('text-xs', body.bodyMuted)}>{t('noBatchesInProgress')}</p>
         )}
       </div>
     </FactoryModuleInfoCard>

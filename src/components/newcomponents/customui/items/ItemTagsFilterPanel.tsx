@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { displayItemTagName } from '@/i18n/itemTagLabels';
+import type { UiLanguage } from '@/i18n/uiLanguage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useGetTagsQuery } from '@/features/items/itemTagsApi';
@@ -22,6 +25,8 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
   onClose,
   className,
 }) => {
+  const { t, i18n } = useTranslation(['items', 'misc']);
+  const language = i18n.language as UiLanguage;
   const [search, setSearch] = useState('');
   const [isTagsManagerOpen, setIsTagsManagerOpen] = useState(false);
   const { data: tags = [], isLoading, isError } = useGetTagsQuery();
@@ -80,9 +85,9 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-brand-heading">
               <Tag className="h-4 w-4 shrink-0" />
-              Tags
+              {t('tags')}
             </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Filter items by tag</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('tagsPanelHint')}</p>
           </div>
           <Button
             type="button"
@@ -90,7 +95,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
             size="icon"
             className="h-8 w-8 shrink-0 text-muted-foreground"
             onClick={onClose}
-            aria-label="Hide tags panel"
+            aria-label={t('hideTagsPanelAria')}
           >
             <PanelRightClose className="h-4 w-4" />
           </Button>
@@ -104,7 +109,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
             )}
           >
             {selectedTags.length === 0 ? (
-              <span className="px-1 text-xs text-muted-foreground">No tags selected</span>
+              <span className="px-1 text-xs text-muted-foreground">{t('noTagsSelected')}</span>
             ) : (
               selectedTags.map((tag) => (
                 <span
@@ -115,12 +120,12 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
                   />
-                  <span className="truncate">{tag.name}</span>
+                    <span className="truncate">{displayItemTagName(tag, t, language)}</span>
                   <button
                     type="button"
                     onClick={() => removeTag(tag.id)}
                     className="shrink-0 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Remove ${tag.name}`}
+                      aria-label={t('removeTagAria', { name: displayItemTagName(tag, t, language) })}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -137,7 +142,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
               className="h-7 self-start px-2 text-xs text-muted-foreground hover:text-foreground"
               onClick={clearAllTags}
             >
-              Clear all tags
+              {t('clearAllTags')}
             </Button>
           ) : null}
 
@@ -145,7 +150,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search tags…"
+              placeholder={t('searchTagsPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 bg-background pl-9"
@@ -159,15 +164,15 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
           {isLoading && activeTags.length === 0 ? (
             <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading tags…
+              {t('loadingTags')}
             </div>
           ) : isError ? (
             <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-4 text-sm text-destructive">
-              Could not load tags.
+              {t('tagsLoadError')}
             </p>
           ) : activeTags.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-              No tags yet.
+              {t('noTagsYet')}
             </div>
           ) : (
             <ul className="space-y-1">
@@ -185,7 +190,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     <Tags className="h-3.5 w-3.5" />
                   </span>
-                  <span className="min-w-0 flex-1 font-medium">All tags</span>
+                  <span className="min-w-0 flex-1 font-medium">{t('allTags')}</span>
                   {selectedTagIds.length === 0 ? (
                     <Check className="h-4 w-4 shrink-0 text-brand-primary" />
                   ) : null}
@@ -194,7 +199,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
 
               {filteredTags.length === 0 ? (
                 <li className="px-3 py-8 text-center text-sm text-muted-foreground">
-                  No tags match your search.
+                  {t('noTagsMatchSearch')}
                 </li>
               ) : (
                 filteredTags.map((tag) => {
@@ -220,7 +225,9 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
                           <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{tag.name}</div>
+                          <div className="truncate font-medium">
+                            {displayItemTagName(tag, t, language)}
+                          </div>
                           {tag.description ? (
                             <div className="truncate text-xs text-muted-foreground">{tag.description}</div>
                           ) : null}
@@ -248,7 +255,7 @@ const ItemTagsFilterPanel: React.FC<ItemTagsFilterPanelProps> = ({
             onClick={() => setIsTagsManagerOpen(true)}
           >
             <Tags className="mr-2 h-4 w-4" />
-            Manage Tags
+            {t('manageTags')}
           </Button>
         </div>
       </aside>

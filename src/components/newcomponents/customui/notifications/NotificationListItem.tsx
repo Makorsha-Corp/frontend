@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ExternalLink, Mail, MailOpen, X } from 'lucide-react';
 import { ReferenceId } from '@/components/newcomponents/customui/ReferenceId';
@@ -8,6 +9,7 @@ import type { AppNotification } from './notificationTypes';
 import { getNotificationVisual } from './notificationVisuals';
 import { useDisplayTimezone } from '@/hooks/useDisplayTimezone';
 import { formatRelativeFromApi } from '@/utils/datetime';
+import { localizedNotificationBody, localizedNotificationTitle } from './notificationI18n';
 
 export interface NotificationListItemProps {
   notification: AppNotification;
@@ -28,10 +30,13 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
   onToggleRead,
   onDismiss,
 }) => {
+  const { t } = useTranslation('notifications');
   const timeZone = useDisplayTimezone();
   const visual = getNotificationVisual(notification.kind, notification.severity);
   const Icon = visual.icon;
   const timeAgo = formatRelativeFromApi(notification.createdAt, { timeZone });
+  const displayTitle = localizedNotificationTitle(notification, t);
+  const displayBody = localizedNotificationBody(notification, t);
 
   const content = (
     <>
@@ -58,10 +63,10 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
                 isRead ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'
               )}
             >
-              {notification.title}
+              {displayTitle}
             </p>
             {variant === 'default' && (
-              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{notification.body}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{displayBody}</p>
             )}
             <p className="mt-1 text-xs text-muted-foreground/80">{timeAgo}</p>
           </div>
@@ -98,7 +103,7 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
                     isRead ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'
                   )}
                 >
-                  {notification.title}
+                  {displayTitle}
                 </p>
                 {notification.entityRef && (
                   <ReferenceId
@@ -112,7 +117,7 @@ const NotificationListItem: React.FC<NotificationListItemProps> = ({
               </div>
               <span className="shrink-0 text-[10px] leading-tight text-muted-foreground">{timeAgo}</span>
             </div>
-            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{notification.body}</p>
+            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{displayBody}</p>
           </div>
         </div>
         <div className="mt-1.5 flex items-center justify-end gap-0.5">

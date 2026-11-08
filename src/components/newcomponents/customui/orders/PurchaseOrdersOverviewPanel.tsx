@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PurchaseOrder } from '@/types/purchaseOrder';
 import type { PurchaseOrderHubStatsResponse } from '@/types/purchaseOrder';
 import type { PurchaseOrderSummaryStats } from '@/pages/newpages/orders/purchaseOrdersOverviewData';
@@ -30,6 +31,7 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
   onSelectOrder,
   hideOrderLists = false,
 }) => {
+  const { t } = useTranslation('orders');
   const activityOrders = useMemo(() => {
     if (hideOrderLists) return [];
     if (hubStats?.recent_orders?.length) {
@@ -49,7 +51,7 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
         <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-        <p className="text-sm">Loading overview…</p>
+        <p className="text-sm">{t('loadingOverview')}</p>
       </div>
     );
   }
@@ -61,24 +63,26 @@ const PurchaseOrdersOverviewPanel: React.FC<PurchaseOrdersOverviewPanelProps> = 
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <OrderOverviewKpiCard
-          title="Total orders"
+          title={t('kpiTotalOrders')}
           value={stats.totalCount}
-          footer="In current filter scope"
+          footer={t('kpiInFilterScope')}
         />
         <OrderOverviewKpiCard
-          title="Total value"
+          title={t('kpiTotalValue')}
           value={formatCompactCurrency(stats.totalValue)}
-          footer="Sum of order totals"
+          footer={t('kpiSumOrderTotals')}
         />
         <OrderOverviewKpiCard
-          title="Open pipeline"
+          title={t('kpiOpenPipeline')}
           value={stats.openCount}
-          footer={`${formatCompactCurrency(stats.openValue)} not completed`}
+          footer={t('kpiAmountNotCompleted', {
+            amount: formatCompactCurrency(stats.openValue),
+          })}
         />
         <OrderOverviewKpiCard
-          title="Not invoiced"
+          title={t('kpiNotInvoiced')}
           value={stats.notInvoicedCount}
-          footer="No linked invoice yet"
+          footer={t('kpiNoLinkedInvoice')}
         />
       </div>
 

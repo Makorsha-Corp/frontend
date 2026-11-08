@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const { t } = useTranslation(['items', 'common']);
   const itemId = item?.id ?? 0;
   const [purchasingPeriod, setPurchasingPeriod] = useState<PurchasingPeriod>('days_90');
 
@@ -63,8 +65,8 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
             size="icon"
             className="h-10 w-10"
             onClick={() => onEdit(displayItem as Item)}
-            aria-label="Edit item"
-            title="Edit item"
+            aria-label={t('editItemAria')}
+            title={t('editItemAria')}
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -74,8 +76,8 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
             size="icon"
             className="h-10 w-10 text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => onDelete(displayItem as Item)}
-            aria-label="Delete item"
-            title="Delete item"
+            aria-label={t('deleteItemAria')}
+            title={t('deleteItemAria')}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -93,11 +95,11 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
               <div className="mt-3.5 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={displayItem.is_active ? 'secondary' : 'outline'} className="text-xs">
-                    {displayItem.is_active ? 'Active' : 'Inactive'}
+                    {displayItem.is_active ? t('statusActive') : t('statusInactive')}
                   </Badge>
                   {displayItem.sku ? (
                     <ReferenceId>
-                      SKU {displayItem.sku}
+                      {t('sku')} {displayItem.sku}
                     </ReferenceId>
                   ) : null}
                   {tags.map((tag) => (
@@ -126,11 +128,11 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand-primary" />
-              <p className="text-sm">Loading item details…</p>
+              <p className="text-sm">{t('loadingItemDetails')}</p>
             </div>
           ) : error ? (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center text-sm text-destructive">
-              Failed to load item summary. Basic catalog info is still shown above.
+              {t('itemSummaryLoadError')}
             </div>
           ) : summary ? (
             <ItemDetailsTabs
@@ -147,13 +149,14 @@ const ItemDetailsDialog: React.FC<ItemDetailsDialogProps> = ({
 
         <DialogFooter className="shrink-0 border-t border-border px-5 py-3 sm:justify-between">
           <p className="hidden text-xs text-muted-foreground sm:block">
-            Item #{displayItem.id}
-            {displayItem.updated_at ? ` · Updated ${formatDate(displayItem.updated_at)}` : null}
-            {' · '}
-            Delete marks this item inactive — it stays in history.
+            {t('itemFooterMeta', { id: displayItem.id })}
+            {displayItem.updated_at
+              ? t('itemFooterUpdated', { date: formatDate(displayItem.updated_at) })
+              : null}
+            {t('itemFooterDeleteHint')}
           </p>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t('close', { ns: 'common' })}
           </Button>
         </DialogFooter>
       </DialogContent>

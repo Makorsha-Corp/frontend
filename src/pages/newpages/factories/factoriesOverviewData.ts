@@ -197,15 +197,50 @@ export interface FactoryAttentionGroups {
   draftBatches: FactoryAttentionLinkRow[];
 }
 
+export interface FactoryOverviewCopy {
+  unassigned: string;
+  sectionWithId: (id: number) => string;
+  noSectionAssigned: string;
+  productionLine: string;
+  statusRunning: string;
+  statusMaintenance: string;
+  statusIdle: string;
+  statusOff: string;
+  statusUpdated: string;
+  storageLine: (sign: string, qty: number, item: string) => string;
+  itemFallback: (id: number) => string;
+  batchStarted: (number: string) => string;
+  batchCompleted: (number: string) => string;
+  batchCancelled: (number: string) => string;
+}
+
+const defaultCopy: FactoryOverviewCopy = {
+  unassigned: 'Unassigned',
+  sectionWithId: (id) => `Section ${id}`,
+  noSectionAssigned: 'No section assigned',
+  productionLine: 'Production line',
+  statusRunning: 'Running',
+  statusMaintenance: 'Maintenance',
+  statusIdle: 'Idle',
+  statusOff: 'Off',
+  statusUpdated: 'Status updated',
+  storageLine: (sign, qty, item) => `Storage: ${sign}${qty} ${item}`,
+  itemFallback: (id) => `Item #${id}`,
+  batchStarted: (number) => `Batch ${number} started`,
+  batchCompleted: (number) => `Batch ${number} completed`,
+  batchCancelled: (number) => `Batch ${number} cancelled`,
+};
+
 function machineSectionLabel(
   machine: Machine,
-  sectionById: Map<number, FactorySection>
+  sectionById: Map<number, FactorySection>,
+  copy: FactoryOverviewCopy = defaultCopy,
 ): string {
-  if (machine.factory_section_id == null) return 'Unassigned';
+  if (machine.factory_section_id == null) return copy.unassigned;
   return (
     sectionById.get(machine.factory_section_id)?.name ??
     machine.factory_section_name ??
-    `Section ${machine.factory_section_id}`
+    copy.sectionWithId(machine.factory_section_id)
   );
 }
 
@@ -219,7 +254,8 @@ export function buildFactoryAttentionItems(
   maintenanceDueRows: DueStatusRow[],
   batches: ProductionBatch[],
   lines: ProductionLine[],
-  sectionById: Map<number, FactorySection>
+  sectionById: Map<number, FactorySection>,
+  copy: FactoryOverviewCopy = defaultCopy,
 ): FactoryAttentionGroups {
   const lineById = new Map(lines.map((line) => [line.id, line]));
 
@@ -228,7 +264,7 @@ export function buildFactoryAttentionItems(
     .map((machine) => ({
       id: `idle-${machine.id}`,
       name: machine.name,
-      contextLabel: machineSectionLabel(machine, sectionById),
+      contextLabel: machineSectionLabel(machine, sectionById, copy),
       href: machineHref(machine, factoryId),
     }));
 
@@ -237,7 +273,7 @@ export function buildFactoryAttentionItems(
     .map((machine) => ({
       id: `off-${machine.id}`,
       name: machine.name,
-      contextLabel: machineSectionLabel(machine, sectionById),
+      contextLabel: machineSectionLabel(machine, sectionById, copy),
       href: machineHref(machine, factoryId),
     }));
 
@@ -246,7 +282,7 @@ export function buildFactoryAttentionItems(
     .map((machine) => ({
       id: `unassigned-${machine.id}`,
       name: machine.name,
-      contextLabel: 'No section assigned',
+      contextLabel: copy.noSectionAssigned,
       href: machineHref(machine, factoryId),
     }));
 
@@ -255,7 +291,7 @@ export function buildFactoryAttentionItems(
     .map((batch) => ({
       id: `draft-${batch.id}`,
       name: batch.batch_number,
-      contextLabel: lineById.get(batch.production_line_id)?.name ?? 'Production line',
+      contextLabel: lineById.get(batch.production_line_id)?.name ?? copy.productionLine,
       href: factoryHubLink('/production', String(factoryId)),
     }));
 
@@ -299,18 +335,21 @@ function isOnOrAfter(date: Date, since: Date): boolean {
   return date.getTime() >= since.getTime();
 }
 
-function formatMachineStatusLabel(status: string | null | undefined): string {
+function formatMachineStatusLabel(
+  status: string | null | undefined,
+  copy: FactoryOverviewCopy,
+): string {
   switch (status) {
     case 'RUNNING':
-      return 'Running';
+      return copy.statusRunning;
     case 'MAINTENANCE':
-      return 'Maintenance';
+      return copy.statusMaintenance;
     case 'IDLE':
-      return 'Idle';
+      return copy.statusIdle;
     case 'OFF':
-      return 'Off';
+      return copy.statusOff;
     default:
-      return status ?? 'Status updated';
+      return status ?? copy.statusUpdated;
   }
 }
 
@@ -327,10 +366,13 @@ export function buildFactoryActivityFeed(
   inventory: Inventory[],
   sectionById: Map<number, FactorySection>,
   horizonDays = ACTIVITY_HORIZON_DAYS,
-  limit = ACTIVITY_LIMIT
+  limit = ACTIVITY_LIMIT,
+  copy: FactoryOverviewCopy = defaultCopy,
 ): FactoryActivityItem[] {
   const since = new Date(Date.now() - horizonDays * 24 * 60 * 60 * 1000);
-  const itemNameById = new Map(inventory.map((row) => [row.item_id, row.item_name?.trim() || `Item #${row.item_id}`]));
+  const itemNameById = new Map(
+    inventory.map((row) => [row.item_id, row.item_name?.trim() || copy.itemFallback(row.item_id)]),
+  );
   const lineById = new Map(lines.map((line) => [line.id, line]));
   const items: FactoryActivityItem[] = [];
 
@@ -342,8 +384,8 @@ export function buildFactoryActivityFeed(
     items.push({
       id: `machine-status-${machine.id}-${timestamp.getTime()}`,
       timestamp,
-      description: `${machine.name} → ${formatMachineStatusLabel(machine.latest_status_type)}`,
-      subtext: machineSectionLabel(machine, sectionById),
+      description: `${machine.name} → ${formatMachineStatusLabel(machine.latest_status_type, copy)}`,
+      subtext: machineSectionLabel(machine, sectionById, copy),
       href: machineHref(machine, factoryId),
     });
   }
@@ -352,19 +394,19 @@ export function buildFactoryActivityFeed(
     const timestamp = parseDate(entry.performed_at);
     if (!timestamp || !isOnOrAfter(timestamp, since)) continue;
 
-    const itemName = itemNameById.get(entry.item_id) ?? `Item #${entry.item_id}`;
+    const itemName = itemNameById.get(entry.item_id) ?? copy.itemFallback(entry.item_id);
     const sign = entry.quantity >= 0 ? '+' : '';
     items.push({
       id: `ledger-${entry.id}`,
       timestamp,
-      description: `Storage: ${sign}${entry.quantity} ${itemName}`,
+      description: copy.storageLine(sign, entry.quantity, itemName),
       subtext: formatTransactionLabel(entry.transaction_type),
       href: factoryHubLink('/ledgers', String(factoryId)),
     });
   }
 
   for (const batch of batches) {
-    const lineName = lineById.get(batch.production_line_id)?.name ?? 'Production line';
+    const lineName = lineById.get(batch.production_line_id)?.name ?? copy.productionLine;
     const productionHref = factoryHubLink('/production', String(factoryId));
 
     const startedAt = parseDate(batch.started_at);
@@ -376,7 +418,7 @@ export function buildFactoryActivityFeed(
       items.push({
         id: `batch-started-${batch.id}`,
         timestamp: startedAt,
-        description: `Batch ${batch.batch_number} started`,
+        description: copy.batchStarted(batch.batch_number),
         subtext: lineName,
         href: productionHref,
       });
@@ -387,7 +429,7 @@ export function buildFactoryActivityFeed(
       items.push({
         id: `batch-completed-${batch.id}`,
         timestamp: completedAt,
-        description: `Batch ${batch.batch_number} completed`,
+        description: copy.batchCompleted(batch.batch_number),
         subtext: lineName,
         href: productionHref,
       });
@@ -398,7 +440,7 @@ export function buildFactoryActivityFeed(
       items.push({
         id: `batch-cancelled-${batch.id}`,
         timestamp: updatedAt,
-        description: `Batch ${batch.batch_number} cancelled`,
+        description: copy.batchCancelled(batch.batch_number),
         subtext: lineName,
         href: productionHref,
       });

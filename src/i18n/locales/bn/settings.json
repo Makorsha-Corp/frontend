@@ -1,0 +1,22 @@
+{
+  "settingsTitle": "সেটিংস",
+  "languageTitle": "ভাষা",
+  "languageDescription": "বোতাম, মেনু ও অ্যাপের অন্যান্য লেখার জন্য ইংরেজি বা বাংলা বেছে নিন। আইটেমের নাম ও নোট আপনি যেমন লিখেছেন তেমনই থাকবে।",
+  "languageLabel": "প্রদর্শনের ভাষা",
+  "saveLanguage": "ভাষা সংরক্ষণ",
+  "languageSaved": "ভাষা সংরক্ষিত",
+  "languageSaveFailed": "ভাষা সংরক্ষণ করা যায়নি",
+  "timezoneTitle": "টাইমজোন",
+  "timezoneDescription": "ইভেন্ট লগ, আলোচনা ও নোটিফিকেশন এই টাইমজোনে দেখাবে। ক্যালেন্ডারের তারিখ (ডিউ ডেট, পরিকল্পিত কাজ) যেমন দেওয়া হয়েছে তেমনই থাকবে।",
+  "timeFormatTitle": "সময়ের ধরন",
+  "timeFormatDescription": "অ্যাপ জুড়ে সময় বাছাইয়ের জন্য ২৪ ঘণ্টা বা ১২ ঘণ্টা (AM/PM) বেছে নিন।",
+  "productionMachinePicksTitle": "উৎপাদনে মেশিন নির্বাচন",
+  "productionMachinePicksDescription": "ব্যাচ ধাপে মেশিন দেওয়ার সময় বন্ধ, রক্ষণাবেক্ষণ ও সূচি ওভারল্যাপের জন্য সতর্কতা নাকি বাধা—নিয়ম ঠিক করুন।",
+  "pageGuidesTitle": "পেজ গাইড",
+  "pageGuidesDescription": "অর্ডার ও অন্যান্য পেজে প্রথমবার ওয়াকথ্রু। আবার দেখতে রিসেট করুন।",
+  "savedStampTitle": "সংরক্ষিত স্ট্যাম্প",
+  "savedStampDescription": "অ্যাটাচমেন্ট মার্কআপে বসানোর জন্য ব্যক্তিগত স্ট্যাম্প আঁকুন বা আপলোড করুন।",
+  "yourTimezone": "আপনার টাইমজোন",
+  "saveTimezone": "টাইমজোন সংরক্ষণ",
+  "timezoneSaveFailed": "টাইমজোন সংরক্ষণ করা যায়নি"
+}

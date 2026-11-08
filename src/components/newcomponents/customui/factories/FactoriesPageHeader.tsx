@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, Plus, Users } from 'lucide-react';
 
 import AppShellHeader, {
@@ -31,6 +32,7 @@ const FactoriesPageHeader: React.FC<FactoriesPageHeaderProps> = ({
   onOpenDepartments,
   onAddFactory,
 }) => {
+  const { t } = useTranslation(['factories', 'common']);
   const factoryFilterProps = {
     which: 'factories' as const,
     variant: 'toolbar' as const,
@@ -48,7 +50,7 @@ const FactoriesPageHeader: React.FC<FactoriesPageHeaderProps> = ({
           <div className={appShellHeaderIconTileClass}>
             <LayoutDashboard className="h-5 w-5 text-brand-primary" />
           </div>
-          <h1 className={cn(appShellHeaderTitleClass, 'shrink-0')}>Factories</h1>
+          <h1 className={cn(appShellHeaderTitleClass, 'shrink-0')}>{t('title')}</h1>
           <MachinesInlineLocationFilters
             {...factoryFilterProps}
             selectionMode="single"
@@ -60,9 +62,9 @@ const FactoriesPageHeader: React.FC<FactoriesPageHeaderProps> = ({
             icon={Users}
             variant="outline"
             onClick={onOpenDepartments}
-            ariaLabel="Manage departments"
+            ariaLabel={t('manageDepartmentsAria')}
           />
-          <AppShellHeaderIconAction icon={Plus} onClick={onAddFactory} ariaLabel="Add factory" />
+          <AppShellHeaderIconAction icon={Plus} onClick={onAddFactory} ariaLabel={t('addFactoryAria')} />
         </div>
       </AppShellHeaderRow>
 
@@ -73,7 +75,7 @@ const FactoriesPageHeader: React.FC<FactoriesPageHeaderProps> = ({
             <div className={appShellHeaderIconTileClass}>
               <LayoutDashboard className="h-5 w-5 text-brand-primary" />
             </div>
-            <h1 className={appShellHeaderTitleClass}>Factories Overview</h1>
+            <h1 className={appShellHeaderTitleClass}>{t('overviewTitle')}</h1>
             <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
             <MachinesInlineLocationFilters {...factoryFilterProps} />
           </div>
@@ -85,14 +87,14 @@ const FactoriesPageHeader: React.FC<FactoriesPageHeaderProps> = ({
               onClick={onOpenDepartments}
             >
               <Users className="mr-2 h-4 w-4" />
-              Departments
+              {t('departments')}
             </Button>
             <Button
               onClick={onAddFactory}
               className={`${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover`}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Add Factory
+              {t('addFactory')}
             </Button>
           </div>
         </div>

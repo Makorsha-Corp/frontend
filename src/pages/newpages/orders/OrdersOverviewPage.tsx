@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { CalendarIcon, LayoutDashboard, Loader2 } from 'lucide-react';
 import AppShellHeader, {
@@ -30,8 +31,12 @@ import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters'
 import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
 import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
 import HelpGuidePageReplayButton from '@/components/newcomponents/customui/helpGuides/HelpGuidePageReplayButton';
+import { displaySystemStatusName } from '@/i18n/systemLabels';
+import { normalizeUiLanguage } from '@/i18n/uiLanguage';
 
 const OrdersOverviewPage: React.FC = () => {
+  const { t, i18n } = useTranslation(['orders', 'misc']);
+  const uiLanguage = normalizeUiLanguage(i18n.language);
   const {
     dateRange,
     setDateRange,
@@ -78,7 +83,7 @@ const OrdersOverviewPage: React.FC = () => {
               <div className={appShellHeaderIconTileClass}>
                 <LayoutDashboard className="h-5 w-5 text-brand-primary" />
               </div>
-              <h1 className={appShellHeaderTitleClass}>Orders Overview</h1>
+              <h1 className={appShellHeaderTitleClass}>{t('overviewTitle')}</h1>
               <div className={appShellHeaderScopeSeparatorClass} aria-hidden />
               <div data-help-tour="orders-overview.factory-scope">
                 <MachinesInlineLocationFilters
@@ -111,7 +116,7 @@ const OrdersOverviewPage: React.FC = () => {
                           format(dateRange.from, 'MMM d')
                         )
                       ) : (
-                        'Date range'
+                        t('overviewDateRange')
                       )}
                     </span>
                   </Button>
@@ -130,13 +135,13 @@ const OrdersOverviewPage: React.FC = () => {
                   data-help-tour="orders-overview.status"
                   className={`min-w-0 flex-1 border-border bg-background px-2.5 sm:px-3 lg:w-[160px] lg:flex-none ${appShellHeaderControlClass}`}
                 >
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('statusLabel')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="all">{t('overviewAllStatuses')}</SelectItem>
                   {statusOptions.map((name) => (
                     <SelectItem key={name} value={name}>
-                      {name}
+                      {displaySystemStatusName(name, t, uiLanguage)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -147,9 +152,7 @@ const OrdersOverviewPage: React.FC = () => {
 
         <div className="p-6 space-y-6 overflow-y-auto">
           {loadError && (
-            <p className="text-sm text-destructive">
-              Some order data could not be loaded. Check your connection and workspace access.
-            </p>
+            <p className="text-sm text-destructive">{t('overviewLoadError')}</p>
           )}
 
           <HubTypeCards countsByType={countsByType} />
@@ -157,7 +160,7 @@ const OrdersOverviewPage: React.FC = () => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-              <p className="text-sm">Loading orders overview…</p>
+              <p className="text-sm">{t('overviewLoadingPage')}</p>
             </div>
           ) : (
             <OrdersOverviewPageBody

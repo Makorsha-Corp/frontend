@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShoppingCart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
 
@@ -19,24 +20,28 @@ const PurchaseOrdersPageHeader: React.FC<PurchaseOrdersPageHeaderProps> = ({
   onSearchInputChange,
   onAdd,
   headerToolbarExtras,
-}) => (
-  <OrderHubShellHeader
-    icon={ShoppingCart}
-    title="Purchase Orders"
-    selectedOrderLabel={selectedOrderNumber}
-    onClearSelection={onClearSelection}
-    backAriaLabel="Back to purchase orders"
-    closeSelectionAriaLabel="Close purchase order"
-    searchInput={searchInput}
-    onSearchInputChange={onSearchInputChange}
-    searchPlaceholder="Search by PO# or supplier..."
-    searchAriaLabel="Search purchase orders"
-    onAdd={onAdd}
-    addButtonLabel="Add Purchase Order"
-    addAriaLabel="Add purchase order"
-    helpGuideKind="purchase"
-    headerToolbarExtras={headerToolbarExtras}
-  />
-);
+}) => {
+  const { t } = useTranslation('orders');
+
+  return (
+    <OrderHubShellHeader
+      icon={ShoppingCart}
+      title={t('purchaseTitle')}
+      selectedOrderLabel={selectedOrderNumber}
+      onClearSelection={onClearSelection}
+      backAriaLabel={t('backToPurchaseAria')}
+      closeSelectionAriaLabel={t('closePurchaseAria')}
+      searchInput={searchInput}
+      onSearchInputChange={onSearchInputChange}
+      searchPlaceholder={t('searchPurchasePlaceholder')}
+      searchAriaLabel={t('searchPurchaseAria')}
+      onAdd={onAdd}
+      addButtonLabel={t('addPurchaseOrder')}
+      addAriaLabel={t('addPurchaseAria')}
+      helpGuideKind="purchase"
+      headerToolbarExtras={headerToolbarExtras}
+    />
+  );
+};
 
 export default PurchaseOrdersPageHeader;

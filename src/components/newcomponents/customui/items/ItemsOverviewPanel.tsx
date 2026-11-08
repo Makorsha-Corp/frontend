@@ -1,4 +1,7 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { displayItemTagName } from '@/i18n/itemTagLabels';
+import type { UiLanguage } from '@/i18n/uiLanguage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,11 +41,14 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
   emptyAction,
   paginationFooter,
 }) => {
+  const { t, i18n } = useTranslation(['items', 'misc']);
+  const language = i18n.language as UiLanguage;
+
   const itemColumns = useMemo(
     (): OrdersOverviewTableColumn<Item>[] => [
       {
         id: 'id',
-        header: 'ID',
+        header: t('columnId'),
         cellClassName: 'w-[72px]',
         cell: (i) => (
           <ReferenceId size="sm">{i.id}</ReferenceId>
@@ -50,13 +56,13 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
       },
       {
         id: 'name',
-        header: 'Name',
+        header: t('columnName'),
         cellClassName: 'font-medium max-w-[200px] truncate',
         cell: (i) => i.name,
       },
       {
         id: 'unit',
-        header: 'Unit',
+        header: t('unit'),
         cell: (i) => (
           <Badge variant="secondary" className="text-xs">
             {i.unit}
@@ -65,13 +71,13 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
       },
       {
         id: 'description',
-        header: 'Description',
+        header: t('columnDescription'),
         cellClassName: 'max-w-[240px] truncate text-muted-foreground',
         cell: (i) => i.description || '—',
       },
       {
         id: 'tags',
-        header: 'Tags',
+        header: t('tags'),
         cell: (i) =>
           i.tags && i.tags.length > 0 ? (
             <Tooltip>
@@ -97,7 +103,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
                         className="h-2 w-2 rounded-full shrink-0"
                         style={{ backgroundColor: tag.color || '#9067c6' }}
                       />
-                      {tag.name}
+                      {displayItemTagName(tag, t, language)}
                     </div>
                   ))}
                 </div>
@@ -109,7 +115,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: t('columnActions'),
         align: 'right',
         headerClassName: 'w-[120px]',
         cell: (i) => (
@@ -118,7 +124,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="View"
+              title={t('actionView')}
               onClick={() => onView(i)}
             >
               <Eye className="h-4 w-4" />
@@ -127,7 +133,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="Edit"
+              title={t('actionEdit')}
               onClick={() => onEdit(i)}
             >
               <Pencil className="h-4 w-4" />
@@ -136,7 +142,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-              title="Delete"
+              title={t('actionDelete')}
               onClick={() => onDelete(i)}
             >
               <Trash2 className="h-4 w-4" />
@@ -145,14 +151,14 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
         ),
       },
     ],
-    [onView, onEdit, onDelete],
+    [onView, onEdit, onDelete, t, language],
   );
 
   if (isLoading) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
         <Loader2 className="h-10 w-10 animate-spin text-brand-primary mb-3" />
-        <p className="text-sm">Loading overview…</p>
+        <p className="text-sm">{t('loadingOverview')}</p>
       </div>
     );
   }
@@ -160,7 +166,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-        <p className="text-destructive text-sm">Failed to load items. Please try again.</p>
+        <p className="text-destructive text-sm">{t('loadError')}</p>
       </div>
     );
   }
@@ -168,7 +174,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
   const emptyState = (
     <div className="flex flex-col items-center justify-center px-4 py-16 text-muted-foreground">
       <Package2 className="mb-3 h-12 w-12 opacity-40" />
-      <p className="text-sm text-center">No items match these filters.</p>
+      <p className="text-sm text-center">{t('emptyFiltered')}</p>
       {emptyAction ? <div className="mt-4">{emptyAction}</div> : null}
     </div>
   );
@@ -177,7 +183,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
         <div className="hidden shrink-0 border-b border-border px-4 py-3 lg:block">
-          <h2 className="text-base font-semibold leading-none text-card-foreground">Items catalog</h2>
+          <h2 className="text-base font-semibold leading-none text-card-foreground">{t('catalogTitle')}</h2>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -192,7 +198,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
               </div>
               <div className="hidden lg:block">
                 <OrdersOverviewTable
-                  title="Items catalog"
+                  title={t('catalogTitle')}
                   hideHeader
                   disableInnerScroll
                   columns={itemColumns}
@@ -205,7 +211,7 @@ const ItemsOverviewPanel: React.FC<ItemsOverviewPanelProps> = ({
             </>
           )}
           {isFetching && items.length > 0 ? (
-            <p className="px-4 pb-2 text-xs text-muted-foreground">Refreshing…</p>
+            <p className="px-4 pb-2 text-xs text-muted-foreground">{t('refreshing')}</p>
           ) : null}
         </div>
 

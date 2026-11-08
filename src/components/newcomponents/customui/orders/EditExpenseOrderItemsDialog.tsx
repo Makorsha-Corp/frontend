@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,8 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
   items,
   onSaved,
 }) => {
+  const { t } = useTranslation('orders');
+  const { t: tc } = useTranslation('common');
   const [existingLines, setExistingLines] = useState<ExistingLineDraft[]>(() => linesFromItems(items));
   const [pendingNewLines, setPendingNewLines] = useState<PendingNewLine[]>([]);
   const [lineDescription, setLineDescription] = useState('');
@@ -190,7 +193,7 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
       onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to save expenses');
+      appToast.error(e?.data?.detail || t('dlgFailedSaveExpenses'));
     } finally {
       setIsSaving(false);
     }
@@ -200,23 +203,23 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[66vh] max-h-[66vh] w-[min(56rem,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
-          <DialogTitle>Edit expenses</DialogTitle>
+          <DialogTitle>{t('dlgEditExpenses')}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto px-6 py-4">
           <div className="shrink-0 space-y-3 rounded-lg border border-border bg-muted/20 p-3">
             <div className="grid gap-1">
-              <Label className="text-xs text-muted-foreground">Description *</Label>
+              <Label className="text-xs text-muted-foreground">{t('dlgDescriptionRequired')}</Label>
               <Input
                 value={lineDescription}
                 onChange={(e) => setLineDescription(e.target.value)}
-                placeholder="What was purchased or billed"
+                placeholder={t('dlgWhatBilled')}
                 className="bg-background"
               />
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Qty</Label>
+                <Label className="text-xs text-muted-foreground">{t('dlgQty')}</Label>
                 <StepNumberInput min={1} step={1} value={lineQty} onChange={(e) => setLineQty(e.target.value)} />
               </div>
               <div className="grid gap-1">
@@ -241,7 +244,7 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
               <div className="flex items-end">
                 <Button type="button" variant="outline" className="w-full" onClick={handleAddLine}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Add line
+                  {t('dlgAddLine')}
                 </Button>
               </div>
             </div>
@@ -252,7 +255,7 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Description</TableHead>
-                  <TableHead>Qty</TableHead>
+                  <TableHead>{t('dlgQty')}</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
@@ -323,7 +326,7 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
 
         <DialogFooter className="shrink-0 border-t border-border px-6 py-4 gap-2">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tc('cancel')}
           </Button>
           <Button
             type="button"
@@ -332,7 +335,7 @@ const EditExpenseOrderItemsDialog: React.FC<EditExpenseOrderItemsDialogProps> = 
             onClick={handleSave}
           >
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save changes
+            {t('dlgSaveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

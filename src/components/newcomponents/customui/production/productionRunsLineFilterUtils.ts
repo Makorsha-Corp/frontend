@@ -20,15 +20,23 @@ export function isProductionRunsLineFilterDefault(
   return isAllProductionLinesSelected(selectedLineIds, lines);
 }
 
+export type ProductionRunsLineFilterCopy = {
+  allLines?: string;
+  noLines?: string;
+  oneLine?: string;
+  lineCount?: (count: number) => string;
+};
+
 export function productionRunsLineFilterLabel(
   lines: ProductionLine[],
   selectedLineIds: number[],
+  copy?: ProductionRunsLineFilterCopy,
 ): string {
-  if (lines.length === 0) return 'All lines';
-  if (isAllProductionLinesSelected(selectedLineIds, lines)) return 'All lines';
-  if (selectedLineIds.length === 0) return 'No lines';
+  if (lines.length === 0) return copy?.allLines ?? 'All lines';
+  if (isAllProductionLinesSelected(selectedLineIds, lines)) return copy?.allLines ?? 'All lines';
+  if (selectedLineIds.length === 0) return copy?.noLines ?? 'No lines';
   if (selectedLineIds.length === 1) {
-    return lines.find((l) => l.id === selectedLineIds[0])?.name ?? '1 line';
+    return lines.find((l) => l.id === selectedLineIds[0])?.name ?? copy?.oneLine ?? '1 line';
   }
-  return `${selectedLineIds.length} lines`;
+  return copy?.lineCount?.(selectedLineIds.length) ?? `${selectedLineIds.length} lines`;
 }

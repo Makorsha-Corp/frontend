@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormatDateFromApi } from '@/hooks/useFormatDateFromApi';
 import { useSearchParams } from 'react-router-dom';
-import OrderHubShellHeader from '@/components/newcomponents/customui/orders/OrderHubShellHeader';
+import ExpenseOrdersPageHeader from '@/components/newcomponents/customui/orders/ExpenseOrdersPageHeader';
 import ExpenseOrderHeaderFilters from '@/components/newcomponents/customui/orders/ExpenseOrderHeaderFilters';
 import { appShellHeaderControlClass } from '@/components/newcomponents/customui/AppShellHeader';
 import { Button } from '@/components/ui/button';
@@ -318,21 +318,12 @@ const ExpenseOrdersPage: React.FC = () => {
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <OrderHubShellHeader
-          icon={Receipt}
-          title="Expense Orders"
-          selectedOrderLabel={selectedOrder?.expense_number ?? null}
+        <ExpenseOrdersPageHeader
+          selectedOrderNumber={selectedOrder?.expense_number ?? null}
           onClearSelection={() => setSelectedOrder(null)}
-          backAriaLabel="Back to expense orders"
-          closeSelectionAriaLabel="Close expense order"
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
-          searchPlaceholder="Search by # or category..."
-          searchAriaLabel="Search expense orders"
           onAdd={() => setIsAddOpen(true)}
-          addButtonLabel="Add Expense Order"
-          addAriaLabel="Add expense order"
-          helpGuideKind="expense"
           headerToolbarLeading={manageTemplatesButton}
           headerToolbarExtras={
             <ExpenseOrderHeaderFilters

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import WorkOrdersDateFilterControls from '@/components/newcomponents/customui/orders/WorkOrdersDateFilterControls';
 import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
 import type { ProductionWeekBatchGrid } from '@/pages/newpages/production/productionPageUrl';
@@ -34,11 +35,12 @@ function ProductionRunsWeekGridToggle({
   onWeekBatchGridChange: (grid: ProductionWeekBatchGrid) => void;
   className?: string;
 }) {
+  const { t } = useTranslation('production');
   return (
     <div
       className={cn(productionRunsToolbarSegmentTrackClass, className)}
       role="group"
-      aria-label="Week schedule layout"
+      aria-label={t('weekLayoutAria')}
     >
       <button
         type="button"
@@ -46,7 +48,7 @@ function ProductionRunsWeekGridToggle({
         aria-pressed={weekBatchGrid === 'lines'}
         onClick={() => onWeekBatchGridChange('lines')}
       >
-        Lines
+        {t('lines')}
       </button>
       <button
         type="button"
@@ -54,7 +56,7 @@ function ProductionRunsWeekGridToggle({
         aria-pressed={weekBatchGrid === 'hours'}
         onClick={() => onWeekBatchGridChange('hours')}
       >
-        Hours
+        {t('hours')}
       </button>
     </div>
   );

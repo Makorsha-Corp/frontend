@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ const DepartmentsManageDialog: React.FC<DepartmentsManageDialogProps> = ({
   open,
   onOpenChange,
 }) => {
+  const { t } = useTranslation('factories');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
 
@@ -37,17 +39,17 @@ const DepartmentsManageDialog: React.FC<DepartmentsManageDialogProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-card-foreground">
               <Users className="h-5 w-5" />
-              Manage Departments
+              {t('manageDepartmentsDialogTitle')}
             </DialogTitle>
-            <DialogDescription>
-              Add or edit departments used across your organization.
-            </DialogDescription>
+            <DialogDescription>{t('manageDepartmentsDialogDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {departments.length} {departments.length === 1 ? 'department' : 'departments'}
+                {departments.length === 1
+                  ? t('departmentCountOne')
+                  : t('departmentCountMany', { count: departments.length })}
               </span>
               <Button
                 size="sm"
@@ -55,7 +57,7 @@ const DepartmentsManageDialog: React.FC<DepartmentsManageDialogProps> = ({
                 onClick={() => setIsAddOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-1.5" />
-                Add Department
+                {t('addDepartment')}
               </Button>
             </div>
 
@@ -65,14 +67,14 @@ const DepartmentsManageDialog: React.FC<DepartmentsManageDialogProps> = ({
               </div>
             ) : departments.length === 0 ? (
               <div className="text-center py-8 rounded-lg border border-dashed border-border bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-3">No departments yet.</p>
+                <p className="text-sm text-muted-foreground mb-3">{t('noDepartmentsYet')}</p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsAddOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Add your first department
+                  {t('addFirstDepartment')}
                 </Button>
               </div>
             ) : (
@@ -88,6 +90,7 @@ const DepartmentsManageDialog: React.FC<DepartmentsManageDialogProps> = ({
                       size="sm"
                       className="h-8 w-8 p-0 text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary/10"
                       onClick={() => setEditingDepartment(dept)}
+                      aria-label={t('editDepartmentAria')}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>

@@ -1,4 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  localizedCompactFactoryDropdownLabel,
+  localizedFactoryDropdownLabelForAria,
+  localizedSectionDropdownLabelForAria,
+  localizedToolbarFactoryDropdownLabel,
+  localizedToolbarSectionDropdownLabel,
+} from '@/i18n/factoryScopeLabels';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,9 +22,6 @@ import {
   computeToggleSection,
   isFactoryRowChecked,
   isSectionRowChecked,
-  locationFilterLabels,
-  compactFactoryDropdownLabel,
-  toolbarFactoryDropdownLabel,
   selectAllFactories,
   selectAllSections,
   selectSingleFactory,
@@ -104,6 +109,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
   compact = false,
   showAllFactoriesOption = true,
 }) => {
+  const { t } = useTranslation('factories');
   const [sectionMenuOpen, setSectionMenuOpen] = React.useState(false);
   const allFactoryIds = React.useMemo(() => factories.map((f) => f.id), [factories]);
 
@@ -112,22 +118,36 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
     [sections, value, allFactoryIds],
   );
 
-  const { factoryDropdownLabel, sectionDropdownLabel } = locationFilterLabels(
+  const visibleSectionCount = visibleSections.length;
+  const displaySectionLabel = localizedToolbarSectionDropdownLabel(
+    value,
+    visibleSectionCount,
+    visibleSections,
+    sections,
+    t,
+  );
+  const ariaSectionLabel = localizedSectionDropdownLabelForAria(
+    value,
+    visibleSectionCount,
+    visibleSections,
+    sections,
+    t,
+  );
+  const ariaFactoryLabel = localizedFactoryDropdownLabelForAria(
     value,
     allFactoryIds,
-    visibleSections,
     factories,
-    sections,
+    t,
   );
   const displayFactoryLabel = compact
-    ? compactFactoryDropdownLabel(value, factories)
+    ? localizedCompactFactoryDropdownLabel(value, factories, t)
     : variant === 'toolbar'
-      ? toolbarFactoryDropdownLabel(value, allFactoryIds, factories)
-      : factoryDropdownLabel;
+      ? localizedToolbarFactoryDropdownLabel(value, allFactoryIds, factories, t)
+      : ariaFactoryLabel;
 
   const factoryTriggerAriaLabel =
     variant === 'toolbar' && value.factory_ids.length === 1
-      ? `Factory scope: ${factoryDropdownLabel}`
+      ? t('scopeFactoryAria', { label: ariaFactoryLabel })
       : undefined;
 
   const isBreadcrumb = variant === 'breadcrumb';
@@ -163,9 +183,7 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
                 highlight && SCROLL_TARGET_HIGHLIGHT_CLASS,
               )}
               aria-label={
-                compact
-                  ? `Factory scope: ${factoryDropdownLabel}`
-                  : factoryTriggerAriaLabel
+                compact ? t('scopeFactoryAria', { label: ariaFactoryLabel }) : factoryTriggerAriaLabel
               }
               onMouseEnter={() => {
                 if (highlight) onHighlightDismiss?.();
@@ -200,13 +218,13 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
                     value.factory_ids.length === 0 && selectedScopeMenuItemClass,
                   )}
                 >
-                  All factories
+                  {t('menuAllFactories')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
             ) : null}
             {factories.length === 0 ? (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">No factories</div>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">{t('menuNoFactories')}</div>
             ) : (
               factories.map((f) => {
                 const checked = isFactoryRowChecked(value, f.id);
@@ -267,14 +285,14 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
             variant={toolbarTriggerVariant(variant, sectionScoped)}
             className={cn(triggerClassName, toolbarScopeTriggerStateClass(sectionScoped))}
             aria-label={
-              variant === 'toolbar' ? `Section scope: ${sectionDropdownLabel}` : undefined
+              variant === 'toolbar' ? t('scopeSectionAria', { label: ariaSectionLabel }) : undefined
             }
           >
             <span
               className="min-w-0 flex-1 truncate text-left text-card-foreground dark:text-foreground"
-              title={sectionDropdownLabel}
+              title={displaySectionLabel}
             >
-              {sectionDropdownLabel}
+              {displaySectionLabel}
             </span>
             <ChevronDown className={chevronClassName} aria-hidden />
           </Button>
@@ -297,11 +315,11 @@ const MachinesInlineLocationFilters: React.FC<MachinesInlineLocationFiltersProps
               value.section_ids.length === 0 && selectedScopeMenuItemClass,
             )}
           >
-            All sections
+            {t('allSections')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {visibleSections.length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">No sections for this filter</div>
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">{t('menuNoSectionsForFilter')}</div>
           ) : (
             visibleSections.map((s) => {
               const checked = isSectionRowChecked(value, s.id);

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import ExpenseOrderListRow from '@/components/newcomponents/customui/orders/ExpenseOrderListRow';
@@ -60,6 +61,7 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
   sampleSelected = false,
   onSelectSample,
 }) => {
+  const { t } = useTranslation('orders');
   const tourListOnly = showSample && hideRealOrders;
   return (
     <div
@@ -71,7 +73,7 @@ const ExpenseOrderNavigatorPanel: React.FC<ExpenseOrderNavigatorPanelProps> = ({
     >
       <div className={cn(ORDER_PANEL_HEADER_CLASS, 'gap-2 px-4')}>
         <h2 className="text-base font-semibold text-card-foreground min-w-0 truncate">
-          Orders
+          {t('navigatorOrders')}
           <span className="ml-2 font-normal text-muted-foreground">
             ({ordersTotal})
           </span>

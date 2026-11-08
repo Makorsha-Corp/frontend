@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import { useUpdateInventoryMutation } from '@/features/inventory/inventoryApi';
 import type { Inventory } from '@/types/inventory';
 import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
+import { translateInventoryType } from './storage/inventoryTypeLabel';
 
 interface EditInventoryDialogProps {
   open: boolean;
@@ -29,6 +31,8 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
   inventory,
   onSuccess,
 }) => {
+  const { t } = useTranslation('inventory');
+  const { t: tc } = useTranslation('common');
   const [qty, setQty] = useState('');
   const [avgPrice, setAvgPrice] = useState('');
   const [note, setNote] = useState('');
@@ -69,33 +73,33 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
         },
       }).unwrap();
 
-      appToast.success('Inventory updated');
+      appToast.success(t('toastInventoryUpdated'));
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
       const e = error as { data?: { detail?: string } };
-      appToast.error(e?.data?.detail || 'Failed to update inventory');
+      appToast.error(e?.data?.detail || t('toastFailedUpdate'));
     }
   };
 
   if (!inventory) return null;
 
-  const itemLabel = inventory.item_name ?? `Item #${inventory.item_id}`;
+  const itemLabel = inventory.item_name ?? t('itemNumber', { id: inventory.item_id });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Edit Inventory</DialogTitle>
+            <DialogTitle className="text-card-foreground">{t('dlgEditInventory')}</DialogTitle>
             <DialogDescription>
-              {itemLabel} ({inventory.inventory_type})
+              {itemLabel} ({translateInventoryType(inventory.inventory_type, t)})
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Quantity <span className="text-destructive">*</span></Label>
+              <Label>{t('quantity')} <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 min="0"
@@ -105,19 +109,19 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
               />
             </div>
             <div className="grid gap-2">
-              <Label>Avg. Price</Label>
+              <Label>{t('dlgAvgPrice')}</Label>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
                 value={avgPrice}
                 onChange={(e) => setAvgPrice(e.target.value)}
-                placeholder="Optional"
+                placeholder={t('dlgOptional')}
                 className="bg-background"
               />
             </div>
             <div className="grid gap-2">
-              <Label>Note</Label>
+              <Label>{t('dlgNote')}</Label>
               <Textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
@@ -129,7 +133,7 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {tc('cancel')}
             </Button>
             <Button
               type="submit"
@@ -139,10 +143,10 @@ const EditInventoryDialog: React.FC<EditInventoryDialogProps> = ({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {tc('saving')}
                 </>
               ) : (
-                'Save'
+                tc('save')
               )}
             </Button>
           </DialogFooter>

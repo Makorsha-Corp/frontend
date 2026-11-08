@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,7 @@ const ExpenseOrderHeaderFilters: React.FC<ExpenseOrderHeaderFiltersProps> = ({
   onShowCompleteOrdersChange,
   onClearFilters,
 }) => {
+  const { t } = useTranslation('orders');
   const [openUncontrolled, setOpenUncontrolled] = useState(false);
   const open = openControlled ?? openUncontrolled;
   const setOpen = onOpenChangeControlled ?? setOpenUncontrolled;
@@ -118,7 +120,7 @@ const ExpenseOrderHeaderFilters: React.FC<ExpenseOrderHeaderFiltersProps> = ({
           className={cn('shrink-0 gap-1.5', appShellHeaderControlClass)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Filters
+          {t('filters')}
           {filterCount > 0 ? (
             <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
               {filterCount}

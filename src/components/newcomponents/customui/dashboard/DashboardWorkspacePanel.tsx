@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Users, ChevronRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { DashboardWorkspacePulse } from './useDashboardData';
@@ -10,6 +11,8 @@ interface DashboardWorkspacePanelProps {
 }
 
 const DashboardWorkspacePanel: React.FC<DashboardWorkspacePanelProps> = ({ pulse, isLoading }) => {
+  const { t } = useTranslation('dashboard');
+
   if (!pulse && !isLoading) return null;
 
   const ordersUsagePct =
@@ -23,13 +26,13 @@ const DashboardWorkspacePanel: React.FC<DashboardWorkspacePanelProps> = ({ pulse
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-card-foreground flex items-center gap-2 text-base">
             <Users className="h-4 w-4 text-brand-primary" />
-            Workspace
+            {t('workspaceTitle')}
           </CardTitle>
           <Link
             to="/management"
             className="text-xs font-medium text-brand-primary hover:underline flex items-center gap-0.5"
           >
-            Manage
+            {t('workspaceManage')}
             <ChevronRight className="h-3 w-3" />
           </Link>
         </div>
@@ -42,12 +45,12 @@ const DashboardWorkspacePanel: React.FC<DashboardWorkspacePanelProps> = ({ pulse
         ) : pulse ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Team members</span>
+              <span className="text-muted-foreground">{t('workspaceTeamMembers')}</span>
               <span className="font-semibold text-card-foreground">{pulse.membersCount}</span>
             </div>
             {pulse.pendingInvitesCount > 0 && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Pending invites</span>
+                <span className="text-muted-foreground">{t('workspacePendingInvites')}</span>
                 <span className="font-semibold text-amber-600 dark:text-amber-500">
                   {pulse.pendingInvitesCount}
                 </span>
@@ -55,7 +58,7 @@ const DashboardWorkspacePanel: React.FC<DashboardWorkspacePanelProps> = ({ pulse
             )}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Orders this month</span>
+                <span className="text-muted-foreground">{t('workspaceOrdersThisMonth')}</span>
                 <span className="font-semibold text-card-foreground">
                   {pulse.ordersThisMonth}
                   {pulse.maxOrdersPerMonth != null ? ` / ${pulse.maxOrdersPerMonth}` : ''}

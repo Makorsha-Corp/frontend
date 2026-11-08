@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,6 +31,7 @@ import {
   type BatchStatusDraftKey,
 } from '@/lib/productionBatchStatusFilterDraft';
 import type { WorkOrdersDateViewMode } from '@/pages/newpages/orders/useWorkOrdersFilters';
+import { productionFilterCopy, productionStatusLabel } from '@/components/newcomponents/customui/production/productionStatusLabel';
 import { preventRadixCloseAutoFocus } from '@/lib/radixFloatingLayer';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +53,8 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
   onBatchStatusFilterApply,
   className,
 }) => {
+  const { t } = useTranslation('production');
+  const copy = useMemo(() => productionFilterCopy(t), [t]);
   const [open, setOpen] = useState(false);
   const statusDateViewMode =
     batchStatusViewMode === 'all' ? undefined : batchStatusViewMode;
@@ -80,8 +84,9 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
         batchStatusFilter,
         showCompletedBatches,
         statusDateViewMode,
+        copy,
       ),
-    [batchStatusFilter, showCompletedBatches, statusDateViewMode],
+    [batchStatusFilter, showCompletedBatches, statusDateViewMode, copy],
   );
 
   const showClear = !isDefaultBatchStatusFilterSelection(
@@ -120,7 +125,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
     const isCompleted = status === 'completed';
     const isCancelled = status === 'cancelled';
     const checked = draftChecked.has(status);
-    const hint = batchStatusFilterRowHint(status, statusDateViewMode);
+    const hint = batchStatusFilterRowHint(status, statusDateViewMode, copy.hints);
     const row = (
       <div className="flex items-center gap-2">
         <Checkbox
@@ -138,7 +143,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
           htmlFor={`batch-status-draft-${status}`}
           className="cursor-pointer font-normal capitalize"
         >
-          {status.replace('_', ' ')}
+          {productionStatusLabel(status, t)}
         </Label>
       </div>
     );
@@ -163,7 +168,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
       <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <MachineSelectSummaryButton
-            ariaLabel={`Filter by batch status. Current: ${displayLabel}`}
+            ariaLabel={t('filterStatusAria', { label: displayLabel })}
             selectedLine={displayLabel}
             compactLabel
             className={cn(
@@ -185,7 +190,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
                 className="truncate text-sm font-semibold text-foreground hover:underline"
                 onClick={toggleAllDraft}
               >
-                Status
+                {t('status')}
               </button>
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
@@ -193,20 +198,19 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
                     <button
                       type="button"
                       className="inline-flex shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
-                      aria-label="Status filter help"
+                      aria-label={t('statusHelpAria')}
                     >
                       <Info className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-[14rem] text-xs leading-snug">
-                    Click Status to select or deselect all. Use Apply to update filters. All and
-                    None set the draft before Apply.
+                    {t('statusHelp')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             <Button type="button" size="sm" className="h-8 shrink-0" onClick={applyDraft}>
-              Apply
+              {t('apply')}
             </Button>
           </div>
           <TooltipProvider delayDuration={300}>
@@ -224,7 +228,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
               className="flex-1"
               onClick={() => setDraftChecked(allBatchStatusesDraftChecked())}
             >
-              All
+              {t('all')}
             </Button>
             <Button
               type="button"
@@ -233,7 +237,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
               className="flex-1"
               onClick={() => setDraftChecked(noBatchStatusesDraftChecked())}
             >
-              None
+              {t('none')}
             </Button>
           </div>
         </PopoverContent>
@@ -245,7 +249,7 @@ const ProductionBatchStatusFilter: React.FC<ProductionBatchStatusFilterProps> = 
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground"
-          aria-label="Reset status filter to default"
+          aria-label={t('resetStatusAria')}
           onClick={() => onBatchStatusFilterApply([], false)}
         >
           <X className="h-4 w-4" />
