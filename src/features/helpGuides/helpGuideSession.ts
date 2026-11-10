@@ -10,6 +10,17 @@ export const HELP_GUIDE_CLOSE_FILTERS_EVENT = 'makorsha:close-order-filters';
 /** Open the on-screen sample detail for the active tour. */
 export const HELP_GUIDE_OPEN_SAMPLE_EVENT = 'makorsha:open-tour-sample';
 
+/** Close sample detail so the list column is on screen (narrow layout). */
+export const HELP_GUIDE_CLOSE_SAMPLE_EVENT = 'makorsha:close-tour-sample';
+
+/** Step `data` key: `list` (navigator) or `detail` (order panel). */
+export const HELP_GUIDE_LAYOUT_PANEL = 'helpGuideLayoutPanel';
+
+/** Step `data` key: CSS selector to wait for after a list/detail swap. */
+export const HELP_GUIDE_WAIT_SELECTOR = 'helpGuideWaitSelector';
+
+export type HelpGuideLayoutPanel = 'list' | 'detail';
+
 /** Purchase tour: request sample PO action (detail panel performs API + signals done). */
 export const HELP_GUIDE_PO_TOUR_ACTION_EVENT = 'makorsha:po-tour-action';
 /** Fires when action finished (success, no-op, or error) so driver Next can advance. */

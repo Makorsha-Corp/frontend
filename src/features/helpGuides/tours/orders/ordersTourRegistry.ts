@@ -1,6 +1,7 @@
 import type { DriveStep } from 'driver.js';
 import { HELP_GUIDE_TOUR_ID, type HelpGuideTourId } from '@/features/helpGuides/helpGuideTourIds';
 import {
+  buildPurchaseOrdersSteps,
   expenseOrdersSteps,
   ordersOverviewSteps,
   purchaseOrdersSteps,
@@ -67,5 +68,10 @@ export const ORDERS_HELP_GUIDE_TOURS: OrdersHelpGuideTourDefinition[] = [
 ];
 
 export function getOrdersHelpGuideTour(id: HelpGuideTourId): OrdersHelpGuideTourDefinition | undefined {
-  return ORDERS_HELP_GUIDE_TOURS.find((t) => t.id === id);
+  const found = ORDERS_HELP_GUIDE_TOURS.find((t) => t.id === id);
+  if (!found) return undefined;
+  if (id === HELP_GUIDE_TOUR_ID.purchaseOrders) {
+    return { ...found, steps: buildPurchaseOrdersSteps() };
+  }
+  return found;
 }

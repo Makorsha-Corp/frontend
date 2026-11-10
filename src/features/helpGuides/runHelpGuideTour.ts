@@ -1,4 +1,5 @@
 import { driver, type Config, type DestroyReason, type DriveStep } from 'driver.js';
+import { appToast } from '@/lib/appToast';
 import {
   HELP_GUIDE_PO_TOUR_ACTION,
   helpGuideOnNextClick,
@@ -16,10 +17,14 @@ import {
   type HelpGuidePoTourAction,
 } from '@/features/helpGuides/helpGuideSession';
 import { applyHelpGuideSpotlight, clearHelpGuideSpotlight } from '@/features/helpGuides/helpGuideSpotlight';
+import { findVisibleHelpTourElement } from '@/features/helpGuides/helpTourVisibleElement';
 import {
   PO_RECEIVING_DIALOG_TOUR_SELECTORS,
+  isHelpGuideCompactLayout,
+  syncPoTourLayoutForStep,
   syncPoTourUiForStep,
   tourStepSelector,
+  tourStepWaitSelector,
 } from '@/features/helpGuides/helpGuidePoTourUi';
 
 export type HelpGuideTourRunOptions = {
@@ -55,6 +60,45 @@ function poDetailHighlightFromElement(el: HTMLElement): HelpGuidePoDetailHighlig
   return null;
 }
 
+function closestScrollParent(el: HTMLElement): HTMLElement | null {
+  let parent = el.parentElement;
+  while (parent) {
+    const overflowY = window.getComputedStyle(parent).overflowY;
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      parent.scrollHeight > parent.clientHeight + 1
+    ) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+/** Detail panes are `h-screen` + `overflow-y-auto`. `scrollIntoView` often scrolls the window, which cannot move. */
+function scrollTourTargetIntoView(target: HTMLElement): void {
+  const scroller = closestScrollParent(target);
+  if (scroller) {
+    const parentRect = scroller.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const next =
+      scroller.scrollTop +
+      (targetRect.top - parentRect.top) -
+      (scroller.clientHeight - targetRect.height) / 2;
+    scroller.scrollTop = Math.max(0, next);
+  }
+  const rect = target.getBoundingClientRect();
+  const margin = 72;
+  const inView =
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.top >= margin &&
+    rect.bottom <= window.innerHeight - margin;
+  if (!inView) {
+    target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+  }
+}
+
 function fitSpotlightToElement(
   element: Element | undefined,
   driverApi: { getConfig: () => Config; setConfig: (config: Config) => void; refresh: () => void },
@@ -70,6 +114,7 @@ function fitSpotlightToElement(
 }
 
 let activeDriver: ReturnType<typeof driver> | null = null;
+let poTourAdvanceInFlight = false;
 
 function poTourActionForActiveStep(): HelpGuidePoTourAction | null {
   if (!activeDriver?.isActive()) return null;
@@ -92,6 +137,9 @@ function poTourActionForActiveStep(): HelpGuidePoTourAction | null {
 }
 
 const PO_TOUR_WAIT_SELECTOR_AFTER_ACTION: Partial<Record<HelpGuidePoTourAction, string>> = {
+  confirm_items: '#po-approve-order-btn',
+  approve: '#po-finalize-invoice-btn',
+  finalize_invoice: '#po-manage-receiving-btn',
   receive_items: '#po-receive-qty-line-0-stepper',
   receive_qty_line_0: '#po-receive-all-btn-1',
   open_receiving: '#po-receive-items-btn',
@@ -100,17 +148,24 @@ const PO_TOUR_WAIT_SELECTOR_AFTER_ACTION: Partial<Record<HelpGuidePoTourAction, 
 function advanceHelpGuideTourAfterPoAction(action: HelpGuidePoTourAction): void {
   if (!activeDriver?.isActive()) return;
   if (poTourActionForActiveStep() !== action) return;
+  if (poTourAdvanceInFlight) return;
+  poTourAdvanceInFlight = true;
+
   const waitSelector = PO_TOUR_WAIT_SELECTOR_AFTER_ACTION[action];
   const moveAndRefresh = () => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (!activeDriver?.isActive()) return;
+        if (!activeDriver?.isActive()) {
+          poTourAdvanceInFlight = false;
+          return;
+        }
         activeDriver.moveNext();
         try {
           activeDriver.refresh();
         } catch {
           /* highlighted node may have unmounted */
         }
+        poTourAdvanceInFlight = false;
       });
     });
   };
@@ -140,6 +195,7 @@ export async function runHelpGuideTour({
   }
 
   window.addEventListener(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, onPoTourActionDone);
+  appToast.dismiss();
 
   activeDriver = driver({
     ...defaultDriverOptions,
@@ -149,9 +205,31 @@ export async function runHelpGuideTour({
     onHighlighted: (element, step, { driver: driverApi }) => {
       syncFilterPanelsForTourStep(step, driverApi);
       syncPoTourUiForStep(step);
-      fitSpotlightToElement(element, driverApi);
+      syncPoTourLayoutForStep(step);
       const stepSelector = tourStepSelector(step);
-      const refreshAfterUiSync = () => {
+      const waitSelector = tourStepWaitSelector(step);
+
+      const finishHighlight = (highlightEl: Element | undefined) => {
+        const target =
+          highlightEl instanceof HTMLElement
+            ? highlightEl
+            : element instanceof HTMLElement
+              ? element
+              : undefined;
+        if (!target) return;
+
+        scrollTourTargetIntoView(target);
+        fitSpotlightToElement(target, driverApi);
+        const poTarget = poDetailHighlightFromElement(target);
+        window.dispatchEvent(
+          new CustomEvent(HELP_GUIDE_DRIVER_HIGHLIGHT_TARGET_EVENT, { detail: poTarget }),
+        );
+        applyHelpGuideSpotlight(target);
+        try {
+          driverApi.refresh();
+        } catch {
+          /* target may not be mounted yet */
+        }
         requestAnimationFrame(() => {
           try {
             driverApi.refresh();
@@ -160,23 +238,19 @@ export async function runHelpGuideTour({
           }
         });
       };
-      if (stepSelector && PO_RECEIVING_DIALOG_TOUR_SELECTORS.has(stepSelector)) {
-        void waitForDomVisible(stepSelector, 3_000).then(refreshAfterUiSync);
+
+      const needsWait =
+        (stepSelector && PO_RECEIVING_DIALOG_TOUR_SELECTORS.has(stepSelector)) ||
+        (isHelpGuideCompactLayout() && waitSelector != null);
+      if (needsWait && waitSelector) {
+        void waitForDomVisible(waitSelector, 3_000).then(() => {
+          finishHighlight(findVisibleHelpTourElement(waitSelector) ?? element);
+        });
       } else {
-        refreshAfterUiSync();
-      }
-      if (element instanceof HTMLElement) {
-        if (element.id === 'po-event-log' || element.id === 'po-mark-order-complete-btn') {
-          element.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
-      }
-      if (element instanceof HTMLElement) {
-        const poTarget = poDetailHighlightFromElement(element);
-        window.dispatchEvent(
-          new CustomEvent(HELP_GUIDE_DRIVER_HIGHLIGHT_TARGET_EVENT, { detail: poTarget }),
+        finishHighlight(
+          (waitSelector ? findVisibleHelpTourElement(waitSelector) : null) ?? element,
         );
       }
-      applyHelpGuideSpotlight(element);
     },
     onDestroyed: (_element, _step, { reason }) => {
       window.removeEventListener(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, onPoTourActionDone);

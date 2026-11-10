@@ -1,17 +1,30 @@
 import type { DriveStep } from 'driver.js';
 import { HELP_GUIDE_OPEN_SAMPLE, HELP_GUIDE_PO_TOUR_ACTION } from '@/features/helpGuides/helpGuideDriverNext';
-import { HELP_GUIDE_SAMPLE_ROW_ATTR } from '@/features/helpGuides/helpGuideSession';
+import { isHelpGuideCompactLayout } from '@/features/helpGuides/helpGuidePoTourUi';
+import {
+  HELP_GUIDE_LAYOUT_PANEL,
+  HELP_GUIDE_SAMPLE_ROW_ATTR,
+  HELP_GUIDE_WAIT_SELECTOR,
+} from '@/features/helpGuides/helpGuideSession';
 import { helpTourVisibleElement } from '@/features/helpGuides/helpTourVisibleElement';
 
 const hubHeaderAddStep = (selector: string, title: string, description: string): DriveStep => ({
   element: helpTourVisibleElement(selector),
+  data: {
+    [HELP_GUIDE_LAYOUT_PANEL]: 'list',
+    [HELP_GUIDE_WAIT_SELECTOR]: selector,
+  },
   popover: { title, description },
 });
 
 const openSampleRowStep = (): DriveStep => ({
   element: `[data-help-tour="${HELP_GUIDE_SAMPLE_ROW_ATTR}"]`,
   advanceOnClick: true,
-  data: { [HELP_GUIDE_OPEN_SAMPLE]: true },
+  data: {
+    [HELP_GUIDE_OPEN_SAMPLE]: true,
+    [HELP_GUIDE_LAYOUT_PANEL]: 'list',
+    [HELP_GUIDE_WAIT_SELECTOR]: `[data-help-tour="${HELP_GUIDE_SAMPLE_ROW_ATTR}"]`,
+  },
   popover: {
     title: 'Open the sample order',
     description:
@@ -23,6 +36,10 @@ const waitForDetailStep = (detailSelector: string, title: string, description: s
   element: detailSelector,
   waitForElement: 120_000,
   skipMissingElement: false,
+  data: {
+    [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+    [HELP_GUIDE_WAIT_SELECTOR]: detailSelector,
+  },
   popover: { title, description },
 });
 
@@ -74,6 +91,10 @@ export const purchaseOrderListSteps: DriveStep[] = [
   ),
   {
     element: '[data-help-tour="purchase.navigator"]',
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'list',
+      [HELP_GUIDE_WAIT_SELECTOR]: '[data-help-tour="purchase.navigator"]',
+    },
     popover: {
       title: 'Order list',
       description: 'Browse POs, paginate, and toggle completed orders.',
@@ -81,6 +102,10 @@ export const purchaseOrderListSteps: DriveStep[] = [
   },
   {
     element: '[data-help-tour="purchase.overview"]',
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'list',
+      [HELP_GUIDE_WAIT_SELECTOR]: '[data-help-tour="purchase.overview"]',
+    },
     popover: {
       title: 'Overview',
       description: 'KPIs and recent PO activity when no order is selected.',
@@ -97,8 +122,11 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   ),
   {
     element: '#po-confirm-items',
-    advanceOnClick: true,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'confirm_items' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-confirm-items',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'confirm_items' as const,
+    },
     popover: {
       title: 'Confirm order items',
       description:
@@ -107,8 +135,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-approve-order-btn',
-    advanceOnClick: true,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'approve' as const },
+    waitForElement: 120_000,
+    skipMissingElement: false,
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-approve-order-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'approve' as const,
+    },
     popover: {
       title: 'Approve',
       description:
@@ -117,10 +150,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-finalize-invoice-btn',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'finalize_invoice' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-finalize-invoice-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'finalize_invoice' as const,
+    },
     popover: {
       title: 'Finalize invoice',
       description:
@@ -129,10 +165,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-manage-receiving-btn',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'open_receiving' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-manage-receiving-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'open_receiving' as const,
+    },
     popover: {
       title: 'Manage receiving',
       description:
@@ -141,10 +180,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-receive-items-btn',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_items' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-receive-items-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_items' as const,
+    },
     popover: {
       title: 'Receive items',
       description: 'Click Receive Items to enter quantities for this shipment.',
@@ -154,19 +196,26 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
     element: '#po-receive-qty-line-0-stepper',
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_qty_line_0' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-receive-qty-line-0-stepper',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_qty_line_0' as const,
+    },
     popover: {
-      title: 'Ring frame belts',
+      title: 'Ring frame spare belt',
       description:
         'Set the first line to 4 (type, use the chevrons, or click Next). Next fills the full order qty for this sample line.',
     },
   },
   {
     element: '#po-receive-all-btn-1',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_all_line_1' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-receive-all-btn-1',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'receive_all_line_1' as const,
+    },
     popover: {
       title: 'Lubricating oil',
       description: 'Click All on the second line to receive the remaining 2 drums.',
@@ -174,10 +223,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-confirm-receipt-btn',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'confirm_receipt' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-confirm-receipt-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'confirm_receipt' as const,
+    },
     popover: {
       title: 'Confirm receipt',
       description: 'Click Confirm Receipt to save this shipment (4 belts + 2 drums).',
@@ -187,6 +239,10 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
     element: '#po-receive-history',
     waitForElement: 120_000,
     skipMissingElement: false,
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-receive-history',
+    },
     popover: {
       title: 'Receive history',
       description: 'Each save appears here. Use Correction later if counts need adjusting.',
@@ -196,6 +252,10 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
     element: '#po-event-log',
     waitForElement: 120_000,
     skipMissingElement: false,
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-event-log',
+    },
     popover: {
       title: 'Event log',
       description:
@@ -204,10 +264,13 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#po-mark-order-complete-btn',
-    advanceOnClick: true,
     waitForElement: 120_000,
     skipMissingElement: false,
-    data: { [HELP_GUIDE_PO_TOUR_ACTION]: 'mark_order_complete' as const },
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#po-mark-order-complete-btn',
+      [HELP_GUIDE_PO_TOUR_ACTION]: 'mark_order_complete' as const,
+    },
     popover: {
       title: 'Mark order complete',
       description:
@@ -216,6 +279,10 @@ export const purchaseOrderDetailSteps: DriveStep[] = [
   },
   {
     element: '#order-discussion',
+    data: {
+      [HELP_GUIDE_LAYOUT_PANEL]: 'detail',
+      [HELP_GUIDE_WAIT_SELECTOR]: '#order-discussion',
+    },
     popover: {
       title: 'Discussion and files',
       description: 'Team notes and attachments anytime — they do not replace confirms or approvals.',
@@ -232,6 +299,29 @@ export const purchaseOrdersSteps = mergeHubTourSteps(
   purchaseOrderListSteps,
   purchaseOrderDetailSteps,
 );
+
+/** Below `lg`, overview is not mounted until an order is open, and the list hides once it is. */
+export function buildPurchaseOrdersSteps(
+  compact = isHelpGuideCompactLayout(),
+): DriveStep[] {
+  const list = purchaseOrderListSteps.flatMap((step) => {
+    if (compact && step.element === '[data-help-tour="purchase.overview"]') return [];
+    if (compact && step.element === '[data-help-tour="purchase.navigator"]') {
+      return [
+        {
+          ...step,
+          popover: {
+            title: 'Order list',
+            description:
+              'On this width the list fills the page. KPIs sit beside the list on a wide screen. Open the sample row next.',
+          },
+        },
+      ];
+    }
+    return [step];
+  });
+  return mergeHubTourSteps(list, purchaseOrderDetailSteps);
+}
 
 export const transferOrderListSteps: DriveStep[] = [
   hubHeaderAddStep(

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   HELP_GUIDE_CLOSE_FILTERS_EVENT,
   HELP_GUIDE_OPEN_FILTERS_EVENT,
+  HELP_GUIDE_CLOSE_SAMPLE_EVENT,
   HELP_GUIDE_OPEN_SAMPLE_EVENT,
   useHelpGuideTourActive,
   usePostTourSampleExplore,
@@ -54,8 +55,13 @@ export function useTourSampleDetail(tourIds: readonly HelpGuideTourId[]): {
 
   useEffect(() => {
     const onOpen = () => setSampleOpen(true);
+    const onClose = () => setSampleOpen(false);
     window.addEventListener(HELP_GUIDE_OPEN_SAMPLE_EVENT, onOpen);
-    return () => window.removeEventListener(HELP_GUIDE_OPEN_SAMPLE_EVENT, onOpen);
+    window.addEventListener(HELP_GUIDE_CLOSE_SAMPLE_EVENT, onClose);
+    return () => {
+      window.removeEventListener(HELP_GUIDE_OPEN_SAMPLE_EVENT, onOpen);
+      window.removeEventListener(HELP_GUIDE_CLOSE_SAMPLE_EVENT, onClose);
+    };
   }, []);
 
   useEffect(() => {

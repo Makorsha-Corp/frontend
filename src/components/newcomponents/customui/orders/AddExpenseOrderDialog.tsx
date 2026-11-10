@@ -38,7 +38,6 @@ import { AccountSelectSummaryButton } from '@/components/newcomponents/customui/
 import { ALLOCATION_TYPES, expenseCategoryLabel, type AllocationTypeValue } from '@/components/newcomponents/customui/orders/expenseOrderConstants';
 import type { ExpenseOrder } from '@/types/expenseOrder';
 import { cn } from '@/lib/utils';
-import { ProductionBatchPicker } from '@/components/newcomponents/customui/production/ProductionBatchPicker';
 
 const formatMoney = (n: number) =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -60,7 +59,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
   const [expenseDate, setExpenseDate] = useState(() => todayLocalDateKey());
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
-  const [productionBatchId, setProductionBatchId] = useState('');
   const [items, setItems] = useState<
     Array<{
       description: string;
@@ -125,7 +123,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
     setExpenseDate(todayLocalDateKey());
     setDueDate('');
     setDescription('');
-    setProductionBatchId('');
     setItems([]);
     setLineDescription('');
     setLineQty('1');
@@ -225,7 +222,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
       expense_date: expenseDate || undefined,
       due_date: dueDate || undefined,
       description: description.trim(),
-      production_batch_id: productionBatchId ? Number(productionBatchId) : undefined,
       items: items.map(
         (i): CreateExpenseOrderItem => ({
           description: i.description,
@@ -460,7 +456,6 @@ const AddExpenseOrderDialog: React.FC<AddExpenseOrderDialogProps> = ({
           className="mt-1"
         />
       </div>
-      <ProductionBatchPicker value={productionBatchId} onChange={setProductionBatchId} />
     </div>
   );
 

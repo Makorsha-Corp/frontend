@@ -15,6 +15,7 @@ import {
   OrderSelfApproverChip,
 } from './approvals';
 import type { ApprovalSummary, PurchaseOrderApprover } from '@/types/purchaseOrder';
+import { useIsLgScreen } from '@/hooks/useIsLgScreen';
 import type { PoConfirmationsStatus } from './purchaseOrderMilestones';
 
 export interface PoApprovalsTopBarProps {
@@ -54,15 +55,16 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
   isVoided = false,
   onVoidOrder,
 }) => {
+  const isLgScreen = useIsLgScreen();
+  // One id only. Desktop row is `hidden` below lg, so a shared id made the tour highlight a 0×0 button.
+  const approveButtonId = 'po-approve-order-btn';
   const selfChipProps = {
-    actionButtonId: 'po-approve-order-btn',
     blocked: !approvalSectionsStatus.allConfirmed,
     blockedStatus: approvalSectionsStatus,
     withdrawBlocked: approvalWithdrawBlocked,
     withdrawBlockedReason: approvalWithdrawBlockedReason,
     isBusy: isApproving || isUnapproving,
     popoverSide: 'bottom' as const,
-    interactionMode: 'desktop' as const,
   };
 
   const collapsedSelfChip =
@@ -72,6 +74,7 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
         currentUserId={currentUserId}
         onToggleMyApproval={onToggleMyApproval}
         {...selfChipProps}
+        actionButtonId={isLgScreen ? undefined : approveButtonId}
         interactionMode="mobile"
       />
     ) : null;
@@ -81,7 +84,11 @@ const PoApprovalsTopBar: React.FC<PoApprovalsTopBarProps> = ({
     currentUserId,
     myApproval,
     onToggleMyApproval,
-    selfChipProps,
+    selfChipProps: {
+      ...selfChipProps,
+      actionButtonId: isLgScreen ? approveButtonId : undefined,
+      interactionMode: 'desktop' as const,
+    },
   };
 
   const manageWrench = !isVoided ? (

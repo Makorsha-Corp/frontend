@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { todayLocalDateKey } from '@/lib/heatmapDateKey';
 import {
   Dialog,
@@ -34,16 +34,29 @@ import ItemSelectorDialog, { type ItemSelection } from '@/components/newcomponen
 import { ItemSelectSummaryButton } from '@/components/newcomponents/customui/ItemSelectSummaryButton';
 import { useAutoSelectGlobalFactory, useGlobalFactory } from '@/hooks/useGlobalFactoryContext';
 import { cn } from '@/lib/utils';
-import { ProductionBatchPicker } from '@/components/newcomponents/customui/production/ProductionBatchPicker';
 import {
   handleUnaddedItemDraftOnSubmit,
   useLineItemAddButtonHighlight,
 } from '@/components/newcomponents/customui/orders/useLineItemAddButtonHighlight';
+import {
+  HELP_GUIDE_OPEN_SAMPLE_EVENT,
+  HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT,
+  HELP_GUIDE_PO_TOUR_ACTION_EVENT,
+  type HelpGuidePoTourAction,
+} from '@/features/helpGuides/helpGuideSession';
 
 export interface PurchaseOrderShortageSeed {
   factoryId: number;
   itemId: number;
   quantity: number;
+}
+
+export interface PurchaseOrderTourSandboxPrefill {
+  accountId: number | null;
+  destinationType: 'storage' | 'machine' | 'project';
+  destinationId: number;
+  description: string;
+  items: Array<{ item_id: number; quantity_ordered: number; unit_price: number | null }>;
 }
 
 interface AddPurchaseOrderDialogProps {
@@ -54,6 +67,9 @@ interface AddPurchaseOrderDialogProps {
   onSuccess: (order: { id: number }) => void;
   /** Prefill one storage line. Saving does not put stock on the shelf. */
   shortageSeed?: PurchaseOrderShortageSeed | null;
+  /** Help tour: show prefilled form; submit opens practice PO instead of POST. */
+  tourSandboxMode?: boolean;
+  tourSandboxPrefill?: PurchaseOrderTourSandboxPrefill | null;
 }
 
 const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
@@ -63,12 +79,13 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   factories,
   onSuccess,
   shortageSeed = null,
+  tourSandboxMode = false,
+  tourSandboxPrefill = null,
 }) => {
   const [accountId, setAccountId] = useState<string>('');
   const [destinationType, setDestinationType] = useState<'storage' | 'machine' | 'project'>('storage');
   const [destinationId, setDestinationId] = useState<string>('');
   const [description, setDescription] = useState('');
-  const [productionBatchId, setProductionBatchId] = useState('');
   const [items, setItems] = useState<
     Array<{ item_id: number; quantity_ordered: number; unit_price: number | null; notes?: string }>
   >([]);
@@ -101,11 +118,58 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   );
 
   const shortageSeedAppliedRef = useRef(false);
+  const tourSandboxPrefillAppliedRef = useRef(false);
+
+  const finishTourSandboxSubmit = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(HELP_GUIDE_OPEN_SAMPLE_EVENT));
+    window.dispatchEvent(
+      new CustomEvent(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, { detail: 'tour_create_save' }),
+    );
+    reset();
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  useEffect(() => {
+    if (!tourSandboxMode) return;
+    const onTourAction = (event: Event) => {
+      const action = (event as CustomEvent<HelpGuidePoTourAction>).detail;
+      if (action !== 'tour_create_save' || !open) return;
+      finishTourSandboxSubmit();
+    };
+    window.addEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onTourAction);
+    return () => window.removeEventListener(HELP_GUIDE_PO_TOUR_ACTION_EVENT, onTourAction);
+  }, [finishTourSandboxSubmit, open, tourSandboxMode]);
+
+  useEffect(() => {
+    if (!open) {
+      tourSandboxPrefillAppliedRef.current = false;
+      return;
+    }
+    if (!tourSandboxMode || !tourSandboxPrefill || tourSandboxPrefillAppliedRef.current) return;
+    tourSandboxPrefillAppliedRef.current = true;
+    setDestinationType(tourSandboxPrefill.destinationType);
+    setDestinationId(String(tourSandboxPrefill.destinationId));
+    setAccountId(tourSandboxPrefill.accountId != null ? String(tourSandboxPrefill.accountId) : '');
+    setDescription(tourSandboxPrefill.description);
+    setItems(
+      tourSandboxPrefill.items.map((line) => ({
+        item_id: line.item_id,
+        quantity_ordered: line.quantity_ordered,
+        unit_price: line.unit_price,
+      })),
+    );
+    setItemId('');
+    setQty('');
+    setUnitPrice('');
+    setMachineDisplayLine('');
+  }, [open, tourSandboxMode, tourSandboxPrefill]);
+
   useEffect(() => {
     if (!open) {
       shortageSeedAppliedRef.current = false;
       return;
     }
+    if (tourSandboxMode) return;
     if (!shortageSeed || shortageSeedAppliedRef.current) return;
     shortageSeedAppliedRef.current = true;
     setDestinationType('storage');
@@ -134,7 +198,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
     setDestinationType('storage');
     setDestinationId('');
     setDescription('');
-    setProductionBatchId('');
     setItems([]);
     setItemId('');
     setQty('');
@@ -264,6 +327,10 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (tourSandboxMode) {
+      finishTourSandboxSubmit();
+      return;
+    }
     // Ignore accidental submits while nested selector dialogs are open.
     if (accountPickerOpen || machinePickerOpen || itemPickerOpen) {
       return;
@@ -304,7 +371,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
       destination_id: did,
       order_date: todayLocalDateKey(),
       description: description || undefined,
-      production_batch_id: productionBatchId ? Number(productionBatchId) : undefined,
       items: items.map((i) => ({
         item_id: i.item_id,
         quantity_ordered: i.quantity_ordered,
@@ -330,7 +396,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   };
 
   const lineItemsBlock = (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+    <div id="po-tour-create-lines" className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 items-center gap-2 min-w-0">
         <Label className="text-base">Items *</Label>
         <span className="text-xs text-muted-foreground tabular-nums">{items.length} added</span>
@@ -508,7 +574,7 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
   );
 
   const orderFieldsBlock = (
-    <div className="grid gap-4 min-w-0">
+    <div id="po-tour-create-destination" className="grid gap-4 min-w-0">
       <div>
         <Label>Destination type *</Label>
         <Select
@@ -621,7 +687,6 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
         <Label>Description</Label>
         <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" className="mt-1" />
       </div>
-      <ProductionBatchPicker value={productionBatchId} onChange={setProductionBatchId} />
     </div>
   );
 
@@ -655,9 +720,14 @@ const AddPurchaseOrderDialog: React.FC<AddPurchaseOrderDialogProps> = ({
                   You have unadded order items — click ✓ to add them, or click Create again to continue without them
                 </div>
               ) : null}
-              <Button type="submit" disabled={isLoading} className="bg-brand-primary hover:bg-brand-primary-hover">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create
+              <Button
+                id="po-tour-create-submit"
+                type="submit"
+                disabled={isLoading && !tourSandboxMode}
+                className="bg-brand-primary hover:bg-brand-primary-hover"
+              >
+                {isLoading && !tourSandboxMode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {tourSandboxMode ? 'Open practice order' : 'Create'}
               </Button>
             </div>
           </div>

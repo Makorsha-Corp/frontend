@@ -14,7 +14,13 @@ import {
   isOrderHubFilterPanelId,
   ORDER_HUB_FILTER_PANEL_IDS,
 } from '@/features/helpGuides/helpGuideFilterPanels';
-import { syncPoTourUiForStep, tourStepSelector } from '@/features/helpGuides/helpGuidePoTourUi';
+import { findVisibleHelpTourElement } from '@/features/helpGuides/helpTourVisibleElement';
+import {
+  isHelpGuideCompactLayout,
+  syncPoTourLayoutForStep,
+  syncPoTourUiForStep,
+  tourStepWaitSelector,
+} from '@/features/helpGuides/helpGuidePoTourUi';
 
 /** Step `data` key: open this filters bar id before advancing (e.g. `po-filters-bar`). */
 export const HELP_GUIDE_OPEN_FILTER_BAR_ID = 'helpGuideOpenFilterBarId';
@@ -36,7 +42,7 @@ export function waitForDomVisible(selector: string, timeoutMs: number): Promise<
   return new Promise((resolve) => {
     const deadline = Date.now() + timeoutMs;
     const tick = () => {
-      if (isDomVisible(document.querySelector(selector))) {
+      if (isDomVisible(findVisibleHelpTourElement(selector))) {
         resolve();
         return;
       }
@@ -127,10 +133,11 @@ export const helpGuideOnPrevClick: DriverHook = (element, _step, { driver }) => 
   const prevStep = idx != null && idx > 0 ? steps?.[idx - 1] : undefined;
   if (prevStep) {
     syncPoTourUiForStep(prevStep);
+    syncPoTourLayoutForStep(prevStep);
   }
-  driver.movePrevious();
-  const prevSelector = tourStepSelector(prevStep);
-  const refreshDriver = () => {
+  const prevSelector = tourStepWaitSelector(prevStep);
+  const goPrevious = () => {
+    driver.movePrevious();
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         try {
@@ -141,10 +148,19 @@ export const helpGuideOnPrevClick: DriverHook = (element, _step, { driver }) => 
       });
     });
   };
-  if (prevSelector) {
-    void waitForDomVisible(prevSelector, 3_000).then(refreshDriver);
+  if (prevSelector && isHelpGuideCompactLayout()) {
+    void waitForDomVisible(prevSelector, 3_000).then(goPrevious);
+  } else if (prevSelector) {
+    driver.movePrevious();
+    void waitForDomVisible(prevSelector, 3_000).then(() => {
+      try {
+        driver.refresh();
+      } catch {
+        /* target may not be mounted yet */
+      }
+    });
   } else {
-    refreshDriver();
+    goPrevious();
   }
 };
 

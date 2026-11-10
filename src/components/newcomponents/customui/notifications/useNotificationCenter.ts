@@ -13,6 +13,7 @@ import {
 } from '@/features/notifications/notificationsApi';
 import { transformBackendNotification } from './notificationTransform';
 import { useNotificationStream } from './useNotificationStream';
+import { getActiveHelpGuideTour } from '@/features/helpGuides/helpGuideSession';
 import { showNotificationPopup } from '@/lib/showNotificationPopup';
 
 export const READ_IDS_KEY = 'erp-notification-read-ids';
@@ -178,6 +179,8 @@ export function useNotificationCenter(): NotificationCenterState {
     for (const notification of resolved) {
       if (shownPopupIdsRef.current.has(notification.id)) continue;
       shownPopupIdsRef.current.add(notification.id);
+      // Sample PO actions emit these during a guide. Keep them in the list, not over the popover.
+      if (getActiveHelpGuideTour()) continue;
       showNotificationPopup(notification, () => {
         if (!isRead(notification.id)) {
           markRead(notification.id);

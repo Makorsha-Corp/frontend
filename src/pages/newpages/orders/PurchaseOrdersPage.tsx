@@ -33,7 +33,10 @@ import { type PurchaseOrderSummaryStats } from './purchaseOrdersOverviewData';
 import { statusesForPoWorkflowFilter } from '@/components/newcomponents/customui/orders/purchaseOrderMilestones';
 import { HELP_GUIDE_TOUR_ID } from '@/features/helpGuides/helpGuideTourIds';
 import { useAutoHelpGuide } from '@/features/helpGuides/useAutoHelpGuide';
-import { setPostTourSampleExplore } from '@/features/helpGuides/helpGuideSession';
+import {
+  HELP_GUIDE_CLOSE_SAMPLE_EVENT,
+  setPostTourSampleExplore,
+} from '@/features/helpGuides/helpGuideSession';
 import {
   useCloseFiltersOnTourEvent,
   useOpenFiltersOnTourEvent,
@@ -470,6 +473,27 @@ const PurchaseOrdersPage: React.FC = () => {
     if (selectedOrderId === sampleId) return;
     exitPostTourSampleExplore();
   }, [tourSample.postTourExplore, selectedOrderId, exitPostTourSampleExplore]);
+
+  useEffect(() => {
+    const onCloseSample = () => {
+      const sampleId = purchaseTourSampleIdRef.current;
+      setSelectedOrderId((current) => {
+        if (sampleId == null || current !== sampleId) return current;
+        return null;
+      });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (sampleId == null || next.get('orderId') !== String(sampleId)) return prev;
+          next.delete('orderId');
+          return next;
+        },
+        { replace: true },
+      );
+    };
+    window.addEventListener(HELP_GUIDE_CLOSE_SAMPLE_EVENT, onCloseSample);
+    return () => window.removeEventListener(HELP_GUIDE_CLOSE_SAMPLE_EVENT, onCloseSample);
+  }, [setSearchParams]);
 
   useEffect(() => {
     const open = tourSample.sampleOpen;

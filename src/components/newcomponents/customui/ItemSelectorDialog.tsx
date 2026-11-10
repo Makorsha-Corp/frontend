@@ -102,6 +102,12 @@ export interface ItemSelectorDialogProps {
   catalogDefaultTagCodes?: string[];
   /** Show “Create item” with tags from catalogDefaultTagCodes. */
   allowCreateCatalogItem?: boolean;
+  /** Help tour: id on this catalog row for driver.js. */
+  helpTourPickItemId?: number;
+  /** Help tour: show only this catalog item (hides the rest of the list). */
+  helpTourCatalogOnlyItemId?: number;
+  /** Help tour: prefill catalog search when the picker opens. */
+  helpTourCatalogSearch?: string;
 }
 
 type TabValue = 'catalog' | 'storage' | 'machine';
@@ -186,6 +192,9 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   description = 'Choose from the item catalog or from factory inventory on hand.',
   catalogDefaultTagCodes,
   allowCreateCatalogItem = false,
+  helpTourPickItemId,
+  helpTourCatalogOnlyItemId,
+  helpTourCatalogSearch,
 }) => {
   const [tab, setTab] = useState<TabValue>(() =>
     resolveInitialTab(catalogOnly, inventoryOnly, includeMachineStock, initialTab),
@@ -207,6 +216,20 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
   const [droppedDefaultTags, setDroppedDefaultTags] = useState(false);
   const catalogTagSeededRef = useRef(false);
   const [createCatalogItemOpen, setCreateCatalogItemOpen] = useState(false);
+  const helpTourSearchAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      helpTourSearchAppliedRef.current = false;
+      return;
+    }
+    if (!helpTourCatalogSearch || helpTourSearchAppliedRef.current) return;
+    helpTourSearchAppliedRef.current = true;
+    const hint = helpTourCatalogSearch.includes('(')
+      ? helpTourCatalogSearch.slice(0, helpTourCatalogSearch.indexOf('(')).trim()
+      : helpTourCatalogSearch;
+    setSearch(hint);
+  }, [helpTourCatalogSearch, open]);
 
   /** Undefined = all factories (same as Storage page with no factory filter). */
   const storageFactoryFilter = useMemo(() => {
@@ -620,6 +643,19 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
     setHighlighted(null);
   };
 
+  const tourCatalogOnly = helpTourCatalogOnlyItemId != null;
+
+  const catalogListItems = useMemo(() => {
+    if (helpTourCatalogOnlyItemId == null) return accumulatedCatalogItems;
+    return accumulatedCatalogItems.filter((i) => i.id === helpTourCatalogOnlyItemId);
+  }, [accumulatedCatalogItems, helpTourCatalogOnlyItemId]);
+
+  useEffect(() => {
+    if (!open || helpTourCatalogOnlyItemId == null || !showCatalogPanel) return;
+    const match = catalogListItems.find((i) => i.id === helpTourCatalogOnlyItemId);
+    if (match) setHighlighted({ kind: 'catalog', item: match });
+  }, [catalogListItems, helpTourCatalogOnlyItemId, open, showCatalogPanel]);
+
   const renderScopedLocationPickers = (options?: {
     showSection?: boolean;
     sectionOptional?: boolean;
@@ -682,6 +718,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
 
   const renderCatalogList = () => (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {tourCatalogOnly ? null : (
       <div className="shrink-0 space-y-3 rounded-lg border border-border bg-muted/10 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -737,6 +774,8 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </div>
         </div>
       </div>
+      )}
+      {tourCatalogOnly ? null : (
       <div className="flex shrink-0 items-center justify-between text-xs text-muted-foreground">
         <span className="tabular-nums">
           {catalogTotal > 0
@@ -752,6 +791,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           </span>
         ) : null}
       </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-muted/10 p-2">
         {loadingCatalogInitial ? (
           <div className="flex min-h-[7rem] items-center justify-center gap-2 text-muted-foreground">
@@ -762,18 +802,19 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
           <p className="py-8 text-center text-sm text-destructive">
             Failed to load catalog.{showStorageTab ? ' Try again or use Storage tab.' : ' Try again.'}
           </p>
-        ) : accumulatedCatalogItems.length === 0 ? (
+        ) : catalogListItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No items found{catalogFiltersActive ? ' matching filters' : ''}.
           </p>
         ) : (
           <div className="space-y-1.5">
-            {accumulatedCatalogItems.map((item) => {
+            {catalogListItems.map((item) => {
               const isHighlighted =
                 highlighted?.kind === 'catalog' && highlighted.item.id === item.id;
               return (
                 <button
                   key={item.id}
+                  id={helpTourPickItemId === item.id ? 'po-tour-create-item-lubricating' : undefined}
                   type="button"
                   onClick={() => setHighlighted({ kind: 'catalog', item })}
                   className={cn(
@@ -1262,6 +1303,7 @@ const ItemSelectorDialog: React.FC<ItemSelectorDialogProps> = ({
                 Cancel
               </Button>
               <Button
+                id={helpTourPickItemId != null ? 'po-tour-create-item-confirm' : undefined}
                 type="button"
                 className="bg-brand-primary hover:bg-brand-primary-hover"
                 disabled={!highlighted}
