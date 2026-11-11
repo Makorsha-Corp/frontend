@@ -1,6 +1,8 @@
 import {
   buildAccountInvoiceHref,
   buildOrderHref,
+  buildProductionBatchHref,
+  buildWorkOrderHref,
 } from '@/lib/entityLinks';
 import { cn } from '@/lib/utils';
 import type { CalendarEvent } from '@/types/calendar';
@@ -33,6 +35,17 @@ export function getCalendarEventOpenHref(event: CalendarEvent): string {
 
   if (event.source_type === 'purchase_order') {
     return buildOrderHref('purchase_order', event.record_id);
+  }
+
+  if (event.source_type === 'work_order') {
+    return buildWorkOrderHref(event.record_id, {
+      factoryId: metaNumber(meta, 'factory_id'),
+      machineId: metaNumber(meta, 'machine_id'),
+    });
+  }
+
+  if (event.source_type === 'production_batch') {
+    return buildProductionBatchHref(event.record_id);
   }
 
   return event.link;
