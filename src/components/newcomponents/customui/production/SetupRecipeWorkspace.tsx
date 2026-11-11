@@ -58,7 +58,7 @@ function stationSummary(
 
 interface SetupRecipeWorkspaceProps {
 
-  factoryId: number;
+  factoryId: number | null;
 
   formulas: ProductionFormula[];
 

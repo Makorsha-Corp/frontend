@@ -202,7 +202,9 @@ function readStoredBatchStatuses(): ProductionBatchStatus[] {
     if (withoutCompleted.length === 0) return [];
     if (
       withoutCompleted.length === BATCH_STATUS_POPOVER_STATUSES.length &&
-      BATCH_STATUS_POPOVER_STATUSES.every((s) => withoutCompleted.includes(s))
+      BATCH_STATUS_POPOVER_STATUSES.every((s) =>
+        (withoutCompleted as readonly string[]).includes(s),
+      )
     ) {
       return [];
     }
@@ -1229,6 +1231,7 @@ const ProductionPage: React.FC = () => {
                 onOpenDay={openRunsDay}
                 selectedBatchId={selectedBatchId}
                 onSelectedBatchChange={setSelectedBatchId}
+                onSelectedLineIdsChange={handleRunsLineIdsChange}
                 renderDetail={(batchId, close) => (
                   <>
                     <BatchDetailPanel
@@ -1611,7 +1614,11 @@ const AddEditLineDialog: React.FC<AddEditLineDialogProps> = ({
               <Label>{t('machines')}</Label>
               <ProductionLineMachinesSelector
                 factoryId={effectiveFactoryId}
-                machines={factoryMachines}
+                machines={factoryMachines.map((machine) => ({
+                  id: machine.id,
+                  name: machine.name,
+                  is_running: machine.is_running ?? false,
+                }))}
                 selectedIds={machineIds}
                 onChange={setMachineIds}
               />
@@ -1990,7 +1997,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     setRecipeMoreOpen(false);
     setRecipePickerOpen(false);
     setRunMachineId(null);
-    setRecurrenceCadence('daily');
+    setRecurrenceCadence({ cadence: 'daily', intervalDays: 1 });
     setRecurrenceEnd('');
     if (scheduleCreateSeed) {
       setLineId('');

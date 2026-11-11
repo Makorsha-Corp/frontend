@@ -191,7 +191,7 @@ const RecipePickerPreview: React.FC<RecipePickerPreviewProps> = ({ formula, line
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {lineLabel(lineId, lines)}
-                    {!line && lineId == null ? ' · Line not assigned' : ''}
+                    {lineId == null ? ' · Line not assigned' : ''}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Step targets and materials are on Production Setup for this recipe.

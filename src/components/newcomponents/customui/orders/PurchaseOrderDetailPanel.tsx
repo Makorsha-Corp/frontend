@@ -138,7 +138,10 @@ import {
   type HelpGuidePoTourAction,
 } from '@/features/helpGuides/helpGuideSession';
 
-function emitPoTourActionDoneForSample(isTourSample: boolean, action: HelpGuidePoTourAction): void {
+function emitPoTourActionDoneForSample(
+  isTourSample: boolean | undefined,
+  action: HelpGuidePoTourAction,
+): void {
   if (!isTourSample) return;
   window.dispatchEvent(new CustomEvent(HELP_GUIDE_PO_TOUR_ACTION_DONE_EVENT, { detail: action }));
 }
@@ -514,13 +517,20 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
   poTourHelpCtxRef.current = {
     order,
     itemsConfirmed,
-    sectionItemsReady: sectionConfirmReadiness.items,
+    sectionItemsReady: {
+      ok: sectionConfirmReadiness.items.ok,
+      reason: sectionConfirmReadiness.items.reason,
+    },
     approvalSectionsStatus,
     myApprovalApproved: myApproval?.approved ?? false,
     confirmReadiness,
     linkedInvoiceStatus,
     manageReceivingBlocked,
-    markCompleteReadiness,
+    receivingOpen: poTourHelpCtxRef.current.receivingOpen,
+    markCompleteReadiness: {
+      ok: markCompleteReadiness.ok,
+      reason: markCompleteReadiness.reason,
+    },
     orderComplete,
   };
 

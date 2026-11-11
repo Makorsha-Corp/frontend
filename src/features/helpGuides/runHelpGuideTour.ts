@@ -1,4 +1,4 @@
-import { driver, type Config, type DestroyReason, type DriveStep } from 'driver.js';
+import { driver, type AllowedButtons, type Config, type DestroyReason, type DriveStep } from 'driver.js';
 import {
   HELP_GUIDE_PO_TOUR_ACTION,
   helpGuideOnNextClick,
@@ -43,7 +43,7 @@ const defaultDriverOptions = {
   stagePadding: 4,
   stageRadius: 8,
   popoverClass: 'help-guide-popover',
-  showButtons: ['next', 'previous', 'close'],
+  showButtons: ['next', 'previous', 'close'] as AllowedButtons[],
 };
 
 let fittingSpotlight = false;

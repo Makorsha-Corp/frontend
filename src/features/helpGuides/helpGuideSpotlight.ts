@@ -32,7 +32,7 @@ export function applyHelpGuideSpotlight(target: Element | undefined): void {
   }
   let node: HTMLElement | null = target;
   while (node && node !== document.body) {
-    const parent = node.parentElement;
+    const parent: HTMLElement | null = node.parentElement;
     if (!parent) break;
     for (const sibling of parent.children) {
       if (sibling !== node && !isTourChrome(sibling)) {

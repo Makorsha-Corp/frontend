@@ -217,11 +217,11 @@ const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ onCollapsedChange }) 
     { labelKey: 'accounts', icon: <Building2 {...navIconProps} />, path: '/accounts/overview' },
     { labelKey: 'businessLens', icon: <BarChart3 {...navIconProps} />, path: '/businesslens' },
     ...(workspace?.role === 'owner'
-      ? [
+      ? ([
           { labelKey: 'management', icon: <Settings {...navIconProps} />, path: '/management' },
           { labelKey: 'billing', icon: <CreditCard {...navIconProps} />, path: '/billing/trial' },
           { labelKey: 'uploads', icon: <Paperclip {...navIconProps} />, path: '/uploads' },
-        ]
+        ] as NavItem[])
       : []),
   ];
 

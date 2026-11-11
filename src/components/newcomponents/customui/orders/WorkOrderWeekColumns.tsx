@@ -34,6 +34,8 @@ function uniqueOrdersForDay(rows: WorkOrderSheetRow[]): WorkOrderSheetRow[] {
 
 const WorkOrderWeekColumns: React.FC<WorkOrderWeekColumnsProps> = ({
   days,
+  onSelectDay,
+  onAddForDay,
   onRowClick,
 }) => {
   const ordersByDay = useMemo(
@@ -70,6 +72,12 @@ const WorkOrderWeekColumns: React.FC<WorkOrderWeekColumnsProps> = ({
                   onClick={() => onSelectDay(day.date)}
                 >
                   Open day
+                </button>
+                <button
+                  type="button"
+                  className={weekDayEmptyOpenDayButtonClass('columns')}
+                  onClick={() => onAddForDay(day.date)}
+                >
                   Add work
                 </button>
               </div>

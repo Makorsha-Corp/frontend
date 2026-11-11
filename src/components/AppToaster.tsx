@@ -10,7 +10,6 @@ export function AppToaster() {
   return (
     <Toaster
       position={APP_TOAST_DEFAULTS.position}
-      visibleToasts={APP_TOAST_DEFAULTS.visibleToasts}
       containerStyle={{
         bottom: APP_TOAST_DEFAULTS.containerBottomOffsetPx,
       }}

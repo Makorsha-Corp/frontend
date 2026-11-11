@@ -11,7 +11,7 @@ import type { ProductionFormulaStage, ProductionLine, ProductionRouteStep } from
 
 interface SetupRecipePathPanelProps {
   formulaId: number;
-  factoryId: number;
+  factoryId: number | null;
   routeId: number | null;
   stages: ProductionFormulaStage[];
   routeSteps: ProductionRouteStep[];

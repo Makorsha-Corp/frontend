@@ -77,7 +77,6 @@ function invalidateBatchRunCache(batchId: number) {
     { type: 'BatchEvent' as const, id: batchId },
     'ProductionBatch' as const,
     'ProductionSchedule' as const,
-    'Machine' as const,
     BATCH_OVERVIEW_STATS_TAG,
   ];
 }

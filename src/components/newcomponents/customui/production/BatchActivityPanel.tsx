@@ -8,7 +8,7 @@ import {
   BATCH_EVENT_FILTER_ALL,
   BATCH_EVENT_LOG_FILTER_OPTIONS,
   countBatchEventsForFilter,
-  type BatchEventLogFilter,
+  type BatchEventLogFilter as BatchEventLogFilterValue,
 } from '@/lib/batchEventLogFilters';
 
 import { buildBatchEventTimeline } from '@/lib/batchEventLogGrouping';
@@ -25,7 +25,7 @@ interface BatchActivityPanelProps {
 
 const BatchActivityPanel: React.FC<BatchActivityPanelProps> = ({ batchId, displayContext }) => {
   const [showAbsoluteTimes, setShowAbsoluteTimes] = useState(false);
-  const [eventFilter, setEventFilter] = useState<BatchEventLogFilter>(BATCH_EVENT_FILTER_ALL);
+  const [eventFilter, setEventFilter] = useState<BatchEventLogFilterValue>(BATCH_EVENT_FILTER_ALL);
   const { data: events = [], isLoading, isError } = useGetBatchEventsQuery(batchId, {
     skip: batchId <= 0,
   });
@@ -35,7 +35,7 @@ const BatchActivityPanel: React.FC<BatchActivityPanelProps> = ({ batchId, displa
   }, [batchId]);
 
   const filterCounts = useMemo(() => {
-    const counts: Partial<Record<BatchEventLogFilter, number>> = {};
+    const counts: Partial<Record<BatchEventLogFilterValue, number>> = {};
     for (const option of BATCH_EVENT_LOG_FILTER_OPTIONS) {
       counts[option.value] = countBatchEventsForFilter(events, option.value);
     }

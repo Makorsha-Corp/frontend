@@ -536,7 +536,7 @@ const BatchRunStepMaterials = forwardRef<BatchRunStepMaterialsHandle, BatchRunSt
   ) : null;
 
   return (
-    <div ref={materialsSectionRef} className="min-w-0 scroll-mt-4">
+    <div ref={materialsSectionRef as React.Ref<HTMLDivElement> | undefined} className="min-w-0 scroll-mt-4">
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] md:items-stretch md:gap-y-4">
       <div className="min-h-[8rem] min-w-0 space-y-4 md:pr-5">
         <div className="space-y-2">

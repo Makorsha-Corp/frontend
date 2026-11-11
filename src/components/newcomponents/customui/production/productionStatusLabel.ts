@@ -1,3 +1,5 @@
+import type { TFunction } from 'i18next';
+
 const STATUS_KEYS: Record<string, string> = {
   draft: 'statusDraft',
   recurring: 'statusRecurring',
@@ -6,14 +8,12 @@ const STATUS_KEYS: Record<string, string> = {
   cancelled: 'statusCancelled',
 };
 
-type ProductionT = (key: string, opts?: { count: number }) => string;
-
 export function productionStatusLabel(status: string, t: (key: string) => string): string {
   const key = STATUS_KEYS[status];
   return key ? t(key) : status.replace(/_/g, ' ');
 }
 
-export function productionFilterCopy(t: ProductionT) {
+export function productionFilterCopy(t: TFunction<'production'>) {
   return {
     allLines: t('allLines'),
     noLines: t('noLines'),

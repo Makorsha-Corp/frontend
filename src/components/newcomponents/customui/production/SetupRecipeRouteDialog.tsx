@@ -28,7 +28,7 @@ export interface SetupRecipeRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formulaId: number;
-  factoryId: number;
+  factoryId: number | null;
   routeId: number | null;
   stages: ProductionFormulaStage[];
   routeSteps: ProductionRouteStep[];
@@ -175,7 +175,7 @@ const SetupRecipeRouteDialog: React.FC<SetupRecipeRouteDialogProps> = ({
 
   const handleAddStep = async (payload: RouteStepAddPayload) => {
     const line = lines.find((row) => row.id === payload.production_line_id);
-    if (!line) return;
+    if (!line || factoryId == null) return;
     try {
       const createdStage = await appendStep({
         formulaId,

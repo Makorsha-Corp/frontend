@@ -23,7 +23,6 @@ import {
   useUpdateFormulaStageMutation,
   useGetProductionRoutesQuery,
   useGetProductionRouteStepsQuery,
-  useUpdateProductionFormulaMutation,
   useGetAllFormulaStageItemsQuery,
 } from '@/features/production/productionApi';
 import {
@@ -83,7 +82,6 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
     () => [...linkedRouteStepsRaw].sort((a, b) => a.step_order - b.step_order),
     [linkedRouteStepsRaw],
   );
-  const [updateFormula, { isLoading: savingRoute }] = useUpdateProductionFormulaMutation();
   const { data: allStageItems = [], isLoading: loadingStageItems } = useGetAllFormulaStageItemsQuery(formulaId, {
     skip: !open || !routeBound,
   });
@@ -186,18 +184,9 @@ const FormulaDetailsDialog: React.FC<FormulaDetailsDialogProps> = ({
         <Label>Route</Label>
         <Select
           value={formula.route_id != null ? String(formula.route_id) : 'none'}
-          disabled={savingRoute || !factoryId}
-          onValueChange={async (value) => {
-            try {
-              await updateFormula({
-                id: formulaId,
-                data: { route_id: value === 'none' ? null : Number(value) },
-              }).unwrap();
-              appToast.success(value === 'none' ? 'Route cleared' : 'Route attached');
-            } catch (error: unknown) {
-              const detail = (error as { data?: { detail?: string } })?.data?.detail;
-              appToast.error(detail || 'Failed to set route');
-            }
+          disabled={!factoryId}
+          onValueChange={() => {
+            appToast.error('Recipe path is private. Edit steps on Production Setup.');
           }}
         >
           <SelectTrigger className={FORMULA_DIALOG_SELECT_TRIGGER}>

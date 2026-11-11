@@ -55,6 +55,7 @@ interface ProductionRunsTabProps {
   onSelectedBatchChange: (batchId: number | null) => void;
   weekBatchGrid: ProductionWeekBatchGrid;
   onWeekBatchGridChange: (grid: ProductionWeekBatchGrid) => void;
+  onSelectedLineIdsChange: (lineIds: number[]) => void;
 }
 
 function batchesOnDay(rows: ProductionScheduleBatch[], dayIso: string): ProductionScheduleBatch[] {
@@ -141,6 +142,7 @@ const ProductionRunsTab: React.FC<ProductionRunsTabProps> = ({
   onOpenDay,
   selectedBatchId,
   onSelectedBatchChange,
+  onSelectedLineIdsChange,
 }) => {
   const { t } = useTranslation('production');
   const [programsOpen, setProgramsOpen] = useState(false);
