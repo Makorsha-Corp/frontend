@@ -11,8 +11,6 @@ import {
 import type { MachinesLocationFilterSlice } from '@/lib/machinesLocationFilters';
 import { useScrollTargetHighlight } from '@/lib/scrollTargetHighlight';
 import { AppShellHeaderCompactList } from '@/components/newcomponents/customui/AppShellHeaderCompactList';
-import { appShellHeaderScopeSeparatorClass } from '@/components/newcomponents/customui/AppShellHeader';
-import { ORDER_PANEL_HEADER_CLASS } from '@/components/newcomponents/customui/orders/orderListConstants';
 import { ContributionHeatmap } from '@/components/newcomponents/customui/ContributionHeatmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -91,7 +89,6 @@ import {
 } from '@/features/production/useFactoryProductionSchedule';
 import { plannedStartLocalFromIso } from '@/lib/plannedStartLocal';
 import BatchActivityPanel from '@/components/newcomponents/customui/production/BatchActivityPanel';
-import BatchRow from '@/components/newcomponents/customui/production/panels/BatchRow';
 import AddBatchRecipePathList from '@/components/newcomponents/customui/production/AddBatchRecipePathList';
 import AddBatchRecipePathStepEditor from '@/components/newcomponents/customui/production/AddBatchRecipePathStepEditor';
 import RecipePickerDialog from '@/components/newcomponents/customui/production/RecipePickerDialog';
@@ -157,7 +154,6 @@ import {
   useStartBatchMutation,
   useCompleteBatchMutation,
   useCancelBatchMutation,
-  useGetBatchItemsQuery,
 } from '@/features/production/productionApi';
 import type {
   ProductionLine,
@@ -166,7 +162,6 @@ import type {
 } from '@/types/production';
 import {
   FlaskConical,
-  Plus,
   Loader2,
   ChevronDown,
 } from 'lucide-react';
@@ -323,7 +318,7 @@ const ProductionPage: React.FC = () => {
   const [isAddLineOpen, setIsAddLineOpen] = useState(false);
   const [editingFormula, setEditingFormula] = useState<ProductionFormula | null>(null);
   const [isAddFormulaOpen, setIsAddFormulaOpen] = useState(false);
-  const [createRecipeRouteId, setCreateRecipeRouteId] = useState<number | null>(null);
+  const [, setCreateRecipeRouteId] = useState<number | null>(null);
   const [lineActionTarget, setLineActionTarget] = useState<ProductionLine | null>(null);
   const [formulaActionTarget, setFormulaActionTarget] = useState<ProductionFormula | null>(null);
   const [isFormulaEditMode, setIsFormulaEditMode] = useState(false);
@@ -447,11 +442,7 @@ const ProductionPage: React.FC = () => {
     { skip: false }
   );
 
-  const {
-    data: batchesRaw = [],
-    isLoading: loadingBatches,
-    error: batchesError,
-  } = useGetProductionBatchesQuery(
+  const { data: batchesRaw = [] } = useGetProductionBatchesQuery(
     {
       skip: 0,
       limit: 100,
@@ -802,6 +793,7 @@ const ProductionPage: React.FC = () => {
     }
     return activityHeatmapItemsFromApi;
   }, [
+    activityFormulaIds,
     activityStats,
     activityStatsError,
     activityHeatmapItemsFromApi,
@@ -2007,7 +1999,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       setLineId('');
       setPlannedStart('');
     }
-  }, [open, scheduleCreateSeed?.day.getTime(), initialMode]);
+  }, [open, scheduleCreateSeed, initialMode]);
 
   React.useEffect(() => {
     if (!open || !usesRecipe) return;
@@ -2124,7 +2116,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       }
       return next;
     });
-  }, [selectedFormulaId, formulaStages, formulaStageItems, expectedOutput]);
+  }, [selectedFormulaId, formulaStages, formulaStageItems, parsedExpectedOutput]);
 
   React.useEffect(() => {
     if (!selectedFormulaId || formulaStageParameters.length === 0) {
@@ -2148,7 +2140,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     });
   }, [selectedFormulaId, formulaStageParameters]);
 
-  const resolveBatchProductionLineId = (): number | null => {
+  const resolveBatchProductionLineId = React.useCallback((): number | null => {
     if (batchMode === 'simple') {
       const simpleLine = parseInt(lineId, 10);
       return Number.isFinite(simpleLine) && simpleLine > 0 ? simpleLine : null;
@@ -2171,9 +2163,9 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
     }
     const fallback = parseInt(lineId, 10);
     return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
-  };
+  }, [batchMode, formulaStages, lineId, routeSteps, selectedFormulaId, stageDrafts]);
 
-  const buildNewBatchScheduleSteps = () => {
+  const buildNewBatchScheduleSteps = React.useCallback(() => {
     const lid = resolveBatchProductionLineId();
     if (!plannedStart.trim() || !lid) return [];
     return (formulaStages.length ? formulaStages : [null])
@@ -2208,7 +2200,16 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
         };
       })
       .filter((row): row is NonNullable<typeof row> => row != null);
-  };
+  }, [
+    plannedStart,
+    formulaStages,
+    stageDrafts,
+    lines,
+    runMachineId,
+    showRailMachine,
+    showStepMachine,
+    resolveBatchProductionLineId,
+  ]);
 
   const newBatchPlannedWindows = useMemo(() => {
     const steps = buildNewBatchScheduleSteps();
@@ -2221,19 +2222,7 @@ const AddBatchDialog: React.FC<AddBatchDialogProps> = ({
       plannedStartAt: startIso,
       steps,
     });
-  }, [
-    plannedStart,
-    batchMode,
-    formulaStages,
-    stageDrafts,
-    lineId,
-    lines,
-    routeSteps,
-    runMachineId,
-    showRailMachine,
-    showStepMachine,
-    selectedFormulaId,
-  ]);
+  }, [plannedStart, buildNewBatchScheduleSteps]);
 
   const railPlannedWindow = useMemo(() => {
     if (!showRailMachine || newBatchPlannedWindows.length === 0) return null;

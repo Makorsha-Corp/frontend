@@ -4,7 +4,6 @@ import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUti
 import type { AgendaGroup } from '@/pages/newpages/calendar/calendarDateUtils';
 import CalendarCategoryDivider from './CalendarCategoryDivider';
 import CalendarEventCard from './CalendarEventCard';
-import { calendarGridShellClass } from './calendarPageStyles';
 
 export interface CalendarAgendaListProps {
   groups: AgendaGroup[];

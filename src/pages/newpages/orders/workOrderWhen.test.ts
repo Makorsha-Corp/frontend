@@ -3,7 +3,6 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  durationMinutesFromWindow,
   workWhenStateFromPlanned,
   workWhenTimingSignature,
   workWhenToUpdatePayload,

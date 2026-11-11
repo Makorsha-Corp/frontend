@@ -635,6 +635,7 @@ const PurchaseOrderDetailPanel: React.FC<PurchaseOrderDetailPanelProps> = ({
     confirmInvoice,
     markOrderComplete,
     onUpdated,
+    manageReceivingHint?.reason,
   ]);
 
   useEffect(() => {

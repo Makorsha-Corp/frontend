@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StepNumberInput } from '@/components/ui/step-number-input';
 import { parseProductionQuantity } from '@/lib/productionQuantity';
@@ -902,13 +902,13 @@ const FormulaStageMaterialsBlock = forwardRef<FormulaStageMaterialsHandle, Formu
       if (draft.unit !== (row.unit ?? '')) return true;
     }
     return false;
-  }, [stageItems, outputQtyDrafts, stageParameters, condDrafts]);
+  }, [outputQtyDrafts, condDrafts]);
 
   useEffect(() => {
     onDirtyChange?.(materialsDirty);
   }, [materialsDirty, onDirtyChange]);
 
-  const saveMaterials = async () => {
+  const saveMaterials = useCallback(async () => {
     let ok = true;
     for (const row of outputSnapshots.current.values()) {
       const draft = outputQtyDrafts[row.id];
@@ -928,7 +928,8 @@ const FormulaStageMaterialsBlock = forwardRef<FormulaStageMaterialsHandle, Formu
       if (!(await handleConditionFieldBlur(row))) ok = false;
     }
     return ok;
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- blur handlers read snapshots at save time
+  }, [condDrafts, outputQtyDrafts]);
 
   useImperativeHandle(ref, () => ({
     isDirty: () => materialsDirty,

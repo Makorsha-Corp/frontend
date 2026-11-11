@@ -155,7 +155,7 @@ export default function AttachmentMarkupStage({
   );
 
   const layerCount = data?.items.length ?? 0;
-  const layers = data?.items ?? [];
+  const layers = useMemo(() => data?.items ?? [], [data?.items]);
 
   useEffect(() => {
     loadedAttachmentIdRef.current = null;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -205,14 +205,17 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
     };
   }, [applyProductionPickPolicy, lineScoped, occupancyByMachineId, plannedWindow]);
 
-  const pickContextForMachine = (machineId: number): MachinePickContext | undefined => {
-    if (!batchPickContext) return undefined;
-    return {
-      ...batchPickContext,
-      liveWorkOnMachine: liveWorkByMachineId?.[machineId] ?? null,
-      excludeStageLogId,
-    };
-  };
+  const pickContextForMachine = useCallback(
+    (machineId: number): MachinePickContext | undefined => {
+      if (!batchPickContext) return undefined;
+      return {
+        ...batchPickContext,
+        liveWorkOnMachine: liveWorkByMachineId?.[machineId] ?? null,
+        excludeStageLogId,
+      };
+    },
+    [batchPickContext, liveWorkByMachineId, excludeStageLogId],
+  );
 
   const batchPickerTileContext = useMemo(() => {
     if (!batchPickContext?.hasPlannedWindow) return undefined;
@@ -285,9 +288,7 @@ const MachineSelectorDialog: React.FC<MachineSelectorDialogProps> = ({
     lineScoped,
     occupancyByMachineId,
     productionMachinePickPolicy,
-    batchPickContext,
-    liveWorkByMachineId,
-    excludeStageLogId,
+    pickContextForMachine,
   ]);
 
   const toggleDraftMachine = (machineId: number) => {

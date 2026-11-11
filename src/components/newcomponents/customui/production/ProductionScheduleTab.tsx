@@ -87,10 +87,13 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
 
   const [internalWeekAnchorIso, setInternalWeekAnchorIso] = useState(productionScheduleTodayWeekAnchor);
   const weekAnchorIso = controlledWeekAnchorIso ?? internalWeekAnchorIso;
-  const setWeekAnchorIso = (iso: string) => {
-    onWeekAnchorChange?.(iso);
-    if (controlledWeekAnchorIso == null) setInternalWeekAnchorIso(iso);
-  };
+  const setWeekAnchorIso = useCallback(
+    (iso: string) => {
+      onWeekAnchorChange?.(iso);
+      if (controlledWeekAnchorIso == null) setInternalWeekAnchorIso(iso);
+    },
+    [controlledWeekAnchorIso, onWeekAnchorChange],
+  );
   const [pickerMonth, setPickerMonth] = useState(() => startOfMonth(new Date()));
 
   const range = useMemo(
@@ -222,7 +225,7 @@ const ProductionScheduleTab: React.FC<ProductionScheduleTabProps> = ({
       </div>,
     );
     return () => onHeaderControls?.(null);
-  }, [hideChrome, onHeaderControls, weekAnchorIso, planCountByDate, pickerMonth, t]);
+  }, [hideChrome, onHeaderControls, weekAnchorIso, planCountByDate, pickerMonth, setWeekAnchorIso, setPickerMonth, t]);
 
   return (
     <>

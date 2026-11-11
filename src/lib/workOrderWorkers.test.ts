@@ -4,7 +4,6 @@ import type { WorkspaceMember } from '@/types/workspace';
 
 import {
   parseWorkerNames,
-  resolveWorkerNamesToMembers,
   resolveWorkerTextToMembers,
   resolveWorkerTokens,
 } from '@/lib/workOrderWorkers';

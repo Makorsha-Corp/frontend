@@ -33,7 +33,6 @@ import {
 import RouteFlowPreview from '@/components/newcomponents/customui/production/RouteFlowPreview';
 import FormulaStageMaterialsBlock from '@/components/newcomponents/customui/production/FormulaStageMaterialsBlock';
 import type { ProductionFormula, ProductionLine } from '@/types/production';
-import { cn } from '@/lib/utils';
 import { appToast } from '@/lib/appToast';
 import { Loader2 } from 'lucide-react';
 

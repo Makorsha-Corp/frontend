@@ -98,7 +98,7 @@ const BatchRunSelectedStepPanel: React.FC<BatchRunSelectedStepPanelProps> = ({
     setMinutesDraft(
       log.expected_duration_minutes != null ? String(log.expected_duration_minutes) : '',
     );
-  }, [log?.id, log?.expected_duration_minutes]);
+  }, [log]);
 
   if (!log) {
     return (

@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactElement } from 'react';
 import toast, { type Toast, type ToastOptions } from 'react-hot-toast';
 
+export type { Toast, ToastOptions };
+
 /** Global react-hot-toast defaults — edit here to change app-wide behavior. */
 export const APP_TOAST_DEFAULTS = {
   position: 'bottom-right' as const,

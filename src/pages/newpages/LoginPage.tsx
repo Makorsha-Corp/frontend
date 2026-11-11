@@ -35,6 +35,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
   toggleTheme,
   compact = false,
 }) => {
+  const { t } = useTranslation('auth');
   const brandInitial = BRAND_NAME.charAt(0);
 
   return (
@@ -79,7 +80,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
             compact ? 'px-1.5 py-1 text-xs' : 'px-2.5 py-1.5 text-sm'
           )}
         >
-          Product
+          {t('navProduct')}
         </a>
         <a
           href="#about"
@@ -88,7 +89,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
             compact ? 'px-1.5 py-1 text-xs' : 'px-2.5 py-1.5 text-sm'
           )}
         >
-          About
+          {t('navAbout')}
         </a>
         <UiLanguageToggle size="sm" className="shrink-0" />
         <Button
@@ -96,7 +97,7 @@ const LoginPageChrome: React.FC<LoginPageChromeProps> = ({
           size="icon"
           onClick={toggleTheme}
           className="h-9 w-9 shrink-0 rounded-full border-border bg-card"
-          title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          title={theme === 'light' ? t('switchToDarkMode') : t('switchToLightMode')}
           type="button"
         >
           {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -113,52 +114,54 @@ const loginHighlightIconWrapClass =
 const loginHighlightTitleClass = 'mb-1 font-semibold text-card-foreground';
 const loginHighlightBodyClass = 'text-sm leading-snug text-muted-foreground';
 
-const LoginMarketingSections: React.FC<{ className?: string }> = ({ className }) => (
+const LoginMarketingSections: React.FC<{ className?: string }> = ({ className }) => {
+  const { t } = useTranslation('auth');
+  return (
   <div className={cn('space-y-8 lg:space-y-10', className)}>
     <section id="about" className="space-y-4">
       <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-        Procurement, inventory, and production in one workspace.
+        {t('marketingHeadline')}
       </h1>
       <p className="max-w-prose text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-        {BRAND_NAME} helps teams run orders, stock, projects, and accounts with clear roles and a single source of
-        truth—built for manufacturing operations like yours.
+        {t('marketingLead', { brand: BRAND_NAME })}
       </p>
     </section>
 
     <section id="highlights" className="space-y-4">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">At a glance</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('atAGlance')}</h2>
       <ul className="flex flex-col gap-3">
         <li className={loginHighlightCardClass}>
           <div className={loginHighlightIconWrapClass}>
             <Package className="h-4 w-4" strokeWidth={2} aria-hidden />
           </div>
-          <h3 className={loginHighlightTitleClass}>Operations &amp; inventory</h3>
+          <h3 className={loginHighlightTitleClass}>{t('highlightOpsTitle')}</h3>
           <p className={loginHighlightBodyClass}>
-            Orders, storage, machines, and ledgers connected so you always know what moved where.
+            {t('highlightOpsBody')}
           </p>
         </li>
         <li className={loginHighlightCardClass}>
           <div className={loginHighlightIconWrapClass}>
             <Users className="h-4 w-4" strokeWidth={2} aria-hidden />
           </div>
-          <h3 className={loginHighlightTitleClass}>Team &amp; workspaces</h3>
+          <h3 className={loginHighlightTitleClass}>{t('highlightTeamTitle')}</h3>
           <p className={loginHighlightBodyClass}>
-            Multi-tenant workspaces with invitations and roles so finance, floor, and managers see what they need.
+            {t('highlightTeamBody')}
           </p>
         </li>
         <li className={loginHighlightCardClass}>
           <div className={loginHighlightIconWrapClass}>
             <BarChart3 className="h-4 w-4" strokeWidth={2} aria-hidden />
           </div>
-          <h3 className={loginHighlightTitleClass}>Visibility</h3>
+          <h3 className={loginHighlightTitleClass}>{t('highlightVisibilityTitle')}</h3>
           <p className={loginHighlightBodyClass}>
-            Dashboards and structured data for decisions—without digging through spreadsheets.
+            {t('highlightVisibilityBody')}
           </p>
         </li>
       </ul>
     </section>
   </div>
-);
+  );
+};
 
 const Login2Page: React.FC = () => {
   const navigate = useNavigate();
@@ -168,13 +171,14 @@ const Login2Page: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
   const expiredToastShownRef = useRef(false);
+  const { t } = useTranslation('auth');
 
   useEffect(() => {
     if (searchParams.get('expired') !== '1') return;
     if (expiredToastShownRef.current) return;
     expiredToastShownRef.current = true;
 
-    appToast.error('Your session expired. Please sign in again.', {
+    appToast.error(t('sessionExpired'), {
       id: APP_TOAST_IDS.sessionExpired,
       duration: APP_TOAST_DURATIONS.auth,
     });
@@ -182,7 +186,7 @@ const Login2Page: React.FC = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('expired');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, t]);
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
@@ -196,7 +200,6 @@ const Login2Page: React.FC = () => {
   const isLgScreen = useIsLgScreen();
   const loginTheme = theme === 'dark' ? 'dark' : 'light';
 
-  const { t } = useTranslation('auth');
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [register, { isLoading: isRegistering }] = useRegisterMutation();
   const [updateMe] = useUpdateMeMutation();
@@ -472,17 +475,17 @@ const Login2Page: React.FC = () => {
                         disabled={isLoggingIn}
                         onClick={() => void handleDevQuickLogin()}
                       >
-                        Dev: Quick sign in (Shohan)
+                        {t('devQuickLogin')}
                       </Button>
                     ) : null}
                     <p className="text-sm text-center text-card-foreground/60">
-                      Don&apos;t have an account?{' '}
+                      {t('dontHaveAccount')}{' '}
                       <button
                         type="button"
                         onClick={() => setMode('register')}
                         className="text-brand-primary hover:text-brand-primary-hover font-semibold"
                       >
-                        Create one
+                        {t('createOne')}
                       </button>
                     </p>
                   </CardFooter>
@@ -493,19 +496,19 @@ const Login2Page: React.FC = () => {
             {mode === 'register' && (
               <>
                 <CardHeader className="space-y-1 px-8 pb-4 pt-6 sm:px-10">
-                  <CardTitle className="text-2xl font-bold text-center text-card-foreground">Create Account</CardTitle>
+                  <CardTitle className="text-2xl font-bold text-center text-card-foreground">{t('registerCardTitle')}</CardTitle>
                   <CardDescription className="text-center">
-                    Create your account, then set up or join a workspace
+                    {t('registerCardDescription')}
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleRegister}>
                   <CardContent className="space-y-4 px-8 pb-6 pt-0 sm:px-10">
                     <div className="space-y-2">
-                      <Label htmlFor="register-name">Full Name</Label>
+                      <Label htmlFor="register-name">{t('nameLabel')}</Label>
                       <Input
                         id="register-name"
                         type="text"
-                        placeholder="John Doe"
+                        placeholder={t('registerNamePlaceholder')}
                         value={registerName}
                         onChange={(e) => setRegisterName(e.target.value)}
                         required
@@ -513,11 +516,11 @@ const Login2Page: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-email">Email Address</Label>
+                      <Label htmlFor="register-email">{t('emailLabel')}</Label>
                       <Input
                         id="register-email"
                         type="email"
-                        placeholder="email@example.com"
+                        placeholder={t('emailPlaceholder')}
                         value={registerEmail}
                         onChange={(e) => setRegisterEmail(e.target.value)}
                         required
@@ -525,11 +528,11 @@ const Login2Page: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-password">Password</Label>
+                      <Label htmlFor="register-password">{t('passwordLabel')}</Label>
                       <Input
                         id="register-password"
                         type="password"
-                        placeholder="Minimum 8 characters"
+                        placeholder={t('registerPasswordMinPlaceholder')}
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
                         required
@@ -538,28 +541,27 @@ const Login2Page: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-position">Your Position</Label>
+                      <Label htmlFor="register-position">{t('positionLabel')}</Label>
                       <Input
                         id="register-position"
                         type="text"
-                        placeholder="e.g., CEO, Manager, Developer"
+                        placeholder={t('positionPlaceholder')}
                         value={registerPosition}
                         onChange={(e) => setRegisterPosition(e.target.value)}
                         className="h-11"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-timezone">Your timezone</Label>
+                      <Label htmlFor="register-timezone">{t('timezoneLabel')}</Label>
                       <TimezoneSelect
                         value={registerTimezone}
                         onChange={setRegisterTimezone}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Event logs, discussions, and notifications display in this timezone. Calendar
-                        dates stay unchanged.
+                        {t('timezoneRegisterHint')}
                       </p>
                       <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        Preview:{' '}
+                        {t('preview')}:{' '}
                         <span className="font-medium text-foreground">
                           {formatAbsoluteFromApi(new Date().toISOString(), registerTimezone)}
                         </span>
@@ -571,23 +573,23 @@ const Login2Page: React.FC = () => {
                       {isRegistering ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Creating Your Account...
+                          {t('creatingAccountLong')}
                         </>
                       ) : (
-                        'Create Account'
+                        t('createAccountButton')
                       )}
                     </Button>
                     <p className="text-xs text-center text-card-foreground/60">
-                      By creating an account, you agree to our Terms of Service
+                      {t('termsNotice')}
                     </p>
                     <p className="text-sm text-center text-card-foreground/60">
-                      Already have an account?{' '}
+                      {t('alreadyHaveAccount')}{' '}
                       <button
                         type="button"
                         onClick={() => setMode('login')}
                         className="text-brand-primary hover:text-brand-primary-hover font-semibold"
                       >
-                        Sign in
+                        {t('signInLink')}
                       </button>
                     </p>
                   </CardFooter>

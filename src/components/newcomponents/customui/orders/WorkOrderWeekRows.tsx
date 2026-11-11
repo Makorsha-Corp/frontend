@@ -9,7 +9,6 @@ import {
   weekDayBandSectionClass,
   weekDayContentInsetClass,
   weekDayCountLabel,
-  weekDayHeaderAddButtonClass,
   weekDayHeaderCountClass,
 } from './weekCalendarStyles';
 import WorkOrderSheetTable from './WorkOrderSheetTable';
@@ -27,7 +26,6 @@ export interface WorkOrderWeekRowsProps {
 const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
   days,
   onSelectDay,
-  onAddForDay,
   onRowClick,
   currentUserId = null,
   members = [],
@@ -57,7 +55,7 @@ const WorkOrderWeekRows: React.FC<WorkOrderWeekRowsProps> = ({
             </button>
             {!day.isEmpty ? (
               <span className={weekDayHeaderCountClass()}>{weekDayCountLabel(day)}</span>
-            </div>
+            ) : null}
           </div>
 
           {hasTable ? (

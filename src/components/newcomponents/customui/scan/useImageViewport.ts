@@ -143,14 +143,7 @@ export function useImageViewport({
         ),
       };
     });
-  }, [
-    containerSize.height,
-    containerSize.width,
-    layout.displayHeight,
-    layout.displayWidth,
-    layout.offsetX,
-    layout.offsetY,
-  ]);
+  }, [containerSize.height, containerSize.width, layout]);
 
   const localPoint = useCallback((event: React.PointerEvent<HTMLDivElement>): PointerRecord => {
     const rect = viewportRef.current?.getBoundingClientRect();

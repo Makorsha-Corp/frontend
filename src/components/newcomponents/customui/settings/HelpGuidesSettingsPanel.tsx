@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { appToast } from '@/lib/appToast';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,7 @@ import {
 import { useResetHelpGuidesMutation } from '@/features/auth/authApi';
 
 const HelpGuidesSettingsPanel: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   const [resetHelpGuides, { isLoading: isResettingWorkspace }] = useResetHelpGuidesMutation();
   const [resetAllOpen, setResetAllOpen] = useState(false);
   const [isResettingAll, setIsResettingAll] = useState(false);
@@ -20,9 +22,9 @@ const HelpGuidesSettingsPanel: React.FC = () => {
   const handleResetWorkspace = async () => {
     try {
       await resetHelpGuides({ scope: 'workspace' }).unwrap();
-      appToast.success('Page guides reset for this workspace');
+      appToast.success(t('settings:pageGuidesResetWorkspaceSuccess'));
     } catch {
-      appToast.error('Could not reset page guides');
+      appToast.error(t('settings:pageGuidesResetWorkspaceFailed'));
     }
   };
 
@@ -30,10 +32,10 @@ const HelpGuidesSettingsPanel: React.FC = () => {
     setIsResettingAll(true);
     try {
       await resetHelpGuides({ scope: 'all' }).unwrap();
-      appToast.success('Page guides reset on all workspaces');
+      appToast.success(t('settings:pageGuidesResetAllSuccess'));
       setResetAllOpen(false);
     } catch {
-      appToast.error('Could not reset page guides');
+      appToast.error(t('settings:pageGuidesResetWorkspaceFailed'));
     } finally {
       setIsResettingAll(false);
     }
@@ -41,10 +43,7 @@ const HelpGuidesSettingsPanel: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        First-visit walkthroughs run once per page. Resetting replays them the next time you open
-        each page.
-      </p>
+      <p className="text-sm text-muted-foreground">{t('settings:pageGuidesResetHint')}</p>
       <div className="flex flex-wrap gap-3">
         <Button
           type="button"
@@ -55,25 +54,22 @@ const HelpGuidesSettingsPanel: React.FC = () => {
           {isResettingWorkspace ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Resetting…
+              {t('settings:resetting')}
             </>
           ) : (
-            'Reset guides for this workspace'
+            t('settings:resetGuidesWorkspace')
           )}
         </Button>
         <Button type="button" variant="outline" onClick={() => setResetAllOpen(true)}>
-          Reset on all workspaces…
+          {t('settings:resetGuidesAllPrompt')}
         </Button>
       </div>
 
       <Dialog open={resetAllOpen} onOpenChange={setResetAllOpen}>
         <DialogContent className="w-[min(28rem,94vw)] max-w-none">
           <DialogHeader>
-            <DialogTitle>Reset page guides everywhere?</DialogTitle>
-            <DialogDescription>
-              This clears seen walkthroughs for every workspace on your account. Tours will auto-run
-              again on first visit to each page.
-            </DialogDescription>
+            <DialogTitle>{t('settings:resetGuidesAllTitle')}</DialogTitle>
+            <DialogDescription>{t('settings:resetGuidesAllDescription')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -82,10 +78,10 @@ const HelpGuidesSettingsPanel: React.FC = () => {
               disabled={isResettingAll}
               onClick={() => setResetAllOpen(false)}
             >
-              Cancel
+              {t('common:cancel')}
             </Button>
             <Button type="button" disabled={isResettingAll} onClick={() => void handleResetAll()}>
-              {isResettingAll ? 'Resetting…' : 'Reset all'}
+              {isResettingAll ? t('settings:resetting') : t('settings:resetAll')}
             </Button>
           </DialogFooter>
         </DialogContent>

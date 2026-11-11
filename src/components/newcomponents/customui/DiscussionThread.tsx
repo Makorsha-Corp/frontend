@@ -905,7 +905,7 @@ export default function DiscussionThread({
   );
 
   const members = membersData ?? [];
-  const attachments = attachmentsData?.items ?? [];
+  const attachments = useMemo(() => attachmentsData?.items ?? [], [attachmentsData?.items]);
   const attachmentNames = useMemo(() => buildAttachmentNameMap(attachments), [attachments]);
 
   const openAttachmentPreview = useCallback(
@@ -917,7 +917,7 @@ export default function DiscussionThread({
     },
     [attachments],
   );
-  const discussions = data?.items ?? [];
+  const discussions = useMemo(() => data?.items ?? [], [data?.items]);
   const total = data?.total ?? 0;
 
   useLayoutEffect(() => {

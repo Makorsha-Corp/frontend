@@ -82,10 +82,10 @@ const RecipePickerPreview: React.FC<RecipePickerPreviewProps> = ({ formula, line
     skip: !formula.route_id,
   });
 
-  const stages = stagesRaw ?? [];
-  const stageItems = stageItemsRaw ?? [];
-  const stageParameters = stageParametersRaw ?? [];
-  const routeSteps = routeStepsRaw ?? [];
+  const stages = useMemo(() => stagesRaw ?? [], [stagesRaw]);
+  const stageItems = useMemo(() => stageItemsRaw ?? [], [stageItemsRaw]);
+  const stageParameters = useMemo(() => stageParametersRaw ?? [], [stageParametersRaw]);
+  const routeSteps = useMemo(() => routeStepsRaw ?? [], [routeStepsRaw]);
 
   const loadingPath =
     loadingStages ||

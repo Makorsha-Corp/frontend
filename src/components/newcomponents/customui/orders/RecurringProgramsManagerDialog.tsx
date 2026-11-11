@@ -51,12 +51,6 @@ const RecurringProgramsManagerDialog: React.FC<RecurringProgramsManagerDialogPro
     return machines.find((m) => m.id === machineId)?.factory_section_id ?? null;
   }, [machineId, machines]);
 
-  const openEdit = (template: WorkOrderTemplate) => {
-    setEditingTemplate(template);
-    setOpenAsRecurring(false);
-    setEditorOpen(true);
-  };
-
   const openCreateRecurring = () => {
     setEditingTemplate(null);
     setOpenAsRecurring(true);

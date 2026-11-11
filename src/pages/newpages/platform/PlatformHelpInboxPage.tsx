@@ -145,13 +145,7 @@ const PlatformHelpInboxPage: React.FC<PlatformHelpInboxPageProps> = ({ type }) =
         status: 'active',
       }),
     );
-  }, [
-    selectedTicket?.id,
-    selectedTicket?.workspace_id,
-    selectedTicket?.workspace_name,
-    dispatch,
-    workspace?.role,
-  ]);
+  }, [selectedTicket, dispatch, workspace?.role]);
 
   useEffect(() => {
     return () => {

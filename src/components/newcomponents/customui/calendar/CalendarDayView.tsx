@@ -3,7 +3,6 @@ import { groupEventsByCategory } from '@/pages/newpages/calendar/calendarDateUti
 import type { CalendarDayCell } from '@/pages/newpages/calendar/calendarDateUtils';
 import CalendarCategoryDivider from './CalendarCategoryDivider';
 import CalendarEventCard from './CalendarEventCard';
-import { calendarGridShellClass } from './calendarPageStyles';
 
 export interface CalendarDayViewProps {
   day: CalendarDayCell;

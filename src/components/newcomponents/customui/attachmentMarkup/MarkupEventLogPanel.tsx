@@ -42,7 +42,7 @@ export default function MarkupEventLogPanel({
   const { data, isLoading } = useGetAttachmentMarkupEventsQuery(attachmentId, {
     skip: !markupEnabled,
   });
-  const events = data?.items ?? [];
+  const events = useMemo(() => data?.items ?? [], [data?.items]);
 
   const sessionGroups = useMemo(() => groupEventsBySession(events), [events]);
   const hasLayers = layers.length > 0;

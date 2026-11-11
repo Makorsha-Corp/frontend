@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { appToast } from '@/lib/appToast';
 
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -12,33 +13,39 @@ import {
   type ProductionMachinePickPolicy,
 } from '@/lib/productionMachinePickPolicy';
 
-const OPTIONS: { value: ProductionMachinePickPolicy; title: string; description: string }[] = [
-  {
-    value: 'soft',
-    title: 'Soft warnings (default)',
-    description:
-      'Always allow picks. Warn for off, maintenance, another in-progress step on the machine, or overlapping planned windows.',
-  },
-  {
-    value: 'block_unavailable',
-    title: 'Block unavailable',
-    description:
-      'Refuse off or maintenance. A second live step and plan overlap only warn.',
-  },
-  {
-    value: 'block_overlap',
-    title: 'Block live overlap',
-    description:
-      'Refuse off, maintenance, or a machine that already has another in-progress step. Planned window overlap still only warns.',
-  },
-];
-
 const ProductionMachinePickPolicyPanel: React.FC = () => {
+  const { t } = useTranslation('settings');
   const dispatch = useAppDispatch();
   const workspace = useAppSelector((state) => state.auth.workspace);
   const isOwner = workspace?.role === 'owner';
   const [policy, setPolicy] = useState<ProductionMachinePickPolicy>('soft');
   const [updateWorkspace, { isLoading: isSaving }] = useUpdateWorkspaceMutation();
+
+  const options = useMemo(
+    () =>
+      [
+        {
+          value: 'soft' as const,
+          title: t('machinePickSoftTitle'),
+          description: t('machinePickSoftDescription'),
+        },
+        {
+          value: 'block_unavailable' as const,
+          title: t('machinePickBlockUnavailableTitle'),
+          description: t('machinePickBlockUnavailableDescription'),
+        },
+        {
+          value: 'block_overlap' as const,
+          title: t('machinePickBlockOverlapTitle'),
+          description: t('machinePickBlockOverlapDescription'),
+        },
+      ] satisfies {
+        value: ProductionMachinePickPolicy;
+        title: string;
+        description: string;
+      }[],
+    [t],
+  );
 
   useEffect(() => {
     setPolicy(parseProductionMachinePickPolicy(workspace?.settings));
@@ -61,20 +68,20 @@ const ProductionMachinePickPolicyPanel: React.FC = () => {
           },
         }),
       );
-      appToast.success('Production machine pick policy saved');
+      appToast.success(t('machinePickPolicySaved'));
     } catch {
-      appToast.error('Could not save policy');
+      appToast.error(t('machinePickPolicySaveFailed'));
     }
   };
 
   if (!workspace) {
-    return <p className="text-sm text-muted-foreground">No workspace loaded.</p>;
+    return <p className="text-sm text-muted-foreground">{t('noWorkspaceLoaded')}</p>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3" role="radiogroup" aria-label="Production machine pick policy">
-        {OPTIONS.map((opt) => {
+      <div className="space-y-3" role="radiogroup" aria-label={t('machinePickPolicyAria')}>
+        {options.map((opt) => {
           const selected = policy === opt.value;
           return (
             <button
@@ -98,16 +105,16 @@ const ProductionMachinePickPolicyPanel: React.FC = () => {
       </div>
 
       {!isOwner ? (
-        <p className="text-xs text-muted-foreground">Only the workspace owner can change this policy.</p>
+        <p className="text-xs text-muted-foreground">{t('machinePickOwnerOnly')}</p>
       ) : (
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving…
+              {t('saving')}
             </>
           ) : (
-            'Save policy'
+            t('savePolicy')
           )}
         </Button>
       )}

@@ -124,7 +124,7 @@ const SetupRouteRecipeEditor: React.FC<SetupRouteRecipeEditorProps> = ({
       return;
     }
     setNameDraft(activeFormula.name);
-  }, [activeFormula?.id, activeFormula?.name]);
+  }, [activeFormula]);
 
   useEffect(() => {
     const next: Record<number, { minutes: string }> = {};

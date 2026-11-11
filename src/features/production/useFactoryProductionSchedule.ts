@@ -39,7 +39,7 @@ export function useFactoryProductionSchedule(args: {
       start: scheduleQueryRange.start,
       end: scheduleQueryRange.end,
     };
-  }, [args.factoryId, scheduleQueryRange?.start, scheduleQueryRange?.end]);
+  }, [args.factoryId, scheduleQueryRange]);
 
   const { data = [] } = useGetProductionScheduleQuery(
     scheduleQueryArgs ?? { start: '', end: '' },

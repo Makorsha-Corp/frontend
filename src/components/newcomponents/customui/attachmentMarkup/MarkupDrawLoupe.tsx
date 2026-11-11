@@ -83,19 +83,6 @@ export default function MarkupDrawLoupe({
   const loupeLeft = placement?.left ?? computedPlacement.left;
   const loupeTop = placement?.top ?? computedPlacement.top;
 
-  useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = imageUrl;
-    img.onload = () => {
-      imageRef.current = img;
-      paintCanvas();
-    };
-    return () => {
-      imageRef.current = null;
-    };
-  }, [imageUrl]);
-
   const paintCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -126,6 +113,19 @@ export default function MarkupDrawLoupe({
     ctx.stroke();
     ctx.restore();
   }, [drawCenter, imageHeight, imageWidth]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
+    img.onload = () => {
+      imageRef.current = img;
+      paintCanvas();
+    };
+    return () => {
+      imageRef.current = null;
+    };
+  }, [imageUrl, paintCanvas]);
 
   useEffect(() => {
     paintCanvas();

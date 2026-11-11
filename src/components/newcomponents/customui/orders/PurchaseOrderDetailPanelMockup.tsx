@@ -323,7 +323,7 @@ const PurchaseOrderDetailPanelMockup: React.FC<PurchaseOrderDetailPanelProps> = 
       if (desc !== (order.description ?? null)) payload.description = desc;
     }
     return payload;
-  }, [draft, order, detailsLocked, notesLocked, invoiceLocked, structuralDetailsDisabled, planningDatesDisabled]);
+  }, [draft, order, notesLocked, structuralDetailsDisabled, planningDatesDisabled]);
 
   const handleCreateInvoice = async () => {
     if (!invoiceReadiness.ok) return;

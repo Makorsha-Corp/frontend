@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +25,7 @@ import { formatWallTimeHm } from '@/lib/wallTimeFormat';
 import { formatShiftChipLabel } from '@/lib/workspaceShiftChipUtils';
 
 const WorkspaceShiftsSettingsPanel: React.FC = () => {
+  const { t } = useTranslation('settings');
   const { use24Hour } = useUserTimeFormat();
   const { data: shifts = [], isLoading } = useGetWorkspaceShiftsQuery({});
   const [createShift, { isLoading: isCreating }] = useCreateWorkspaceShiftMutation();
@@ -37,7 +39,7 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
   const handleAdd = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      appToast.error('Name is required');
+      appToast.error(t('shiftsNameRequired'));
       return;
     }
     try {
@@ -48,10 +50,10 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
         sort_order: shifts.length,
       }).unwrap();
       setName('');
-      appToast.success('Shift added');
+      appToast.success(t('shiftsAddSuccess'));
     } catch (e: unknown) {
       const detail = (e as { data?: { detail?: string } })?.data?.detail;
-      appToast.error(typeof detail === 'string' ? detail : 'Failed to add shift');
+      appToast.error(typeof detail === 'string' ? detail : t('shiftsAddFailed'));
     }
   };
 
@@ -60,16 +62,16 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
       await updateShift({ id, data: { is_active: !is_active } }).unwrap();
     } catch (e: unknown) {
       const detail = (e as { data?: { detail?: string } })?.data?.detail;
-      appToast.error(typeof detail === 'string' ? detail : 'Failed to update shift');
+      appToast.error(typeof detail === 'string' ? detail : t('shiftsUpdateFailed'));
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await deleteShift(id).unwrap();
-      appToast.success('Shift removed');
+      appToast.success(t('shiftsRemoveSuccess'));
     } catch {
-      appToast.error('Failed to remove shift');
+      appToast.error(t('shiftsRemoveFailed'));
     }
   };
 
@@ -84,21 +86,18 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-card-foreground">Production shifts</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Wall-clock windows for batch planning. End before start means overnight (e.g. 22:00–06:00).
-          Windows cannot overlap.
-        </p>
+        <h2 className="text-base font-semibold text-card-foreground">{t('shiftsTitle')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('shiftsDescription')}</p>
       </div>
 
       {shifts.length > 0 ? (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Shift</TableHead>
-              <TableHead className="w-24">Start</TableHead>
-              <TableHead className="w-24">End</TableHead>
-              <TableHead className="w-24">Active</TableHead>
+              <TableHead>{t('shiftsColumnShift')}</TableHead>
+              <TableHead className="w-24">{t('shiftsColumnStart')}</TableHead>
+              <TableHead className="w-24">{t('shiftsColumnEnd')}</TableHead>
+              <TableHead className="w-24">{t('shiftsColumnActive')}</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -120,7 +119,7 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
                     className={row.is_active ? 'bg-brand-primary hover:bg-brand-primary-hover' : undefined}
                     onClick={() => void toggleActive(row.id, row.is_active)}
                   >
-                    {row.is_active ? 'On' : 'Off'}
+                    {row.is_active ? t('shiftsOn') : t('shiftsOff')}
                   </Button>
                 </TableCell>
                 <TableCell>
@@ -130,7 +129,7 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
                     size="icon"
                     className="h-8 w-8 text-destructive"
                     onClick={() => void handleDelete(row.id)}
-                    aria-label="Delete shift"
+                    aria-label={t('shiftsDeleteAria')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -141,39 +140,39 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
         </Table>
       ) : (
         <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-          No shifts yet. Add one below for batch chips on Production.
+          {t('shiftsEmpty')}
         </p>
       )}
 
       <div className="rounded-lg border border-border bg-muted/20 p-4">
-        <p className="mb-3 text-sm font-medium">Add shift</p>
+        <p className="mb-3 text-sm font-medium">{t('shiftsAddTitle')}</p>
         <div className="grid gap-3 sm:grid-cols-4">
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="shift-name">Name</Label>
+            <Label htmlFor="shift-name">{t('shiftsNameLabel')}</Label>
             <Input
               id="shift-name"
               className="h-9"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Morning"
+              placeholder={t('shiftsNamePlaceholder')}
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="shift-start">Start</Label>
+            <Label htmlFor="shift-start">{t('shiftsStartLabel')}</Label>
             <TimePickerField
               id="shift-start"
               value={startTime}
               onChange={setStartTime}
-              aria-label="Shift start time"
+              aria-label={t('shiftsStartAria')}
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="shift-end">End</Label>
+            <Label htmlFor="shift-end">{t('shiftsEndLabel')}</Label>
             <TimePickerField
               id="shift-end"
               value={endTime}
               onChange={setEndTime}
-              aria-label="Shift end time"
+              aria-label={t('shiftsEndAria')}
             />
           </div>
         </div>
@@ -185,7 +184,7 @@ const WorkspaceShiftsSettingsPanel: React.FC = () => {
           onClick={() => void handleAdd()}
         >
           {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Add shift
+          {t('shiftsAddButton')}
         </Button>
       </div>
     </div>

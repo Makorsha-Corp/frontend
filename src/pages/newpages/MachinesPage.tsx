@@ -376,21 +376,6 @@ const MachinesPage: React.FC = () => {
     [activeFilters, factories, allSections, commitMachineFilters],
   );
 
-  const clearFilters = () => {
-    setPageFactory('all');
-    setSearchParams(
-      (prev) => {
-        const next = writeFiltersToParams(prev, defaultMachineFilters);
-        next.delete('sectionId');
-        next.delete('filter_factory_ids');
-        next.delete('filter_section_ids');
-        next.delete('machineId');
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
   const { data: machines, isLoading: machinesLoading, error: machinesError } = useGetMachinesQuery(
     {
       skip: 0,
@@ -431,7 +416,7 @@ const MachinesPage: React.FC = () => {
 
   const [deleteMachine, { isLoading: isDeletingMachine }] = useDeleteMachineMutation();
 
-  const effectiveFilteredMachines = machines ?? [];
+  const effectiveFilteredMachines = React.useMemo(() => machines ?? [], [machines]);
 
   const machinesGroupedBySection = React.useMemo(() => {
     if (!factory || location.sectionId != null) return [];

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Loader2, Upload } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { appToast } from '@/lib/appToast';
 
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
@@ -42,6 +43,7 @@ function cloneStrokes(strokes: MarkupStroke[]): MarkupStroke[] {
 }
 
 const SavedStampSettingsPanel: React.FC = () => {
+  const { t } = useTranslation('settings');
   const dispatch = useAppDispatch();
   const savedStamp = useAppSelector((state) => state.auth.user?.saved_stamp ?? null);
   const [mode, setMode] = useState<StampMode>(savedStamp?.kind === 'image' ? 'upload' : 'draw');
@@ -200,7 +202,7 @@ const SavedStampSettingsPanel: React.FC = () => {
     if (!previewStamp) {
       return (
         <div className="flex min-h-[6rem] items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
-          No saved stamp yet
+          {t('stampEmpty')}
         </div>
       );
     }
@@ -244,14 +246,11 @@ const SavedStampSettingsPanel: React.FC = () => {
         </svg>
       </div>
     );
-  }, [previewStamp]);
+  }, [previewStamp, t]);
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Save one personal stamp to place on attachment markups. This is not a legal e-sign — it is
-        an overlay mark only.
-      </p>
+      <p className="text-sm text-muted-foreground">{t('stampIntro')}</p>
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -260,7 +259,7 @@ const SavedStampSettingsPanel: React.FC = () => {
           variant={mode === 'draw' ? 'default' : 'outline'}
           onClick={() => setMode('draw')}
         >
-          Draw
+          {t('stampModeDraw')}
         </Button>
         <Button
           type="button"
@@ -268,13 +267,13 @@ const SavedStampSettingsPanel: React.FC = () => {
           variant={mode === 'upload' ? 'default' : 'outline'}
           onClick={() => setMode('upload')}
         >
-          Upload photo
+          {t('stampModeUpload')}
         </Button>
       </div>
 
       {mode === 'draw' ? (
         <div className="space-y-3">
-          <Label>Draw your stamp</Label>
+          <Label>{t('stampDrawLabel')}</Label>
           <MarkupEditorToolbar
             orientation="horizontal"
             tool="pen"
@@ -297,12 +296,12 @@ const SavedStampSettingsPanel: React.FC = () => {
           />
           <Button type="button" size="sm" onClick={handleSaveDrawn} disabled={isBusy}>
             {isSavingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save drawn stamp
+            {t('stampSaveDrawn')}
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
-          <Label htmlFor="stamp-upload-input">Upload on white paper</Label>
+          <Label htmlFor="stamp-upload-input">{t('stampUploadLabel')}</Label>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" asChild disabled={isBusy}>
               <label htmlFor="stamp-upload-input" className="cursor-pointer">
@@ -311,7 +310,7 @@ const SavedStampSettingsPanel: React.FC = () => {
                 ) : (
                   <Upload className="mr-2 h-4 w-4" />
                 )}
-                Choose image
+                {t('stampChooseImage')}
               </label>
             </Button>
             <input
@@ -331,7 +330,7 @@ const SavedStampSettingsPanel: React.FC = () => {
               {isSigning || isSavingProfile ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Save uploaded stamp
+              {t('stampSaveUploaded')}
             </Button>
           </div>
           {uploadPreviewUrl ? (
@@ -343,7 +342,7 @@ const SavedStampSettingsPanel: React.FC = () => {
             >
               <img
                 src={uploadPreviewUrl}
-                alt="Processed stamp preview"
+                alt={t('stampPreviewAlt')}
                 className="max-h-40 max-w-full object-contain"
               />
             </div>
@@ -352,11 +351,11 @@ const SavedStampSettingsPanel: React.FC = () => {
       )}
 
       <div className="space-y-2">
-        <Label>Current saved stamp</Label>
+        <Label>{t('stampCurrentLabel')}</Label>
         {renderPreview()}
         {savedStamp ? (
           <Button type="button" variant="outline" size="sm" onClick={handleClearSaved} disabled={isBusy}>
-            Remove saved stamp
+            {t('stampRemove')}
           </Button>
         ) : null}
       </div>

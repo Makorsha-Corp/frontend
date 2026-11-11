@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_BATCH_STATUS_FILTER,
-  PRODUCTION_BATCH_STATUSES,
 } from '@/components/newcomponents/customui/production/ProductionContextFilters';
 
 import {

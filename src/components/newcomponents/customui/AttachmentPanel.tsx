@@ -191,7 +191,10 @@ export default function AttachmentPanel({
     { skip: !canQuery },
   );
 
-  const attachments = attachmentList?.items ?? [];
+  const attachments = useMemo(
+    () => attachmentList?.items ?? [],
+    [attachmentList?.items],
+  );
   const slotCount = attachmentList?.slot_count ?? attachments.length;
   const maxPerEntity = attachmentList?.max_per_entity ?? MAX_ATTACHMENTS_PER_ENTITY;
   const atCapacity = slotCount >= maxPerEntity;

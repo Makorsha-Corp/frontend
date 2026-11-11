@@ -4,7 +4,6 @@ import {
   locationFilterLabels,
   normalizeLocationSlice,
   selectAllFactories,
-  toolbarFactoryDropdownLabel,
 } from './machinesLocationFilters';
 
 const sections = [

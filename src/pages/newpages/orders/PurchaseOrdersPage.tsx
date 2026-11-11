@@ -321,7 +321,7 @@ const PurchaseOrdersPage: React.FC = () => {
     );
   }, [selectedOrderId, selectedFromList, selectedByIdError, setSearchParams]);
 
-  const setSelectedOrder = (orderId: number | null) => {
+  const setSelectedOrder = useCallback((orderId: number | null) => {
     setSelectedOrderId(orderId);
     if (orderId == null) {
       setSearchParams(
@@ -339,7 +339,7 @@ const PurchaseOrdersPage: React.FC = () => {
       next.set('orderId', String(orderId));
       return next;
     });
-  };
+  }, [setSearchParams]);
 
   const exitPostTourSampleExplore = useCallback(() => {
     setPostTourSampleExplore(false);
@@ -365,7 +365,7 @@ const PurchaseOrdersPage: React.FC = () => {
     resetPurchaseTourSample,
     selectedOrderId,
     setSearchParams,
-    tourSample.closeSample,
+    tourSample,
   ]);
 
   const postTourExploreToastShownRef = useRef(false);
@@ -438,13 +438,7 @@ const PurchaseOrdersPage: React.FC = () => {
         if (el instanceof HTMLElement) el.blur();
       });
     }
-  }, [
-    tourSample.tourActive,
-    tourSample.postTourExplore,
-    tourSample.closeSample,
-    resetPurchaseTourSample,
-    setSearchParams,
-  ]);
+  }, [tourSample, resetPurchaseTourSample, setSearchParams]);
 
   /** Sample off overview while guide off — unless post-tour explore. */
   useEffect(() => {
@@ -485,7 +479,7 @@ const PurchaseOrdersPage: React.FC = () => {
     if (wasOpen) return;
     if (selectedOrderId === purchaseTourSample.id) return;
     setSelectedOrder(purchaseTourSample.id);
-  }, [tourSample.sampleOpen, purchaseTourSample, selectedOrderId]);
+  }, [tourSample.sampleOpen, purchaseTourSample, selectedOrderId, setSelectedOrder]);
 
   const formatCurrency = (v: number | null | undefined) =>
     v != null

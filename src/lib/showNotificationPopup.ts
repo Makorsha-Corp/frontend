@@ -1,10 +1,8 @@
 import { createElement } from 'react';
-import type { Toast } from 'react-hot-toast';
-
 import type { AppNotification } from '@/components/newcomponents/customui/notifications/notificationTypes';
 import { localizedNotificationTitle } from '@/components/newcomponents/customui/notifications/notificationI18n';
 import i18n from '@/i18n';
-import { appToast } from '@/lib/appToast';
+import { appToast, type Toast } from '@/lib/appToast';
 
 const NOTIFICATION_POPUP_DURATION_MS = 8_000;
 

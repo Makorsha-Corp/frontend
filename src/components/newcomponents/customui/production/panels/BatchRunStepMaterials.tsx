@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -86,9 +86,9 @@ type MaterialRow = BatchStepMaterialRow;
 
 const BatchRunStepMaterials = forwardRef<BatchRunStepMaterialsHandle, BatchRunStepMaterialsProps>(({
   stageLog,
-  stageLogs = [],
+  stageLogs: _stageLogs = [],
   formulaStageItems,
-  formulaStages = [],
+  formulaStages: _formulaStages = [],
   batchItems,
   stepItems = [],
   getItemName,
@@ -204,7 +204,7 @@ const BatchRunStepMaterials = forwardRef<BatchRunStepMaterialsHandle, BatchRunSt
 
   const hasAnyConditions = displayConditions.length > 0;
 
-  const saveConditions = async () => {
+  const saveConditions = useCallback(async () => {
     let ok = true;
     let changed = false;
     const parameters: ProductionBatchStageParameter[] = [];
@@ -242,7 +242,7 @@ const BatchRunStepMaterials = forwardRef<BatchRunStepMaterialsHandle, BatchRunSt
       }
     }
     return { ok, changed, parameters };
-  };
+  }, [displayConditions, draftConditionActual, draftConditionPlanned, onSaveCondition]);
 
   useImperativeHandle(
     ref,

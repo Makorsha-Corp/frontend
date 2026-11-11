@@ -144,8 +144,10 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
   }, [hubSummary]);
 
   const searchPlaceholder = isAllAccounts
-    ? 'Search accounts...'
-    : `Search ${activeConfig.label.toLowerCase()}...`;
+    ? t('searchAccountsPlaceholder')
+    : t('searchSectionPlaceholder', {
+        section: isOpenReceivable ? t('sectionReceivable') : t('sectionPayable'),
+      });
 
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
 
@@ -244,14 +246,14 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                 onClick={() => setIsManageAccountsOpen(true)}
                 className={`hidden lg:inline-flex ${appShellHeaderControlClass}`}
               >
-                Manage Accounts
+                {t('manageAccounts')}
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
                 className={`hidden lg:inline-flex ${appShellHeaderControlClass} bg-brand-primary hover:bg-brand-primary-hover shadow-sm`}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add account
+                {t('addAccount')}
               </Button>
             </div>
           </div>
@@ -342,7 +344,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                         </div>
                       ) : error ? (
                         <div className="flex min-h-full items-center justify-center py-16 text-center text-destructive">
-                          Failed to load accounts.
+                          {t('loadAccountsFailed')}
                         </div>
                       ) : overviewPopulationMetrics.totalAccounts === 0 ? (
                         <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
@@ -350,25 +352,28 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                             <Building2 className="h-10 w-10 text-brand-primary" />
                           </div>
                           <h3 className="mb-2 text-lg font-semibold text-card-foreground">
-                            No accounts yet
+                            {t('noAccountsYet')}
                           </h3>
-                          <p className="mb-4 text-muted-foreground">Add your first account.</p>
+                          <p className="mb-4 text-muted-foreground">{t('addFirstAccount')}</p>
                           <Button
                             onClick={() => setIsAddDialogOpen(true)}
                             className="bg-brand-primary hover:bg-brand-primary-hover"
                           >
                             <Plus className="mr-2 h-4 w-4" />
-                            Add account
+                            {t('addAccount')}
                           </Button>
                         </div>
                       ) : emptyFiltered ? (
                         <div className="flex min-h-full flex-col items-center justify-center px-4 py-16 text-center">
                           <h3 className="mb-2 text-lg font-semibold text-card-foreground">
-                            No accounts in this view
+                            {t('noAccountsInView')}
                           </h3>
                           <p className="mx-auto max-w-lg text-sm text-muted-foreground">
-                            No accounts here have open {isOpenReceivable ? 'receivable' : 'payable'} invoices right now.
-                            Try another section or open an account from an invoice.
+                            {t('noOpenInvoicesInView', {
+                              balanceType: isOpenReceivable
+                                ? t('balanceTypeReceivable')
+                                : t('balanceTypePayable'),
+                            })}
                           </p>
                         </div>
                       ) : (
@@ -389,29 +394,29 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                               <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow className="bg-muted/50">
                                   <TableHead className="w-[60px]">ID</TableHead>
-                                  <TableHead>Name</TableHead>
-                                  <TableHead>Code</TableHead>
-                                  <TableHead>Contact Details</TableHead>
-                                  <TableHead>Address</TableHead>
+                                  <TableHead>{t('columnName')}</TableHead>
+                                  <TableHead>{t('columnCode')}</TableHead>
+                                  <TableHead>{t('columnContactDetails')}</TableHead>
+                                  <TableHead>{t('columnAddress')}</TableHead>
                                   {isAllAccounts ? (
                                     <>
-                                      <TableHead>Tags</TableHead>
-                                      <TableHead>Open balances</TableHead>
+                                      <TableHead>{t('columnTags')}</TableHead>
+                                      <TableHead>{t('columnOpenBalances')}</TableHead>
                                     </>
                                   ) : null}
                                   {isOpenPayable ? (
                                     <>
-                                      <TableHead className="text-right">Open payable</TableHead>
-                                      <TableHead className="text-right">Open invoices</TableHead>
+                                      <TableHead className="text-right">{t('columnOpenPayable')}</TableHead>
+                                      <TableHead className="text-right">{t('columnOpenInvoices')}</TableHead>
                                     </>
                                   ) : null}
                                   {isOpenReceivable ? (
                                     <>
-                                      <TableHead className="text-right">Open receivable</TableHead>
-                                      <TableHead className="text-right">Open invoices</TableHead>
+                                      <TableHead className="text-right">{t('columnOpenReceivable')}</TableHead>
+                                      <TableHead className="text-right">{t('columnOpenInvoices')}</TableHead>
                                     </>
                                   ) : null}
-                                  <TableHead className="w-[100px] text-right">Actions</TableHead>
+                                  <TableHead className="w-[100px] text-right">{t('columnActions')}</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -475,7 +480,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                                                 <Pencil className="h-4 w-4" />
                                               </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Edit</TooltipContent>
+                                            <TooltipContent>{t('editAccount')}</TooltipContent>
                                           </Tooltip>
                                           <Tooltip>
                                             <TooltipTrigger asChild>
@@ -489,7 +494,7 @@ const AccountsLandingPage: React.FC<{ initialSection?: AccountsHubSectionPath }>
                                                 <Trash2 className="h-4 w-4" />
                                               </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>Deactivate</TooltipContent>
+                                            <TooltipContent>{t('deactivateAccount')}</TooltipContent>
                                           </Tooltip>
                                         </TooltipProvider>
                                       </TableCell>
